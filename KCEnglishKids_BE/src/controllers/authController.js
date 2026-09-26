@@ -368,12 +368,120 @@ const childRegister = async (req, res, next) => {
   }
 };
 
+// @desc    Child changes their own PIN
+// @route   POST /api/auth/change-pin
+// @access  Private / Child
+const changePin = async (req, res, next) => {
+  try {
+    const { currentPin, newPin } = req.body;
+
+    // Validate inputs
+    if (!currentPin || !newPin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current PIN and new PIN are required.'
+      });
+    }
+    const newPinStr = String(newPin).trim();
+    if (!/^\d{4}$/.test(newPinStr)) {
+      return res.status(400).json({
+        success: false,
+        message: 'New PIN must be exactly 4 digits.'
+      });
+    }
+
+    const child = await User.findById(req.user._id);
+    if (!child || child.role !== 'CHILD') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only children can change their PIN.'
+      });
+    }
+
+    // Verify current PIN
+    const isMatch = await child.matchPin(String(currentPin).trim());
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current PIN is incorrect. Please try again.'
+      });
+    }
+
+    // Set new PIN and password (pre-save hook will hash them)
+    child.pin = newPinStr;
+    child.password = newPinStr;
+    await child.save();
+
+    res.json({
+      success: true,
+      message: 'Đổi mã PIN và mật khẩu học tập thành công! 🎉'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Parent looks up child username/account using registered phone
+// @route   POST /api/auth/lookup-student
+// @access  Public
+const lookupStudent = async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập Số điện thoại phụ huynh đã đăng ký.'
+      });
+    }
+
+    const cleanPhone = phone.trim();
+    const students = await User.find({
+      role: 'CHILD',
+      status: 'ACTIVE',
+      $or: [
+        { phone: cleanPhone },
+        { contact: cleanPhone },
+        { parentContact: cleanPhone }
+      ]
+    })
+      .select('name email phone avatar avatarUrl ageGroupCode assignedClass')
+      .populate('assignedClass', 'name');
+
+    if (!students || students.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tài khoản bé nào gắn với Số điện thoại này. Bố mẹ vui lòng liên hệ giáo viên chủ nhiệm để được cấp lại tài khoản nhé!'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Tìm thấy ${students.length} tài khoản bé:`,
+      data: students.map(s => ({
+        id: s._id,
+        name: s.name,
+        email: s.email,
+        phone: s.phone,
+        avatar: s.avatar,
+        avatarUrl: s.avatarUrl,
+        ageGroupCode: s.ageGroupCode,
+        className: s.assignedClass ? s.assignedClass.name : 'Chưa xếp lớp'
+      }))
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getChildAvatars,
   childLogin,
   childRegister,
   adminLogin,
   teacherLogin,
-  getMe
+  getMe,
+  changePin,
+  lookupStudent
 };
+
 

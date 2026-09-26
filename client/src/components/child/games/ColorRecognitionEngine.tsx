@@ -52,47 +52,47 @@ export const ColorRecognitionEngine: React.FC<ColorRecognitionEngineProps> = ({
   };
 
   const optionCount = question.options.length;
-  const gridColsClass = optionCount <= 2 ? 'grid-cols-2 max-w-md' : optionCount === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-2xl' : 'grid-cols-2 sm:grid-cols-4 max-w-3xl';
+  const gridColsClass = optionCount <= 2 ? 'grid-cols-2 max-w-3xl' : optionCount === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-5xl' : 'grid-cols-2 sm:grid-cols-4 max-w-6xl';
 
   return (
-    <div className="flex flex-col items-center w-full max-w-3xl mx-auto text-center animate-pop-in">
+    <div className="flex flex-col items-center w-full max-w-5xl mx-auto text-center select-none animate-pop-in">
       {/* Playful Banner */}
-      <span className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-100 via-rose-100 to-sky-100 text-slate-800 font-black px-4 py-1.5 rounded-full text-xs sm:text-sm mb-4 border border-amber-300 shadow-xs animate-pulse">
-        <Sparkles className="w-4 h-4 text-amber-600" />
+      <span className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-100 via-rose-100 to-sky-100 text-slate-900 font-black px-8 py-3 rounded-full text-base sm:text-xl mb-6 border-3 border-amber-300 shadow-md animate-pulse">
+        <Sparkles className="w-6 h-6 text-amber-600" />
         Bé hãy quan sát và chọn đúng đồ vật có màu sắc nhé!
       </span>
 
       {/* Prominent Speaker & Color Target Pill */}
-      <div className="flex flex-col items-center mb-6">
+      <div className="flex flex-col items-center mb-8">
         <button
           onClick={handlePlayAudio}
-          className="btn-kid w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-rose-400 via-amber-400 to-emerald-400 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-xl cursor-pointer transition-all ring-6 ring-amber-200/70"
+          className="btn-kid w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-tr from-rose-400 via-amber-400 to-emerald-400 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-2xl cursor-pointer transition-all ring-10 ring-amber-200/70"
           title="Bấm để nghe lại tên màu"
         >
-          <Volume2 className="w-12 h-12 sm:w-14 sm:h-14" />
+          <Volume2 className="w-16 h-16 sm:w-20 sm:h-20" />
         </button>
 
-        <div className="mt-3.5 inline-flex items-center gap-2.5 px-4 py-1.5 rounded-2xl border-2 shadow-xs bg-white" style={{ borderColor: colorTheme.border }}>
-          <span className="w-4 h-4 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: colorTheme.border }} />
-          <span className="text-xl sm:text-2xl font-black capitalize" style={{ color: colorTheme.text }}>
+        <div className="mt-5 inline-flex items-center gap-3 px-6 py-2.5 rounded-3xl border-3 shadow-md bg-white" style={{ borderColor: colorTheme.border }}>
+          <span className="w-6 h-6 rounded-full border-2 border-slate-300 shadow-inner" style={{ backgroundColor: colorTheme.border }} />
+          <span className="text-2xl sm:text-3xl font-black capitalize" style={{ color: colorTheme.text }}>
             {targetColorKey}
           </span>
-          <span className="text-xs font-extrabold text-slate-400">
+          <span className="text-sm sm:text-base font-extrabold text-slate-400">
             ({colorTheme.labelVi})
           </span>
         </div>
       </div>
 
       {/* Options Grid: Progressive Difficulty (2 -> 3 -> 4 choices) */}
-      <div className={`grid ${gridColsClass} gap-4 sm:gap-5 w-full mx-auto`}>
+      <div className={`grid ${gridColsClass} gap-5 sm:gap-8 w-full mx-auto px-4`}>
         {question.options.map((opt) => {
           const isSelected = selectedOptionId === opt.id;
-          let cardStyle = 'border-slate-200 bg-white hover:border-amber-400 shadow-md hover:shadow-lg hover:scale-103';
+          let cardStyle = 'border-slate-200 bg-white hover:border-amber-400 shadow-xl hover:scale-103';
 
           if (isSelected) {
             cardStyle = opt.isCorrect
-              ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 scale-105 shadow-xl animate-soft-bounce'
-              : 'border-rose-500 bg-rose-50 ring-4 ring-rose-300 animate-gentle-wobble';
+              ? 'border-emerald-500 bg-emerald-50 ring-8 ring-emerald-300 scale-105 shadow-2xl animate-soft-bounce'
+              : 'border-rose-500 bg-rose-50 ring-8 ring-rose-300 animate-gentle-wobble';
           }
 
           return (
@@ -100,9 +100,9 @@ export const ColorRecognitionEngine: React.FC<ColorRecognitionEngineProps> = ({
               key={opt.id}
               onClick={() => handleSelectOption(opt)}
               disabled={disabled || selectedOptionId !== null}
-              className={`btn-kid rounded-3xl border-4 p-4 flex flex-col items-center justify-center cursor-pointer transition-all relative group overflow-hidden ${cardStyle}`}
+              className={`btn-kid rounded-3xl sm:rounded-4xl border-4 p-5 sm:p-7 flex flex-col items-center justify-center cursor-pointer transition-all relative group overflow-hidden ${cardStyle}`}
             >
-              <div className="w-28 h-28 sm:w-32 sm:h-32 mb-2 flex items-center justify-center p-2 rounded-2xl bg-slate-50 group-hover:bg-amber-50/50 transition-colors">
+              <div className="w-36 h-36 sm:w-48 sm:h-48 mb-3 flex items-center justify-center p-3 rounded-3xl bg-slate-50 group-hover:bg-amber-50/50 transition-colors">
                 {opt.imageUrl ? (
                   <img
                     src={opt.imageUrl}
@@ -110,24 +110,24 @@ export const ColorRecognitionEngine: React.FC<ColorRecognitionEngineProps> = ({
                     className="w-full h-full object-contain filter drop-shadow group-hover:scale-105 transition-transform"
                   />
                 ) : (
-                  <HelpCircle className="w-16 h-16 text-slate-300" />
+                  <HelpCircle className="w-20 h-20 text-slate-300" />
                 )}
               </div>
 
-              <span className="font-black text-base sm:text-lg text-slate-800 capitalize leading-tight">
+              <span className="font-black text-2xl sm:text-3xl text-slate-800 capitalize leading-tight">
                 {opt.text}
               </span>
 
               {opt.vietnameseText && (
-                <span className="text-xs font-bold text-slate-400 mt-0.5">
+                <span className="text-sm sm:text-base font-bold text-slate-400 mt-1">
                   {opt.vietnameseText}
                 </span>
               )}
 
               {/* Checkmark overlay on correct */}
               {isSelected && opt.isCorrect && (
-                <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md animate-pop-in">
-                  <Check className="w-5 h-5 stroke-[3]" />
+                <div className="absolute top-3 right-3 w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-pop-in">
+                  <Check className="w-6 h-6 stroke-[3]" />
                 </div>
               )}
             </button>

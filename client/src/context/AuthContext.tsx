@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, AgeGroupCode } from '../types';
 import { authApi } from '../services/api';
+import { vocabMasteryService } from '../services/vocabMasteryService';
 
 interface AuthContextType {
   user: User | null;
@@ -42,6 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (res.success && res.data) {
             setUser(res.data);
             localStorage.setItem('kc_user', JSON.stringify(res.data));
+            if (res.data.role === 'CHILD') {
+              vocabMasteryService.syncWithBackend(res.data.id || res.data._id);
+            }
           }
         } catch (e) {
           console.warn('Session expired, clearing token');
@@ -62,6 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('kc_token', res.token);
       localStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
+      if (res.user?.role === 'CHILD') {
+        vocabMasteryService.syncWithBackend(res.user.id || res.user._id);
+      }
     }
   };
 
@@ -71,6 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('kc_token', res.token);
       localStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
+      if (res.user?.role === 'CHILD') {
+        vocabMasteryService.syncWithBackend(res.user.id || res.user._id);
+      }
     }
   };
 

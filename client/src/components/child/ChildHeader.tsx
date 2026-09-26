@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Star, LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked } from 'lucide-react';
+import { Star, LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
@@ -58,86 +58,86 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
   return (
     <>
-      <header className="bg-white/95 backdrop-blur-md border-b-4 border-amber-200 px-3 sm:px-5 py-2.5 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+      <header className="bg-white/95 backdrop-blur-md border-b-4 border-amber-200 px-3 sm:px-6 py-3 sticky top-0 z-30 shadow-xs">
+        <div className="max-w-[1700px] w-full mx-auto flex items-center justify-between gap-4">
           {/* Brand Logo & Mascot Mini */}
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => handleNav('path')}
-              className="flex items-center gap-2 group cursor-pointer focus:outline-none"
+              className="flex items-center gap-2.5 group cursor-pointer focus:outline-none"
             >
-              <div className="w-11 h-11 rounded-2xl bg-amber-400 p-0.5 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400 p-0.5 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center flex-shrink-0">
                 <KokoMascot state="happy" size="sm" interactive={false} />
               </div>
               <div className="text-left hidden xs:block">
-                <span className="font-black text-xl sm:text-2xl bg-gradient-to-r from-amber-600 via-orange-500 to-pink-600 bg-clip-text text-transparent">
+                <span className="font-black text-2xl sm:text-3xl bg-gradient-to-r from-amber-600 via-orange-500 to-pink-600 bg-clip-text text-transparent">
                   KCEnglishKids
                 </span>
-                <span className="block text-[10px] font-black text-amber-600 uppercase tracking-wider">
+                <span className="block text-xs font-black text-amber-600 uppercase tracking-wider">
                   Mầm Non 3–6 Tuổi
                 </span>
               </div>
             </button>
 
             {/* Desktop navigation: 5 destinations with distinct vibrant active lights */}
-            <div className="hidden lg:flex items-center gap-1.5 ml-4 pl-4 border-l-2 border-amber-100">
+            <div className="hidden lg:flex items-center gap-2 ml-4 pl-4 border-l-2 border-amber-200">
               <button
                 onClick={() => handleNav('path')}
-                className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 transition-all cursor-pointer ${
                   isPathActive
                     ? 'bg-amber-400 text-amber-950 shadow-md shadow-amber-400/30 ring-2 ring-amber-300 scale-105'
                     : 'text-slate-600 hover:bg-amber-50 hover:text-amber-900'
                 }`}
               >
-                <Map className="w-4 h-4" />
+                <Map className="w-5 h-5" />
                 <span>Hành trình</span>
               </button>
 
               <button
                 onClick={() => handleNav('topics')}
-                className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 transition-all cursor-pointer ${
                   isTopicsActive
                     ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-300 scale-105'
                     : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'
                 }`}
               >
-                <Compass className="w-4 h-4" />
+                <Compass className="w-5 h-5" />
                 <span>Chủ đề mở rộng</span>
               </button>
 
               <button
                 onClick={() => handleNav('vocab')}
-                className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 transition-all cursor-pointer ${
                   isVocabActive
                     ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30 ring-2 ring-rose-300 scale-105'
                     : 'text-slate-600 hover:bg-rose-50 hover:text-rose-900'
                 }`}
               >
-                <BookMarked className="w-4 h-4" />
+                <BookMarked className="w-5 h-5" />
                 <span>Sổ từ vựng</span>
               </button>
 
               <button
                 onClick={() => handleNav('games')}
-                className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 transition-all cursor-pointer ${
                   isGamesActive
                     ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30 ring-2 ring-sky-300 scale-105'
                     : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900'
                 }`}
               >
-                <Gamepad2 className="w-4 h-4" />
+                <Gamepad2 className="w-5 h-5" />
                 <span>Trò chơi</span>
               </button>
 
               <button
                 onClick={() => handleNav('badges')}
-                className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-4.5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 transition-all cursor-pointer ${
                   isBadgesActive
                     ? 'bg-purple-500 text-white shadow-md shadow-purple-500/30 ring-2 ring-purple-300 scale-105'
                     : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900'
                 }`}
               >
-                <Award className="w-4 h-4" />
+                <Award className="w-5 h-5" />
                 <span>Huy hiệu</span>
               </button>
             </div>
@@ -203,6 +203,19 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 </span>
               </button>
             )}
+
+            {/* Change Password */}
+            <button
+              onClick={() => {
+                sfx.playPop();
+                navigate('/child/change-pin');
+              }}
+              title="Đổi mật khẩu của bé"
+              aria-label="Đổi mật khẩu của bé"
+              className="p-2 rounded-2xl bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 border border-slate-200 transition-colors cursor-pointer"
+            >
+              <KeyRound className="w-4 h-4" />
+            </button>
 
             {/* Switch Player / Logout */}
             <button

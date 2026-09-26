@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
   {
     role: {
       type: String,
-      enum: ['ADMIN', 'TEACHER', 'CHILD'],
+      enum: ['ADMIN', 'TEACHER', 'CHILD', 'PARENT'],
       required: true,
       index: true
     },
@@ -63,6 +63,11 @@ const userSchema = new mongoose.Schema(
     assignedClass: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ClassRoom'
+    },
+    // For CHILD: parent's contact (email or phone) used for notifications
+    parentContact: {
+      type: String,
+      trim: true
     },
     status: {
       type: String,

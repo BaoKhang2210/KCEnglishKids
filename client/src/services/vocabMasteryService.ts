@@ -1,4 +1,7 @@
 import type { Vocabulary } from '../types';
+import { vocabMasteryApi } from './api';
+
+let syncTimeout: any = null;
 
 export interface WordMasteryDetail {
   _id: string;
@@ -75,8 +78,81 @@ export const vocabMasteryService = {
       record.lastUpdated = Date.now();
       localStorage.setItem(this.getStorageKey(childId), JSON.stringify(record));
       window.dispatchEvent(new CustomEvent('kc_vocab_mastery_updated', { detail: { childId } }));
+
+      // Debounced background sync to Backend DB
+      if (childId && childId !== 'default' && childId !== 'guest') {
+        if (syncTimeout) clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => {
+          const records = Object.values(record.vocabDetails)
+            .filter((v) => v.vocabId && v.vocabId.length === 24)
+            .map((v) => ({
+              vocabularyId: v.vocabId,
+              correctCount: (v.rememberCount || 0) + (v.gamesCorrectCount || 0),
+              wrongCount: (v.reviewCount || 0) + Math.max(0, (v.gamesPlayedCount || 0) - (v.gamesCorrectCount || 0)),
+              attemptCount: (v.rememberCount || 0) + (v.reviewCount || 0) + (v.gamesPlayedCount || 0),
+              streak: v.status === 'MASTERED' ? 3 : (v.rememberCount > 0 ? 1 : 0)
+            }));
+          if (records.length > 0) {
+            vocabMasteryApi.syncMastery(childId, records).catch((err) => {
+              console.warn('[vocabMastery] Background sync error:', err);
+            });
+          }
+        }, 2000);
+      }
     } catch (e) {
       console.error('Failed to save vocab mastery:', e);
+    }
+  },
+
+  async syncWithBackend(childId: string): Promise<void> {
+    if (!childId || childId === 'default' || childId === 'guest') return;
+    try {
+      const res = await vocabMasteryApi.getChildMastery(childId);
+      const serverRecords: any[] = res.data?.data || res.data || [];
+      if (!Array.isArray(serverRecords) || serverRecords.length === 0) return;
+
+      const local = this.getMastery(childId);
+      let updated = false;
+
+      for (const sr of serverRecords) {
+        const v = sr.vocabulary;
+        if (!v) continue;
+        const vId = v._id || v.id || sr.vocabulary;
+        if (!vId) continue;
+
+        if (!local.vocabDetails[vId]) {
+          local.vocabDetails[vId] = {
+            _id: vId,
+            vocabId: vId,
+            english: v.english || '',
+            vietnamese: v.vietnamese || '',
+            pronunciation: v.pronunciation || '',
+            imageUrl: v.imageUrl || '',
+            audioUrl: v.audioUrl || '',
+            exampleSentence: v.exampleSentence || '',
+            exampleSentenceVietnamese: v.exampleSentenceVietnamese || '',
+            status: sr.masteryLevel >= 3 ? 'MASTERED' : sr.masteryLevel >= 2 ? 'LEARNING' : 'REVIEW',
+            rememberCount: sr.correctCount || 0,
+            reviewCount: sr.wrongCount || 0,
+            gamesPlayedCount: sr.attemptCount || 0,
+            gamesCorrectCount: sr.correctCount || 0,
+            lastPracticedAt: sr.lastReviewedAt ? new Date(sr.lastReviewedAt).getTime() : Date.now(),
+            masteryScore: sr.masteryLevel >= 3 ? 90 : Math.round(((sr.correctCount || 0) / Math.max(1, sr.attemptCount || 1)) * 100),
+            source: 'TOPIC'
+          };
+          if (sr.masteryLevel >= 3 && !local.masteredIds.includes(vId)) {
+            local.masteredIds.push(vId);
+          }
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        localStorage.setItem(this.getStorageKey(childId), JSON.stringify(local));
+        window.dispatchEvent(new CustomEvent('kc_vocab_mastery_updated', { detail: { childId } }));
+      }
+    } catch (e) {
+      console.warn('[vocabMastery] Failed to fetch mastery from backend:', e);
     }
   },
 

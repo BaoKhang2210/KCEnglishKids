@@ -12,7 +12,6 @@ import { AudioButton } from './AudioButton';
 import { sfx, playWordAudio } from '../../utils/audio';
 import { useAuth } from '../../context/AuthContext';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
-import { getSensibleSentenceClient } from '../../utils/sentenceDictionary';
 
 interface BigInteractiveFlashcardProps {
   items: Vocabulary[];
@@ -160,7 +159,6 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   }
 
   const currentItem = deck[currentIndex];
-  const sentence = getSensibleSentenceClient(currentItem);
 
   const handleFlip = () => {
     sfx.playPop();
@@ -315,7 +313,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
 
       {/* 3D Flip & Swipe Card Container */}
       <div
-        className="w-full max-w-lg h-[440px] sm:h-[470px] relative touch-none select-none"
+        className="w-full max-w-lg sm:max-w-xl md:max-w-2xl h-[590px] sm:h-[640px] md:h-[670px] relative touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -357,28 +355,29 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
             }`}
           >
             {/* FRONT SIDE (English) */}
-            <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-3xl border-4 border-amber-300 shadow-xl flex flex-col items-center justify-between p-6 sm:p-7 overflow-hidden">
+            <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-[38px] border-4 border-amber-300 shadow-2xl flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden">
               {/* Soft background decor */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-100/70 rounded-full blur-2xl pointer-events-none" />
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-orange-100/70 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-100/70 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-orange-100/70 rounded-full blur-2xl pointer-events-none" />
 
               {/* Front Header */}
-              <div className="w-full flex items-center justify-between relative z-10">
-                <span className="bg-amber-50 border-2 border-amber-200 text-amber-800 text-xs font-black px-3.5 py-1 rounded-full shadow-xs">
-                  🇬🇧 English
+              <div className="w-full flex-shrink-0 flex items-center justify-between relative z-10 mb-1">
+                <span className="bg-amber-100 text-amber-900 border-2 border-amber-300 text-xs sm:text-sm font-black px-4 py-1.5 rounded-full shadow-2xs flex items-center gap-1.5">
+                  <span>🇬🇧</span>
+                  <span>Tiếng Anh</span>
                 </span>
                 <div onPointerDown={e => e.stopPropagation()} className="relative z-20">
                   <AudioButton word={currentItem.english} audioUrl={currentItem.audioUrl} size="md" />
                 </div>
               </div>
 
-              {/* Huge Illustration */}
-              <div className="relative z-10 w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center p-3 rounded-2xl bg-gradient-to-b from-amber-50 to-orange-50/60 border-2 border-amber-200 shadow-inner">
+              {/* Flexible Illustration Box - NEVER pushes text out */}
+              <div className="relative z-10 flex-1 min-h-[140px] max-h-[220px] sm:max-h-[250px] w-full max-w-[320px] sm:max-w-[400px] mx-auto flex items-center justify-center p-3 rounded-3xl bg-gradient-to-b from-amber-50/90 via-orange-50/50 to-amber-100/60 border-2 border-amber-200/90 shadow-inner my-1">
                 {currentItem.imageUrl ? (
                   <img
                     src={currentItem.imageUrl}
                     alt={currentItem.english}
-                    className="w-full h-full object-contain filter drop-shadow-md pointer-events-none"
+                    className="max-h-full max-w-full object-contain filter drop-shadow-md pointer-events-none"
                     loading="lazy"
                   />
                 ) : (
@@ -386,16 +385,19 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
                 )}
               </div>
 
-              {/* English Word & Pronunciation */}
-              <div className="text-center relative z-10 w-full">
-                <h3 className="text-4xl sm:text-5xl font-black text-slate-800 capitalize tracking-tight font-display mb-1">
+              {/* English Word & Pronunciation Area - ALWAYS FULLY VISIBLE & CENTERED */}
+              <div className="flex-shrink-0 w-full text-center relative z-10 py-1 flex flex-col items-center justify-center">
+                <h3
+                  className={`font-black text-amber-950 uppercase tracking-wider font-display drop-shadow-xs break-words max-w-full leading-tight select-none my-1 ${
+                    currentItem.english.length > 10
+                      ? 'text-3xl sm:text-4xl md:text-5xl'
+                      : currentItem.english.length > 6
+                      ? 'text-4xl sm:text-5xl md:text-6xl'
+                      : 'text-4xl sm:text-5xl md:text-6xl'
+                  }`}
+                >
                   {currentItem.english}
                 </h3>
-                {currentItem.pronunciation && (
-                  <p className="text-sm sm:text-base font-extrabold text-slate-400 font-mono mb-2">
-                    /{currentItem.pronunciation}/
-                  </p>
-                )}
                 <div onPointerDown={e => e.stopPropagation()} className="inline-block mt-1">
                   <button
                     type="button"
@@ -411,107 +413,79 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
                     title="Nghe mẫu phát âm rồi bé nói nhắc lại theo cô nhé!"
                   >
                     <Mic className={`w-4 h-4 ${isSpeakingAlong ? 'animate-bounce' : ''}`} />
-                    <span>{isSpeakingAlong ? `Bé đọc theo: "${currentItem.english}" 🗣️` : 'Bé đọc theo mẫu 🎤'}</span>
+                    <span>{isSpeakingAlong ? `Bé đọc: "${currentItem.english}" 🗣️` : 'Bé đọc theo cô 🎤'}</span>
                   </button>
                 </div>
               </div>
 
               {/* Flip hint */}
-              <div className="relative z-10 flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-4 py-1.5 rounded-full border border-amber-200 mt-2">
-                <RotateCw className="w-3.5 h-3.5" />
-                <span>Chạm để lật xem nghĩa tiếng Việt</span>
+              <div className="flex-shrink-0 relative z-10 flex items-center gap-2 text-xs sm:text-sm font-black text-amber-800 bg-amber-100/90 px-5 py-2 rounded-full border border-amber-200 mt-2 shadow-2xs">
+                <RotateCw className="w-4 h-4 text-amber-600" />
+                <span>Chạm để lật xem nghĩa tiếng Việt 🇻🇳</span>
               </div>
             </div>
 
             {/* BACK SIDE (Vietnamese & Redesigned Context) */}
-            <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/50 rounded-3xl border-4 border-emerald-300 shadow-xl flex flex-col items-center justify-between p-5 sm:p-6 overflow-hidden">
+            <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/50 rounded-[38px] border-4 border-emerald-300 shadow-2xl flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden">
               {/* Soft background decor */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-100/70 rounded-full blur-2xl pointer-events-none" />
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-100/70 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-emerald-100/70 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-teal-100/70 rounded-full blur-2xl pointer-events-none" />
 
-              {/* Back Header - Clean, NO speaker icon */}
-              <div className="w-full flex items-center justify-between relative z-10">
-                <span className="bg-emerald-50 border-2 border-emerald-200 text-emerald-800 text-xs font-black px-3.5 py-1 rounded-full shadow-xs">
-                  🇻🇳 Tiếng Việt
+              {/* Back Header */}
+              <div className="w-full flex-shrink-0 flex items-center justify-between relative z-10 mb-1">
+                <span className="bg-emerald-100 text-emerald-900 border-2 border-emerald-300 text-xs sm:text-sm font-black px-4 py-1.5 rounded-full shadow-2xs flex items-center gap-1.5">
+                  <span>🇻🇳</span>
+                  <span>Tiếng Việt</span>
                 </span>
-                <span className="text-[11px] font-bold text-emerald-700/90 bg-emerald-100/60 px-3 py-1 rounded-full border border-emerald-200 shadow-2xs">
-                  Khám phá nghĩa & ví dụ
+                <span className="text-xs sm:text-sm font-black text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
+                  Nghĩa của từ
                 </span>
               </div>
 
-              {/* Illustration on Back Side - Clean, NO speaker icons on image */}
-              <div className="relative z-10 w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center p-2 rounded-2xl bg-white/90 border-2 border-emerald-200 shadow-inner my-1">
+              {/* Flexible Illustration on Back Side */}
+              <div className="relative z-10 flex-1 min-h-[140px] max-h-[220px] sm:max-h-[250px] w-full max-w-[320px] sm:max-w-[400px] mx-auto flex items-center justify-center p-3 rounded-3xl bg-white/90 border-2 border-emerald-200/90 shadow-inner my-1">
                 {currentItem.imageUrl ? (
                   <img
                     src={currentItem.imageUrl}
                     alt={currentItem.english}
-                    className="w-full h-full object-contain filter drop-shadow-sm pointer-events-none"
+                    className="max-h-full max-w-full object-contain filter drop-shadow-md pointer-events-none"
                     loading="lazy"
                   />
                 ) : (
-                  <span className="text-5xl select-none">🐾</span>
+                  <span className="text-7xl select-none">🐾</span>
                 )}
               </div>
 
               {/* Main Vietnamese Meaning & English Word Reference */}
-              <div className="relative z-10 text-center flex flex-col items-center justify-center my-0.5 w-full">
-                <h3 className="text-3xl sm:text-4xl font-black text-emerald-600 mb-1 drop-shadow-xs tracking-tight">
+              <div className="flex-shrink-0 w-full text-center relative z-10 py-1 flex flex-col items-center justify-center">
+                <h3
+                  className={`font-black text-emerald-700 drop-shadow-xs tracking-tight break-words max-w-full leading-tight my-1 select-none ${
+                    currentItem.vietnamese.length > 14
+                      ? 'text-2xl sm:text-3xl md:text-4xl'
+                      : currentItem.vietnamese.length > 8
+                      ? 'text-3xl sm:text-4xl md:text-5xl'
+                      : 'text-4xl sm:text-5xl md:text-6xl'
+                  }`}
+                >
                   {currentItem.vietnamese}
                 </h3>
                 <button
                   type="button"
-                  onPointerDown={e => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => playWordAudio(currentItem.english, currentItem.audioUrl)}
-                  className="px-3.5 py-1 rounded-full bg-white hover:bg-emerald-50 border border-emerald-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 text-slate-700"
-                  title="Bấm để nghe lại phát âm từ vựng"
+                  className="mt-1 px-5 py-2 rounded-full bg-white hover:bg-emerald-50 border-2 border-emerald-300 flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 text-slate-700"
+                  title="Bấm để nghe lại phát âm tiếng Anh"
                 >
-                  <span className="text-sm font-black capitalize text-slate-800">
-                    {currentItem.english}
+                  <span className="text-base sm:text-lg font-black uppercase tracking-wide text-slate-800">
+                    🔊 {currentItem.english}
                   </span>
-                  {currentItem.pronunciation && (
-                    <span className="text-xs font-bold text-slate-400 font-mono">
-                      /{currentItem.pronunciation}/
-                    </span>
-                  )}
                 </button>
               </div>
 
-              {/* Redesigned Contextual Example Sentence Card */}
-              {sentence.en && (
-                <div
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if ('speechSynthesis' in window) {
-                      window.speechSynthesis.cancel();
-                      const u = new SpeechSynthesisUtterance(sentence.en);
-                      u.lang = 'en-US';
-                      u.rate = 0.85;
-                      window.speechSynthesis.speak(u);
-                    }
-                  }}
-                  className="relative z-10 w-full bg-gradient-to-r from-white via-emerald-50/60 to-teal-50/60 border-2 border-emerald-200 hover:border-emerald-300 rounded-2xl p-2.5 sm:p-3 text-center shadow-xs cursor-pointer transition-all active:scale-98 group"
-                  title="Chạm để nghe đọc cả câu ví dụ"
-                >
-                  <div className="flex items-center justify-center gap-1.5 text-[11px] font-black text-emerald-800 mb-0.5">
-                    <span className="text-sm">💬</span>
-                    <span>Câu ví dụ:</span>
-                  </div>
-                  <p className="font-black text-slate-800 text-xs sm:text-sm leading-snug mb-0.5 group-hover:text-emerald-950 transition-colors">
-                    "{sentence.en}"
-                  </p>
-                  {sentence.vi && (
-                    <p className="font-bold text-emerald-700 text-[11px] sm:text-xs">
-                      {sentence.vi}
-                    </p>
-                  )}
-                </div>
-              )}
-
               {/* Flip hint */}
-              <div className="relative z-10 flex items-center gap-1.5 text-xs font-black text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-200">
-                <RotateCw className="w-3.5 h-3.5" />
-                <span>Chạm để lật lại mặt tiếng Anh</span>
+              <div className="flex-shrink-0 relative z-10 flex items-center gap-2 text-xs sm:text-sm font-black text-emerald-800 bg-emerald-100/90 px-5 py-2 rounded-full border border-emerald-200 mt-2 shadow-2xs">
+                <RotateCw className="w-4 h-4 text-emerald-600" />
+                <span>Chạm để lật lại mặt tiếng Anh 🇬🇧</span>
               </div>
             </div>
           </div>
@@ -519,78 +493,78 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
       </div>
 
       {/* Big Tactile Action Buttons: Chưa nhớ (Trái) - Lật thẻ (Giữa) - Đã nhớ (Phải) */}
-      <div className="w-full max-w-lg grid grid-cols-3 gap-3 mt-6">
-        {/* Nút Chưa Nhớ */}
+      <div className="w-full max-w-lg sm:max-w-xl md:max-w-2xl grid grid-cols-3 gap-3 sm:gap-5 mt-6">
+        {/* Nút Chưa Nhớ (Trái) */}
         <button
           type="button"
           onClick={handleReview}
-          className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3.5 px-3 rounded-2xl bg-white hover:bg-amber-50 active:bg-amber-100 border-3 border-amber-300 text-amber-700 font-black text-xs sm:text-sm shadow-md active:scale-95 transition-all cursor-pointer"
+          className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3.5 sm:py-4 px-3 rounded-2xl bg-gradient-to-b from-amber-50 to-orange-100 hover:from-amber-100 hover:to-orange-200 border-b-6 border-orange-300 text-orange-950 font-black text-xs sm:text-base shadow-md active:translate-y-1 active:border-b-2 transition-all cursor-pointer select-none"
         >
-          <span className="text-lg sm:text-xl">🧡</span>
-          <span className="text-center">Chưa nhớ</span>
-          <span className="text-[10px] text-amber-600 hidden sm:inline">(Quẹt trái)</span>
+          <span className="text-xl sm:text-2xl">🧡</span>
+          <span className="text-center font-display">Chưa nhớ</span>
+          <span className="text-[10px] text-orange-800 font-extrabold hidden md:inline">(Trái)</span>
         </button>
 
-        {/* Nút Lật Thẻ */}
+        {/* Nút Lật Thẻ (Giữa) */}
         <button
           type="button"
           onClick={handleFlip}
-          className="btn-3d-amber text-amber-950 font-black text-xs sm:text-sm py-3.5 px-2 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md active:scale-95 transition-all"
+          className="btn-3d-amber text-amber-950 font-black text-xs sm:text-base py-3.5 sm:py-4 px-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none"
         >
-          <RotateCw className="w-4 h-4 stroke-[2.5]" />
-          <span>{isFlipped ? 'Mặt Anh' : 'Lật nghĩa'}</span>
+          <RotateCw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+          <span className="font-display">{isFlipped ? 'Mặt Anh' : 'Lật nghĩa'}</span>
         </button>
 
-        {/* Nút Đã Nhớ */}
+        {/* Nút Đã Nhớ (Phải) */}
         <button
           type="button"
           onClick={handleRemember}
-          className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:scale-95 border-3 border-emerald-600 text-white font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+          className="btn-3d-emerald text-white font-black text-xs sm:text-base py-3.5 sm:py-4 px-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none"
         >
-          <span className="text-lg sm:text-xl">💚</span>
-          <span className="text-center">Đã nhớ!</span>
-          <span className="text-[10px] text-emerald-100 hidden sm:inline">(Quẹt phải)</span>
+          <span className="text-xl sm:text-2xl">💚</span>
+          <span className="text-center font-display">Đã nhớ!</span>
+          <span className="text-[10px] text-emerald-100 font-extrabold hidden md:inline">(Phải)</span>
         </button>
       </div>
 
       {/* Previous / Next Card Helper */}
-      <div className="w-full max-w-lg flex items-center justify-between text-xs font-bold text-slate-400 mt-3 px-2">
+      <div className="w-full max-w-2xl sm:max-w-3xl flex items-center justify-between text-xs sm:text-sm font-bold text-slate-400 mt-4 px-3">
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className={`flex items-center gap-1 ${
+          className={`flex items-center gap-1.5 ${
             currentIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:text-slate-700 cursor-pointer'
           }`}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
           <span>Quay lại từ trước</span>
         </button>
-        <span className="text-slate-400 text-[11px]">
+        <span className="text-slate-400 text-xs sm:text-sm">
           Vuốt trái: Chưa nhớ • Vuốt phải: Đã nhớ
         </span>
       </div>
 
       {/* Advance to Practice Button */}
       {onCompleteStep && (
-        <div className="w-full max-w-lg mt-3">
+        <div className="w-full max-w-2xl sm:max-w-3xl mt-4">
           <button
             type="button"
             onClick={() => {
               sfx.playSuccess();
               onCompleteStep();
             }}
-            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-2.5 cursor-pointer border-2 border-emerald-400"
+            className="w-full py-4 sm:py-5 px-6 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-base sm:text-lg shadow-xl hover:shadow-2xl hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-3 cursor-pointer border-3 border-emerald-400"
           >
             <span>Bé đã sẵn sàng! Chuyển sang Luyện tập</span>
-            <span className="text-xl">🚀</span>
+            <span className="text-2xl">🚀</span>
           </button>
         </div>
       )}
 
       {/* Mini Thumbnails Carousel with Mastery status dots */}
       {items.length > 1 && (
-        <div className="w-full max-w-lg mt-5 bg-white/70 border-2 border-amber-200/80 rounded-3xl p-3 shadow-xs">
-          <p className="text-[11px] font-black uppercase text-amber-800 tracking-wider mb-2 px-2 flex items-center justify-between">
+        <div className="w-full max-w-2xl sm:max-w-3xl mt-6 bg-white/70 border-3 border-amber-200/80 rounded-3xl p-4 shadow-xs">
+          <p className="text-xs font-black uppercase text-amber-800 tracking-wider mb-3 px-2 flex items-center justify-between">
             <span>Danh sách từ bài học ({items.length})</span>
             <span className="text-[10px] text-slate-500 font-bold">
               💚 Đã nhớ • 💡 Cần ôn

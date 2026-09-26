@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Volume2, Sparkles, Check, HelpCircle } from 'lucide-react';
+import { Volume2, Sparkles, Check } from 'lucide-react';
 import type { ActivityQuestion, ActivityOption } from '../../../types';
 import { playWordAudio } from '../../../utils/audio';
 
@@ -30,48 +30,50 @@ export const ImageWordMatchEngine: React.FC<ImageWordMatchEngineProps> = ({
     }, 1100);
   };
 
-  const targetImage = question.metadata?.image || question.promptImageUrl;
+  const targetImage = question.metadata?.imageUrl || question.metadata?.image || question.promptImageUrl;
   const targetWord = question.metadata?.word || question.promptText.replace(/^Match the word:\s*/i, '');
 
   return (
-    <div className="flex flex-col items-center w-full max-w-2xl mx-auto text-center">
+    <div className="flex flex-col items-center w-full max-w-5xl mx-auto text-center select-none animate-fade-in">
       {/* Banner */}
-      <span className="inline-flex items-center gap-2 bg-amber-100 text-amber-900 font-black px-4 py-1.5 rounded-full text-sm mb-4 border border-amber-300 animate-pulse">
-        <Sparkles className="w-4 h-4 text-amber-600" />
-        Nối hình với từ vựng chính xác nhé bé!
+      <span className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-100 via-orange-100 to-yellow-100 text-amber-950 font-black px-8 py-3 rounded-full text-base sm:text-xl mb-6 border-3 border-amber-300 shadow-md animate-pulse">
+        <Sparkles className="w-6 h-6 text-amber-600" />
+        Bé nhìn tranh và chọn từ tiếng Anh tương ứng nhé! 🔤
       </span>
 
       {/* Target Image Card at Top */}
-      <div className="bg-white rounded-3xl border-4 border-amber-400 p-5 shadow-xl mb-6 w-full max-w-xs flex flex-col items-center">
-        {targetImage && (
-          <div className="w-36 h-36 mb-2 flex items-center justify-center">
+      <div className="bg-white rounded-4xl border-4 border-amber-400 p-6 sm:p-8 shadow-2xl mb-8 w-full max-w-md flex flex-col items-center">
+        <div className="w-52 h-52 sm:w-64 sm:h-64 mb-4 flex items-center justify-center p-3 rounded-3xl bg-amber-50/60 border-2 border-amber-200">
+          {targetImage ? (
             <img
               src={targetImage}
               alt={targetWord}
               className="w-full h-full object-contain filter drop-shadow-md"
             />
-          </div>
-        )}
+          ) : (
+            <span className="text-7xl">🖼️</span>
+          )}
+        </div>
 
         <button
           onClick={handlePlayAudio}
-          className="btn-kid flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-950 font-black px-4 py-2 rounded-xl shadow cursor-pointer transition-all active:scale-95 text-sm"
+          className="btn-kid flex items-center gap-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-amber-950 font-black px-7 py-3 rounded-2xl shadow-md cursor-pointer transition-all active:scale-95 text-lg sm:text-xl"
         >
-          <Volume2 className="w-4 h-4" />
-          <span>Nghe: "{targetWord}"</span>
+          <Volume2 className="w-6 h-6" />
+          <span>Nghe phát âm: "{targetWord}"</span>
         </button>
       </div>
 
-      {/* Choice Cards (2, 3, or 4 options) */}
-      <div className={`grid ${question.options.length <= 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-lg' : question.options.length === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-2xl' : 'grid-cols-2 sm:grid-cols-4 max-w-3xl'} gap-4 w-full mx-auto`}>
+      {/* Choice Cards (2, 3, or 4 options) - Big Clear Word Blocks for 5-6 yo */}
+      <div className={`grid ${question.options.length <= 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl' : question.options.length === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-5xl' : 'grid-cols-2 sm:grid-cols-4 max-w-6xl'} gap-5 sm:gap-7 w-full mx-auto px-4`}>
         {question.options.map((opt) => {
           const isSelected = selectedOptionId === opt.id;
-          let cardStyle = 'border-slate-200 bg-white hover:border-amber-400 shadow-md';
+          let cardStyle = 'border-slate-200 bg-white hover:border-amber-400 hover:scale-104 shadow-lg';
 
           if (isSelected) {
             cardStyle = opt.isCorrect
-              ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 scale-105 shadow-xl'
-              : 'border-rose-500 bg-rose-50 ring-4 ring-rose-300 animate-gentle-wobble';
+              ? 'border-emerald-500 bg-emerald-50 ring-8 ring-emerald-300 scale-105 shadow-2xl animate-soft-bounce'
+              : 'border-rose-500 bg-rose-50 ring-8 ring-rose-300 animate-gentle-wobble';
           }
 
           return (
@@ -79,33 +81,21 @@ export const ImageWordMatchEngine: React.FC<ImageWordMatchEngineProps> = ({
               key={opt.id}
               onClick={() => handleSelectOption(opt)}
               disabled={disabled || selectedOptionId !== null}
-              className={`btn-kid rounded-3xl border-4 p-4 flex flex-col items-center justify-center cursor-pointer transition-all relative group ${cardStyle}`}
+              className={`btn-kid rounded-3xl sm:rounded-4xl border-4 p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer transition-all relative group ${cardStyle}`}
             >
-              {opt.imageUrl ? (
-                <div className="w-24 h-24 mb-2 flex items-center justify-center">
-                  <img
-                    src={opt.imageUrl}
-                    alt={opt.text}
-                    className="w-full h-full object-contain filter drop-shadow group-hover:scale-105 transition-transform"
-                  />
-                </div>
-              ) : (
-                <HelpCircle className="w-12 h-12 text-slate-300 mb-2" />
-              )}
-
-              <span className="font-black text-xl text-slate-800 capitalize">
+              <span className="font-black text-3xl sm:text-4xl text-slate-800 capitalize font-display tracking-wide mb-1">
                 {opt.text}
               </span>
 
               {opt.vietnameseText && (
-                <span className="text-xs font-semibold text-slate-400 mt-0.5">
+                <span className="text-base sm:text-lg font-bold text-slate-400">
                   ({opt.vietnameseText})
                 </span>
               )}
 
               {isSelected && opt.isCorrect && (
-                <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow animate-pop-in">
-                  <Check className="w-4 h-4 stroke-[3]" />
+                <div className="absolute top-3 right-3 w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-pop-in">
+                  <Check className="w-6 h-6 stroke-[3]" />
                 </div>
               )}
             </button>

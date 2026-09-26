@@ -6,6 +6,9 @@ import { ALL_BADGES, type BadgeItem } from '../../data/badges';
 import { ALL_STICKERS, stickerService } from '../../data/stickers';
 import { useAuth } from '../../context/AuthContext';
 import { BadgeShowcaseModal } from './BadgeShowcaseModal';
+import { CuteRosetteMedal } from './CuteRosetteMedal';
+import { CuteStickerCard } from './CuteStickerCard';
+import { StickerShowcaseModal } from './StickerShowcaseModal';
 
 interface ChildBadgesModalProps {
   isOpen: boolean;
@@ -30,6 +33,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   const [activeTab, setActiveTab] = useState<'badges' | 'stickers'>('badges');
   const [selectedCat, setSelectedCat] = useState<'all' | 'journey' | 'stars' | 'skills'>('all');
   const [showcaseBadge, setShowcaseBadge] = useState<(BadgeItem & { unlocked: boolean }) | null>(null);
+  const [selectedSticker, setSelectedSticker] = useState<any>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -195,26 +199,21 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                         sfx.playPop();
                         setShowcaseBadge(badge);
                       }}
-                      className={`p-3.5 rounded-3xl border-3 flex flex-col items-center text-center transition-all cursor-pointer relative group badge-shimmer-effect ${
+                      className={`p-3 rounded-[26px] border-3 flex flex-col items-center text-center transition-all cursor-pointer relative group badge-shimmer-effect ${
                         badge.unlocked
-                          ? 'bg-gradient-to-b from-amber-50 to-orange-50/40 border-amber-300 shadow-sm hover:shadow-lg hover:-translate-y-1 active:scale-95'
+                          ? 'bg-gradient-to-b from-amber-50/90 via-white to-orange-50/50 border-amber-300 shadow-sm hover:shadow-xl hover:-translate-y-1.5 active:scale-95'
                           : 'bg-white/80 border-slate-200 hover:border-amber-200 hover:-translate-y-0.5'
                       }`}
                     >
-                      {/* Badge 3D Icon Container */}
-                      <div
-                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl mb-2 relative transition-transform duration-300 group-hover:scale-110 ${
-                          badge.unlocked
-                            ? `bg-gradient-to-tr ${badge.color} text-white shadow-md ring-2 ring-amber-300 animate-badge-float`
-                            : 'bg-slate-100 text-slate-400 border-2 border-dashed border-slate-300'
-                        }`}
-                      >
-                        {badge.unlocked ? badge.icon : '🔒'}
-                        {badge.unlocked && (
-                          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-400 text-amber-950 rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
-                            ⭐
-                          </span>
-                        )}
+                      {/* Rosette Medal with ribbons */}
+                      <div className="my-1.5 pb-2">
+                        <CuteRosetteMedal
+                          badge={badge}
+                          unlocked={badge.unlocked}
+                          size="sm"
+                          showRibbons={true}
+                          className="group-hover:scale-110 transition-transform"
+                        />
                       </div>
 
                       <h4 className="font-black text-xs sm:text-sm text-slate-800 mb-0.5 leading-snug group-hover:text-amber-700 transition-colors">
@@ -225,8 +224,8 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                       </p>
 
                       {badge.unlocked ? (
-                        <span className="mt-auto inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">
-                          <span>Đã đạt</span>
+                        <span className="mt-auto inline-flex items-center gap-1 text-[10px] font-black text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300 shadow-2xs">
+                          <span>{badge.tierName.replace('Huy Chương ', '')}</span>
                           <span>✨</span>
                         </span>
                       ) : (
@@ -253,45 +252,20 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         {/* STICKERS TAB */}
         {activeTab === 'stickers' && (
           <div className="overflow-y-auto pr-1 flex-1 space-y-3 relative z-10">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {ALL_STICKERS.map(st => {
                 const isUnlocked = unlockedStickerIds.includes(st.id);
                 return (
-                  <div
+                  <CuteStickerCard
                     key={st.id}
-                    className={`p-3 rounded-2xl border-2 flex flex-col items-center text-center transition-all ${
-                      isUnlocked
-                        ? 'bg-rose-50/70 border-rose-300 shadow-xs hover:scale-105'
-                        : 'bg-slate-50 border-slate-200 opacity-60'
-                    }`}
-                  >
-                    <div
-                      className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-1.5 shadow-sm ${
-                        isUnlocked
-                          ? `bg-gradient-to-tr ${st.bgGradient} text-white animate-bounce-subtle`
-                          : 'bg-slate-200 text-slate-400 grayscale'
-                      }`}
-                    >
-                      {isUnlocked ? st.icon : '❓'}
-                    </div>
-
-                    <h4 className="font-black text-xs sm:text-sm text-slate-800 mb-0.5 leading-snug">
-                      {isUnlocked ? st.name : 'Sticker Bí Mật'}
-                    </h4>
-                    <p className="text-[10px] font-bold text-slate-400 leading-tight">
-                      {isUnlocked ? st.desc : 'Đạt 2-3 sao khi chơi game để mở!'}
-                    </p>
-
-                    {isUnlocked ? (
-                      <span className="mt-1.5 text-[10px] font-black text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-200">
-                        Đã sưu tập 🎁
-                      </span>
-                    ) : (
-                      <span className="mt-1.5 text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                        Chưa mở khóa 🔒
-                      </span>
-                    )}
-                  </div>
+                    sticker={st}
+                    isUnlocked={isUnlocked}
+                    size="sm"
+                    onClick={() => {
+                      sfx.playPop();
+                      setSelectedSticker({ sticker: st, isUnlocked });
+                    }}
+                  />
                 );
               })}
             </div>
@@ -324,6 +298,15 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
               : completedCount
           }
           onClose={() => setShowcaseBadge(null)}
+        />
+      )}
+
+      {/* 3D Puffy Sticker Spotlight Modal */}
+      {selectedSticker && (
+        <StickerShowcaseModal
+          sticker={selectedSticker.sticker}
+          isUnlocked={selectedSticker.isUnlocked}
+          onClose={() => setSelectedSticker(null)}
         />
       )}
     </div>

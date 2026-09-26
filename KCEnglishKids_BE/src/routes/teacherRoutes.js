@@ -1,5 +1,7 @@
 const express = require('express');
 const c = require('../controllers/teacherController');
+const vm = require('../controllers/vocabMasteryController');
+const pn = require('../controllers/parentNotificationController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
@@ -33,4 +35,15 @@ router.post('/students/:studentId/notes', (req, res, next) => { req.body.student
 router.post('/notes', c.createTeacherNote);
 router.put('/notes/:id', c.updateNote);
 router.delete('/notes/:id', c.deleteNote);
+
+// Vocabulary mastery — teacher view of student mastery
+router.get('/students/:studentId/vocabulary-mastery', vm.getStudentMastery);
+
+// Parent notifications
+router.get('/parent-notifications', pn.getNotifications);
+router.post('/parent-notifications', pn.sendNotification);
+router.post('/parent-notifications/bulk', pn.sendBulkNotifications);
+router.get('/parent-notifications/child/:childId', pn.getChildNotifications);
+
 module.exports = router;
+

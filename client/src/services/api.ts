@@ -86,7 +86,11 @@ export const authApi = {
     api.post('/auth/admin-login', payload),
   teacherLogin: (payload: { email: string; password: string }) =>
     api.post('/auth/teacher-login', payload),
-  getMe: () => api.get('/auth/me')
+  getMe: () => api.get('/auth/me'),
+  changePin: (payload: { currentPin: string; newPin: string }) =>
+    api.post('/auth/change-pin', payload),
+  lookupStudent: (phone: string) =>
+    api.post('/auth/lookup-student', { phone })
 };
 
 // Topics API
@@ -233,3 +237,117 @@ export const teacherApi = {
   updateNote: (id: string, data: any) => api.put(`/teacher/notes/${id}`, data),
   deleteNote: (id: string) => api.delete(`/teacher/notes/${id}`)
 };
+
+// Classroom Session API (Phase 3)
+export const classroomSessionApi = {
+  getSessions: (params?: { status?: string; classroomId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.append('status', params.status);
+    if (params?.classroomId) q.append('classroomId', params.classroomId);
+    const qs = q.toString();
+    return api.get(`/teacher/classroom-sessions${qs ? `?${qs}` : ''}`);
+  },
+  createSession: (data: {
+    classroomId: string;
+    lessonId?: string;
+    title?: string;
+    activityIds?: string[];
+    plannedDuration?: number;
+  }) => api.post('/teacher/classroom-sessions', data),
+  getSession: (id: string) => api.get(`/teacher/classroom-sessions/${id}`),
+  startSession: (id: string) =>
+    api.post(`/teacher/classroom-sessions/${id}/start`, {}),
+  endSession: (id: string) =>
+    api.post(`/teacher/classroom-sessions/${id}/end`, {}),
+  scoreStudent: (
+    id: string,
+    data: {
+      studentId: string;
+      points?: number;
+      stars?: number;
+      correctDelta?: number;
+      incorrectDelta?: number;
+    }
+  ) => api.post(`/teacher/classroom-sessions/${id}/score-student`, data),
+  scoreBulk: (
+    id: string,
+    data: {
+      studentIds: string[];
+      points?: number;
+      stars?: number;
+      correctDelta?: number;
+      incorrectDelta?: number;
+    }
+  ) => api.post(`/teacher/classroom-sessions/${id}/score-bulk`, data),
+  recordQuestionResult: (
+    id: string,
+    data: {
+      activityId?: string;
+      questionIndex?: number;
+      promptText?: string;
+      promptImageUrl?: string;
+      studentAnswers: Array<{ studentId: string; result: 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED' }>;
+    }
+  ) => api.post(`/teacher/classroom-sessions/${id}/question-result`, data),
+  updateActivityIndex: (id: string, index: number) =>
+    api.patch(`/teacher/classroom-sessions/${id}/activity-index`, { index }),
+  getSessionSummary: (id: string) =>
+    api.get(`/teacher/classroom-sessions/${id}/summary`)
+};
+
+// Vocabulary Mastery API (Phase 5)
+export const vocabMasteryApi = {
+  getChildMastery: (childId: string) =>
+    api.get(`/children/${childId}/vocabulary-mastery`),
+  syncMastery: (
+    childId: string,
+    records: Array<{
+      vocabularyId: string;
+      correctCount: number;
+      wrongCount: number;
+      attemptCount: number;
+      streak: number;
+    }>
+  ) => api.post(`/children/${childId}/vocabulary-mastery`, { records }),
+  recordPractice: (childId: string, vocabId: string, isCorrect: boolean) =>
+    api.post(`/children/${childId}/vocabulary-mastery/${vocabId}/record`, {
+      isCorrect
+    }),
+  getStudentMastery: (studentId: string) =>
+    api.get(`/teacher/students/${studentId}/vocabulary-mastery`)
+};
+
+// Parent Notification API (Phase 9)
+export const parentNotificationApi = {
+  sendNotification: (data: {
+    childId: string;
+    sessionId?: string;
+    teacherNote?: string;
+    templateType?: 'SESSION_REPORT' | 'PROGRESS_UPDATE' | 'GENERAL';
+    score?: number;
+    vocabMastered?: number;
+    vocabTotal?: number;
+    stars?: number;
+    accuracy?: number;
+  }) => api.post('/teacher/parent-notifications', data),
+  sendBulkNotifications: (data: {
+    sessionId?: string;
+    templateType?: string;
+    childReports: Array<{
+      childId: string;
+      score?: number;
+      vocabMastered?: number;
+      vocabTotal?: number;
+      stars?: number;
+      accuracy?: number;
+      teacherNote?: string;
+    }>;
+  }) => api.post('/teacher/parent-notifications/bulk', data),
+  getNotifications: (childId?: string) => {
+    const q = childId ? `?childId=${childId}` : '';
+    return api.get(`/teacher/parent-notifications${q}`);
+  },
+  getChildNotifications: (childId: string) =>
+    api.get(`/teacher/parent-notifications/child/${childId}`)
+};
+

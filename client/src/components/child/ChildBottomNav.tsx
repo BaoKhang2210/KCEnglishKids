@@ -43,17 +43,17 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t-3 border-amber-200 px-2 py-2 shadow-2xl flex items-center justify-around">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t-4 border-amber-200 px-3 py-2.5 shadow-2xl flex items-center justify-around">
         <button
           onClick={() => handleNav('/', 'path')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-transform active:scale-90 ${
             isPathActive ? 'text-amber-800 scale-105 font-black' : 'text-slate-400 font-bold'
           }`}
         >
-          <div className={`p-2 rounded-2xl transition-all ${isPathActive ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-sm' : ''}`}>
-            <Map className="w-5 h-5 stroke-[2.5]" />
+          <div className={`p-2.5 rounded-2xl transition-all ${isPathActive ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-sm' : ''}`}>
+            <Map className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-[10px]">Hành trình</span>
+          <span className="text-xs">Hành trình</span>
         </button>
 
         <button
@@ -62,10 +62,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
             isTopicsActive ? 'text-emerald-700 scale-105 font-black' : 'text-slate-400 font-bold'
           }`}
         >
-          <div className={`p-2 rounded-2xl transition-all ${isTopicsActive ? 'bg-emerald-500 text-white ring-2 ring-emerald-300 shadow-sm' : ''}`}>
-            <Compass className="w-5 h-5 stroke-[2.5]" />
+          <div className={`p-2.5 rounded-2xl transition-all ${isTopicsActive ? 'bg-emerald-500 text-white ring-2 ring-emerald-300 shadow-sm' : ''}`}>
+            <Compass className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-[10px]">Chủ đề</span>
+          <span className="text-xs">Chủ đề</span>
         </button>
 
         <button
@@ -74,10 +74,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
             isVocabActive ? 'text-rose-700 scale-105 font-black' : 'text-slate-400 font-bold'
           }`}
         >
-          <div className={`p-2 rounded-2xl transition-all ${isVocabActive ? 'bg-rose-500 text-white ring-2 ring-rose-300 shadow-sm' : ''}`}>
-            <BookMarked className="w-5 h-5 stroke-[2.5]" />
+          <div className={`p-2.5 rounded-2xl transition-all ${isVocabActive ? 'bg-rose-500 text-white ring-2 ring-rose-300 shadow-sm' : ''}`}>
+            <BookMarked className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-[10px]">Từ vựng</span>
+          <span className="text-xs">Từ vựng</span>
         </button>
 
         <button
@@ -86,10 +86,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
             isGamesActive ? 'text-sky-700 scale-105 font-black' : 'text-slate-400 font-bold'
           }`}
         >
-          <div className={`p-2 rounded-2xl transition-all ${isGamesActive ? 'bg-sky-500 text-white ring-2 ring-sky-300 shadow-sm' : ''}`}>
-            <Gamepad2 className="w-5 h-5 stroke-[2.5]" />
+          <div className={`p-2.5 rounded-2xl transition-all ${isGamesActive ? 'bg-sky-500 text-white ring-2 ring-sky-300 shadow-sm' : ''}`}>
+            <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-[10px]">Trò chơi</span>
+          <span className="text-xs">Trò chơi</span>
         </button>
 
         <button
@@ -101,10 +101,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
             isBadgesActive ? 'text-purple-700 scale-105 font-black' : 'text-slate-400 font-bold'
           }`}
         >
-          <div className={`p-2 rounded-2xl transition-all ${isBadgesActive ? 'bg-purple-500 text-white ring-2 ring-purple-300 shadow-sm' : ''}`}>
-            <Award className="w-5 h-5 stroke-[2.5]" />
+          <div className={`p-2.5 rounded-2xl transition-all ${isBadgesActive ? 'bg-purple-500 text-white ring-2 ring-purple-300 shadow-sm' : ''}`}>
+            <Award className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-[10px]">Huy hiệu</span>
+          <span className="text-xs">Huy hiệu</span>
         </button>
       </nav>
 

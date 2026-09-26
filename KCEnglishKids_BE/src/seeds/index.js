@@ -19,7 +19,10 @@ const {
   ClassRoom,
   LearningSession,
   ActivityResult,
-  Progress
+  Progress,
+  ClassroomSession,
+  VocabularyMastery,
+  ParentNotification
 } = require('../models');
 
 // Modular Dataset Imports
@@ -525,7 +528,52 @@ async function seedDatabase() {
     });
     await childToby.save();
 
-    demoClass.students = [childLeo._id, childMia._id];
+    const extraKids = [
+      { name: 'Emma', avatar: 'fox', pin: '2001' },
+      { name: 'Liam', avatar: 'bear', pin: '2002' },
+      { name: 'Sophia', avatar: 'koala', pin: '2003' },
+      { name: 'Noah', avatar: 'lion', pin: '2004' },
+      { name: 'Ava', avatar: 'rabbit', pin: '2005' },
+      { name: 'Oliver', avatar: 'panda', pin: '2006' },
+      { name: 'Lucas', avatar: 'fox', pin: '2007' },
+      { name: 'Isabella', avatar: 'koala', pin: '2008' },
+      { name: 'Ethan', avatar: 'bear', pin: '2009' },
+      { name: 'Harper', avatar: 'rabbit', pin: '2010' },
+      { name: 'Chloe', avatar: 'panda', pin: '2011' },
+      { name: 'Mason', avatar: 'lion', pin: '2012' },
+      { name: 'James', avatar: 'fox', pin: '2013' },
+      { name: 'Ella', avatar: 'koala', pin: '2014' },
+      { name: 'Jackson', avatar: 'bear', pin: '2015' },
+      { name: 'Lily', avatar: 'rabbit', pin: '2016' },
+      { name: 'Henry', avatar: 'panda', pin: '2017' },
+      { name: 'Grace', avatar: 'fox', pin: '2018' }
+    ];
+
+    const studentIds = [childLeo._id, childMia._id];
+    for (let i = 0; i < extraKids.length; i++) {
+      const k = extraKids[i];
+      const email = `${k.name.toLowerCase()}@kcenglishkids.com`;
+      const kidUser = new User({
+        role: 'CHILD',
+        name: k.name,
+        email,
+        phone: `09000000${(i + 1).toString().padStart(2, '0')}`,
+        contact: `09000000${(i + 1).toString().padStart(2, '0')}`,
+        parentContact: `parent.${k.name.toLowerCase()}@example.com`,
+        avatar: k.avatar,
+        avatarUrl: createCardSvg(k.name, BG_COLORS[i % BG_COLORS.length], EMOJI_MAP[k.avatar] || '🦁'),
+        password: '123456',
+        pin: k.pin,
+        ageGroup: ageGroupsMap['3-4']._id,
+        ageGroupCode: '3-4',
+        assignedClass: demoClass._id,
+        status: 'ACTIVE'
+      });
+      await kidUser.save();
+      studentIds.push(kidUser._id);
+    }
+
+    demoClass.students = studentIds;
     await demoClass.save();
 
     // Link demo progress for Leo to demo lesson: B1_U5_L1 (Pet Animals)
@@ -541,6 +589,96 @@ async function seedDatabase() {
         attempts: 1
       });
     }
+
+    // Seed VocabularyMastery sample records
+    const sampleVocabs = await Vocabulary.find({}).limit(5);
+    for (const v of sampleVocabs) {
+      await VocabularyMastery.create({
+        student: childLeo._id,
+        vocabulary: v._id,
+        correctCount: 4,
+        wrongCount: 1,
+        attemptCount: 5,
+        streak: 3,
+        masteryLevel: 3,
+        lastReviewedAt: new Date()
+      });
+      await VocabularyMastery.create({
+        student: childMia._id,
+        vocabulary: v._id,
+        correctCount: 2,
+        wrongCount: 1,
+        attemptCount: 3,
+        streak: 1,
+        masteryLevel: 2,
+        lastReviewedAt: new Date()
+      });
+    }
+
+    // Seed sample ClassroomSession
+    const sampleActivities = petAnimalsLesson
+      ? await Activity.find({ lesson: petAnimalsLesson._id }).limit(3)
+      : [];
+    const sampleSession = await ClassroomSession.create({
+      classroom: demoClass._id,
+      teacher: teacherUser._id,
+      lesson: petAnimalsLesson ? petAnimalsLesson._id : undefined,
+      title: 'Pet Animals Live Exploration',
+      ageGroup: '3-4',
+      status: 'COMPLETED',
+      startedAt: new Date(Date.now() - 45 * 60 * 1000),
+      endedAt: new Date(),
+      plannedDuration: 45,
+      activities: sampleActivities.map((a) => a._id),
+      studentScores: [
+        {
+          student: childLeo._id,
+          points: 50,
+          stars: 3,
+          correctCount: 5,
+          incorrectCount: 0,
+          notAnswered: 0,
+          status: 'COMPLETED'
+        },
+        {
+          student: childMia._id,
+          points: 35,
+          stars: 2,
+          correctCount: 3,
+          incorrectCount: 2,
+          notAnswered: 0,
+          status: 'COMPLETED'
+        }
+      ],
+      summary: {
+        participationCount: 2,
+        averageAccuracy: 80,
+        totalStars: 5,
+        studentsNeedingPractice: []
+      }
+    });
+
+    // Seed sample ParentNotification
+    await ParentNotification.create({
+      teacher: teacherUser._id,
+      child: childLeo._id,
+      session: sampleSession._id,
+      recipientContact: '0901234567',
+      childName: 'Leo',
+      className: demoClass.name,
+      sessionDate: new Date(),
+      subject: 'Learning Update — Leo',
+      content: 'Bé Leo đã tham gia rất sôi nổi trong buổi học Pet Animals hôm nay!',
+      teacherNote: 'Leo nhớ từ rất nhanh và phát âm to rõ ràng!',
+      score: 100,
+      vocabMastered: 5,
+      vocabTotal: 5,
+      stars: 3,
+      accuracy: 100,
+      templateType: 'SESSION_REPORT',
+      status: 'SENT',
+      sentAt: new Date()
+    });
 
     // =========================================================================
     // FINAL VERIFICATION REPORT (Section 20 of prompt)

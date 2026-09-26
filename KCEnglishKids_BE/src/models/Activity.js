@@ -86,7 +86,12 @@ const activitySchema = new mongoose.Schema(
         'COLOR_RECOGNITION',
         'COUNT_OBJECTS',
         'TRUE_FALSE',
-        'CLASSIFICATION'
+        'CLASSIFICATION',
+        'FEED_ANIMAL',
+        'BUBBLE_POP',
+        'TAP_PICTURE',
+        'ANIMAL_SOUND',
+        'STAR_CATCHER'
       ],
       required: true
     },

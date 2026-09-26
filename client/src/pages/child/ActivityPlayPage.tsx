@@ -14,6 +14,11 @@ import { ImageWordMatchEngine } from '../../components/child/games/ImageWordMatc
 import { ListenChooseEngine } from '../../components/child/games/ListenChooseEngine';
 import { ColorRecognitionEngine } from '../../components/child/games/ColorRecognitionEngine';
 import { MissingObjectEngine } from '../../components/child/games/MissingObjectEngine';
+import { FeedAnimalEngine } from '../../components/child/games/FeedAnimalEngine';
+import { BubblePopEngine } from '../../components/child/games/BubblePopEngine';
+import { TapPictureEngine } from '../../components/child/games/TapPictureEngine';
+import { AnimalSoundEngine } from '../../components/child/games/AnimalSoundEngine';
+import { StarCatcherEngine } from '../../components/child/games/StarCatcherEngine';
 
 export const ActivityPlayPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -227,27 +232,27 @@ export const ActivityPlayPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-100 via-amber-50/60 to-orange-50/50 flex flex-col justify-between p-4 sm:p-6 select-none relative overflow-x-hidden">
       {/* Top Header with Back Button & Glowing Progress Bar */}
-      <header className="max-w-4xl w-full mx-auto">
-        <div className="flex items-center justify-between gap-4 mb-3">
+      <header className="max-w-[1600px] w-full mx-auto px-2 sm:px-6">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <button
             onClick={() => {
               sfx.playPop();
               navigate(-1);
             }}
             aria-label="Quay lại"
-            className="w-13 h-13 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-white border-3 border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-md active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-7 h-7 stroke-[2.5]" />
+            <ArrowLeft className="w-8 h-8 stroke-[2.5]" />
           </button>
 
-          <div className="flex-1 max-w-xs sm:max-w-md">
-            <div className="flex justify-between items-center text-xs font-black text-slate-600 mb-1.5">
-              <span className="bg-white/80 px-2.5 py-0.5 rounded-full border border-slate-200">
+          <div className="flex-1 max-w-md sm:max-w-xl md:max-w-2xl">
+            <div className="flex justify-between items-center text-sm sm:text-base font-black text-slate-600 mb-2">
+              <span className="bg-white/90 px-3.5 py-1 rounded-full border-2 border-slate-200 shadow-xs">
                 Câu {currentIdx + 1} / {totalQuestions}
               </span>
-              <span className="font-extrabold text-amber-600">{progressPercent}%</span>
+              <span className="font-black text-amber-600">{progressPercent}%</span>
             </div>
-            <div className="w-full h-4 bg-white/90 rounded-full border-2 border-slate-200 overflow-hidden p-0.5 shadow-inner">
+            <div className="w-full h-5 sm:h-6 bg-white/90 rounded-full border-2 border-slate-200 overflow-hidden p-0.5 shadow-inner">
               <div
                 className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-400 rounded-full transition-all duration-500 shadow-sm"
                 style={{ width: `${progressPercent}%` }}
@@ -255,15 +260,15 @@ export const ActivityPlayPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-13 px-4 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center font-black text-amber-800 text-lg shadow-sm gap-1.5">
-            <Star className="w-5 h-5 text-amber-500 fill-amber-500 animate-spin-slow" />
+          <div className="h-14 sm:h-16 px-5 sm:px-6 rounded-3xl bg-amber-100 border-3 border-amber-300 flex items-center justify-center font-black text-amber-800 text-xl sm:text-2xl shadow-md gap-2">
+            <Star className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500 fill-amber-500 animate-spin-slow" />
             <span>{recordedAnswers.filter(a => a.isCorrect).length}</span>
           </div>
         </div>
       </header>
 
       {/* Main Game Engine Center Stage */}
-      <main className="max-w-3xl w-full mx-auto my-auto py-2 relative z-10">
+      <main className="max-w-[1600px] w-full mx-auto my-auto py-4 sm:py-6 relative z-10 flex flex-col items-center justify-center">
         {activity?.activityType === 'MEMORY_CARD' ? (
           <MemoryCardEngine
             activity={activity}
@@ -301,6 +306,38 @@ export const ActivityPlayPage: React.FC = () => {
                 onAnswer={handleEngineAnswer}
                 disabled={feedbackState !== 'idle'}
               />
+            ) : activity?.activityType === 'FEED_ANIMAL' ? (
+              <FeedAnimalEngine
+                question={currentQuestion}
+                onAnswer={handleEngineAnswer}
+                disabled={feedbackState !== 'idle'}
+              />
+            ) : activity?.activityType === 'BUBBLE_POP' ? (
+              <BubblePopEngine
+                question={currentQuestion}
+                onAnswer={handleEngineAnswer}
+                disabled={feedbackState !== 'idle'}
+              />
+            ) : activity?.activityType === 'TAP_PICTURE' ? (
+              <TapPictureEngine
+                question={currentQuestion}
+                onAnswer={handleEngineAnswer}
+                disabled={feedbackState !== 'idle'}
+              />
+            ) : activity?.activityType === 'ANIMAL_SOUND' ? (
+              <AnimalSoundEngine
+                question={currentQuestion}
+                onAnswer={handleEngineAnswer}
+                disabled={feedbackState !== 'idle'}
+              />
+            ) : activity?.activityType === 'STAR_CATCHER' ? (
+              <StarCatcherEngine
+                question={currentQuestion}
+                selectedOptionId={selectedOptionId}
+                feedbackState={feedbackState}
+                onSelectOption={handleSelectOption}
+                onPlayPrompt={handlePlayPrompt}
+              />
             ) : (
               <ListenChooseEngine
                 question={currentQuestion}
@@ -315,10 +352,10 @@ export const ActivityPlayPage: React.FC = () => {
       </main>
 
       {/* Interactive Mascot Companion Bar at the bottom */}
-      <aside className="max-w-lg w-full mx-auto flex items-center justify-center gap-4 py-2 relative z-10">
+      <aside className="max-w-2xl w-full mx-auto flex items-center justify-center gap-4 py-3 relative z-10">
         <KokoMascot
           state={mascotState}
-          size="sm"
+          size="md"
           speechBubble={mascotSpeech}
           onClick={() => sfx.playPop()}
         />

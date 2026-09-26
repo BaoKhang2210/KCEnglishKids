@@ -25,6 +25,9 @@ import { ALL_STICKERS, stickerService } from '../../data/stickers';
 import { sfx } from '../../utils/audio';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import { BadgeShowcaseModal } from '../../components/child/BadgeShowcaseModal';
+import { CuteRosetteMedal } from '../../components/child/CuteRosetteMedal';
+import { CuteStickerCard } from '../../components/child/CuteStickerCard';
+import { StickerShowcaseModal } from '../../components/child/StickerShowcaseModal';
 
 interface CurriculumLesson {
   _id: string;
@@ -83,6 +86,8 @@ export const ChildHomePage: React.FC = () => {
   const [badgeCategory, setBadgeCategory] = useState<'all' | 'journey' | 'stars' | 'skills'>('all');
   const [rewardTab, setRewardTab] = useState<'badges' | 'stickers'>('badges');
   const [showcaseBadge, setShowcaseBadge] = useState<any>(null);
+  const [selectedSticker, setSelectedSticker] = useState<any>(null);
+  const [stickerRarityFilter, setStickerRarityFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
 
   // Friendly Sequential Gatekeeper Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -172,43 +177,43 @@ export const ChildHomePage: React.FC = () => {
     <div className="min-h-screen bg-[#fffaf0] pb-24 md:pb-12">
       <ChildHeader totalStars={totalStars} completedCount={completedLessons} activeTab={activeTab} />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-        {/* BANNER (Generous spacing, clean mascot layout, no clipped text) */}
-        <section className="relative mb-8 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 p-6 sm:p-8 text-white shadow-xl">
+      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8">
+        {/* BANNER (Generous full-width spacing, clean mascot layout, large text) */}
+        <section className="relative mb-10 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 p-8 sm:p-12 text-white shadow-xl overflow-hidden">
           {/* Subtle background decorative shapes */}
-          <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute right-0 top-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
             {/* Left Column: Greeting & Info */}
-            <div className="flex-1 text-center sm:text-left">
-              <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider text-amber-50 mb-3 shadow-xs">
-                <BookOpen className="w-4 h-4 text-yellow-200" />
+            <div className="flex-1 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-4 py-2 rounded-full text-sm font-black uppercase tracking-wider text-amber-50 mb-4 shadow-xs">
+                <BookOpen className="w-5 h-5 text-yellow-200" />
                 <span>{getBookBadgeText(ageCode)}</span>
               </div>
 
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-2">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-3">
                 Chào bé {user?.name || 'yêu'}! Cùng học nào ✨
               </h1>
 
-              <p className="text-white/90 font-extrabold text-sm sm:text-base max-w-lg mb-4">
+              <p className="text-white/95 font-extrabold text-base sm:text-xl max-w-2xl mb-6 leading-relaxed">
                 Hành trình gồm 9 Unit hấp dẫn theo sách First Friends đang chờ bé khám phá!
               </p>
 
               {/* Mini Stat Chips */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/20">
-                  <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                <div className="bg-amber-950/20 backdrop-blur-md px-4 py-2 rounded-2xl text-sm sm:text-base font-black flex items-center gap-2 border border-white/25 shadow-sm">
+                  <Star className="w-5 h-5 text-yellow-300 fill-yellow-300" />
                   <span>{totalStars} Sao vàng</span>
                 </div>
-                <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/20">
-                  <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
+                <div className="bg-amber-950/20 backdrop-blur-md px-4 py-2 rounded-2xl text-sm sm:text-base font-black flex items-center gap-2 border border-white/25 shadow-sm">
+                  <Check className="w-5 h-5 text-emerald-300 stroke-[3]" />
                   <span>{completedLessons} Bài hoàn thành</span>
                 </div>
               </div>
             </div>
 
             {/* Right Column: Mascot with comfortable breathing room */}
-            <div className="flex-shrink-0 flex items-center justify-center">
+            <div className="flex-shrink-0 flex items-center justify-center transform hover:scale-105 transition-transform">
               <KokoMascot state="waving" size="lg" speechBubble="Cố lên bé ơi! 🌟" />
             </div>
           </div>
@@ -246,78 +251,215 @@ export const ChildHomePage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* ==================== VƯỜN TRÒ CHƠI MINI-GAMES CỦA BÉ ==================== */}
+                <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-500 rounded-3xl sm:rounded-4xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border-4 border-white">
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="max-w-xl">
+                      <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider text-yellow-300 mb-3 border border-white/30">
+                        <Sparkles className="w-4 h-4" />
+                        Khu Vườn 12 Mini-Games Mầm Non
+                      </div>
+                      <h3 className="text-2xl sm:text-4xl font-black mb-2 text-white font-display">
+                        Trò Chơi Tương Tác Vui Nhộn 🎮
+                      </h3>
+                      <p className="text-white/90 text-sm sm:text-base font-bold leading-relaxed">
+                        Bé hãy khám phá 12 trò chơi: Cho thú ăn, Bắn bóng, Tiếng kêu con vật, Lật thẻ trí nhớ và Game HTML5 Hứng Sao Từ Vựng!
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        navigate('/?tab=games');
+                      }}
+                      className="px-6 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer flex-shrink-0"
+                    >
+                      <Sparkles className="w-5 h-5 fill-amber-950" />
+                      <span>Chơi Ngay 12 Trò Chơi ➔</span>
+                    </button>
+                  </div>
+
+                  {/* Quick-launch mini game cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 relative z-10">
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        navigate('/?tab=games');
+                      }}
+                      className="bg-white/15 hover:bg-white/25 backdrop-blur-md p-4 rounded-2xl border border-white/25 text-left transition-all hover:scale-103 cursor-pointer group"
+                    >
+                      <span className="text-3xl sm:text-4xl block mb-2 group-hover:scale-110 transition-transform">🐾</span>
+                      <span className="text-xs font-black text-yellow-300 block uppercase">Lớp Mầm 3–4t</span>
+                      <b className="text-sm sm:text-base font-black text-white block">Cho Thú Đói Ăn</b>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        navigate('/?tab=games');
+                      }}
+                      className="bg-white/15 hover:bg-white/25 backdrop-blur-md p-4 rounded-2xl border border-white/25 text-left transition-all hover:scale-103 cursor-pointer group"
+                    >
+                      <span className="text-3xl sm:text-4xl block mb-2 group-hover:scale-110 transition-transform">🎈</span>
+                      <span className="text-xs font-black text-yellow-300 block uppercase">Lớp Mầm 3–4t</span>
+                      <b className="text-sm sm:text-base font-black text-white block">Bong Bóng Bay</b>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        navigate('/?tab=games');
+                      }}
+                      className="bg-white/15 hover:bg-white/25 backdrop-blur-md p-4 rounded-2xl border border-white/25 text-left transition-all hover:scale-103 cursor-pointer group"
+                    >
+                      <span className="text-3xl sm:text-4xl block mb-2 group-hover:scale-110 transition-transform">🎨</span>
+                      <span className="text-xs font-black text-yellow-300 block uppercase">Lớp Chồi 4–5t</span>
+                      <b className="text-sm sm:text-base font-black text-white block">Nhận Biết Màu Sắc</b>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        navigate('/?tab=games');
+                      }}
+                      className="bg-white/15 hover:bg-white/25 backdrop-blur-md p-4 rounded-2xl border border-white/25 text-left transition-all hover:scale-103 cursor-pointer group"
+                    >
+                      <span className="text-3xl sm:text-4xl block mb-2 group-hover:scale-110 transition-transform">🚀</span>
+                      <span className="text-xs font-black text-yellow-300 block uppercase">Lớp Lá 5–6t • HTML5</span>
+                      <b className="text-sm sm:text-base font-black text-white block">Hứng Sao Từ Vựng</b>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Units List with Winding Stepping-Stones Trail */}
-                <div className="space-y-8">
+                <div className="space-y-10">
                   {units.map((unit, unitIdx) => {
                     const isUnitUnlocked = unitIdx === 0 || !!units[unitIdx - 1]?.isCompleted;
                     const firstIncompleteIdx = unit.lessons.findIndex(l => !l.completed);
 
+                    const UNIT_THEMES = [
+                      {
+                        themeName: 'Đảo Đồ Chơi & Trường Học',
+                        tag: 'Trường Mầm Non',
+                        bgGradient: 'from-amber-50 via-white to-orange-50/50',
+                        border: 'border-amber-300',
+                        headerBadge: 'bg-amber-100 text-amber-900 border-amber-300',
+                        accentEmoji: '🎒'
+                      },
+                      {
+                        themeName: 'Vương Quốc Thú Cưng Đáng Yêu',
+                        tag: 'Khám Phá Muôn Loài',
+                        bgGradient: 'from-emerald-50 via-white to-teal-50/50',
+                        border: 'border-emerald-300',
+                        headerBadge: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+                        accentEmoji: '🐶'
+                      },
+                      {
+                        themeName: 'Khu Vườn Bánh Ngọt & Trái Cây',
+                        tag: 'Món Ngon Cho Bé',
+                        bgGradient: 'from-rose-50 via-white to-orange-50/50',
+                        border: 'border-rose-300',
+                        headerBadge: 'bg-rose-100 text-rose-900 border-rose-300',
+                        accentEmoji: '🍎'
+                      },
+                      {
+                        themeName: 'Xứ Sở Đồ Chơi Kỳ Diệu',
+                        tag: 'Thế Giới Tuổi Thơ',
+                        bgGradient: 'from-purple-50 via-white to-pink-50/50',
+                        border: 'border-purple-300',
+                        headerBadge: 'bg-purple-100 text-purple-900 border-purple-300',
+                        accentEmoji: '🧸'
+                      },
+                      {
+                        themeName: 'Thung Lũng Cỏ Cây Tự Nhiên',
+                        tag: 'Thiên Nhiên Xanh',
+                        bgGradient: 'from-teal-50 via-white to-cyan-50/50',
+                        border: 'border-teal-300',
+                        headerBadge: 'bg-teal-100 text-teal-900 border-teal-300',
+                        accentEmoji: '🌳'
+                      },
+                      {
+                        themeName: 'Tổ Ấm Ngôi Nhà Hạnh Phúc',
+                        tag: 'Gia Đình Yêu Thương',
+                        bgGradient: 'from-yellow-50 via-white to-amber-50/50',
+                        border: 'border-amber-300',
+                        headerBadge: 'bg-yellow-100 text-yellow-900 border-yellow-300',
+                        accentEmoji: '🏡'
+                      }
+                    ];
+
+                    const theme = UNIT_THEMES[unitIdx % UNIT_THEMES.length];
+
                     return (
                       <div
                         key={unit._id || unitIdx}
-                        className={`rounded-3xl border-3 p-5 sm:p-7 shadow-md relative overflow-hidden transition-all ${
+                        className={`rounded-[36px] border-4 p-6 sm:p-9 shadow-xl relative overflow-hidden transition-all ${
                           !isUnitUnlocked
                             ? 'bg-slate-50/80 border-slate-200/90 opacity-75'
-                            : 'bg-white border-amber-200/90'
+                            : `bg-gradient-to-b ${theme.bgGradient} ${theme.border}`
                         }`}
                       >
+                        {/* Decorative floating pastel bubbles */}
+                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-pink-200/30 rounded-full blur-3xl pointer-events-none" />
+
                         {/* Unit Island Header */}
-                        <div className="flex items-center justify-between border-b border-amber-100 pb-4 mb-6 flex-wrap gap-3">
-                          <div className="flex items-center gap-3.5">
+                        <div className="flex items-center justify-between border-b-2 border-slate-100/80 pb-5 mb-8 flex-wrap gap-4 relative z-10">
+                          <div className="flex items-center gap-4 sm:gap-5">
                             <div
-                              className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-xs border flex-shrink-0 ${
+                              className={`w-18 h-18 sm:w-22 sm:h-22 rounded-3xl flex items-center justify-center text-4xl sm:text-5xl shadow-md border-3 flex-shrink-0 transition-transform hover:scale-105 ${
                                 !isUnitUnlocked
                                   ? 'bg-slate-200 border-slate-300 text-slate-400 grayscale'
-                                  : 'bg-gradient-to-br from-amber-200 to-orange-300 border-amber-300'
+                                  : 'bg-white border-amber-300 shadow-amber-200/50'
                               }`}
                             >
-                              {unit.topicIcon || '🎒'}
+                              {unit.topicIcon || theme.accentEmoji}
                             </div>
                             <div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md ${
-                                  !isUnitUnlocked ? 'bg-slate-200 text-slate-600' : 'bg-orange-100 text-orange-800'
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border shadow-2xs ${
+                                  !isUnitUnlocked ? 'bg-slate-200 text-slate-600 border-slate-300' : theme.headerBadge
                                 }`}>
-                                  Unit {unit.unitNumber}
+                                  Unit {unit.unitNumber} • {theme.tag}
                                 </span>
                                 {!isUnitUnlocked ? (
-                                  <span className="bg-slate-200 text-slate-600 text-[11px] font-black px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                                    <LockKeyhole className="w-3 h-3" /> Chưa mở khóa
+                                  <span className="bg-slate-200 text-slate-600 text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 border border-slate-300">
+                                    <LockKeyhole className="w-3.5 h-3.5" /> Chưa mở khóa
                                   </span>
                                 ) : unit.isCompleted ? (
-                                  <span className="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                                    <Check className="w-3 h-3 stroke-[3]" /> Hoàn thành
+                                  <span className="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-300">
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" /> Hoàn thành trọn vẹn
                                   </span>
                                 ) : (
-                                  <span className="bg-amber-100 text-amber-800 text-[11px] font-black px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3 text-amber-600" /> Đang học
+                                  <span className="bg-amber-100 text-amber-900 text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-300 animate-pulse">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-500" /> Đang khám phá
                                   </span>
                                 )}
                               </div>
-                              <h3 className="text-xl sm:text-2xl font-black text-slate-800 mt-0.5">
+                              <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 mt-1 font-display tracking-tight">
                                 Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Bài học'}
                               </h3>
-                              <p className="text-xs sm:text-sm font-bold text-slate-500">
+                              <p className="text-sm sm:text-base font-extrabold text-slate-600 mt-0.5">
                                 {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
                                 {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.storyTitle || ''}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 bg-amber-50 px-3.5 py-1.5 rounded-2xl border border-amber-200">
-                            <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                            <span className="text-xs font-black text-amber-900">
-                              {unit.totalUnitStars} sao
+                          <div className="flex items-center gap-2 bg-white/90 px-4 py-2.5 rounded-2xl border-2 border-amber-200 shadow-sm">
+                            <Star className="w-5 h-5 text-amber-500 fill-amber-500 animate-soft-bounce" />
+                            <span className="text-sm sm:text-base font-black text-amber-950">
+                              {unit.totalUnitStars} sao vàng
                             </span>
                           </div>
                         </div>
 
                         {/* Winding Stepping Stones for this Unit's Lessons */}
-                        <div className="relative py-4 flex flex-col items-center">
-                          {/* Central dashed stepping trail connector */}
-                          <div className="absolute top-8 bottom-8 w-1 border-r-4 border-dashed border-amber-300 pointer-events-none" />
+                        <div className="relative py-6 flex flex-col items-center">
+                          {/* Central dashed stepping trail connector with paw prints */}
+                          <div className="absolute top-10 bottom-10 w-2 border-r-4 border-dashed border-amber-300/80 pointer-events-none" />
 
-                          <div className="w-full max-w-md flex flex-col gap-6 relative z-10">
+                          <div className="w-full max-w-4xl flex flex-col gap-8 relative z-10">
                             {unit.lessons.map((lesson, idx) => {
                               const isAlternateRight = idx % 2 === 1;
                               const isLessonUnlocked = isUnitUnlocked && (idx === 0 || !!unit.lessons[idx - 1]?.completed);
@@ -326,10 +468,18 @@ export const ChildHomePage: React.FC = () => {
                               return (
                                 <div
                                   key={lesson._id || idx}
-                                  className={`flex items-center ${
-                                    isAlternateRight ? 'justify-end pr-4 sm:pr-8' : 'justify-start pl-4 sm:pl-8'
+                                  className={`flex items-center w-full relative ${
+                                    isAlternateRight ? 'justify-end pr-3 sm:pr-12 lg:pr-20' : 'justify-start pl-3 sm:pl-12 lg:pl-20'
                                   }`}
                                 >
+                                  {/* Mascot pointer at the active lesson */}
+                                  {isCurrent && (
+                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-950 font-black text-xs px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce z-30 whitespace-nowrap border-2 border-white ring-2 ring-amber-300">
+                                      <span className="text-sm">🚩</span>
+                                      <span>Bé học tiếp tại đây!</span>
+                                    </div>
+                                  )}
+
                                   <button
                                     onClick={() => {
                                       if (!isUnitUnlocked) {
@@ -343,39 +493,39 @@ export const ChildHomePage: React.FC = () => {
                                       sfx.playPop();
                                       navigate(`/lessons/${lesson._id}`);
                                     }}
-                                    className={`group flex items-center gap-3.5 p-3 rounded-2xl border-3 text-left transition-all duration-200 cursor-pointer ${
+                                    className={`group flex items-center gap-4 p-4 sm:p-5 rounded-[28px] border-4 text-left transition-all duration-300 cursor-pointer min-w-[280px] sm:min-w-[380px] lg:min-w-[440px] relative ${
                                       lesson.completed
-                                        ? 'bg-emerald-50 border-emerald-300 hover:bg-emerald-100 hover:scale-105 shadow-sm'
+                                        ? 'bg-white border-emerald-300 hover:border-emerald-400 hover:shadow-xl hover:scale-104 shadow-md'
                                         : isCurrent
-                                        ? 'bg-gradient-to-r from-amber-100 via-orange-100 to-amber-100 border-amber-400 ring-4 ring-amber-300/70 shadow-lg scale-105 animate-soft-bounce'
+                                        ? 'bg-gradient-to-r from-amber-50 via-white to-orange-50 border-amber-400 ring-4 ring-amber-300 animate-active-stone shadow-xl scale-104'
                                         : isLessonUnlocked
-                                        ? 'bg-white border-amber-200 hover:border-amber-400 hover:scale-103 shadow-xs'
+                                        ? 'bg-white border-amber-200/90 hover:border-amber-400 hover:shadow-lg hover:scale-103 shadow-sm'
                                         : 'bg-slate-100/90 border-slate-200 opacity-60'
                                     }`}
                                   >
                                     {/* Stepping-Stone Node Avatar */}
                                     <div
-                                      className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shadow-md flex-shrink-0 transition-transform ${
+                                      className={`w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center text-2xl font-black shadow-md flex-shrink-0 transition-transform ${
                                         lesson.completed
-                                          ? 'bg-emerald-500 text-white'
+                                          ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
                                           : isCurrent
-                                          ? 'bg-gradient-to-tr from-amber-400 to-orange-500 text-white group-hover:scale-110'
+                                          ? 'bg-gradient-to-tr from-amber-400 via-yellow-400 to-orange-500 text-amber-950 group-hover:scale-110'
                                           : isLessonUnlocked
-                                          ? 'bg-gradient-to-br from-amber-200 to-yellow-300 text-amber-900'
+                                          ? 'bg-gradient-to-br from-amber-100 to-yellow-200 text-amber-900 border border-amber-300'
                                           : 'bg-slate-200 text-slate-400'
                                       }`}
                                     >
                                       {lesson.completed ? (
-                                        <Check className="w-7 h-7 stroke-[3]" />
+                                        <Check className="w-8 h-8 stroke-[3]" />
                                       ) : !isLessonUnlocked ? (
-                                        <LockKeyhole className="w-6 h-6 stroke-[2.5]" />
+                                        <LockKeyhole className="w-7 h-7 stroke-[2.5]" />
                                       ) : (
-                                        <span>{lesson.lessonNumber || idx + 1}</span>
+                                        <span className="font-display font-black text-2xl">{lesson.lessonNumber || idx + 1}</span>
                                       )}
                                     </div>
 
                                     {/* Lesson Info */}
-                                    <div className="min-w-0 pr-2">
+                                    <div className="min-w-0 pr-2 flex-1">
                                       <div className="flex items-center gap-1.5 mb-0.5">
                                         <span className="text-[10px] font-black uppercase text-slate-400">
                                           Bài {lesson.lessonNumber || idx + 1}
@@ -383,12 +533,12 @@ export const ChildHomePage: React.FC = () => {
                                         {lesson.completed ? (
                                           <span className="flex items-center text-amber-500 text-xs">
                                             {[...Array(lesson.stars || 3)].map((_, i) => (
-                                              <Star key={i} className="w-3 h-3 fill-current" />
+                                              <Star key={i} className="w-3.5 h-3.5 fill-current" />
                                             ))}
                                           </span>
                                         ) : isCurrent ? (
-                                          <span className="text-[10px] font-black text-amber-700 bg-amber-200 px-2 py-0.2 rounded-full animate-pulse">
-                                            Chơi ngay!
+                                          <span className="text-[10px] font-black text-amber-900 bg-amber-300 px-2 py-0.5 rounded-full animate-pulse">
+                                            Chơi ngay! 🚀
                                           </span>
                                         ) : !isLessonUnlocked ? (
                                           <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5">
@@ -396,10 +546,10 @@ export const ChildHomePage: React.FC = () => {
                                           </span>
                                         ) : null}
                                       </div>
-                                      <h4 className="text-sm font-black text-slate-800 truncate max-w-[170px]">
+                                      <h4 className="text-base font-black text-slate-800 truncate max-w-[200px] group-hover:text-amber-700 transition-colors">
                                         {lesson.title}
                                       </h4>
-                                      <p className="text-[11px] font-bold text-slate-500">
+                                      <p className="text-xs font-extrabold text-slate-500">
                                         {lesson.vietnameseTitle ? `${lesson.vietnameseTitle} • ` : ''}
                                         {lesson.vocabularyItems?.length || 4} từ vựng
                                       </p>
@@ -409,8 +559,8 @@ export const ChildHomePage: React.FC = () => {
                               );
                             })}
 
-                            {/* End of Unit Treasure Chest */}
-                            <div className="flex flex-col items-center justify-center pt-2">
+                            {/* End of Unit Treasure Dais */}
+                            <div className="flex flex-col items-center justify-center pt-3">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -426,17 +576,17 @@ export const ChildHomePage: React.FC = () => {
                                   });
                                   setShowSecretGift(true);
                                 }}
-                                className={`w-full max-w-md p-4 rounded-3xl border-3 flex items-center justify-between gap-3 shadow-md transition-all cursor-pointer group hover:scale-105 active:scale-95 ${
+                                className={`w-full max-w-lg p-5 rounded-[28px] border-4 flex items-center justify-between gap-4 shadow-lg transition-all cursor-pointer group hover:scale-104 active:scale-95 ${
                                   !isUnitUnlocked
                                     ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60'
                                     : unit.isCompleted
-                                    ? 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 border-amber-400 text-amber-950 animate-pulse'
-                                    : 'bg-white hover:bg-amber-50/80 border-amber-200 text-slate-700 hover:border-amber-300'
+                                    ? 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 border-amber-400 text-amber-950 shadow-amber-300/40 animate-pulse'
+                                    : 'bg-white hover:bg-amber-50/80 border-amber-300 text-slate-700'
                                 }`}
                               >
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-4">
                                   <div
-                                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-xs transition-transform group-hover:rotate-12 ${
+                                    className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-xs transition-transform group-hover:rotate-12 ${
                                       !isUnitUnlocked
                                         ? 'bg-slate-200 text-slate-400'
                                         : unit.isCompleted
@@ -444,40 +594,33 @@ export const ChildHomePage: React.FC = () => {
                                         : 'bg-amber-100 text-amber-700'
                                     }`}
                                   >
-                                    {!isUnitUnlocked ? '🔒' : '🎁'}
+                                    🎁
                                   </div>
                                   <div className="text-left">
-                                    <p className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                                      <span>
-                                        {!isUnitUnlocked
-                                          ? 'Hộp quà bí mật (Chưa mở)'
-                                          : unit.isCompleted
-                                          ? '🎉 Hộp quà đã mở!'
-                                          : '🎁 Hộp quà bí mật'}
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                      <span className="text-[10px] font-black uppercase text-amber-800">
+                                        Rương Báu Unit {unit.unitNumber}
                                       </span>
-                                      {isUnitUnlocked && <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-400" />}
-                                    </p>
-                                    <p className="text-[11px] font-bold text-slate-500">
-                                      {!isUnitUnlocked
-                                        ? 'Hoàn thành bài để mở khóa hộp quà!'
-                                        : unit.isCompleted
-                                        ? 'Bấm để nhận quà & xem thưởng!'
-                                        : 'Bấm để khám phá kho báu bí mật!'}
+                                      {unit.isCompleted && (
+                                        <span className="bg-amber-400 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full">
+                                          Đã Mở! ✨
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h4 className="font-black text-sm sm:text-base text-slate-800">
+                                      {unit.isCompleted ? 'Nhận Thưởng Rương Báu' : 'Hộp Quà Bí Mật Đang Chờ'}
+                                    </h4>
+                                    <p className="text-xs font-bold text-slate-500">
+                                      {unit.isCompleted ? 'Bé đã mở khóa +5 sao và quà tặng!' : 'Hoàn thành bài để mở rương!'}
                                     </p>
                                   </div>
                                 </div>
 
-                                <span
-                                  className={`text-[11px] font-black px-3 py-1.5 rounded-xl border transition-colors ${
-                                    !isUnitUnlocked
-                                      ? 'bg-slate-200 border-slate-300 text-slate-500'
-                                      : unit.isCompleted
-                                      ? 'bg-amber-400 border-amber-500 text-amber-950 shadow-xs'
-                                      : 'bg-amber-100 border-amber-200 text-amber-900 group-hover:bg-amber-200'
-                                  }`}
-                                >
-                                  {!isUnitUnlocked ? 'Đang khóa 🔒' : unit.isCompleted ? 'Mở ngay ✨' : 'Xem trước 🎁'}
-                                </span>
+                                <div className="text-right">
+                                  <span className="btn-3d-amber py-2 px-3.5 rounded-xl text-xs font-black text-amber-950 inline-flex items-center gap-1">
+                                    <span>{unit.isCompleted ? 'Mở quà ➔' : 'Xem rương 🔒'}</span>
+                                  </span>
+                                </div>
                               </button>
                             </div>
                           </div>
@@ -514,7 +657,7 @@ export const ChildHomePage: React.FC = () => {
                 </div>
 
                 {/* Topics Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
                   {ageTopics.map(topic => (
                     <button
                       key={topic._id}
@@ -522,33 +665,33 @@ export const ChildHomePage: React.FC = () => {
                         sfx.playPop();
                         navigate(`/topics/${topic.slug}`);
                       }}
-                      className="card-kid bg-white rounded-3xl border-3 border-emerald-200/90 p-5 text-center shadow-sm hover:border-emerald-400 hover:shadow-lg transition-all cursor-pointer flex flex-col items-center justify-between group"
+                      className="card-kid bg-white rounded-3xl border-4 border-emerald-200/90 p-6 text-center shadow-md hover:border-emerald-400 hover:shadow-xl transition-all cursor-pointer flex flex-col items-center justify-between group"
                     >
                       <div className="w-full flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                        <span className="text-xs font-black uppercase text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-lg">
                           {ageCode} tuổi
                         </span>
-                        <span className="text-[11px] font-extrabold text-slate-400">
+                        <span className="text-xs font-black text-slate-400">
                           {topic.lessonCount || 0} bài
                         </span>
                       </div>
 
-                      <div className="my-2 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center text-4xl sm:text-5xl group-hover:scale-110 transition-transform">
+                      <div className="my-3 w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center text-5xl sm:text-6xl group-hover:scale-110 transition-transform shadow-inner">
                         {topic.icon || '🌟'}
                       </div>
 
                       <div className="mt-1 w-full">
-                        <h3 className="font-black text-slate-800 text-base sm:text-lg group-hover:text-emerald-700 transition-colors truncate">
+                        <h3 className="font-black text-slate-800 text-lg sm:text-xl group-hover:text-emerald-700 transition-colors truncate">
                           {topic.englishName}
                         </h3>
-                        <p className="text-xs font-bold text-slate-500 truncate">
+                        <p className="text-xs sm:text-sm font-bold text-slate-500 truncate mt-0.5">
                           {topic.vietnameseName}
                         </p>
                       </div>
 
-                      <div className="mt-3 pt-2 border-t border-slate-100 w-full flex items-center justify-center text-xs font-black text-emerald-600 gap-1 group-hover:translate-x-0.5 transition-transform">
+                      <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center text-sm font-black text-emerald-600 gap-1.5 group-hover:translate-x-1 transition-transform">
                         <span>Khám phá</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <ArrowRight className="w-4 h-4" />
                       </div>
                     </button>
                   ))}
@@ -701,46 +844,42 @@ export const ChildHomePage: React.FC = () => {
                                 sfx.playPop();
                                 setShowcaseBadge(badge);
                               }}
-                              className={`rounded-3xl border-3 p-4 text-center flex flex-col items-center justify-between transition-all cursor-pointer relative group badge-shimmer-effect ${
+                              className={`rounded-[28px] border-3 p-4 text-center flex flex-col items-center justify-between transition-all cursor-pointer relative group badge-shimmer-effect ${
                                 badge.unlocked
-                                  ? 'border-amber-400 bg-gradient-to-b from-white to-amber-50/50 shadow-md hover:shadow-xl hover:-translate-y-1.5 active:scale-95'
-                                  : 'border-slate-200 bg-white/70 hover:border-purple-200 hover:-translate-y-0.5'
+                                  ? 'border-amber-300 bg-gradient-to-b from-white via-amber-50/40 to-orange-50/50 shadow-md hover:shadow-2xl hover:-translate-y-2 active:scale-95'
+                                  : 'border-slate-200 bg-white/70 hover:border-amber-200 hover:-translate-y-0.5'
                               }`}
                             >
-                              <div
-                                className={`w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl mb-2.5 shadow-sm relative transition-transform duration-300 group-hover:scale-110 ${
-                                  badge.unlocked
-                                    ? `bg-gradient-to-tr ${badge.color} text-white ring-2 ring-amber-300 animate-badge-float`
-                                    : 'bg-slate-100 text-slate-400 border-2 border-dashed border-slate-300'
-                                }`}
-                              >
-                                {badge.unlocked ? badge.icon : <LockKeyhole className="w-6 h-6 text-slate-400" />}
-                                {badge.unlocked && (
-                                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-400 text-amber-950 rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
-                                    ⭐
-                                  </span>
-                                )}
+                              {/* 3D Rosette Medal */}
+                              <div className="my-1.5 pb-2">
+                                <CuteRosetteMedal
+                                  badge={badge}
+                                  unlocked={badge.unlocked}
+                                  size="md"
+                                  showRibbons={true}
+                                  className="group-hover:scale-110 transition-transform"
+                                />
                               </div>
 
                               <div className="w-full">
-                                <h4 className="font-black text-slate-800 text-xs sm:text-sm mb-0.5 leading-snug group-hover:text-purple-700 transition-colors">
+                                <h4 className="font-black text-slate-800 text-xs sm:text-sm mb-0.5 leading-snug group-hover:text-amber-800 transition-colors">
                                   {badge.name}
                                 </h4>
-                                <p className="text-[11px] font-bold text-slate-400 leading-tight mb-2 line-clamp-2">
+                                <p className="text-[11px] font-bold text-slate-500 leading-tight mb-2 line-clamp-2">
                                   {badge.desc}
                                 </p>
                               </div>
 
                               {badge.unlocked ? (
-                                <span className="mt-auto inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
-                                  <span>Đã đạt</span>
+                                <span className="mt-auto inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                                  <span>{badge.tierName}</span>
                                   <span>⭐</span>
                                 </span>
                               ) : (
                                 <div className="w-full mt-auto space-y-1">
                                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
                                     <div
-                                      className="h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full transition-all"
+                                      className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all"
                                       style={{ width: `${percent}%` }}
                                     />
                                   </div>
@@ -756,47 +895,51 @@ export const ChildHomePage: React.FC = () => {
                     </>
                   ) : (
                     /* Stickers Grid */
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
-                      {ALL_STICKERS.map((st) => {
-                        const isUnlocked = unlockedStickers.includes(st.id);
-                        return (
-                          <div
-                            key={st.id}
-                            className={`rounded-3xl border-3 p-4 text-center flex flex-col items-center justify-between transition-all ${
-                              isUnlocked
-                                ? 'border-rose-400 bg-white shadow-md hover:scale-105'
-                                : 'border-slate-200 bg-slate-50/70 opacity-60'
+                    <div>
+                      {/* Rarity filter pills */}
+                      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
+                        {[
+                          { id: 'all', label: `Tất cả (${ALL_STICKERS.length})` },
+                          { id: 'legendary', label: '👑 Huyền thoại' },
+                          { id: 'epic', label: '🔮 Sử thi' },
+                          { id: 'rare', label: '💎 Hiếm' },
+                          { id: 'common', label: '🌱 Phổ thông' }
+                        ].map(rf => (
+                          <button
+                            key={rf.id}
+                            type="button"
+                            onClick={() => {
+                              sfx.playPop();
+                              setStickerRarityFilter(rf.id as any);
+                            }}
+                            className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer flex-shrink-0 ${
+                              stickerRarityFilter === rf.id
+                                ? 'bg-rose-500 text-white shadow-md ring-2 ring-rose-300 scale-105'
+                                : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700'
                             }`}
                           >
-                            <div
-                              className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl mb-2.5 shadow-sm ${
-                                isUnlocked
-                                  ? `bg-gradient-to-tr ${st.bgGradient} text-white animate-bounce-subtle`
-                                  : 'bg-slate-200 text-slate-400 grayscale'
-                              }`}
-                            >
-                              {isUnlocked ? st.icon : <LockKeyhole className="w-7 h-7 text-slate-400" />}
-                            </div>
-                            <div>
-                              <h4 className="font-black text-slate-800 text-xs sm:text-sm mb-0.5 leading-snug">
-                                {isUnlocked ? st.name : 'Sticker Bí Mật'}
-                              </h4>
-                              <p className="text-[11px] font-bold text-slate-400 leading-tight">
-                                {isUnlocked ? st.desc : 'Đạt 2-3 sao khi chơi game để mở khóa'}
-                              </p>
-                            </div>
-                            <span
-                              className={`mt-2.5 text-[10px] font-black px-2.5 py-1 rounded-full ${
-                                isUnlocked
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                  : 'bg-slate-200 text-slate-500'
-                              }`}
-                            >
-                              {isUnlocked ? 'Đã sưu tập 🎁' : 'Chưa mở khóa 🔒'}
-                            </span>
-                          </div>
-                        );
-                      })}
+                            {rf.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                        {ALL_STICKERS.filter(st => stickerRarityFilter === 'all' || st.rarity === stickerRarityFilter).map((st) => {
+                          const isUnlocked = unlockedStickers.includes(st.id);
+                          return (
+                            <CuteStickerCard
+                              key={st.id}
+                              sticker={st}
+                              isUnlocked={isUnlocked}
+                              size="md"
+                              onClick={() => {
+                                sfx.playPop();
+                                setSelectedSticker({ sticker: st, isUnlocked });
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </section>
@@ -829,6 +972,15 @@ export const ChildHomePage: React.FC = () => {
                 : progress?.completedLessonsCount || 0
             }
             onClose={() => setShowcaseBadge(null)}
+          />
+        )}
+
+        {/* 3D Puffy Sticker Showcase Modal */}
+        {selectedSticker && (
+          <StickerShowcaseModal
+            sticker={selectedSticker.sticker}
+            isUnlocked={selectedSticker.isUnlocked}
+            onClose={() => setSelectedSticker(null)}
           />
         )}
 

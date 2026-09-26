@@ -661,6 +661,94 @@ function buildActivitiesForLesson(lessonDef, vocabMap) {
     });
   }
 
+  // =========================================================================
+  // Interactive Preschool Games for Lớp Mầm (3–4 tuổi)
+  // =========================================================================
+  if (age === '3-4' && words.length >= 2) {
+    const targetWord = words[0];
+    const v = vocabMap.get(targetWord.toLowerCase().trim());
+    const distractors = words.filter(w => w !== targetWord).slice(0, 2);
+    const options = [targetWord, ...distractors].map((w, idx) => {
+      const item = vocabMap.get(w.toLowerCase().trim());
+      return {
+        id: `opt_${idx}_${w}`,
+        text: item ? item.english : w,
+        vietnameseText: item ? item.vietnamese : w,
+        imageUrl: item ? item.imageUrl : '',
+        audioUrl: item ? item.audioUrl : '',
+        isCorrect: w === targetWord
+      };
+    }).sort(() => Math.random() - 0.5);
+
+    // 1. Bubble Pop or Feed Animal
+    const gameType = order % 2 === 0 ? 'BUBBLE_POP' : 'FEED_ANIMAL';
+    activities.push({
+      lessonKey: lessonDef.key,
+      activityType: gameType,
+      title: gameType === 'BUBBLE_POP' ? `Bubble Pop: ${lessonDef.title}` : `Feed the Animal: ${lessonDef.title}`,
+      vietnameseTitle: gameType === 'BUBBLE_POP' ? `Bong bóng bay: ${lessonDef.vietnameseTitle}` : `Cho thú đói ăn: ${lessonDef.vietnameseTitle}`,
+      instructions: gameType === 'BUBBLE_POP' ? 'Tap the floating bubble with the correct word!' : 'Feed the cute animal with the right treat!',
+      ageGroupCode: age,
+      difficulty: 1,
+      questionCount: 1,
+      pointsPerQuestion: 100,
+      starConfig: { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
+      questions: [{
+        promptText: targetWord,
+        promptAudioUrl: v?.audioUrl,
+        promptImageUrl: v?.imageUrl,
+        correctAnswer: targetWord,
+        options,
+        vocabulary: v?._id,
+        explanation: `Great job! You found the ${targetWord}!`
+      }],
+      order: 3,
+      sourceType: 'SYSTEM_DESIGN'
+    });
+  }
+
+  // =========================================================================
+  // Interactive HTML5 Game for Lớp Lá (5–6 tuổi)
+  // =========================================================================
+  if (age === '5-6' && words.length >= 2) {
+    const targetWord = words[0];
+    const v = vocabMap.get(targetWord.toLowerCase().trim());
+    const distractors = words.filter(w => w !== targetWord).slice(0, 3);
+    const options = [targetWord, ...distractors].map((w, idx) => {
+      const item = vocabMap.get(w.toLowerCase().trim());
+      return {
+        id: `star_${idx}_${w}`,
+        text: item ? item.english : w,
+        imageUrl: item ? item.imageUrl : '',
+        isCorrect: w === targetWord
+      };
+    }).sort(() => Math.random() - 0.5);
+
+    activities.push({
+      lessonKey: lessonDef.key,
+      activityType: 'STAR_CATCHER',
+      title: `Star Catcher HTML5: ${lessonDef.title}`,
+      vietnameseTitle: `Hứng sao từ vựng: ${lessonDef.vietnameseTitle}`,
+      instructions: 'Catch the falling star with the correct word in your basket!',
+      ageGroupCode: age,
+      difficulty: 2,
+      questionCount: 1,
+      pointsPerQuestion: 100,
+      starConfig: { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
+      questions: [{
+        promptText: targetWord,
+        promptAudioUrl: v?.audioUrl,
+        promptImageUrl: v?.imageUrl,
+        correctAnswer: targetWord,
+        options,
+        vocabulary: v?._id,
+        explanation: `Amazing! You caught the ${targetWord} star!`
+      }],
+      order: 3,
+      sourceType: 'SYSTEM_DESIGN'
+    });
+  }
+
   return activities;
 }
 

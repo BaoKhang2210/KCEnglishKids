@@ -120,15 +120,15 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-2xl mx-auto text-center">
+    <div className="flex flex-col items-center w-full max-w-5xl mx-auto text-center select-none">
       {/* Banner */}
-      <span className="inline-flex items-center gap-2 bg-pink-100 text-pink-900 font-black px-4 py-1.5 rounded-full text-sm mb-6 border border-pink-300 animate-pulse">
-        <Sparkles className="w-4 h-4 text-pink-600" />
+      <span className="inline-flex items-center gap-3 bg-pink-100 text-pink-950 font-black px-8 py-3 rounded-full text-base sm:text-xl mb-8 border-3 border-pink-300 shadow-md animate-pulse">
+        <Sparkles className="w-6 h-6 text-pink-600" />
         Lật thẻ tìm cặp hình và từ tương ứng nhé bé!
       </span>
 
       {/* Cards Grid */}
-      <div className={`grid ${cards.length <= 4 ? 'grid-cols-2 max-w-sm' : cards.length <= 6 ? 'grid-cols-2 sm:grid-cols-3 max-w-lg' : 'grid-cols-2 sm:grid-cols-4 max-w-2xl'} gap-4 sm:gap-6 w-full mx-auto`}>
+      <div className={`grid ${cards.length <= 4 ? 'grid-cols-2 max-w-xl' : cards.length <= 6 ? 'grid-cols-2 sm:grid-cols-3 max-w-3xl' : 'grid-cols-2 sm:grid-cols-4 max-w-5xl'} gap-5 sm:gap-8 w-full mx-auto px-4`}>
         {cards.map((card) => {
           const showFront = card.isFlipped || card.isMatched;
 
@@ -137,12 +137,12 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
               key={card.id}
               onClick={() => handleCardClick(card)}
               disabled={showFront || isProcessing}
-              className={`aspect-square rounded-3xl border-4 p-3 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative shadow-lg ${
+              className={`aspect-square rounded-3xl sm:rounded-4xl border-4 p-4 sm:p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative shadow-xl ${
                 card.isMatched
-                  ? 'border-emerald-400 bg-emerald-50 scale-95 ring-4 ring-emerald-200'
+                  ? 'border-emerald-400 bg-emerald-50 scale-95 ring-8 ring-emerald-200'
                   : showFront
-                  ? 'border-amber-400 bg-white ring-4 ring-amber-200 scale-100'
-                  : 'border-white bg-gradient-to-br from-amber-400 via-pink-400 to-indigo-500 hover:scale-105 active:scale-95 shadow-md'
+                  ? 'border-amber-400 bg-white ring-8 ring-amber-200 scale-100'
+                  : 'border-white bg-gradient-to-br from-amber-400 via-pink-400 to-indigo-500 hover:scale-105 active:scale-95 shadow-lg'
               }`}
             >
               {showFront ? (
@@ -151,30 +151,30 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
                     <img
                       src={card.imageUrl}
                       alt={card.text}
-                      className="w-full h-full object-contain filter drop-shadow"
+                      className="w-full h-full object-contain filter drop-shadow-md"
                     />
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-2">
-                    <span className="text-2xl sm:text-3xl font-black text-indigo-900 capitalize">
+                    <span className="text-3xl sm:text-5xl font-black text-indigo-900 capitalize">
                       {card.text}
                     </span>
-                    <span className="text-xs font-bold text-slate-400 mt-1">Từ vựng</span>
+                    <span className="text-sm sm:text-base font-bold text-slate-400 mt-2">Từ vựng</span>
                   </div>
                 )
               ) : (
                 /* Card Back */
                 <div className="flex flex-col items-center justify-center text-white">
-                  <HelpCircle className="w-12 h-12 opacity-80 animate-pulse" />
-                  <span className="text-xs font-black tracking-wider uppercase mt-1 opacity-90">
+                  <HelpCircle className="w-16 h-16 sm:w-20 sm:h-20 opacity-80 animate-pulse" />
+                  <span className="text-xs sm:text-sm font-black tracking-wider uppercase mt-2 opacity-90">
                     KCEnglish
                   </span>
                 </div>
               )}
 
               {card.isMatched && (
-                <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md animate-pop-in">
-                  <Check className="w-4 h-4 stroke-[3]" />
+                <div className="absolute top-3 right-3 w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-pop-in">
+                  <Check className="w-6 h-6 stroke-[3.5]" />
                 </div>
               )}
             </button>

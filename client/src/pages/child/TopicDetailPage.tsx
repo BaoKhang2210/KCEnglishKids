@@ -90,56 +90,56 @@ export const TopicDetailPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-amber-50/40 to-yellow-50 flex flex-col pb-24 md:pb-12">
       <ChildHeader />
 
-      <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
+      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8 flex-1">
         {/* Top Nav: Back to topics tab */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-5 mb-8">
           <button
             onClick={() => {
               sfx.playPop();
               navigate('/?tab=topics');
             }}
             aria-label="Quay lại danh sách chủ đề"
-            className="w-13 h-13 rounded-2xl bg-white border-2 border-slate-200 hover:bg-amber-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
+            className="w-14 h-14 rounded-2xl bg-white border-3 border-slate-200 hover:bg-amber-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-7 h-7 stroke-[2.5]" />
+            <ArrowLeft className="w-8 h-8 stroke-[2.5]" />
           </button>
 
           <div className="flex-1">
-            <div className="flex items-center gap-2.5">
-              <span className="text-3xl sm:text-4xl">{topic?.icon || '🌈'}</span>
-              <h1 className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tight">
+            <div className="flex items-center gap-3">
+              <span className="text-4xl sm:text-5xl">{topic?.icon || '🌈'}</span>
+              <h1 className="text-3xl sm:text-5xl font-black text-slate-800 tracking-tight">
                 {topic?.englishName || 'Chủ đề từ vựng'}
               </h1>
             </div>
-            <p className="text-sm sm:text-base font-extrabold text-amber-700">
+            <p className="text-base sm:text-lg font-extrabold text-amber-700 mt-1">
               {topic?.vietnameseName} • {getBookTitle(user?.ageGroupCode)}
             </p>
           </div>
         </div>
 
         {/* Hero Banner: Decoupled Flashcard Exploration space */}
-        <section className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 rounded-3xl p-6 sm:p-7 text-white shadow-lg mb-8 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-48 h-48 bg-white/20 rounded-full blur-2xl pointer-events-none" />
+        <section className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 rounded-3xl p-8 sm:p-10 text-white shadow-xl mb-8 relative overflow-hidden">
+          <div className="absolute right-0 top-0 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
-            <div className="flex items-center gap-4 text-center sm:text-left flex-col sm:flex-row pt-2 sm:pt-0">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-5 text-center sm:text-left flex-col sm:flex-row pt-2 sm:pt-0">
               <div className="flex-shrink-0 pt-2">
                 <KokoMascot
                   state="happy"
-                  size="sm"
+                  size="md"
                   speechBubble="Quẹt thẻ cùng Koko nào! 🐾"
                 />
               </div>
               <div>
-                <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black mb-1.5">
+                <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-4 py-1.5 rounded-full text-xs sm:text-sm font-black mb-2 shadow-xs">
                   <Sparkles className="w-4 h-4 text-yellow-200" />
                   Chủ đề mở rộng • Thẻ thông minh Flashcard
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-black mb-1">
+                <h2 className="text-3xl sm:text-4xl font-black mb-2">
                   Khám phá từ vựng {topic?.englishName || ''}
                 </h2>
-                <p className="text-amber-50 font-bold text-sm max-w-md">
-                  Quẹt phải để lưu từ <span className="text-emerald-200 underline">Đã nhớ 💚</span>, quẹt trái để đánh dấu <span className="text-yellow-200 underline">Chưa nhớ 🧡</span> nhé bé!
+                <p className="text-amber-50 font-bold text-sm sm:text-base max-w-lg">
+                  Quẹt phải để lưu từ <span className="text-emerald-200 underline font-black">Đã nhớ 💚</span>, quẹt trái để đánh dấu <span className="text-yellow-200 underline font-black">Chưa nhớ 🧡</span> nhé bé!
                 </p>
               </div>
             </div>

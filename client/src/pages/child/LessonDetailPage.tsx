@@ -139,18 +139,6 @@ export const LessonDetailPage: React.FC = () => {
 
   const handleSelectStage = (stage: 1 | 2 | 3) => {
     sfx.playPop();
-    if (stage === 2 && !isStage1Completed) {
-      sfx.playWrong();
-      setLockNotice('Bé ơi, hãy hoàn thành Chặng 1 (Học từ mới) trước để mở khoá Luyện tập nhé! 📚');
-      setTimeout(() => setLockNotice(null), 3500);
-      return;
-    }
-    if (stage === 3 && !isStage2Completed) {
-      sfx.playWrong();
-      setLockNotice('Bé ơi, hãy hoàn thành Chặng 2 (Luyện tập) trước để mở khoá Mini-game nhé! ✏️');
-      setTimeout(() => setLockNotice(null), 3500);
-      return;
-    }
     setLockNotice(null);
     setActiveStage(stage);
     localStorage.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
@@ -182,75 +170,75 @@ export const LessonDetailPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-amber-50/50 to-orange-50/40 flex flex-col pb-24 md:pb-12">
       <ChildHeader completedCount={completedCount} />
 
-      <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
+      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8 flex-1">
         {/* Back Button & Lesson Header */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-5 mb-8">
           <button
             onClick={() => {
               sfx.playPop();
               navigate(-1);
             }}
             aria-label="Quay lại"
-            className="w-13 h-13 rounded-2xl bg-white border-2 border-slate-200 hover:bg-amber-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
+            className="w-14 h-14 rounded-2xl bg-white border-3 border-slate-200 hover:bg-amber-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-7 h-7 stroke-[2.5]" />
+            <ArrowLeft className="w-8 h-8 stroke-[2.5]" />
           </button>
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-3xl sm:text-4xl">{topicIcon}</span>
-              <h1 className="text-2xl sm:text-4xl font-black text-slate-800 tracking-tight">
+            <div className="flex items-center gap-3">
+              <span className="text-4xl sm:text-5xl">{topicIcon}</span>
+              <h1 className="text-3xl sm:text-5xl font-black text-slate-800 tracking-tight">
                 {lesson?.title || 'Bài học tiếng Anh'}
               </h1>
             </div>
-            <p className="text-sm sm:text-base font-extrabold text-amber-700">
+            <p className="text-base sm:text-lg font-extrabold text-amber-700 mt-1">
               {lesson?.vietnameseTitle} • {getBookTitle(user?.ageGroupCode)}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center my-16">
-            <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <div className="flex justify-center my-20">
+            <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : !lesson ? (
-          <div className="bg-white rounded-3xl p-10 text-center border-3 border-dashed border-amber-200">
-            <p className="font-black text-slate-600 text-lg">Không tìm thấy bài học.</p>
+          <div className="bg-white rounded-3xl p-12 text-center border-4 border-dashed border-amber-200">
+            <p className="font-black text-slate-600 text-xl">Không tìm thấy bài học.</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Sequential 3-Stage Stepper Header */}
-            <section className="bg-white rounded-3xl border-3 border-amber-200/90 p-3 sm:p-4 shadow-sm relative">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <section className="bg-white rounded-4xl border-4 border-amber-200/90 p-4 sm:p-6 shadow-md relative overflow-hidden">
+              <div className="grid grid-cols-3 gap-3 sm:gap-5 relative z-10">
                 {/* Step 1: Học từ mới */}
                 <button
                   onClick={() => handleSelectStage(1)}
-                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-2.5 text-left ${
+                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${
                     activeStage === 1
-                      ? 'border-amber-400 bg-amber-50/80 ring-2 ring-amber-300 shadow-sm'
+                      ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-orange-50/70 ring-4 ring-amber-300 shadow-md scale-102'
                       : isStage1Completed
-                      ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50'
-                      : 'border-slate-200 bg-slate-50/50 hover:bg-amber-50/30'
+                      ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:scale-102'
+                      : 'border-slate-200 bg-slate-50/50 hover:bg-amber-50/40'
                   }`}
                 >
                   <div
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm sm:text-base shadow-xs ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${
                       isStage1Completed
-                        ? 'bg-emerald-500 text-white'
+                        ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
                         : activeStage === 1
-                        ? 'bg-amber-400 text-amber-950'
-                        : 'bg-slate-200 text-slate-600'
+                        ? 'bg-gradient-to-tr from-amber-400 to-orange-500 text-amber-950 animate-soft-bounce'
+                        : 'bg-amber-100 text-amber-800'
                     }`}
                   >
-                    {isStage1Completed ? '✓' : '1'}
+                    {isStage1Completed ? '✓' : '📖'}
                   </div>
                   <div className="min-w-0 text-center sm:text-left">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-800 block">
                       Chặng 1
                     </span>
-                    <h3 className="font-black text-slate-800 text-xs sm:text-sm truncate">
-                      Học từ mới
+                    <h3 className="font-black text-slate-800 text-sm sm:text-base truncate font-display">
+                      Khám phá từ
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
+                    <span className="text-xs font-extrabold text-slate-400 hidden sm:inline">
                       Flashcard & âm thanh
                     </span>
                   </div>
@@ -259,38 +247,36 @@ export const LessonDetailPage: React.FC = () => {
                 {/* Step 2: Luyện tập */}
                 <button
                   onClick={() => handleSelectStage(2)}
-                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-2.5 text-left relative ${
+                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${
                     activeStage === 2
-                      ? 'border-sky-400 bg-sky-50/80 ring-2 ring-sky-300 shadow-sm'
+                      ? 'border-sky-400 bg-gradient-to-br from-sky-50 via-white to-blue-50/70 ring-4 ring-sky-300 shadow-md scale-102'
                       : isStage2Completed
-                      ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50'
+                      ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:scale-102'
                       : !isStage1Completed
                       ? 'border-slate-200 bg-slate-100/70 opacity-60'
-                      : 'border-slate-200 bg-white hover:bg-sky-50/30'
+                      : 'border-slate-200 bg-white hover:bg-sky-50/40'
                   }`}
                 >
                   <div
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm sm:text-base shadow-xs ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${
                       isStage2Completed
-                        ? 'bg-emerald-500 text-white'
+                        ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
                         : activeStage === 2
-                        ? 'bg-sky-500 text-white'
-                        : !isStage1Completed
-                        ? 'bg-slate-300 text-slate-500'
-                        : 'bg-slate-200 text-slate-600'
+                        ? 'bg-gradient-to-tr from-sky-400 to-blue-500 text-white animate-soft-bounce'
+                        : 'bg-sky-100 text-sky-800'
                     }`}
                   >
-                    {!isStage1Completed ? <Lock className="w-4 h-4" /> : isStage2Completed ? '✓' : '2'}
+                    {isStage2Completed ? '✓' : '🎯'}
                   </div>
                   <div className="min-w-0 text-center sm:text-left">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-sky-800 block">
+                    <span className="text-xs font-black uppercase tracking-wider text-sky-800 block">
                       Chặng 2
                     </span>
-                    <h3 className="font-black text-slate-800 text-xs sm:text-sm truncate">
+                    <h3 className="font-black text-slate-800 text-sm sm:text-base truncate font-display">
                       Luyện tập
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-                      Sau bài học
+                    <span className="text-xs font-extrabold text-slate-400 hidden sm:inline">
+                      Studio tương tác
                     </span>
                   </div>
                 </button>
@@ -298,38 +284,34 @@ export const LessonDetailPage: React.FC = () => {
                 {/* Step 3: Trò chơi */}
                 <button
                   onClick={() => handleSelectStage(3)}
-                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-2.5 text-left relative ${
+                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${
                     activeStage === 3
-                      ? 'border-purple-400 bg-purple-50/80 ring-2 ring-purple-300 shadow-sm'
+                      ? 'border-purple-400 bg-gradient-to-br from-purple-50 via-white to-pink-50/70 ring-4 ring-purple-300 shadow-md scale-102'
                       : isStage3Completed
-                      ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50'
-                      : !isStage2Completed
-                      ? 'border-slate-200 bg-slate-100/70 opacity-60'
-                      : 'border-slate-200 bg-white hover:bg-purple-50/30'
+                      ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:scale-102'
+                      : 'border-slate-200 bg-white hover:bg-purple-50/40'
                   }`}
                 >
                   <div
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm sm:text-base shadow-xs ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${
                       isStage3Completed
-                        ? 'bg-emerald-500 text-white'
+                        ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
                         : activeStage === 3
-                        ? 'bg-purple-500 text-white'
-                        : !isStage2Completed
-                        ? 'bg-slate-300 text-slate-500'
-                        : 'bg-slate-200 text-slate-600'
+                        ? 'bg-gradient-to-tr from-purple-500 to-pink-500 text-white animate-soft-bounce'
+                        : 'bg-purple-100 text-purple-800'
                     }`}
                   >
-                    {!isStage2Completed ? <Lock className="w-4 h-4" /> : isStage3Completed ? '✓' : '3'}
+                    {isStage3Completed ? '✓' : '🏆'}
                   </div>
                   <div className="min-w-0 text-center sm:text-left">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-800 block">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-800 block">
                       Chặng 3
                     </span>
-                    <h3 className="font-black text-slate-800 text-xs sm:text-sm truncate">
-                      Trò chơi
+                    <h3 className="font-black text-slate-800 text-sm sm:text-base truncate font-display">
+                      Thử thách game
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-                      Mini-game tương tác
+                    <span className="text-xs font-extrabold text-slate-400 hidden sm:inline">
+                      Rinh sao & Sticker
                     </span>
                   </div>
                 </button>

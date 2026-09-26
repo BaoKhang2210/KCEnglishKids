@@ -8,6 +8,11 @@ import { LessonDetailPage } from './pages/child/LessonDetailPage';
 import { ActivityPlayPage } from './pages/child/ActivityPlayPage';
 import { TeacherLoginPage } from './dashboards/teacher/TeacherLoginPage';
 import { TeacherLayout, TeacherDashboard, TeacherClasses, TeacherClassDetail, TeacherContent, TeacherAssignments, TeacherAssignmentDetail, TeacherStudents, TeacherStudentDetail } from './dashboards/teacher/TeacherWorkspace';
+import { ClassroomSessionSetup } from './dashboards/teacher/ClassroomSessionSetup';
+import { LiveSessionPage } from './dashboards/teacher/LiveSessionPage';
+import { SessionSummaryPage } from './dashboards/teacher/SessionSummaryPage';
+import { ClassroomSessionsList } from './dashboards/teacher/ClassroomSessionsList';
+import { ChangePinPage } from './pages/child/ChangePinPage';
 
 // Protected Route wrapper for Child
 const ProtectedChildRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -79,6 +84,14 @@ export function App() {
               </ProtectedChildRoute>
             }
           />
+          <Route
+            path="/child/change-pin"
+            element={
+              <ProtectedChildRoute>
+                <ChangePinPage />
+              </ProtectedChildRoute>
+            }
+          />
 
           {/* Teacher Routes (Classroom Teaching & Management) */}
           <Route path="/teacher/login" element={<TeacherLoginPage />} />
@@ -91,8 +104,23 @@ export function App() {
             <Route path="assignments/:assignmentId" element={<TeacherAssignmentDetail />} />
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
+            <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
+
+          {/* Teacher Session Routes — full screen, outside TeacherLayout */}
+          <Route
+            path="/teacher/classes/:classId/sessions/new"
+            element={<ProtectedTeacherRoute><ClassroomSessionSetup /></ProtectedTeacherRoute>}
+          />
+          <Route
+            path="/teacher/classroom-sessions/:sessionId/live"
+            element={<ProtectedTeacherRoute><LiveSessionPage /></ProtectedTeacherRoute>}
+          />
+          <Route
+            path="/teacher/classroom-sessions/:sessionId/summary"
+            element={<ProtectedTeacherRoute><SessionSummaryPage /></ProtectedTeacherRoute>}
+          />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

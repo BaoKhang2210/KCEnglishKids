@@ -15,6 +15,10 @@ const Progress = require('./Progress');
 const AuditLog = require('./AuditLog');
 const Assignment = require('./Assignment');
 const TeacherNote = require('./TeacherNote');
+// Phase 2 — new models
+const ClassroomSession = require('./ClassroomSession');
+const VocabularyMastery = require('./VocabularyMastery');
+const ParentNotification = require('./ParentNotification');
 
 module.exports = {
   AgeGroup,
@@ -33,5 +37,8 @@ module.exports = {
   Progress,
   AuditLog,
   Assignment,
-  TeacherNote
+  TeacherNote,
+  ClassroomSession,
+  VocabularyMastery,
+  ParentNotification
 };
