@@ -1,4 +1,4 @@
-# KCEnglishKids — Interactive English Learning Platform (Ages 3–6)
+i# KCEnglishKids — Interactive English Learning Platform (Ages 3–6)
 
 **KCEnglishKids** là nền tảng học tiếng Anh tương tác dành cho trẻ từ 3–6 tuổi, kết nối chặt chẽ giữa **Khung chương trình chuẩn (Curriculum Foundation)** và **Trải nghiệm học tập tương tác (Application Learning Experience)**.
 

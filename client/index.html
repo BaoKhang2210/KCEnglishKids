@@ -8,10 +8,14 @@
     <meta name="description" content="KCEnglishKids là nền tảng học tiếng Anh tương tác dành cho trẻ từ 3–6 tuổi, xây dựng theo khung chương trình mầm non với hình ảnh sinh động, âm thanh trực quan và trò chơi học tập thú vị." />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Nunito: chữ tròn thân thiện, hỗ trợ tiếng Việt đầy đủ - font chính cho toàn bộ app -->
+    <!-- Quicksand: font phụ cho headings/logo -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
     <style>
+      /* Áp dụng ngay trước khi bundle load để tránh FOUT */
+      *, *::before, *::after { box-sizing: border-box; }
       body {
-        font-family: 'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif;
+        font-family: 'Nunito', 'Quicksand', system-ui, -apple-system, sans-serif;
       }
     </style>
   </head>

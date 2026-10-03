@@ -191,9 +191,13 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   };
 
   // Swipe Left = Chưa nhớ (Re-queue to end for spaced repetition)
+  const [showEncouragement, setShowEncouragement] = useState(false);
+
   const handleReview = () => {
-    sfx.playPop();
+    sfx.playGentleWrong();
     setExitDirection('left');
+    setShowEncouragement(true);
+    setTimeout(() => setShowEncouragement(false), 2200);
 
     // Save to mastery service as review
     vocabMasteryService.markReview(effectiveChildId, currentItem);
@@ -287,7 +291,15 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   const isReviewWord = vocabMasteryService.isReview(effectiveChildId, currentItem._id);
 
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="w-full flex flex-col items-center relative">
+      {/* Encouragement banner – inline, no fixed/overflow */}
+      {showEncouragement && (
+        <div className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-950 font-black px-5 py-3 rounded-2xl shadow-md border-2 border-white animate-pop-in mb-3">
+          <span className="text-xl flex-shrink-0">💪</span>
+          <span className="text-sm">Bé cố lên nhé! Thử lại từ này ở cuối lượt học nào! ✨</span>
+        </div>
+      )}
+
       {/* Top Header & Instruction info */}
       <div className="w-full max-w-lg flex items-center justify-between mb-3 px-2">
         <span className="bg-amber-100 text-amber-900 text-sm font-black px-4 py-1.5 rounded-full border-2 border-amber-300 shadow-xs flex items-center gap-1.5">
@@ -313,7 +325,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
 
       {/* 3D Flip & Swipe Card Container */}
       <div
-        className="w-full max-w-lg sm:max-w-xl md:max-w-2xl h-[590px] sm:h-[640px] md:h-[670px] relative touch-none select-none"
+        className="w-full max-w-lg sm:max-w-xl md:max-w-2xl h-[480px] sm:h-[540px] md:h-[580px] relative touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

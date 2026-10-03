@@ -10,7 +10,7 @@ import {
   Lightbulb
 } from 'lucide-react';
 import type { Vocabulary } from '../../types';
-import { sfx, playWordAudio, playWordAudioSlow, stopWordAudio } from '../../utils/audio';
+import { sfx, playWordAudio, stopWordAudio } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 
 interface InteractivePracticeStudioProps {
@@ -44,9 +44,21 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
   const [isAwakened, setIsAwakened] = useState(false); // For 3-4 age tap to awaken
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'wrong'>('idle');
+  const [showEncouragement, setShowEncouragement] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [starsEarned, setStarsEarned] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+
+  const triggerWrongFeedback = () => {
+    setFeedbackState('wrong');
+    sfx.playGentleWrong();
+    setShowEncouragement(true);
+    setTimeout(() => {
+      setFeedbackState('idle');
+      setSelectedOptionId(null);
+      setShowEncouragement(false);
+    }, 2200);
+  };
 
   // For 5-6 Age Train Speller
   const [spelledLetters, setSpelledLetters] = useState<string[]>([]);
@@ -77,10 +89,6 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     sfx.playBadgeChime();
     setIsAwakened(true);
     playWordAudio(currentWord.english, currentWord.audioUrl);
-  };
-
-  const handlePlaySlow = () => {
-    playWordAudioSlow(currentWord.english);
   };
 
   const handlePlayNormal = () => {
@@ -127,12 +135,7 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
           advanceToNextWordOrFinish();
         }, 1500);
       } else {
-        setFeedbackState('wrong');
-        sfx.playGentleWrong();
-        setTimeout(() => {
-          setFeedbackState('idle');
-          setSelectedOptionId(null);
-        }, 1000);
+        triggerWrongFeedback();
       }
     };
 
@@ -693,7 +696,15 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
   // MAIN STUDIO INTERACTION STAGE
   // -------------------------------------------------------------
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 relative">
+      {/* Encouragement Alert Banner – inline, no fixed/overflow */}
+      {showEncouragement && (
+        <div className="flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-950 font-black px-5 py-3 rounded-2xl shadow-md border-2 border-white animate-pop-in">
+          <span className="text-xl flex-shrink-0">💪</span>
+          <span className="text-sm">Bé cố lên nhé! Thử lại chọn câu trả lời đúng nào! ✨</span>
+        </div>
+      )}
+
       {/* Studio Header Bar */}
       <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
         <div>
@@ -776,21 +787,14 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
                     </span>
                   )}
 
-                  {/* Dual Speed Audio Buttons */}
-                  <div className="grid grid-cols-2 gap-2.5 mt-5">
-                    <button
-                      onClick={handlePlaySlow}
-                      className="btn-kid bg-amber-100 hover:bg-amber-200 text-amber-950 font-black text-xs py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer border border-amber-300"
-                    >
-                      <span className="text-base">🐢</span>
-                      <span>Koko đọc chậm</span>
-                    </button>
+                  {/* Single Audio Play Button */}
+                  <div className="mt-4">
                     <button
                       onClick={handlePlayNormal}
-                      className="btn-kid bg-sky-100 hover:bg-sky-200 text-sky-950 font-black text-xs py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer border border-sky-300"
+                      className="w-full btn-kid bg-sky-100 hover:bg-sky-200 text-sky-950 font-black text-xs sm:text-sm py-2.5 px-4 rounded-2xl flex items-center justify-center gap-2 cursor-pointer border border-sky-300 shadow-xs"
                     >
-                      <span className="text-base">🐰</span>
-                      <span>Koko đọc vui</span>
+                      <span className="text-base">🔊</span>
+                      <span>Nghe Koko đọc chuẩn</span>
                     </button>
                   </div>
 

@@ -177,7 +177,7 @@ export const ChildHomePage: React.FC = () => {
     <div className="min-h-screen bg-[#fffaf0] pb-24 md:pb-12">
       <ChildHeader totalStars={totalStars} completedCount={completedLessons} activeTab={activeTab} />
 
-      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8">
+      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
         {/* BANNER (Generous full-width spacing, clean mascot layout, large text) */}
         <section className="relative mb-10 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 p-8 sm:p-12 text-white shadow-xl overflow-hidden">
           {/* Subtle background decorative shapes */}

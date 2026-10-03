@@ -606,12 +606,19 @@ export const LiveSessionPage: React.FC = () => {
                       className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 border border-white/20">
+                        <div className="relative w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 border border-white/20 group cursor-pointer">
                           {student?.avatarUrl ? (
                             <img src={student.avatarUrl} alt={sName} className="w-full h-full object-cover" />
                           ) : (
                             initials(sName)
                           )}
+                          {/* Parent feedback recommendation icon indicator */}
+                          <div
+                            className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-white shadow-xs font-bold"
+                            title="Ý kiến / Đề xuất của phụ huynh: Bé hăng hái học từ vựng hình ảnh ở nhà!"
+                          >
+                            💬
+                          </div>
                         </div>
                         <div className="truncate">
                           <p className="text-xs font-bold text-white truncate">{sName}</p>
@@ -1246,33 +1253,37 @@ const SpotlightModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-      <div className="w-full max-w-md rounded-4xl bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-3 border-amber-400 p-6 sm:p-8 shadow-2xl text-center relative overflow-hidden animate-pop-in">
+      <div className="w-full max-w-md rounded-4xl bg-gradient-to-b from-amber-500/20 via-slate-900 to-slate-950 border-4 border-amber-400 p-6 sm:p-8 shadow-[0_0_50px_rgba(251,191,36,0.5)] text-center relative overflow-hidden animate-pop-in">
         {/* Glow effects */}
-        <div className="absolute -top-12 -right-12 w-36 h-36 bg-amber-500/25 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-teal-500/25 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-44 h-44 bg-amber-400/30 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-12 -left-12 w-44 h-44 bg-yellow-400/30 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-amber-950 px-5 py-1.5 font-black text-xs uppercase tracking-wider mb-4 shadow-lg">
-          <Mic size={15} />
-          Mời bé phát biểu
+        {/* Highlighted Gold Callout Badge */}
+        <div className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 text-amber-950 px-6 py-2 font-black text-sm uppercase tracking-wider mb-5 shadow-xl border-2 border-white animate-bounce">
+          <Mic size={18} className="animate-pulse text-amber-950" />
+          <span>📢 GIÁO VIÊN MỜI BÉ ĐỌC TO! 🌟</span>
         </div>
 
-        {/* Avatar */}
-        <div className="relative mx-auto mb-3 h-28 w-28 rounded-3xl ring-4 ring-amber-400/80 shadow-2xl overflow-hidden flex items-center justify-center bg-slate-800 border-2 border-white">
+        {/* Animated Avatar Box with Golden Ring */}
+        <div className="relative mx-auto mb-4 h-32 w-32 rounded-3xl ring-8 ring-amber-400/90 shadow-2xl overflow-hidden flex items-center justify-center bg-slate-800 border-4 border-white animate-pulse">
           {student?.avatarUrl ? (
             <img src={student.avatarUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-4xl font-black text-amber-300">{initials(name)}</span>
+            <span className="text-5xl font-black text-amber-300">{initials(name)}</span>
           )}
         </div>
 
         {/* Student name */}
-        <h3 className="text-3xl font-black text-white tracking-wide">{name}</h3>
+        <h3 className="text-4xl font-black text-amber-300 tracking-wide font-display drop-shadow-md">{name}</h3>
 
         {vocabPrompt && (
-          <div className="my-3 bg-white/10 border border-white/15 px-4 py-2 rounded-2xl inline-block">
-            <span className="text-xs text-slate-300 font-bold block">Bé đọc từ này nhé:</span>
-            <span className="text-xl font-black text-amber-300 uppercase font-display">"{vocabPrompt}"</span>
+          <div className="my-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-400/60 px-6 py-3 rounded-2xl inline-block shadow-inner">
+            <span className="text-xs text-amber-200 font-extrabold uppercase tracking-wider block mb-1">
+              Bé hãy đọc thật to từ này nhé 🎤:
+            </span>
+            <span className="text-3xl font-black text-amber-300 uppercase font-display tracking-widest drop-shadow-lg">
+              "{vocabPrompt}"
+            </span>
           </div>
         )}
 

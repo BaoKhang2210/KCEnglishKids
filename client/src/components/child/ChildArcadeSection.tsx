@@ -80,6 +80,7 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
   const [ageFilter, setAgeFilter] = useState<AgeFilter>(
     propAgeCode === '5-6' ? '5-6' : propAgeCode === '4-5' ? '4-5' : 'all'
   );
+  const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('ALL');
   const [masteryTick, setMasteryTick] = useState(0);
 
   // Overall arcade session score & result modal
@@ -596,8 +597,8 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
           </div>
         </div>
 
-        {/* Age Group Filter Tabs */}
-        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
+        {/* Age & Unit Filter Tabs */}
+        <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-100">
           <span className="text-xs font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
             <Filter className="w-3.5 h-3.5" /> Lọc theo:
           </span>
@@ -645,6 +646,24 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
           >
             🚀 Lớp Lá (5–6 tuổi)
           </button>
+
+          {/* Dedicated Unit Content Filter */}
+          <div className="ml-auto flex items-center gap-2 bg-slate-50 border-2 border-slate-200 px-3 py-1.5 rounded-2xl">
+            <span className="text-xs font-black text-slate-600">Nội dung theo Unit:</span>
+            <select
+              value={selectedUnitFilter}
+              onChange={(e) => setSelectedUnitFilter(e.target.value)}
+              className="bg-white text-xs font-black text-slate-800 rounded-xl px-2 py-1 border border-slate-300 outline-none cursor-pointer"
+            >
+              <option value="ALL">Tất cả các Unit</option>
+              <option value="1">Unit 1: Trường Mầm Non</option>
+              <option value="2">Unit 2: Động Vật Nhỏ</option>
+              <option value="3">Unit 3: Trái Cây Rực Rỡ</option>
+              <option value="4">Unit 4: Đồ Chơi Kỳ Diệu</option>
+              <option value="5">Unit 5: Thiên Nhiên Tươi Đẹp</option>
+              <option value="6">Unit 6: Gia Đình Thân Yêu</option>
+            </select>
+          </div>
         </div>
       </div>
 

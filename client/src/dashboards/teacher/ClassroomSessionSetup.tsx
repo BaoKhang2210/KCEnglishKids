@@ -39,17 +39,19 @@ export const ClassroomSessionSetup: React.FC = () => {
       .catch((e) => setError(e.message));
   }, [classId]);
 
-  // When a lesson is chosen, fetch its activities
+  // When a lesson is chosen, fetch its activities safely without wiping user adjustments
   useEffect(() => {
     if (!selectedLessonId || !content) return;
     const lesson = content.lessons.find((l: any) => l._id === selectedLessonId);
     setSelectedLesson(lesson || null);
-    setTitle(lesson ? lesson.title : '');
+    if (!title) setTitle(lesson ? lesson.title : '');
     const acts = content.activities.filter(
       (a: any) => String(a.lesson) === selectedLessonId
     );
     setLessonActivities(acts);
-    setSelectedActivityIds(acts.map((a: any) => a._id));
+    if (selectedActivityIds.length === 0) {
+      setSelectedActivityIds(acts.map((a: any) => a._id));
+    }
   }, [selectedLessonId, content]);
 
   const toggleActivity = (id: string) => {

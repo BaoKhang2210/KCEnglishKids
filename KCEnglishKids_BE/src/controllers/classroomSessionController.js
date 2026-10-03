@@ -41,6 +41,13 @@ const ownClass = async (req, classId) => {
 // ─────────────────────────────────────────────────────────────────────────────
 exports.getSessions = async (req, res, next) => {
   try {
+    // Auto cleanup stale/inactive sessions (SCHEDULED or LIVE older than 24 hours)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await ClassroomSession.deleteMany({
+      status: { $in: ['SCHEDULED', 'LIVE'] },
+      updatedAt: { $lt: twentyFourHoursAgo }
+    });
+
     const q =
       req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
     if (req.query.status) q.status = req.query.status;

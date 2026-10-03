@@ -1,35 +1,59 @@
 @import "tailwindcss";
 
-/* Responsive Root Scaling for Kids UI (Bigger Text & Touch Targets) */
+/* =========================================================
+   🎨 FONT THEME — Tailwind v4 @theme registration
+   Nunito    : Font chính — chữ tròn thân thiện, đầy đủ tiếng Việt
+   Quicksand : Font display — headings lớn, logo, chữ nổi bật
+   ========================================================= */
+@theme {
+  --font-sans: 'Nunito', 'Quicksand', system-ui, -apple-system, sans-serif;
+  --font-display: 'Quicksand', 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
+}
+
+/* Standard Responsive Root Scaling for web screens */
 :root {
-  font-size: 18px; /* Mobile touch baseline (up from standard 16px) */
+  font-size: 15px; /* Mobile touch baseline */
 }
 
 @media (min-width: 640px) {
   :root {
-    font-size: 19px; /* Tablets & iPads */
+    font-size: 15.5px; /* Tablets */
   }
 }
 
 @media (min-width: 1024px) {
   :root {
-    font-size: 20px; /* Laptops & Desktops */
+    font-size: 16px; /* Laptops & Desktops */
   }
 }
 
 @media (min-width: 1536px) {
   :root {
-    font-size: 21px; /* Large Screens & Interactive Classroom Whiteboards */
+    font-size: 16.5px; /* Large Screens & Interactive Classroom Whiteboards */
   }
 }
 
 @layer base {
   body {
-    @apply font-sans bg-amber-50 text-slate-800 selection:bg-amber-200 min-h-screen;
+    font-family: 'Nunito', 'Quicksand', system-ui, -apple-system, sans-serif;
+    @apply bg-amber-50 text-slate-800 selection:bg-amber-200 min-h-screen;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Đảm bảo toàn bộ element kế thừa font Nunito */
+  *, *::before, *::after {
+    font-family: inherit;
+  }
+
+  /* Headings & display text dùng Quicksand */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Quicksand', 'Nunito', system-ui, sans-serif;
+    font-weight: 700;
   }
 }
 

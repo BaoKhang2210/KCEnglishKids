@@ -170,7 +170,7 @@ export const LessonDetailPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-amber-50/50 to-orange-50/40 flex flex-col pb-24 md:pb-12">
       <ChildHeader completedCount={completedCount} />
 
-      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8 flex-1">
+      <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
         {/* Back Button & Lesson Header */}
         <div className="flex items-center gap-5 mb-8">
           <button
