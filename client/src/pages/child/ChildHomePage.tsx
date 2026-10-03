@@ -436,44 +436,66 @@ export const ChildHomePage: React.FC = () => {
                 </div>
 
                 {/* Topics Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
-                  {ageTopics.map(topic => (
-                    <button
-                      key={topic._id}
-                      onClick={() => {
-                        sfx.playPop();
-                        navigate(`/topics/${topic.slug}`);
-                      }}
-                      className="card-kid bg-white rounded-3xl border-4 border-emerald-200/90 p-6 text-center shadow-md hover:border-emerald-400 hover:shadow-xl transition-all cursor-pointer flex flex-col items-center justify-between group"
-                    >
-                      <div className="w-full flex items-center justify-between mb-2">
-                        <span className="text-xs font-black uppercase text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-lg">
-                          {ageCode} tuổi
-                        </span>
-                        <span className="text-xs font-black text-slate-400">
-                          {topic.lessonCount || 0} bài
-                        </span>
-                      </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+                  {ageTopics.map((topic, idx) => {
+                    const TOPIC_PALETTES = [
+                      { bg: 'from-amber-50 to-orange-50/70', border: 'border-amber-300 hover:border-amber-400', badge: 'bg-amber-100 text-amber-900', iconBg: 'bg-amber-100/90 text-amber-900', btn: 'text-amber-700 group-hover:text-amber-800' },
+                      { bg: 'from-emerald-50 to-teal-50/70', border: 'border-emerald-300 hover:border-emerald-400', badge: 'bg-emerald-100 text-emerald-900', iconBg: 'bg-emerald-100/90 text-emerald-900', btn: 'text-emerald-700 group-hover:text-emerald-800' },
+                      { bg: 'from-sky-50 to-blue-50/70', border: 'border-sky-300 hover:border-sky-400', badge: 'bg-sky-100 text-sky-900', iconBg: 'bg-sky-100/90 text-sky-900', btn: 'text-sky-700 group-hover:text-sky-800' },
+                      { bg: 'from-purple-50 to-pink-50/70', border: 'border-purple-300 hover:border-purple-400', badge: 'bg-purple-100 text-purple-900', iconBg: 'bg-purple-100/90 text-purple-900', btn: 'text-purple-700 group-hover:text-purple-800' },
+                      { bg: 'from-rose-50 to-orange-50/70', border: 'border-rose-300 hover:border-rose-400', badge: 'bg-rose-100 text-rose-900', iconBg: 'bg-rose-100/90 text-rose-900', btn: 'text-rose-700 group-hover:text-rose-800' },
+                      { bg: 'from-teal-50 to-cyan-50/70', border: 'border-teal-300 hover:border-teal-400', badge: 'bg-teal-100 text-teal-900', iconBg: 'bg-teal-100/90 text-teal-900', btn: 'text-teal-700 group-hover:text-teal-800' },
+                    ];
+                    const pal = TOPIC_PALETTES[idx % TOPIC_PALETTES.length];
 
-                      <div className="my-3 w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center text-5xl sm:text-6xl group-hover:scale-110 transition-transform shadow-inner">
-                        {topic.icon || '🌟'}
-                      </div>
+                    return (
+                      <button
+                        key={topic._id}
+                        type="button"
+                        onClick={() => {
+                          sfx.playPop();
+                          navigate(`/topics/${topic.slug}`);
+                        }}
+                        className={`card-kid bg-gradient-to-b ${pal.bg} rounded-[32px] border-4 ${pal.border} p-6 text-left shadow-md hover:shadow-2xl hover:-translate-y-1.5 transition-all cursor-pointer flex flex-col justify-between group min-h-[260px] sm:min-h-[280px] relative overflow-hidden`}
+                      >
+                        {/* Decorative floating highlight */}
+                        <div className="absolute -top-10 -right-10 w-28 h-28 bg-white/60 rounded-full blur-xl pointer-events-none" />
 
-                      <div className="mt-1 w-full">
-                        <h3 className="font-black text-slate-800 text-lg sm:text-xl group-hover:text-emerald-700 transition-colors truncate">
-                          {topic.englishName}
-                        </h3>
-                        <p className="text-xs sm:text-sm font-bold text-slate-500 truncate mt-0.5">
-                          {topic.vietnameseName}
-                        </p>
-                      </div>
+                        {/* Top Badges */}
+                        <div className="w-full flex items-center justify-between gap-2 mb-3 relative z-10">
+                          <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border border-black/5 shadow-2xs ${pal.badge}`}>
+                            {ageCode} tuổi
+                          </span>
+                          <span className="text-xs font-black text-slate-500 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-full border border-slate-200/80 shadow-2xs">
+                            {topic.lessonCount || 0} bài học
+                          </span>
+                        </div>
 
-                      <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-center text-sm font-black text-emerald-600 gap-1.5 group-hover:translate-x-1 transition-transform">
-                        <span>Khám phá</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
-                    </button>
-                  ))}
+                        {/* Main Center Icon & Topic Info */}
+                        <div className="my-2 flex flex-col items-center text-center w-full relative z-10">
+                          <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl ${pal.iconBg} border-2 border-white shadow-md flex items-center justify-center text-5xl sm:text-6xl group-hover:scale-115 transition-transform duration-300 mb-3`}>
+                            {topic.icon || '🌟'}
+                          </div>
+
+                          <h3 className="font-black text-slate-800 text-xl sm:text-2xl font-display group-hover:text-amber-700 transition-colors line-clamp-1 w-full">
+                            {topic.englishName}
+                          </h3>
+                          <p className="text-sm font-bold text-slate-600 mt-1 line-clamp-1 w-full">
+                            {topic.vietnameseName}
+                          </p>
+                        </div>
+
+                        {/* Bottom CTA Action Bar */}
+                        <div className="mt-4 pt-3 border-t border-black/5 w-full flex items-center justify-between relative z-10">
+                          <span className="text-xs font-black text-slate-400">Từ vựng tương tác</span>
+                          <span className={`text-sm font-black flex items-center gap-1.5 ${pal.btn} group-hover:translate-x-1 transition-transform`}>
+                            <span>Khám phá ngay</span>
+                            <ArrowRight className="w-4 h-4 stroke-[3]" />
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             )}
