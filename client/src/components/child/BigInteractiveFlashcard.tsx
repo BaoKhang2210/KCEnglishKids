@@ -45,6 +45,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   // Stats for current study session
   const [sessionMastered, setSessionMastered] = useState<string[]>([]);
   const [sessionReview, setSessionReview] = useState<string[]>([]);
+  const [showEncouragement, setShowEncouragement] = useState(false);
 
   const handleSpeakAlong = (word: string, audio?: string) => {
     if (isSpeakingAlong) return;
@@ -191,8 +192,6 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   };
 
   // Swipe Left = Chưa nhớ (Re-queue to end for spaced repetition)
-  const [showEncouragement, setShowEncouragement] = useState(false);
-
   const handleReview = () => {
     sfx.playGentleWrong();
     setExitDirection('left');

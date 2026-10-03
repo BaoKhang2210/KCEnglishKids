@@ -1,21 +1,47 @@
 class SoundEffectsEngine {
   private ctx: AudioContext | null = null;
+  private userInteracted: boolean = false;
 
-  private getContext(): AudioContext {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.ctx = new AudioCtx();
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        this.userInteracted = true;
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        window.removeEventListener('click', unlockAudio);
+        window.removeEventListener('keydown', unlockAudio);
+        window.removeEventListener('touchstart', unlockAudio);
+        window.removeEventListener('pointerdown', unlockAudio);
+      };
+      window.addEventListener('click', unlockAudio, { passive: true });
+      window.addEventListener('keydown', unlockAudio, { passive: true });
+      window.addEventListener('touchstart', unlockAudio, { passive: true });
+      window.addEventListener('pointerdown', unlockAudio, { passive: true });
     }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+  }
+
+  private getContext(): AudioContext | null {
+    try {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return null;
+        this.ctx = new AudioCtx();
+      }
+      if (this.ctx.state === 'suspended' && this.userInteracted) {
+        this.ctx.resume().catch(() => {});
+      }
+      return this.ctx;
+    } catch (e) {
+      return null;
     }
-    return this.ctx;
   }
 
   // Play pop sound for buttons
   playPop() {
     try {
       const ctx = this.getContext();
+      if (!ctx || ctx.state === 'suspended') return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -40,6 +66,7 @@ class SoundEffectsEngine {
   playCorrect() {
     try {
       const ctx = this.getContext();
+      if (!ctx || ctx.state === 'suspended') return;
       const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
 
       notes.forEach((freq, idx) => {
@@ -67,6 +94,7 @@ class SoundEffectsEngine {
   playGentleWrong() {
     try {
       const ctx = this.getContext();
+      if (!ctx || ctx.state === 'suspended') return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -89,6 +117,7 @@ class SoundEffectsEngine {
   playStarFanfare() {
     try {
       const ctx = this.getContext();
+      if (!ctx || ctx.state === 'suspended') return;
       const notes = [
         { f: 523.25, t: 0 },
         { f: 659.25, t: 0.12 },
@@ -233,7 +262,16 @@ export const playWordAudio = (word: string, audioUrl?: string): Promise<void> =>
         }, 2500);
 
         audio.play().catch((err) => {
-          console.warn('[Audio] Remote audio play failed, falling back to speech:', err);
+          if (err?.name === 'AbortError') {
+            // Interrupted by user navigating or pausing, safely finalize
+            finalize();
+            return;
+          }
+          if (err?.name === 'NotAllowedError') {
+            // Browser autoplay blocked before user gesture, safely finalize without fallback loop
+            finalize();
+            return;
+          }
           triggerSpeechFallback();
         });
       } catch (err) {
