@@ -3,7 +3,8 @@ import {
   Star,
   ArrowLeft,
   Play,
-  Filter
+  Filter,
+  LockKeyhole
 } from 'lucide-react';
 import type { Vocabulary, ActivityQuestion, Activity } from '../../types';
 import { sfx, playWordAudio } from '../../utils/audio';
@@ -82,6 +83,35 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
   );
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('ALL');
   const [masteryTick, setMasteryTick] = useState(0);
+
+  const userAgeCode = (user as any)?.ageGroupCode || propAgeCode || '3-4';
+  const ageLevels: Record<string, number> = { '3-4': 1, '4-5': 2, '5-6': 3 };
+  const userLevel = ageLevels[userAgeCode] || 1;
+
+  const isGameUnlocked = (gameAge: string) => {
+    const requiredLevel = ageLevels[gameAge] || 1;
+    return userLevel >= requiredLevel;
+  };
+
+  const getAgeLabel = (age: string) => {
+    if (age === '3-4') return 'Lớp Mầm 3–4 tuổi';
+    if (age === '4-5') return 'Lớp Chồi 4–5 tuổi';
+    if (age === '5-6') return 'Lớp Lá 5–6 tuổi';
+    return `${age} tuổi`;
+  };
+
+  // Friendly toast state for locked game clicks
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = React.useRef<any>(null);
+
+  const handleLockedGameClick = (game: typeof ALL_GAMES[0]) => {
+    sfx.playPop();
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMessage(`Trò chơi này dành cho bé ${getAgeLabel(game.age)}! Bé hãy học lên lớp tiếp theo để mở khóa nhé 🚀✨`);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
 
   // Overall arcade session score & result modal
   const [score, setScore] = useState(0);
@@ -396,6 +426,13 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
 
   // Launch any game
   const startGame = (game: GameMode) => {
+    // Check if the game is unlocked for current age
+    const gameDef = ALL_GAMES.find(g => g.id === game);
+    if (gameDef && !isGameUnlocked(gameDef.age)) {
+      handleLockedGameClick(gameDef);
+      return;
+    }
+
     sfx.playPop();
     setActiveGame(game);
     setCurrentRound(0);
@@ -670,39 +707,80 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
       {/* ==================== 1. ARCADE MENU: 12 GAMES GRID ==================== */}
       {activeGame === 'menu' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in">
-          {displayedGames.map((game) => (
-            <div
-              key={game.id}
-              onClick={() => startGame(game.id)}
-              className={`bg-white rounded-3xl border-4 ${game.color} p-6 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
-                    {game.icon}
+          {displayedGames.map((game) => {
+            const unlocked = isGameUnlocked(game.age);
+
+            return (
+              <div
+                key={game.id}
+                onClick={() => {
+                  if (!unlocked) {
+                    handleLockedGameClick(game);
+                    return;
+                  }
+                  startGame(game.id);
+                }}
+                className={`bg-white rounded-3xl border-4 ${
+                  unlocked ? game.color : 'border-slate-200 opacity-80'
+                } p-6 shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden ${
+                  unlocked ? 'hover:-translate-y-1' : 'hover:border-slate-300'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div
+                      className={`w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-4xl transition-transform ${
+                        unlocked
+                          ? 'bg-amber-50 border-amber-200 group-hover:scale-110'
+                          : 'bg-slate-100 border-slate-200 text-slate-400 grayscale'
+                      }`}
+                    >
+                      {game.icon}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-black px-3 py-1 rounded-full border shadow-2xs ${game.badgeColor}`}>
+                        {game.badge}
+                      </span>
+                      {!unlocked && (
+                        <span className="bg-slate-200 text-slate-700 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 border border-slate-300">
+                          <LockKeyhole className="w-3 h-3 text-slate-600 stroke-[2.5]" />
+                          Khóa
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span className={`text-[11px] font-black px-3 py-1 rounded-full border shadow-2xs ${game.badgeColor}`}>
-                    {game.badge}
-                  </span>
+
+                  <h3
+                    className={`text-xl sm:text-2xl font-black mb-2 transition-colors ${
+                      unlocked ? 'text-slate-800 group-hover:text-amber-600' : 'text-slate-600'
+                    }`}
+                  >
+                    {game.title}
+                  </h3>
+                  <p className="text-slate-500 font-bold text-xs sm:text-sm leading-relaxed mb-4">
+                    {game.desc}
+                  </p>
                 </div>
 
-                <h3 className="text-xl sm:text-2xl font-black text-slate-800 mb-2 group-hover:text-amber-600 transition-colors">
-                  {game.title}
-                </h3>
-                <p className="text-slate-500 font-bold text-xs sm:text-sm leading-relaxed mb-4">
-                  {game.desc}
-                </p>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-400">
+                    {unlocked ? '5 vòng chơi vui nhộn' : `Yêu cầu: ${getAgeLabel(game.age)}`}
+                  </span>
+                  {unlocked ? (
+                    <span className="btn-3d-amber py-2 px-4 rounded-xl text-xs font-black text-amber-950 flex items-center gap-1.5 shadow-xs">
+                      <Play className="w-3.5 h-3.5 fill-amber-950" />
+                      Chơi ngay
+                    </span>
+                  ) : (
+                    <span className="bg-slate-200 text-slate-600 py-2 px-3.5 rounded-xl text-xs font-black flex items-center gap-1 border border-slate-300">
+                      <LockKeyhole className="w-3.5 h-3.5 text-slate-500" />
+                      Chưa mở
+                    </span>
+                  )}
+                </div>
               </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-black text-slate-400">5 vòng chơi vui nhộn</span>
-                <span className="btn-3d-amber py-2 px-4 rounded-xl text-xs font-black text-amber-950 flex items-center gap-1.5 shadow-xs">
-                  <Play className="w-3.5 h-3.5 fill-amber-950" />
-                  Chơi ngay
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -838,6 +916,24 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
             setActiveGame('menu');
           }}
         />
+      )}
+      {/* Friendly Gatekeeper Notification Toast for Locked Games */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92%] bg-slate-900/95 backdrop-blur-md text-white px-5 py-4 rounded-3xl shadow-2xl border-2 border-amber-400 flex items-center gap-3.5 animate-bounce-short">
+          <div className="w-11 h-11 rounded-2xl bg-amber-400 text-amber-950 flex items-center justify-center text-2xl flex-shrink-0 shadow-md">
+            🔒
+          </div>
+          <div className="flex-1 text-xs sm:text-sm font-black text-amber-100 leading-snug">
+            {toastMessage}
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-slate-400 hover:text-white text-sm font-black p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

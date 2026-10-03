@@ -258,25 +258,35 @@ export const StudentLoginPage: React.FC = () => {
                   className="block font-black uppercase text-slate-400 mb-2"
                   style={{ fontSize: '0.75rem', letterSpacing: '0.06em' }}
                 >
-                  Thử nhanh — Tài khoản mẫu:
+                  Thử nhanh — 3 Nhóm tuổi:
                 </span>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2.5">
                   {[
-                    { email: 'leo@kcenglishkids.com',  icon: '🦁', name: 'Leo',  border: 'border-amber-300', bg: 'bg-amber-50 hover:bg-amber-100', text: 'text-amber-950' },
-                    { email: 'mia@kcenglishkids.com',  icon: '🐰', name: 'Mia',  border: 'border-pink-300',  bg: 'bg-pink-50  hover:bg-pink-100',  text: 'text-pink-950'  },
-                    { email: 'toby@kcenglishkids.com', icon: '🐶', name: 'Toby', border: 'border-sky-300',   bg: 'bg-sky-50   hover:bg-sky-100',   text: 'text-sky-950'   },
-                  ].map(({ email, icon, name, border, bg, text }) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => fillQuick(email)}
-                      className={`py-2.5 rounded-2xl border-2 ${border} ${bg} ${text} font-black flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 shadow-sm`}
-                      style={{ fontSize: '1rem' }}
-                    >
-                      <span style={{ fontSize: '1.3rem' }}>{icon}</span>
-                      <span>{name}</span>
-                    </button>
-                  ))}
+                    { email: 'leo@kcenglishkids.com',  icon: '🦁', name: 'Leo',  age: '3–4 tuổi', badge: 'Lớp Mầm', border: 'border-amber-300', bg: 'bg-amber-50 hover:bg-amber-100', text: 'text-amber-950', ring: 'ring-amber-300' },
+                    { email: 'mia@kcenglishkids.com',  icon: '🐰', name: 'Mia',  age: '4–5 tuổi', badge: 'Lớp Chồi', border: 'border-pink-300',  bg: 'bg-pink-50  hover:bg-pink-100',  text: 'text-pink-950',  ring: 'ring-pink-300' },
+                    { email: 'toby@kcenglishkids.com', icon: '🐶', name: 'Toby', age: '5–6 tuổi', badge: 'Lớp Lá',   border: 'border-sky-300',   bg: 'bg-sky-50   hover:bg-sky-100',   text: 'text-sky-950',   ring: 'ring-sky-300' },
+                  ].map(({ email, icon, name, age, border, bg, text }) => {
+                    const isSelected = identifier === email;
+
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => fillQuick(email)}
+                        className={`py-2 px-1.5 rounded-2xl border-2 ${border} ${bg} ${text} font-black flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all active:scale-95 shadow-xs ${
+                          isSelected ? 'ring-2 ring-offset-1 ' + border + ' scale-103' : 'opacity-90 hover:opacity-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1">
+                          <span style={{ fontSize: '1.25rem' }}>{icon}</span>
+                          <span style={{ fontSize: '0.95rem' }} className="font-extrabold">{name}</span>
+                        </div>
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/80 border border-black/5 shadow-2xs whitespace-nowrap">
+                          {age}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -371,9 +381,9 @@ export const StudentLoginPage: React.FC = () => {
                 <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-black text-slate-400">Thử nhanh:</span>
                   {[
-                    { label: 'Leo', phone: '0901234567', cls: 'text-amber-700 bg-amber-100 hover:bg-amber-200' },
-                    { label: 'Mia', phone: '0902345678', cls: 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
-                    { label: 'Ben', phone: '0903456789', cls: 'text-sky-700 bg-sky-100 hover:bg-sky-200' },
+                    { label: 'Leo (3–4t)', phone: '0901234567', cls: 'text-amber-700 bg-amber-100 hover:bg-amber-200' },
+                    { label: 'Mia (4–5t)', phone: '0902345678', cls: 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
+                    { label: 'Toby (5–6t)', phone: '0903456789', cls: 'text-sky-700 bg-sky-100 hover:bg-sky-200' },
                   ].map(({ label, phone, cls }) => (
                     <button
                       key={label}

@@ -66,6 +66,8 @@ export const ChildHomePage: React.FC = () => {
   // Active Tab
   const activeTab = params.get('tab') || 'path';
   const ageCode = user?.ageGroupCode || '3-4';
+  const ageLevels: Record<string, number> = { '3-4': 1, '4-5': 2, '5-6': 3 };
+  const userLevel = ageLevels[ageCode] || 1;
 
   // Data States
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
@@ -174,47 +176,34 @@ export const ChildHomePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fffaf0] pb-24 md:pb-12">
-      <ChildHeader totalStars={totalStars} completedCount={completedLessons} activeTab={activeTab} />
+    <div className="h-screen overflow-hidden bg-[#fffaf0] flex flex-col">
+      <div className="flex-shrink-0"><ChildHeader totalStars={totalStars} completedCount={completedLessons} activeTab={activeTab} /></div>
 
-      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
-        {/* BANNER (Generous full-width spacing, clean mascot layout, large text) */}
-        <section className="relative mb-10 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 p-8 sm:p-12 text-white shadow-xl overflow-hidden">
-          {/* Subtle background decorative shapes */}
-          <div className="absolute right-0 top-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Left Column: Greeting & Info */}
-            <div className="flex-1 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-4 py-2 rounded-full text-sm font-black uppercase tracking-wider text-amber-50 mb-4 shadow-xs">
-                <BookOpen className="w-5 h-5 text-yellow-200" />
-                <span>{getBookBadgeText(ageCode)}</span>
+      <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-3 pb-24 md:pb-8">
+        {/* COMPACT BANNER */}
+        <section className="relative mb-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 px-5 py-3 text-white shadow-md overflow-hidden">
+          <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <KokoMascot state="waving" size="sm" interactive={false} />
               </div>
-
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-3">
-                Chào bé {user?.name || 'yêu'}! Cùng học nào ✨
-              </h1>
-
-              <p className="text-white/95 font-extrabold text-base sm:text-xl max-w-2xl mb-6 leading-relaxed">
-                Hành trình gồm 9 Unit hấp dẫn theo sách First Friends đang chờ bé khám phá!
-              </p>
-
-              {/* Mini Stat Chips */}
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-                <div className="bg-amber-950/20 backdrop-blur-md px-4 py-2 rounded-2xl text-sm sm:text-base font-black flex items-center gap-2 border border-white/25 shadow-sm">
-                  <Star className="w-5 h-5 text-yellow-300 fill-yellow-300" />
-                  <span>{totalStars} Sao vàng</span>
-                </div>
-                <div className="bg-amber-950/20 backdrop-blur-md px-4 py-2 rounded-2xl text-sm sm:text-base font-black flex items-center gap-2 border border-white/25 shadow-sm">
-                  <Check className="w-5 h-5 text-emerald-300 stroke-[3]" />
-                  <span>{completedLessons} Bài hoàn thành</span>
-                </div>
+              <div>
+                <h1 className="text-lg sm:text-xl font-black tracking-tight leading-tight">
+                  Chào bé {user?.name || 'yêu'}! Cùng học nào ✨
+                </h1>
+                <p className="text-amber-100 font-bold text-xs">{getBookBadgeText(ageCode)}</p>
               </div>
             </div>
-
-            {/* Right Column: Mascot with comfortable breathing room */}
-            <div className="flex-shrink-0 flex items-center justify-center transform hover:scale-105 transition-transform">
-              <KokoMascot state="waving" size="lg" speechBubble="Cố lên bé ơi! 🌟" />
+            <div className="flex items-center gap-2">
+              <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
+                <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                <span>{totalStars} Sao</span>
+              </div>
+              <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
+                <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
+                <span>{completedLessons} Bài</span>
+              </div>
             </div>
           </div>
         </section>
@@ -307,24 +296,46 @@ export const ChildHomePage: React.FC = () => {
 
                     <button
                       onClick={() => {
+                        if (userLevel < 2) {
+                          handleLockedClick('Trò chơi này dành cho bé Lớp Chồi (4–5 tuổi)! Bé hãy học lên lớp tiếp theo để mở khóa nhé 🚀✨');
+                          return;
+                        }
                         sfx.playPop();
                         navigate('/?tab=games');
                       }}
-                      className="bg-white/15 hover:bg-white/25 backdrop-blur-md p-4 rounded-2xl border border-white/25 text-left transition-all hover:scale-103 cursor-pointer group"
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer group ${
+                        userLevel >= 2
+                          ? 'bg-white/15 hover:bg-white/25 backdrop-blur-md border-white/25 hover:scale-103'
+                          : 'bg-white/5 border-white/10 opacity-70'
+                      }`}
                     >
-                      <span className="text-3xl sm:text-4xl block mb-2 group-hover:scale-110 transition-transform">🎨</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform">🎨</span>
+                        {userLevel < 2 && <LockKeyhole className="w-4 h-4 text-white/70 stroke-[2.5]" />}
+                      </div>
                       <span className="text-xs font-black text-yellow-300 block uppercase">Lớp Chồi 4–5t</span>
                       <b className="text-sm sm:text-base font-black text-white block">Nhận Biết Màu Sắc</b>
                     </button>
 
                     <button
                       onClick={() => {
+                        if (userLevel < 3) {
+                          handleLockedClick('Trò chơi này dành cho bé Lớp Lá (5–6 tuổi)! Bé hãy học lên lớp tiếp theo để mở khóa nhé 🚀✨');
+                          return;
+                        }
                         sfx.playPop();
                         navigate('/?tab=games');
                       }}
-                      className="bg-white/15 hover:bg-white/25 backdrop-blur-md p-4 rounded-2xl border border-white/25 text-left transition-all hover:scale-103 cursor-pointer group"
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer group ${
+                        userLevel >= 3
+                          ? 'bg-white/15 hover:bg-white/25 backdrop-blur-md border-white/25 hover:scale-103'
+                          : 'bg-white/5 border-white/10 opacity-70'
+                      }`}
                     >
-                      <span className="text-3xl sm:text-4xl block mb-2 group-hover:scale-110 transition-transform">🚀</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform">🚀</span>
+                        {userLevel < 3 && <LockKeyhole className="w-4 h-4 text-white/70 stroke-[2.5]" />}
+                      </div>
                       <span className="text-xs font-black text-yellow-300 block uppercase">Lớp Lá 5–6t • HTML5</span>
                       <b className="text-sm sm:text-base font-black text-white block">Hứng Sao Từ Vựng</b>
                     </button>
@@ -1002,14 +1013,17 @@ export const ChildHomePage: React.FC = () => {
             </button>
           </div>
         )}
+        </div>
       </main>
 
+      <div className="flex-shrink-0">
       <ChildBottomNav
         totalStars={totalStars}
         completedCount={completedLessons}
         activeTab={activeTab}
         onTabChange={goTab}
       />
+      </div>
     </div>
   );
 };

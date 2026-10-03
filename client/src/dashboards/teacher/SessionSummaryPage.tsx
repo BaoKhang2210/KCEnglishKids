@@ -28,12 +28,12 @@ const initials = (name?: string) =>
 const fmt = (d?: string) =>
   d
     ? new Date(d).toLocaleString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
     : '—';
 
 const durationMin = (start?: string, end?: string) => {
@@ -148,13 +148,7 @@ export const SessionSummaryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...scores]
-                    .sort((a, b) => {
-                      const nameA = (a.student as User)?.name || '';
-                      const nameB = (b.student as User)?.name || '';
-                      return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
-                    })
-                    .map((sc, i) => {
+                  {scores.map((sc, i) => {
                     const stu = sc.student as User;
                     const name = stu?.name || 'Student';
                     const ans = sc.correctCount + sc.incorrectCount;

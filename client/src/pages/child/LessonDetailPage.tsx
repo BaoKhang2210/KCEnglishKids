@@ -212,22 +212,20 @@ export const LessonDetailPage: React.FC = () => {
                 {/* Step 1: Học từ mới */}
                 <button
                   onClick={() => handleSelectStage(1)}
-                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${
-                    activeStage === 1
-                      ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-orange-50/70 ring-4 ring-amber-300 shadow-md scale-102'
-                      : isStage1Completed
+                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${activeStage === 1
+                    ? 'border-amber-400 bg-gradient-to-br from-amber-50 via-white to-orange-50/70 ring-4 ring-amber-300 shadow-md scale-102'
+                    : isStage1Completed
                       ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:scale-102'
                       : 'border-slate-200 bg-slate-50/50 hover:bg-amber-50/40'
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${
-                      isStage1Completed
-                        ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
-                        : activeStage === 1
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${isStage1Completed
+                      ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
+                      : activeStage === 1
                         ? 'bg-gradient-to-tr from-amber-400 to-orange-500 text-amber-950 animate-soft-bounce'
                         : 'bg-amber-100 text-amber-800'
-                    }`}
+                      }`}
                   >
                     {isStage1Completed ? '✓' : '📖'}
                   </div>
@@ -247,24 +245,22 @@ export const LessonDetailPage: React.FC = () => {
                 {/* Step 2: Luyện tập */}
                 <button
                   onClick={() => handleSelectStage(2)}
-                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${
-                    activeStage === 2
-                      ? 'border-sky-400 bg-gradient-to-br from-sky-50 via-white to-blue-50/70 ring-4 ring-sky-300 shadow-md scale-102'
-                      : isStage2Completed
+                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${activeStage === 2
+                    ? 'border-sky-400 bg-gradient-to-br from-sky-50 via-white to-blue-50/70 ring-4 ring-sky-300 shadow-md scale-102'
+                    : isStage2Completed
                       ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:scale-102'
                       : !isStage1Completed
-                      ? 'border-slate-200 bg-slate-100/70 opacity-60'
-                      : 'border-slate-200 bg-white hover:bg-sky-50/40'
-                  }`}
+                        ? 'border-slate-200 bg-slate-100/70 opacity-60'
+                        : 'border-slate-200 bg-white hover:bg-sky-50/40'
+                    }`}
                 >
                   <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${
-                      isStage2Completed
-                        ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
-                        : activeStage === 2
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${isStage2Completed
+                      ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
+                      : activeStage === 2
                         ? 'bg-gradient-to-tr from-sky-400 to-blue-500 text-white animate-soft-bounce'
                         : 'bg-sky-100 text-sky-800'
-                    }`}
+                      }`}
                   >
                     {isStage2Completed ? '✓' : '🎯'}
                   </div>
@@ -284,22 +280,20 @@ export const LessonDetailPage: React.FC = () => {
                 {/* Step 3: Trò chơi */}
                 <button
                   onClick={() => handleSelectStage(3)}
-                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${
-                    activeStage === 3
-                      ? 'border-purple-400 bg-gradient-to-br from-purple-50 via-white to-pink-50/70 ring-4 ring-purple-300 shadow-md scale-102'
-                      : isStage3Completed
+                  className={`p-3.5 sm:p-4 rounded-3xl border-3 transition-all cursor-pointer flex flex-col sm:flex-row items-center sm:items-start gap-3 text-left relative ${activeStage === 3
+                    ? 'border-purple-400 bg-gradient-to-br from-purple-50 via-white to-pink-50/70 ring-4 ring-purple-300 shadow-md scale-102'
+                    : isStage3Completed
                       ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 hover:scale-102'
                       : 'border-slate-200 bg-white hover:bg-purple-50/40'
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${
-                      isStage3Completed
-                        ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
-                        : activeStage === 3
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl sm:text-2xl shadow-sm ${isStage3Completed
+                      ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
+                      : activeStage === 3
                         ? 'bg-gradient-to-tr from-purple-500 to-pink-500 text-white animate-soft-bounce'
                         : 'bg-purple-100 text-purple-800'
-                    }`}
+                      }`}
                   >
                     {isStage3Completed ? '✓' : '🏆'}
                   </div>
@@ -498,13 +492,12 @@ export const LessonDetailPage: React.FC = () => {
                         <div
                           key={act._id}
                           onClick={() => handleStartActivity(act._id)}
-                          className={`card-kid p-5 rounded-3xl border-3 transition-all cursor-pointer flex flex-col justify-between group ${
-                            isCurrent
-                              ? 'border-purple-400 bg-purple-50/60 shadow-md ring-2 ring-purple-300'
-                              : act.completed
+                          className={`card-kid p-5 rounded-3xl border-3 transition-all cursor-pointer flex flex-col justify-between group ${isCurrent
+                            ? 'border-purple-400 bg-purple-50/60 shadow-md ring-2 ring-purple-300'
+                            : act.completed
                               ? 'border-amber-300 bg-amber-50/30 hover:bg-white'
                               : 'border-slate-200 bg-white hover:border-purple-300'
-                          }`}
+                            }`}
                         >
                           <div>
                             <div className="flex items-center justify-between mb-2">
