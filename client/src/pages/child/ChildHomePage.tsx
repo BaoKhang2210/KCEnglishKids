@@ -6,7 +6,6 @@ import {
   Sparkles,
   Star,
   Trophy,
-  BookOpen,
   Compass,
   ArrowRight,
   Gift,
@@ -67,8 +66,6 @@ export const ChildHomePage: React.FC = () => {
   // Active Tab
   const activeTab = params.get('tab') || 'path';
   const ageCode = user?.ageGroupCode || '3-4';
-  const ageLevels: Record<string, number> = { '3-4': 1, '4-5': 2, '5-6': 3 };
-  const userLevel = ageLevels[ageCode] || 1;
 
   // Data States
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
@@ -99,6 +96,7 @@ export const ChildHomePage: React.FC = () => {
   const [showcaseBadge, setShowcaseBadge] = useState<any>(null);
   const [selectedSticker, setSelectedSticker] = useState<any>(null);
   const [stickerRarityFilter, setStickerRarityFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
+  const [expandedUnit, setExpandedUnit] = useState<number | null>(null);
 
   // Friendly Sequential Gatekeeper Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -179,9 +177,9 @@ export const ChildHomePage: React.FC = () => {
   };
 
   const getBookBadgeText = (code: string) => {
-    if (code === '5-6') return 'Book 3 • Lớp Lá (5–6 tuổi)';
-    if (code === '4-5') return 'Book 2 • Lớp Chồi (4–5 tuổi)';
-    return 'Book 1 • Lớp Mầm (3–4 tuổi)';
+    if (code === '5-6') return 'Book 3 (Ages 5–6)';
+    if (code === '4-5') return 'Book 2 (Ages 4–5)';
+    return 'Book 1 (Ages 3–4)';
   };
 
   return (
@@ -190,41 +188,14 @@ export const ChildHomePage: React.FC = () => {
 
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-3 pb-24 md:pb-8">
-        {/* COMPACT BANNER */}
-        <section className="relative mb-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 px-5 py-3 text-white shadow-md overflow-hidden">
-          <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">
-                <KokoMascot state="waving" size="sm" interactive={false} />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-black tracking-tight leading-tight">
-                  Chào bé {user?.name || 'yêu'}! Cùng học nào ✨
-                </h1>
-                <p className="text-amber-100 font-bold text-xs">{getBookBadgeText(ageCode)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
-                <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                <span>{totalStars} Sao</span>
-              </div>
-              <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
-                <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
-                <span>{completedLessons} Bài</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="h-14 w-14 animate-spin rounded-full border-4 border-amber-400 border-t-transparent" />
-            <p className="text-amber-800 font-black text-sm">Đang chuẩn bị hành trình học cho bé...</p>
+            <p className="text-amber-800 font-black text-sm">Preparing your learning adventure...</p>
           </div>
         ) : (
           <>
-            {/* ==================== TAB 1: HÀNH TRÌNH HỌC (CURRICULUM PATH) ==================== */}
+            {/* ==================== TAB 1: CURRICULUM JOURNEY PATH ==================== */}
             {activeTab === 'path' && (
               <section className="space-y-10">
                 {/* Header */}
@@ -232,10 +203,10 @@ export const ChildHomePage: React.FC = () => {
                   <div>
                     <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-orange-600 bg-orange-100 px-3 py-1 rounded-full mb-1">
                       <Compass className="w-3.5 h-3.5" />
-                      Lộ trình chuẩn sách giáo khoa
+                      Cambridge Little Steps Curriculum
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
-                      Hành trình 9 Unit phiêu lưu
+                      Course Journey
                     </h2>
                     <p className="text-sm font-bold text-slate-500">
                       {getBookBadgeText(ageCode)}
@@ -244,7 +215,7 @@ export const ChildHomePage: React.FC = () => {
                   <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
                     <Trophy className="w-5 h-5 text-amber-600" />
                     <span className="text-sm font-black text-amber-900">
-                      Đã xong: {completedUnits} / {totalUnits} Unit
+                      Completed: {completedUnits} / {totalUnits} Units
                     </span>
                   </div>
                 </div>
@@ -258,48 +229,48 @@ export const ChildHomePage: React.FC = () => {
 
                     const UNIT_THEMES = [
                       {
-                        themeName: 'Đảo Đồ Chơi & Trường Học',
-                        tag: 'Trường Mầm Non',
+                        themeName: 'Early Learning & School',
+                        tag: 'School & Play',
                         bgGradient: 'from-amber-50 via-white to-orange-50/50',
                         border: 'border-amber-300',
                         headerBadge: 'bg-amber-100 text-amber-900 border-amber-300',
                         accentEmoji: '🎒'
                       },
                       {
-                        themeName: 'Vương Quốc Thú Cưng Đáng Yêu',
-                        tag: 'Khám Phá Muôn Loài',
+                        themeName: 'Animal Friends',
+                        tag: 'Creatures & Pets',
                         bgGradient: 'from-emerald-50 via-white to-teal-50/50',
                         border: 'border-emerald-300',
                         headerBadge: 'bg-emerald-100 text-emerald-900 border-emerald-300',
                         accentEmoji: '🐶'
                       },
                       {
-                        themeName: 'Khu Vườn Bánh Ngọt & Trái Cây',
-                        tag: 'Món Ngon Cho Bé',
+                        themeName: 'Delicious Treats & Fruits',
+                        tag: 'Food & Nutrition',
                         bgGradient: 'from-rose-50 via-white to-orange-50/50',
                         border: 'border-rose-300',
                         headerBadge: 'bg-rose-100 text-rose-900 border-rose-300',
                         accentEmoji: '🍎'
                       },
                       {
-                        themeName: 'Xứ Sở Đồ Chơi Kỳ Diệu',
-                        tag: 'Thế Giới Tuổi Thơ',
+                        themeName: 'Magic Toy Box',
+                        tag: 'Toys & Fun',
                         bgGradient: 'from-purple-50 via-white to-pink-50/50',
                         border: 'border-purple-300',
                         headerBadge: 'bg-purple-100 text-purple-900 border-purple-300',
                         accentEmoji: '🧸'
                       },
                       {
-                        themeName: 'Thung Lũng Cỏ Cây Tự Nhiên',
-                        tag: 'Thiên Nhiên Xanh',
+                        themeName: 'Green Nature Valley',
+                        tag: 'The Natural World',
                         bgGradient: 'from-teal-50 via-white to-cyan-50/50',
                         border: 'border-teal-300',
                         headerBadge: 'bg-teal-100 text-teal-900 border-teal-300',
                         accentEmoji: '🌳'
                       },
                       {
-                        themeName: 'Tổ Ấm Ngôi Nhà Hạnh Phúc',
-                        tag: 'Gia Đình Yêu Thương',
+                        themeName: 'Happy Home & Family',
+                        tag: 'Family & Home',
                         bgGradient: 'from-yellow-50 via-white to-amber-50/50',
                         border: 'border-amber-300',
                         headerBadge: 'bg-yellow-100 text-yellow-900 border-yellow-300',
@@ -314,7 +285,7 @@ export const ChildHomePage: React.FC = () => {
                         key={unit._id || unitIdx}
                         onClick={() => {
                           if (!isUnitUnlocked) {
-                            handleLockedClick(`Bé ơi, hãy hoàn thành Unit ${unitIdx} trước để mở khóa Unit ${unit.unitNumber} nhé! 🎒✨`);
+                            handleLockedClick(`Please complete Unit ${unitIdx} first to unlock Unit ${unit.unitNumber}! 🎒✨`);
                             return;
                           }
                           sfx.playPop();
@@ -349,32 +320,26 @@ export const ChildHomePage: React.FC = () => {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className={`text-[11px] sm:text-xs font-black uppercase px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border shadow-2xs ${
-                                  !isUnitUnlocked ? 'bg-slate-200 text-slate-600 border-slate-300' : theme.headerBadge
-                                }`}>
-                                  Unit {unit.unitNumber} • {theme.tag}
-                                </span>
                                 {!isUnitUnlocked ? (
                                   <span className="bg-slate-200 text-slate-600 text-[11px] sm:text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-slate-300">
-                                    <LockKeyhole className="w-3 h-3" /> Chưa mở khóa
+                                    <LockKeyhole className="w-3 h-3" /> Locked
                                   </span>
                                 ) : unit.isCompleted ? (
                                   <span className="bg-emerald-100 text-emerald-800 text-[11px] sm:text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-300">
-                                    <Check className="w-3 h-3 stroke-[3]" /> Hoàn thành trọn vẹn
+                                    <Check className="w-3 h-3 stroke-[3]" /> Completed
                                   </span>
                                 ) : (
                                   <span className="bg-amber-100 text-amber-900 text-[11px] sm:text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-300 animate-pulse">
-                                    <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" /> Đang khám phá
+                                    <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" /> Exploring
                                   </span>
                                 )}
                               </div>
 
                               <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 mt-0.5 font-display tracking-tight group-hover:text-amber-700 transition-colors truncate">
-                                Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Bài học'}
+                                Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || `Unit ${unit.unitNumber}`}
                               </h3>
                               <p className="text-xs sm:text-sm font-extrabold text-slate-600 mt-0.5 truncate">
-                                {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
-                                {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.storyTitle || ''}
+                                {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.storyTitle || `Explore Unit ${unit.unitNumber}`}
                               </p>
                             </div>
                           </div>
@@ -385,11 +350,11 @@ export const ChildHomePage: React.FC = () => {
                               <div className="flex items-center gap-1 justify-end">
                                 <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                                 <span className="text-xs sm:text-sm font-black text-amber-950">
-                                  {unit.totalUnitStars} sao vàng
+                                  {unit.totalUnitStars} {unit.totalUnitStars === 1 ? 'Star' : 'Stars'}
                                 </span>
                               </div>
                               <span className="text-[11px] font-bold text-slate-500">
-                                {completedLessonCount} / {totalLessonCount} bài đã xong
+                                {completedLessonCount} / {totalLessonCount} Lessons Done
                               </span>
                             </div>
 
@@ -399,7 +364,7 @@ export const ChildHomePage: React.FC = () => {
                                 !isUnitUnlocked ? 'opacity-60 grayscale' : 'group-hover:scale-105'
                               }`}
                             >
-                              <span>{isUnitUnlocked ? 'Khám phá bài học' : 'Xem điều kiện'}</span>
+                              <span>{isUnitUnlocked ? 'Explore Unit' : 'Locked'}</span>
                               <ArrowRight className="w-4 h-4" />
                             </button>
                           </div>
@@ -411,20 +376,20 @@ export const ChildHomePage: React.FC = () => {
               </section>
             )}
 
-            {/* ==================== TAB 2: CHỦ ĐỀ CỦA BÉ THEO LỚP ==================== */}
+            {/* ==================== TAB 2: TOPICS BY AGE GROUP ==================== */}
             {activeTab === 'topics' && (
               <section className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                   <div>
                     <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full mb-1">
                       <Sparkles className="w-3.5 h-3.5" />
-                      Chủ đề theo lứa tuổi bé
+                      Learning Topics
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
-                      Chủ đề học tập của bé ({ageTopics.length} chủ đề)
+                      Explore Topics ({ageTopics.length} Topics)
                     </h2>
                     <p className="text-sm font-bold text-slate-500">
-                      Được thiết kế chuẩn riêng biệt cho lứa tuổi {ageCode} tuổi ({getBookBadgeText(ageCode)}).
+                      Tailored specifically for {getBookBadgeText(ageCode)}.
                     </p>
                   </div>
 
@@ -464,10 +429,10 @@ export const ChildHomePage: React.FC = () => {
                         {/* Top Badges */}
                         <div className="w-full flex items-center justify-between gap-2 mb-3 relative z-10">
                           <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border border-black/5 shadow-2xs ${pal.badge}`}>
-                            {ageCode} tuổi
+                            Ages {ageCode}
                           </span>
                           <span className="text-xs font-black text-slate-500 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-full border border-slate-200/80 shadow-2xs">
-                            {topic.lessonCount || 0} bài học
+                            {topic.lessonCount || 0} {(topic.lessonCount || 0) === 1 ? 'Lesson' : 'Lessons'}
                           </span>
                         </div>
 
@@ -480,16 +445,13 @@ export const ChildHomePage: React.FC = () => {
                           <h3 className="font-black text-slate-800 text-xl sm:text-2xl font-display group-hover:text-amber-700 transition-colors line-clamp-1 w-full">
                             {topic.englishName}
                           </h3>
-                          <p className="text-sm font-bold text-slate-600 mt-1 line-clamp-1 w-full">
-                            {topic.vietnameseName}
-                          </p>
                         </div>
 
                         {/* Bottom CTA Action Bar */}
                         <div className="mt-4 pt-3 border-t border-black/5 w-full flex items-center justify-between relative z-10">
-                          <span className="text-xs font-black text-slate-400">Từ vựng tương tác</span>
+                          <span className="text-xs font-black text-slate-400">Interactive</span>
                           <span className={`text-sm font-black flex items-center gap-1.5 ${pal.btn} group-hover:translate-x-1 transition-transform`}>
-                            <span>Khám phá ngay</span>
+                            <span>Explore now</span>
                             <ArrowRight className="w-4 h-4 stroke-[3]" />
                           </span>
                         </div>
@@ -518,7 +480,7 @@ export const ChildHomePage: React.FC = () => {
               </section>
             )}
 
-            {/* ==================== TAB 4: HUY HIỆU CỦA BÉ ==================== */}
+            {/* ==================== TAB 4: BỘ SƯU TẬP ==================== */}
             {activeTab === 'badges' && (() => {
               const evaluatedBadges = ALL_BADGES.map(badge => {
                 let unlocked = false;
@@ -550,13 +512,13 @@ export const ChildHomePage: React.FC = () => {
                       </div>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
                         {rewardTab === 'badges'
-                          ? `Huy hiệu của bé (${unlockedCount}/${evaluatedBadges.length} đã mở)`
+                          ? `Bộ sưu tập (${unlockedCount}/${evaluatedBadges.length} huy hiệu đã mở)`
                           : `Bộ sưu tập Sticker (${unlockedStickers.length}/${ALL_STICKERS.length} đã mở)`}
                       </h2>
                       <p className="text-sm font-bold text-slate-500">
                         {rewardTab === 'badges'
-                          ? 'Thu thập đủ sao vàng và hoàn thành bài học để mở khóa 20 huy hiệu danh giá!'
-                          : 'Đạt từ 2–3 sao vàng trong các bài luyện tập và trò chơi để mở khóa sticker siêu xinh!'}
+                          ? 'Thu thập đủ sao vàng và hoàn thành các Lesson, Unit để mở khóa 20 huy hiệu danh giá!'
+                          : 'Đạt từ 2–3 sao vàng trong các Lesson và trò chơi để mở khóa sticker siêu xinh!'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -564,10 +526,7 @@ export const ChildHomePage: React.FC = () => {
                         <Trophy className="w-5 h-5 text-purple-600" />
                         <span className="text-base font-black text-purple-900">{unlockedCount} Huy hiệu</span>
                       </div>
-                      <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
-                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                        <span className="text-base font-black text-amber-900">{totalStars} Sao vàng</span>
-                      </div>
+
                     </div>
                   </div>
 
@@ -685,7 +644,7 @@ export const ChildHomePage: React.FC = () => {
                                     />
                                   </div>
                                   <span className="text-[9px] font-extrabold text-slate-400 block">
-                                    {currentVal}/{badge.requirement} {badge.reqType === 'star' ? '⭐' : 'bài'}
+                                    {currentVal}/{badge.requirement} {badge.reqType === 'star' ? '⭐' : badge.reqType === 'unit' ? 'Unit' : 'Lesson'}
                                   </span>
                                 </div>
                               )}
@@ -746,6 +705,146 @@ export const ChildHomePage: React.FC = () => {
                 </section>
               );
             })()}
+
+            {/* ==================== TAB 5: STAR STATS ==================== */}
+            {activeTab === 'stars' && (() => {
+              const unitStarStats = units.map((unit, idx) => ({
+                unitNumber: unit.unitNumber || idx + 1,
+                topicName: unit.topicName || `Unit ${unit.unitNumber || idx + 1}`,
+                topicIcon: unit.topicIcon || '📚',
+                totalUnitStars: unit.totalUnitStars || 0,
+                maxUnitStars: (unit.lessons?.length || 0) * 3,
+                lessons: (unit.lessons || []).map(lesson => ({
+                  _id: lesson._id,
+                  lessonNumber: lesson.lessonNumber,
+                  title: lesson.title || `Lesson ${lesson.lessonNumber}`,
+                  stars: lesson.stars || 0,
+                  completed: lesson.completed,
+                })),
+              }));
+              return (
+                <section className="flex flex-col gap-4 h-full">
+                  {/* WELCOME BANNER EXCLUSIVE TO STARS TAB */}
+                  <div className="relative rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 px-5 py-3 text-white shadow-md overflow-hidden">
+                    <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          <KokoMascot state="waving" size="sm" interactive={false} />
+                        </div>
+                        <div>
+                          <h1 className="text-lg sm:text-xl font-black tracking-tight leading-tight">
+                            Welcome, {user?.name || 'Explorer'}! Let's learn ✨
+                          </h1>
+                          <p className="text-amber-100 font-bold text-xs">{getBookBadgeText(ageCode)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
+                          <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+                          <span>{totalStars} {totalStars === 1 ? 'Star' : 'Stars'}</span>
+                        </div>
+                        <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
+                          <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
+                          <span>{completedLessons} {completedLessons === 1 ? 'Lesson' : 'Lessons'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Header */}
+                  <div className="flex items-center justify-between flex-wrap gap-3 flex-shrink-0">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-100 px-3 py-1 rounded-full mb-1">
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                        Star Statistics
+                      </div>
+                      <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
+                        My Stars ⭐
+                      </h2>
+                      <p className="text-sm font-bold text-slate-500">
+                        You have earned <span className="text-amber-600 font-black">{totalStars} {totalStars === 1 ? 'star' : 'stars'}</span> from lessons!
+                      </p>
+                    </div>
+                    {/* Big star count badge */}
+                    <div className="flex items-center gap-3">
+                      <div className="bg-gradient-to-br from-amber-400 to-orange-400 border-4 border-amber-200 px-6 py-3 rounded-3xl flex items-center gap-3 shadow-lg">
+                        <Star className="w-8 h-8 text-white fill-white drop-shadow" />
+                        <div className="text-left">
+                          <span className="text-3xl font-black text-white leading-none block">{totalStars}</span>
+                          <span className="text-xs font-black text-amber-100 uppercase tracking-widest">Stars</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Unit accordion list — scrollable */}
+                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none space-y-2 pr-0.5">
+                    {unitStarStats.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 gap-4 text-slate-400">
+                        <span className="text-5xl">🌟</span>
+                        <p className="font-bold text-base">No stars yet. Start learning to collect stars!</p>
+                      </div>
+                    ) : unitStarStats.map(uStat => {
+                      const pct = uStat.maxUnitStars > 0 ? Math.round((uStat.totalUnitStars / uStat.maxUnitStars) * 100) : 0;
+                      const isExp = expandedUnit === uStat.unitNumber;
+                      return (
+                        <div key={uStat.unitNumber} className="rounded-2xl border-2 border-amber-100 bg-white overflow-hidden shadow-xs">
+                          <button
+                            type="button"
+                            onClick={() => { sfx.playPop(); setExpandedUnit(isExp ? null : uStat.unitNumber); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50/60 transition-colors cursor-pointer"
+                          >
+                            <span className="text-2xl flex-shrink-0">{uStat.topicIcon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className="text-sm font-black text-slate-700 truncate">
+                                  Unit {uStat.unitNumber}: {uStat.topicName}
+                                </span>
+                                <span className="text-xs font-black text-amber-700 whitespace-nowrap flex-shrink-0 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                                  {uStat.totalUnitStars}/{uStat.maxUnitStars} ⭐
+                                </span>
+                              </div>
+                              <div className="w-full h-2.5 bg-amber-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                            <span className="text-slate-400 text-xs ml-1 flex-shrink-0 select-none font-black">
+                              {isExp ? '▲' : '▼'}
+                            </span>
+                          </button>
+
+                          {isExp && (
+                            <div className="border-t-2 border-amber-50 px-4 pb-3 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 bg-amber-50/30">
+                              {uStat.lessons.map(lesson => (
+                                <div
+                                  key={lesson.lessonNumber}
+                                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold ${
+                                    lesson.completed
+                                      ? 'bg-white border-2 border-amber-200 shadow-xs'
+                                      : 'bg-white/60 border border-slate-100'
+                                  }`}
+                                >
+                                  <span className={`truncate ${lesson.completed ? 'text-slate-800 font-bold' : 'text-slate-400'}`}>
+                                    Lesson {lesson.lessonNumber}: {lesson.title}
+                                  </span>
+                                  <span className="ml-2 flex-shrink-0 flex items-center">
+                                    {[1, 2, 3].map(s => (
+                                      <span key={s} className={`text-base ${lesson.stars >= s ? 'text-amber-400' : 'text-slate-200'}`}>⭐</span>
+                                    ))}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })()}
           </>
         )}
 
@@ -779,20 +878,20 @@ export const ChildHomePage: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[11px] sm:text-xs font-black uppercase px-2.5 py-0.5 rounded-full border shadow-2xs ${theme.headerBadge}`}>
-                          Unit {unit.unitNumber} • {theme.tag}
-                        </span>
-                        {unit.isCompleted && (
+                        {unit.isCompleted ? (
                           <span className="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-300">
-                            <Check className="w-3 h-3 stroke-[3]" /> Hoàn thành
+                            <Check className="w-3 h-3 stroke-[3]" /> Completed
+                          </span>
+                        ) : (
+                          <span className="bg-amber-100 text-amber-900 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-300 animate-pulse">
+                            <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" /> Exploring
                           </span>
                         )}
                       </div>
                       <h3 className="font-black text-xl sm:text-2xl text-slate-800 font-display">
-                        Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Bài học'}
+                        Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || `Unit ${unit.unitNumber}`}
                       </h3>
                       <p className="text-xs sm:text-sm font-bold text-slate-600">
-                        {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
                         {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : ''}
                       </p>
                     </div>
@@ -822,6 +921,7 @@ export const ChildHomePage: React.FC = () => {
                         const isAlternateRight = idx % 2 === 1;
                         const isLessonUnlocked = isUnitUnlocked && (idx === 0 || !!unit.lessons[idx - 1]?.completed);
                         const isCurrent = isUnitUnlocked && !lesson.completed && (firstIncompleteIdx === idx || firstIncompleteIdx === -1);
+                        const wordCount = lesson.vocabularyItems?.length || 4;
 
                         return (
                           <div
@@ -834,7 +934,7 @@ export const ChildHomePage: React.FC = () => {
                             {isCurrent && (
                               <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-950 font-black text-[11px] px-3 py-1 rounded-full shadow-lg flex items-center gap-1 animate-bounce z-30 whitespace-nowrap border-2 border-white ring-2 ring-amber-300">
                                 <span>🚩</span>
-                                <span>Bé học tiếp tại đây!</span>
+                                <span>Current Lesson</span>
                               </div>
                             )}
 
@@ -842,7 +942,7 @@ export const ChildHomePage: React.FC = () => {
                               type="button"
                               onClick={() => {
                                 if (!isLessonUnlocked) {
-                                  handleLockedClick(`Bé hãy hoàn thành Bài ${idx} trước để mở khóa Bài ${lesson.lessonNumber || idx + 1} nhé! 🌟`);
+                                  handleLockedClick(`Please complete Lesson ${idx} first to unlock Lesson ${lesson.lessonNumber || idx + 1}! 🌟`);
                                   return;
                                 }
                                 sfx.playPop();
@@ -884,7 +984,7 @@ export const ChildHomePage: React.FC = () => {
                               <div className="min-w-0 pr-2 flex-1">
                                 <div className="flex items-center gap-1.5 mb-0.5">
                                   <span className="text-[10px] font-black uppercase text-slate-400">
-                                    Bài {lesson.lessonNumber || idx + 1}
+                                    Lesson {lesson.lessonNumber || idx + 1}
                                   </span>
                                   {lesson.completed ? (
                                     <span className="flex items-center text-amber-500 text-xs">
@@ -894,20 +994,19 @@ export const ChildHomePage: React.FC = () => {
                                     </span>
                                   ) : isCurrent ? (
                                     <span className="text-[10px] font-black text-amber-900 bg-amber-300 px-2 py-0.5 rounded-full animate-pulse">
-                                      Chơi ngay! 🚀
+                                      Let's play! 🚀
                                     </span>
                                   ) : !isLessonUnlocked ? (
                                     <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5">
-                                      <LockKeyhole className="w-2.5 h-2.5" /> Khóa
+                                      <LockKeyhole className="w-2.5 h-2.5" /> Locked
                                     </span>
                                   ) : null}
                                 </div>
                                 <h4 className="text-sm sm:text-base font-black text-slate-800 truncate group-hover:text-amber-700 transition-colors">
-                                  {lesson.title}
+                                  Lesson {lesson.lessonNumber || idx + 1}: {lesson.title}
                                 </h4>
                                 <p className="text-xs font-bold text-slate-500 truncate">
-                                  {lesson.vietnameseTitle ? `${lesson.vietnameseTitle} • ` : ''}
-                                  {lesson.vocabularyItems?.length || 4} từ vựng
+                                  {wordCount} {wordCount === 1 ? 'word' : 'words'}
                                 </p>
                               </div>
                             </button>
@@ -952,23 +1051,23 @@ export const ChildHomePage: React.FC = () => {
                             <div className="text-left">
                               <div className="flex items-center gap-1 mb-0.5">
                                 <span className="text-[10px] font-black uppercase text-amber-800">
-                                  Rương Báu Unit {unit.unitNumber}
+                                  Unit {unit.unitNumber} Mystery Chest
                                 </span>
                                 {unit.isCompleted && (
                                   <span className="bg-amber-400 text-amber-950 text-[9px] font-black px-1.5 py-0.5 rounded-full">
-                                    Đã Mở! ✨
+                                    Unlocked! ✨
                                   </span>
                                 )}
                               </div>
                               <h4 className="font-black text-xs sm:text-sm text-slate-800">
-                                {unit.isCompleted ? 'Nhận Thưởng Rương Báu' : 'Hộp Quà Bí Mật Đang Chờ'}
+                                {unit.isCompleted ? 'Claim Chest Rewards' : 'Secret Mystery Gift Box'}
                               </h4>
                             </div>
                           </div>
 
                           <div className="text-right">
                             <span className="btn-3d-amber py-1.5 px-3 rounded-xl text-xs font-black text-amber-950 inline-flex items-center gap-1">
-                              <span>{unit.isCompleted ? 'Mở quà ➔' : 'Xem rương'}</span>
+                              <span>{unit.isCompleted ? 'Open Reward ➔' : 'View Chest'}</span>
                             </span>
                           </div>
                         </button>

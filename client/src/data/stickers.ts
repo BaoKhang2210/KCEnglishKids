@@ -12,7 +12,7 @@ export const ALL_STICKERS: StickerItem[] = [
     id: 'st_lion',
     icon: '🦁',
     name: 'Sư Tử Dũng Cảm',
-    desc: 'Bé can đảm vượt qua bài học!',
+    desc: 'Bé can đảm vượt qua Lesson!',
     rarity: 'common',
     bgGradient: 'from-amber-400 to-orange-500'
   },

@@ -73,7 +73,7 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
             sfx.playPop();
             onClose();
           }}
-          aria-label="Đóng hộp quà"
+          aria-label="Close mystery box"
           className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer z-20"
         >
           <X className="w-5 h-5" />
@@ -85,23 +85,23 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
             {/* Top Celebration Badge */}
             <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-yellow-400 text-amber-950 px-4 py-1.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider shadow-sm mb-3 animate-soft-bounce">
               <Sparkles className="w-4 h-4 fill-amber-950" />
-              <span>Rương Báu Mở Khóa! 🎉</span>
+              <span>Mystery Chest Unlocked! 🎉</span>
             </div>
 
             {/* Mascot celebration */}
             <div className="relative mb-2">
               <KokoMascot state="celebrating" size="md" interactive={true} onClick={() => sfx.playPop()} />
               <div className="absolute -bottom-2 -right-4 bg-white border-2 border-amber-300 rounded-full px-3 py-1 text-xs font-black text-amber-900 shadow-sm animate-pulse">
-                Bé siêu quá! 🌟
+                Super Job! 🌟
               </div>
             </div>
 
             {/* Title */}
             <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight mb-1">
-              Kho Báu Unit {unit.order || unitIndex + 1}
+              Unit {unit.order || unitIndex + 1} Treasure
             </h3>
             <p className="text-xs sm:text-sm font-bold text-emerald-700 mb-5">
-              Chúc mừng bé đã hoàn thành xuất sắc toàn bộ bài học của: <span className="font-black text-slate-800">{unit.title}</span>!
+              Congratulations! You completed all lessons in Unit: <span className="font-black text-slate-800">{unit.title}</span>!
             </p>
 
             {/* Rewards Collection Cards */}
@@ -111,8 +111,8 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-amber-400 text-amber-950 flex items-center justify-center text-xl mb-1 shadow-xs">
                   ⭐
                 </div>
-                <span className="text-xs font-black text-amber-950">+5 Sao Vàng</span>
-                <span className="text-[10px] font-bold text-amber-800">Thưởng rương báu</span>
+                <span className="text-xs font-black text-amber-950">+5 Gold Stars</span>
+                <span className="text-[10px] font-bold text-amber-800">Chest reward</span>
               </div>
 
               {/* Reward 2: Badge */}
@@ -120,8 +120,8 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-purple-400 text-white flex items-center justify-center text-xl mb-1 shadow-xs">
                   🏆
                 </div>
-                <span className="text-xs font-black text-purple-950">Huy Hiệu Unit</span>
-                <span className="text-[10px] font-bold text-purple-800">Nhà thám hiểm</span>
+                <span className="text-xs font-black text-purple-950">Unit Badge</span>
+                <span className="text-[10px] font-bold text-purple-800">Little Explorer</span>
               </div>
 
               {/* Reward 3: Mystery Sticker */}
@@ -129,8 +129,8 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-sky-400 text-white flex items-center justify-center text-xl mb-1 shadow-xs">
                   🎁
                 </div>
-                <span className="text-xs font-black text-sky-950">Sticker Mới</span>
-                <span className="text-[10px] font-bold text-sky-800">Bộ sưu tập</span>
+                <span className="text-xs font-black text-sky-950">New Sticker</span>
+                <span className="text-[10px] font-bold text-sky-800">Collection</span>
               </div>
             </div>
 
@@ -139,7 +139,7 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
               onClick={handleClaim}
               className="btn-3d-amber w-full py-3.5 px-6 rounded-2xl text-amber-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
             >
-              <span>Nhận Quà & Tiếp Tục Phiêu Lưu! 🚀</span>
+              <span>Claim & Continue Adventure! 🚀</span>
               <ArrowRight className="w-5 h-5 stroke-[3]" />
             </button>
           </div>
@@ -149,7 +149,7 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
             {/* Top Status Badge */}
             <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 px-4 py-1.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider shadow-xs mb-3">
               <Lock className="w-3.5 h-3.5 text-slate-500" />
-              <span>Rương Báu Đang Chờ Bé Khám Phá! 🔒</span>
+              <span>Mystery Chest Waiting to Unlock! 🔒</span>
             </div>
 
             {/* Big Mystery Gift Box Animation */}
@@ -159,24 +159,24 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
               </div>
               <div className="absolute -bottom-2 inset-x-0 flex justify-center">
                 <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs">
-                  Bấm để lắc hộp quà! 🌟
+                  Tap to shake! 🌟
                 </span>
               </div>
             </div>
 
             {/* Title */}
             <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight mb-1">
-              Hộp Quà Bí Mật Unit {unit.order || unitIndex + 1}
+              Unit {unit.order || unitIndex + 1} Mystery Chest
             </h3>
             <p className="text-xs sm:text-sm font-bold text-slate-500 mb-4 max-w-sm">
-              Kho báu tuyệt vời bên trong rương đang chờ đón bé khi hoàn thành tất cả các bài học của chủ đề: <span className="font-black text-amber-800">{unit.title}</span>!
+              Complete all lessons in Unit: <span className="font-black text-amber-800">{unit.title}</span> to unlock this treasure!
             </p>
 
             {/* Progress Bar */}
             <div className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl p-3 mb-5">
               <div className="flex items-center justify-between text-xs font-black text-slate-700 mb-1.5">
-                <span>Tiến độ Unit của bé:</span>
-                <span className="text-amber-800">{completedLessons}/{totalLessons} bài học</span>
+                <span>Unit Progress:</span>
+                <span className="text-amber-800">{completedLessons}/{totalLessons} Lessons</span>
               </div>
               <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
                 <div
@@ -185,7 +185,7 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
                 />
               </div>
               <p className="text-[11px] font-bold text-slate-400 mt-2 text-left">
-                💡 Bé chỉ cần hoàn thành thêm <span className="text-amber-600 font-black">{totalLessons - completedLessons} bài học</span> nữa thôi là rương báu sẽ bật mở!
+                💡 Finish <span className="text-amber-600 font-black">{totalLessons - completedLessons} more {(totalLessons - completedLessons) === 1 ? 'lesson' : 'lessons'}</span> to open the chest!
               </p>
             </div>
 
@@ -198,7 +198,7 @@ export const SecretGiftModal: React.FC<SecretGiftModalProps> = ({
               }}
               className="btn-3d-amber w-full py-3.5 px-6 rounded-2xl text-amber-950 font-black text-base sm:text-lg flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
             >
-              <span>Vào Học Để Mở Rương Ngay! 🎒</span>
+              <span>Learn Now to Unlock! 🎒</span>
               <ArrowRight className="w-5 h-5 stroke-[3]" />
             </button>
           </div>

@@ -186,7 +186,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
               }}
               className="btn-3d-emerald w-full py-5 px-8 rounded-3xl text-white font-black text-xl sm:text-2xl flex items-center justify-center gap-3 cursor-pointer shadow-xl active:scale-95"
             >
-              <span>Chơi tiếp: {nextActivityTitle || 'Bài tiếp theo'}</span>
+              <span>Chơi tiếp: {nextActivityTitle || 'Lesson tiếp theo'}</span>
               <ArrowRight className="w-7 h-7 stroke-[3.5]" />
             </button>
           )}
@@ -214,7 +214,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                   : 'btn-3d-amber text-amber-950'
               }`}
             >
-              <span>{nextActivityId ? 'Về bài học' : 'Hoàn thành 🎉'}</span>
+              <span>{nextActivityId ? 'Về Lesson' : 'Hoàn thành 🎉'}</span>
               <ArrowRight className="w-6 h-6 stroke-[3]" />
             </button>
           </div>

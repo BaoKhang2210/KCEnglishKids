@@ -139,6 +139,31 @@ export const activitiesApi = {
   getActivityById: (id: string) => api.get(`/activities/${id}`)
 };
 
+// Child data export API
+export const childExportApi = {
+  /**
+   * Download the child's full learning data as JSON or CSV.
+   * Returns a Blob suitable for triggering a browser file-download.
+   * Privacy: the endpoint never returns DOB, email, or phone.
+   */
+  exportData: async (childId: string, format: 'json' | 'csv'): Promise<Blob> => {
+    const token = localStorage.getItem('kc_token');
+    const res = await fetch(
+      `/api/children/${encodeURIComponent(childId)}/export?format=${format}`,
+      {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Export failed.' }));
+      throw new Error((err as any).message || 'Export failed.');
+    }
+    return res.blob();
+  },
+};
+
 // Learning & Progress API
 export const learningApi = {
   startSession: (lessonId: string, childId?: string) =>

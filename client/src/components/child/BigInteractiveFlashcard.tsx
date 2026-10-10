@@ -103,7 +103,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
           Bé đã hoàn thành lượt học! 🎉
         </h3>
         <p className="text-sm sm:text-base font-extrabold text-slate-500 mb-6">
-          Bé đã khám phá tất cả các từ vựng trong bài học này!
+          Bé đã khám phá tất cả các từ vựng trong Lesson này!
         </p>
 
         {/* Stats row */}
@@ -576,7 +576,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
       {items.length > 1 && (
         <div className="w-full max-w-2xl sm:max-w-3xl mt-6 bg-white/70 border-3 border-amber-200/80 rounded-3xl p-4 shadow-xs">
           <p className="text-xs font-black uppercase text-amber-800 tracking-wider mb-3 px-2 flex items-center justify-between">
-            <span>Danh sách từ bài học ({items.length})</span>
+            <span>Danh sách từ trong Lesson ({items.length})</span>
             <span className="text-[10px] text-slate-500 font-bold">
               💚 Đã nhớ • 💡 Cần ôn
             </span>

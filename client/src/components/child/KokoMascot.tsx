@@ -8,6 +8,8 @@ export type MascotState =
   | 'encouraging'
   | 'celebrating'
   | 'listening'
+  | 'speaking'
+  | 'sleeping'
   | 'reading';
 
 interface KokoMascotProps {
@@ -150,6 +152,30 @@ export const KokoMascot: React.FC<KokoMascotProps> = ({
               <rect x="126" y="58" width="12" height="24" rx="6" fill="#0284C7" />
               <circle cx="28" cy="70" r="3" fill="#38BDF8" />
               <circle cx="132" cy="70" r="3" fill="#38BDF8" />
+            </>
+          ) : state === 'speaking' ? (
+            /* Speaking / Animated Mouth */
+            <>
+              <circle cx="56" cy="72" r="6" fill="#78350F" />
+              <circle cx="58" cy="70" r="2.5" fill="#FFFFFF" />
+              <circle cx="104" cy="72" r="6" fill="#78350F" />
+              <circle cx="106" cy="70" r="2.5" fill="#FFFFFF" />
+              {/* Animated Speaking Open Mouth */}
+              <ellipse cx="80" cy="100" rx="9" ry="7" fill="#EF4444" stroke="#78350F" strokeWidth="2.5" />
+              <ellipse cx="80" cy="103" rx="5" ry="3" fill="#FCA5A5" />
+            </>
+          ) : state === 'sleeping' ? (
+            /* Sleeping: Closed Crescent Eyes & Zzz */
+            <>
+              {/* Closed Happy Eyes */}
+              <path d="M 48 74 Q 56 82 64 74" stroke="#78350F" strokeWidth="4" strokeLinecap="round" fill="none" />
+              <path d="M 96 74 Q 104 82 112 74" stroke="#78350F" strokeWidth="4" strokeLinecap="round" fill="none" />
+              {/* Gentle tiny smile */}
+              <path d="M 74 98 Q 80 103 86 98" stroke="#78350F" strokeWidth="3" strokeLinecap="round" />
+              {/* Zzz floating symbols */}
+              <text x="122" y="52" fontSize="22" fontWeight="black" fill="#3B82F6" className="animate-pulse">Z</text>
+              <text x="134" y="36" fontSize="16" fontWeight="black" fill="#60A5FA" className="animate-pulse">z</text>
+              <text x="142" y="24" fontSize="12" fontWeight="black" fill="#93C5FD" className="animate-pulse">z</text>
             </>
           ) : (
             /* Default Happy / Waving Eyes */

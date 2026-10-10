@@ -104,7 +104,7 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
           <div className={`p-2.5 rounded-2xl transition-all ${isBadgesActive ? 'bg-purple-500 text-white ring-2 ring-purple-300 shadow-sm' : ''}`}>
             <Award className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-xs">Huy hiệu</span>
+          <span className="text-xs">Bộ sưu tập</span>
         </button>
       </nav>
 

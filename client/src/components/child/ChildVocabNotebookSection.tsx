@@ -254,7 +254,7 @@ export const ChildVocabNotebookSection: React.FC<ChildVocabNotebookSectionProps>
             </h3>
             <p className="text-sm font-bold text-slate-500 max-w-md mx-auto">
               {allWords.length === 0
-                ? 'Hãy vào Hành trình học bài hoặc khám phá Chủ đề mở rộng và quẹt thẻ Flashcard để tích lũy những từ đầu tiên nhé!'
+                ? 'Hãy vào Hành trình Unit hoặc khám phá Chủ đề mở rộng và quẹt thẻ Flashcard để tích lũy những từ đầu tiên nhé!'
                 : 'Bé hãy thử chọn tab lọc khác hoặc xóa từ khóa tìm kiếm nhé!'}
             </p>
           </div>

@@ -152,8 +152,8 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] sm:text-xs font-black text-amber-100 block">Bài hoàn thành</span>
-            <span className="text-lg sm:text-xl font-black">{completedCount} bài</span>
+            <span className="text-[10px] sm:text-xs font-black text-amber-100 block">Lesson hoàn thành</span>
+            <span className="text-lg sm:text-xl font-black">{completedCount} Lesson</span>
           </div>
         </div>
 
@@ -174,10 +174,10 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                     sfx.playPop();
                     setSelectedCat(cat.id as any);
                   }}
-                  className={`px-3 py-1 rounded-full text-xs font-black transition-all cursor-pointer flex-shrink-0 ${
+                  className={`h-9 px-4 rounded-[9999px] text-[13px] sm:text-sm font-black transition-all cursor-pointer flex-shrink-0 flex items-center justify-center border-2 outline-none focus:outline-none select-none ${
                     selectedCat === cat.id
-                      ? 'bg-amber-400 text-amber-950 shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      ? 'bg-amber-400 text-amber-950 border-amber-500 shadow-sm'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700'
                   }`}
                 >
                   {cat.label}
@@ -237,7 +237,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                             />
                           </div>
                           <span className="text-[9px] font-extrabold text-slate-400 block">
-                            {currentVal}/{badge.requirement} {badge.reqType === 'star' ? '⭐' : 'bài'}
+                            {currentVal}/{badge.requirement} {badge.reqType === 'star' ? '⭐' : badge.reqType === 'unit' ? 'Unit' : 'Lesson'}
                           </span>
                         </div>
                       )}

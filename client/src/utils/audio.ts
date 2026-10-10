@@ -151,6 +151,7 @@ class SoundEffectsEngine {
   playBadgeChime() {
     try {
       const ctx = this.getContext();
+      if (!ctx || ctx.state === 'suspended') return;
       const freqs = [1046.5, 1318.51, 1567.98, 2093.0]; // C6, E6, G6, C7 crystal sparkle
       freqs.forEach((freq, idx) => {
         const osc = ctx.createOscillator();

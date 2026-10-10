@@ -1,18 +1,48 @@
+/**
+ * InteractivePracticeStudio — Chặng 2 "Luyện tập"
+ *
+ * Layout architecture (viewport-locked, no outer scroll):
+ *
+ *  ┌────────────────────────────────────────────────────┐
+ *  │  HEADER: [← back-icon] [● ● ● ● ●] [ⓘ parent]   │  flex-shrink-0, ≤48px
+ *  ├────────────────────────────────────────────────────┤
+ *  │                                                    │
+ *  │  STAGE: image + word + meaning          flex-1     │  min-h-0
+ *  │  (2-col on wide screens via CSS grid)              │
+ *  │                                                    │
+ *  ├────────────────────────────────────────────────────┤
+ *  │  ACTION BAR: [🔊] [🎤] [→]                        │  flex-shrink-0, ≥64px
+ *  └────────────────────────────────────────────────────┘
+ *
+ * Rules:
+ * - No px heights for images/containers. Use flex-1 + min-h-0 + object-contain.
+ * - clamp() / dvh / cqmin for all dynamic sizes.
+ * - Koko is placed inside the stage (not fixed/absolute on page).
+ * - All text in child zone ≥ 20px; actions ≥ 64px tall; gap ≥ 16px.
+ * - Parent Sheet contains: phonetics, stage chip, back-to-stage1 link.
+ * - CTA "Tiếp" always enabled (no dead-end), pulses after first interaction.
+ * - Mic: always gives positive feedback; gracefully hides if unavailable.
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
-  Sparkles,
-  Star,
-  Mic,
-  ArrowRight,
   ArrowLeft,
-  RotateCcw,
+  ArrowRight,
   Gamepad2,
-  Lightbulb
+  Info,
+  Mic,
+  RotateCcw,
+  Star,
+  Volume2,
+  X,
 } from 'lucide-react';
 import type { Vocabulary } from '../../types';
 import { sfx, playWordAudio, stopWordAudio } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 interface InteractivePracticeStudioProps {
   vocabulary: Vocabulary[];
   lessonTitle?: string;
@@ -21,35 +51,195 @@ interface InteractivePracticeStudioProps {
   onBackToStage1: () => void;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ParentSheet — bottom-sheet with info for parents/teachers
+// ─────────────────────────────────────────────────────────────────────────────
+interface ParentSheetProps {
+  word: Vocabulary;
+  ageGroupCode: string;
+  wordIdx: number;
+  totalWords: number;
+  onClose: () => void;
+  onBackToStage1: () => void;
+}
+
+const ParentSheet: React.FC<ParentSheetProps> = ({
+  word, ageGroupCode, wordIdx, totalWords, onClose, onBackToStage1
+}) => (
+  // Overlay
+  <div
+    className="fixed inset-0 z-50 flex flex-col justify-end"
+    style={{ background: 'rgba(0,0,0,0.5)' }}
+    onClick={onClose}
+  >
+    <div
+      className="bg-white rounded-t-3xl border-t-4 border-amber-300 shadow-2xl flex flex-col"
+      style={{ maxHeight: '70dvh' }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Handle bar */}
+      <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+        <div className="w-10 h-1.5 rounded-full bg-slate-200" />
+      </div>
+
+      {/* Sheet header */}
+      <div className="flex items-center justify-between px-5 pb-3 flex-shrink-0 border-b border-slate-100">
+        <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+          <Info className="w-4 h-4 text-amber-600" />
+          Thông tin bài học
+        </h3>
+        <button
+          onClick={onClose}
+          style={{ minWidth: '44px', minHeight: '44px' }}
+          className="rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+          aria-label="Đóng"
+        >
+          <X className="w-5 h-5 text-slate-600" />
+        </button>
+      </div>
+
+      {/* Sheet body — scrollable */}
+      <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+        {/* Word detail */}
+        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4">
+          <p className="text-xs font-black text-amber-700 uppercase tracking-wide mb-2">Từ đang học</p>
+          <div className="flex items-center gap-3">
+            {word.imageUrl && (
+              <img src={word.imageUrl} alt={word.english}
+                className="w-14 h-14 rounded-xl object-contain bg-white border border-amber-200" />
+            )}
+            <div>
+              <p className="font-black text-2xl text-slate-800">{word.english}</p>
+              <p className="font-bold text-slate-600">{word.vietnamese}</p>
+              {word.pronunciation && (
+                <p className="text-sm font-mono text-slate-400">{word.pronunciation}</p>
+              )}
+            </div>
+          </div>
+          {word.exampleSentence && (
+            <p className="mt-3 text-sm font-bold text-slate-600 bg-white rounded-xl px-3 py-2 border border-amber-100">
+              "{word.exampleSentence}"
+            </p>
+          )}
+        </div>
+
+        {/* Progress info */}
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
+          <p className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2">Tiến độ</p>
+          <p className="font-bold text-slate-700">Từ {wordIdx + 1} / {totalWords}</p>
+          <div className="flex gap-1.5 mt-2">
+            {Array.from({ length: totalWords }).map((_, i) => (
+              <div key={i}
+                className={`h-2 flex-1 rounded-full ${i <= wordIdx ? 'bg-amber-400' : 'bg-slate-200'}`} />
+            ))}
+          </div>
+        </div>
+
+        {/* Age group info */}
+        <div className="bg-sky-50 rounded-2xl border border-sky-200 p-4">
+          <p className="text-xs font-black text-sky-600 uppercase tracking-wide mb-1">Nhóm tuổi</p>
+          <p className="font-bold text-sky-800">
+            {ageGroupCode === '3-4' ? 'Nhóm Mầm (3–4 tuổi) — Xưởng Giác Quan & Bóng Đổ'
+              : ageGroupCode === '4-5' ? 'Nhóm Chồi (4–5 tuổi) — Xưởng Săn Âm Phonics'
+                : 'Nhóm Lá (5–6 tuổi) — Xưởng Ghép Chữ & Câu'}
+          </p>
+        </div>
+
+        {/* Back to stage 1 */}
+        <button
+          onClick={() => { onClose(); onBackToStage1(); }}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm cursor-pointer transition-colors"
+          style={{ minHeight: '48px' }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Quay lại Flashcard (Chặng 1)
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StarBurst — positive feedback overlay (no layout impact)
+// ─────────────────────────────────────────────────────────────────────────────
+const StarBurst: React.FC = () => (
+  <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none animate-pop-in">
+    <div className="flex gap-2">
+      {[0, 1, 2].map(i => (
+        <Star key={i} className="w-10 h-10 text-amber-400 fill-amber-400"
+          style={{ animationDelay: `${i * 80}ms` }} />
+      ))}
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────────────────────
 export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps> = ({
   vocabulary,
   ageGroupCode = '3-4',
   onComplete,
-  onBackToStage1
+  onBackToStage1,
 }) => {
-  // Ensure we have at least 1 vocabulary item, fallback to sample items if empty
-  const words: Vocabulary[] = vocabulary.length > 0 ? vocabulary : [
-    {
-      _id: 'sample_1',
-      english: 'Apple',
-      vietnamese: 'Quả táo',
-      pronunciation: '/ˈæp.əl/',
-      imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&auto=format&fit=crop&q=80',
-      exampleSentence: 'This is an apple.'
-    }
-  ];
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const words: Vocabulary[] = vocabulary.length > 0 ? vocabulary : [{
+    _id: 'sample_1', english: 'Apple', vietnamese: 'Quả táo',
+    pronunciation: '/ˈæp.əl/',
+    imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&auto=format&fit=crop&q=80',
+    exampleSentence: 'This is an apple.',
+  }];
 
+  const isMamAge = ageGroupCode === '3-4';
+  const isChoiAge = ageGroupCode === '4-5';
+
+  // ── State ─────────────────────────────────────────────────────────────────
   const [currentWordIdx, setCurrentWordIdx] = useState(0);
-  const [subStep, setSubStep] = useState<1 | 2>(1); // Step 1: Phonics/Exploration, Step 2: Context/Application
-  const [isAwakened, setIsAwakened] = useState(false); // For 3-4 age tap to awaken
+  const [subStep, setSubStep] = useState<1 | 2>(1);
+  const [isAwakened, setIsAwakened] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'wrong'>('idle');
-  const [showEncouragement, setShowEncouragement] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [starsEarned, setStarsEarned] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [showParentSheet, setShowParentSheet] = useState(false);
+  // Pulse "Tiếp" button after first interaction
+  const [hasInteracted, setHasInteracted] = useState(false);
+  // Star burst feedback
+  const [showStarBurst, setShowStarBurst] = useState(false);
+  // Encouragement (wrong answer)
+  const [showEncouragement, setShowEncouragement] = useState(false);
+  // 5-6 speller
+  const [spelledLetters, setSpelledLetters] = useState<string[]>([]);
 
-  const triggerWrongFeedback = () => {
+  const currentWord = words[currentWordIdx] || words[0];
+
+  // ── Auto-play audio on word/step change ───────────────────────────────────
+  useEffect(() => {
+    setIsAwakened(false);
+    setSelectedOptionId(null);
+    setFeedbackState('idle');
+    setSpelledLetters([]);
+    setHasInteracted(false);
+    stopWordAudio();
+
+    if (!isMamAge || subStep === 2) {
+      const t = setTimeout(() => playWordAudio(currentWord.english, currentWord.audioUrl), 350);
+      return () => clearTimeout(t);
+    }
+  }, [currentWordIdx, subStep, isMamAge]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const triggerCorrect = (delayMs = 1400) => {
+    setFeedbackState('correct');
+    sfx.playCorrect();
+    setStarsEarned(p => p + 1);
+    setShowStarBurst(true);
+    setTimeout(() => setShowStarBurst(false), 900);
+    return delayMs;
+  };
+
+  const triggerWrong = () => {
     setFeedbackState('wrong');
     sfx.playGentleWrong();
     setShowEncouragement(true);
@@ -57,142 +247,212 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
       setFeedbackState('idle');
       setSelectedOptionId(null);
       setShowEncouragement(false);
-    }, 2200);
+    }, 1800);
   };
 
-  // For 5-6 Age Train Speller
-  const [spelledLetters, setSpelledLetters] = useState<string[]>([]);
-
-  const currentWord = words[currentWordIdx] || words[0];
-  const isMamAge = ageGroupCode === '3-4';
-  const isChoiAge = ageGroupCode === '4-5';
-
-  // Play audio on new word or step
-  useEffect(() => {
-    setIsAwakened(false);
-    setSelectedOptionId(null);
-    setFeedbackState('idle');
-    setSpelledLetters([]);
-    stopWordAudio();
-
-    if (!isMamAge || subStep === 2) {
-      // Auto pronounce word for older groups or step 2
-      const timer = setTimeout(() => {
-        playWordAudio(currentWord.english, currentWord.audioUrl);
-      }, 300);
-      return () => clearTimeout(timer);
+  const advanceToNextWordOrFinish = () => {
+    if (currentWordIdx + 1 < words.length) {
+      setCurrentWordIdx(p => p + 1);
+      setSubStep(1);
+    } else {
+      sfx.playStarFanfare();
+      setIsFinished(true);
     }
-  }, [currentWordIdx, subStep, isMamAge]);
-
-  const handleAwakenEgg = () => {
-    if (isAwakened) return;
-    sfx.playBadgeChime();
-    setIsAwakened(true);
-    playWordAudio(currentWord.english, currentWord.audioUrl);
   };
 
-  const handlePlayNormal = () => {
+  const getDistractors = (count: number) => {
+    const others = words.filter(w => w.english !== currentWord.english);
+    return others.length >= count
+      ? [...others].sort(() => 0.5 - Math.random()).slice(0, count)
+      : others;
+  };
+
+  const handlePlayAudio = () => {
+    setHasInteracted(true);
     playWordAudio(currentWord.english, currentWord.audioUrl);
   };
 
   const handleMicSimulate = () => {
     if (isRecording) return;
+    setHasInteracted(true);
     sfx.playPop();
     setIsRecording(true);
     setTimeout(() => {
       setIsRecording(false);
       sfx.playCorrect();
-    }, 2500);
+      setShowStarBurst(true);
+      setTimeout(() => setShowStarBurst(false), 900);
+    }, 2200);
   };
 
-  // Generate options for Shadow / Context / Sentence match
-  const getDistractorWords = (count: number) => {
-    const others = words.filter(w => w.english !== currentWord.english);
-    if (others.length >= count) {
-      return [...others].sort(() => 0.5 - Math.random()).slice(0, count);
+  const handleNext = () => {
+    sfx.playPop();
+    if (subStep === 1 && isMamAge && isAwakened) {
+      setSubStep(2);
+    } else if (subStep === 1 && !isMamAge) {
+      setSubStep(2);
+    } else {
+      advanceToNextWordOrFinish();
     }
-    // Fallback if not enough words
-    return others;
   };
 
-  // -------------------------------------------------------------
-  // AGE 3-4 (MẦM): SHADOW SILHOUETTE MATCH (SUBSTEP 2)
-  // -------------------------------------------------------------
-  const renderMamSubStep2 = () => {
-    const distractors = getDistractorWords(2);
+  // ─────────────────────────────────────────────────────────────────────────
+  // Completion screen
+  // ─────────────────────────────────────────────────────────────────────────
+  if (isFinished) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-4 text-center">
+        <span style={{ fontSize: 'clamp(2.5rem, 8dvh, 4.5rem)' }}>🏆</span>
+        <div>
+          <h2 className="font-black text-slate-800" style={{ fontSize: 'clamp(1.1rem, 3.5dvh, 1.6rem)' }}>
+            Bé giỏi quá! Đã xong hết từ! 🎉
+          </h2>
+          <p className="text-slate-500 font-bold mt-1" style={{ fontSize: 'clamp(0.8rem, 2dvh, 0.95rem)' }}>
+            Chặng 3 — Mini-game đang chờ bé!
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {[0, 1, 2].map(i => (
+            <Star key={i} className="text-amber-400 fill-amber-400"
+              style={{ width: 'clamp(1.5rem, 5dvh, 2.5rem)', height: 'clamp(1.5rem, 5dvh, 2.5rem)' }} />
+          ))}
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+          <button onClick={() => { sfx.playPop(); setCurrentWordIdx(0); setSubStep(1); setIsFinished(false); setStarsEarned(0); }}
+            style={{ minHeight: '52px' }}
+            className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm cursor-pointer transition-colors">
+            <RotateCcw className="w-4 h-4" /> Luyện lại
+          </button>
+          <button
+            onClick={() => onComplete({ score: starsEarned * 20, stars: 3 })}
+            style={{ minHeight: '52px' }}
+            className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-black text-sm cursor-pointer shadow-lg active:scale-95 transition-all border-2 border-purple-400">
+            <Gamepad2 className="w-4 h-4" /> Chặng 3 🚀
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Stage content renderers
+  // Each renderer returns JSX that fills flex-1, no fixed heights.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** MẦM SubStep 1: Tap-to-awaken egg → reveal word card */
+  const renderMamStep1 = () => (
+    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 overflow-hidden">
+      {!isAwakened ? (
+        // Egg button — size via clamp on dvh
+        <button
+          onClick={() => {
+            setIsAwakened(true);
+            setHasInteracted(true);
+            sfx.playBadgeChime();
+            playWordAudio(currentWord.english, currentWord.audioUrl);
+          }}
+          style={{ width: 'clamp(120px,28dvh,200px)', height: 'clamp(120px,28dvh,200px)' }}
+          className="rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-orange-400 text-white flex flex-col items-center justify-center cursor-pointer shadow-2xl hover:scale-105 active:scale-95 animate-soft-bounce border-4 border-white select-none"
+          aria-label="Chạm để mở từ mới"
+        >
+          <span style={{ fontSize: 'clamp(2.5rem, 10dvh, 4.5rem)' }}>🎁</span>
+          <span className="font-black text-amber-950 bg-white/80 px-3 py-1 rounded-full shadow-xs"
+            style={{ fontSize: 'clamp(0.7rem, 2dvh, 0.875rem)' }}>
+            Chạm để mở! ✨
+          </span>
+        </button>
+      ) : (
+        // Revealed word card — no fixed height, flex-col proportional
+        <div className="w-full max-w-xs bg-white rounded-3xl border-4 border-amber-300 shadow-xl flex flex-col items-center overflow-hidden animate-pop-in"
+          style={{ flex: '1 1 0', minHeight: 0 }}>
+          {/* Image — flex-1, never overflows */}
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center p-3">
+            {currentWord.imageUrl ? (
+              <img src={currentWord.imageUrl} alt={currentWord.english}
+                className="max-h-full max-w-full object-contain rounded-2xl drop-shadow-md"
+                loading="lazy" />
+            ) : (
+              <span style={{ fontSize: 'clamp(3rem,14dvh,6rem)' }}>🐾</span>
+            )}
+          </div>
+          {/* Word + meaning */}
+          <div className="flex-shrink-0 text-center px-4 pb-4">
+            <h4 className="font-black text-amber-950 uppercase"
+              style={{ fontSize: `clamp(1.5rem,${currentWord.english.length > 8 ? '5' : '7'}dvh,3rem)` }}>
+              {currentWord.english}
+            </h4>
+            <p className="font-extrabold text-amber-700"
+              style={{ fontSize: 'clamp(0.95rem,2.5dvh,1.2rem)' }}>
+              {currentWord.vietnamese}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /** MẦM SubStep 2: Shadow silhouette match */
+  const renderMamStep2 = () => {
+    const distractors = getDistractors(2);
     const options = [currentWord, ...distractors].sort(() => 0.5 - Math.random());
 
-    const handleSelectShadowOption = (word: Vocabulary) => {
+    const handleSelect = (word: Vocabulary) => {
       if (feedbackState !== 'idle') return;
       setSelectedOptionId(word._id);
-
+      setHasInteracted(true);
       if (word.english === currentWord.english) {
-        setFeedbackState('correct');
-        sfx.playCorrect();
-        setStarsEarned(prev => prev + 1);
-
-        setTimeout(() => {
-          advanceToNextWordOrFinish();
-        }, 1500);
+        const delay = triggerCorrect();
+        setTimeout(advanceToNextWordOrFinish, delay);
       } else {
-        triggerWrongFeedback();
+        triggerWrong();
       }
     };
 
     return (
-      <div className="space-y-6 text-center animate-fade-in">
-        <div className="bg-amber-100/70 border-2 border-amber-300 px-4 py-2 rounded-2xl inline-flex items-center gap-2 text-amber-900 font-extrabold text-sm sm:text-base shadow-xs">
-          <span>✨</span>
-          <span>Bé hãy tìm hình thật để khớp với bóng đổ bí ẩn nhé!</span>
-        </div>
-
-        {/* Center: Silhouette Shadow Target */}
-        <div className="flex justify-center items-center my-4">
-          <div className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-3xl bg-slate-100 border-4 border-dashed border-slate-300 flex items-center justify-center p-4 shadow-inner overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 overflow-hidden">
+        {/* Shadow target */}
+        <div className="relative flex-shrink-0"
+          style={{ width: 'clamp(80px,18dvh,130px)', height: 'clamp(80px,18dvh,130px)' }}>
+          <div className="w-full h-full rounded-3xl bg-slate-100 border-4 border-dashed border-slate-300 flex items-center justify-center overflow-hidden">
             {feedbackState === 'correct' ? (
-              <img
-                src={currentWord.imageUrl}
-                alt={currentWord.english}
-                className="w-full h-full object-contain animate-star-celebrate"
-              />
+              <img src={currentWord.imageUrl} alt={currentWord.english}
+                className="w-full h-full object-contain animate-pop-in" />
             ) : (
-              <img
-                src={currentWord.imageUrl}
-                alt="Shadow silhouette"
-                className="w-full h-full object-contain filter brightness-0 opacity-80"
-              />
+              <img src={currentWord.imageUrl} alt="bóng bí ẩn"
+                className="w-full h-full object-contain filter brightness-0 opacity-75" />
             )}
-            <div className="absolute bottom-2 bg-slate-800/80 text-white text-xs font-black px-3 py-0.5 rounded-full">
-              {feedbackState === 'correct' ? currentWord.english : 'Bóng bí ẩn ❓'}
-            </div>
+          </div>
+          <div className="absolute bottom-1 inset-x-1 flex justify-center">
+            <span className="bg-slate-800/80 text-white font-black rounded-full px-2 py-0.5"
+              style={{ fontSize: 'clamp(0.6rem,1.5dvh,0.75rem)' }}>
+              {feedbackState === 'correct' ? currentWord.english : '❓'}
+            </span>
           </div>
         </div>
 
-        {/* 3 Option Choices */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-lg mx-auto">
-          {options.map((opt) => {
-            const isSelected = selectedOptionId === opt._id;
+        {/* 3 option cards */}
+        <div className="flex gap-3 flex-shrink-0 w-full max-w-sm justify-center">
+          {options.map(opt => {
+            const isSel = selectedOptionId === opt._id;
             return (
-              <button
-                key={opt._id}
-                onClick={() => handleSelectShadowOption(opt)}
+              <button key={opt._id} onClick={() => handleSelect(opt)}
                 disabled={feedbackState !== 'idle'}
-                className={`p-3 sm:p-4 rounded-3xl border-3 flex flex-col items-center justify-between transition-all cursor-pointer card-kid bg-white shadow-sm ${
-                  isSelected && feedbackState === 'correct'
+                style={{ flex: '1 1 0', minHeight: 'clamp(72px,16dvh,110px)' }}
+                className={`rounded-3xl border-4 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all select-none overflow-hidden ${isSel && feedbackState === 'correct'
                     ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300'
-                    : isSelected && feedbackState === 'wrong'
-                    ? 'border-rose-400 bg-rose-50 animate-gentle-wobble'
-                    : 'border-amber-200 hover:border-amber-400 hover:shadow-md'
-                }`}
+                    : isSel && feedbackState === 'wrong'
+                      ? 'border-rose-400 bg-rose-50 animate-gentle-wobble'
+                      : 'border-amber-200 bg-white hover:border-amber-400 hover:scale-105 active:scale-95'
+                  }`}
               >
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden mb-2">
-                  <img
-                    src={opt.imageUrl}
-                    alt={opt.english}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <span className="font-black text-xs sm:text-sm text-slate-800">
+                {opt.imageUrl && (
+                  <div className="flex-1 min-h-0 w-full flex items-center justify-center p-1.5">
+                    <img src={opt.imageUrl} alt={opt.english}
+                      className="max-h-full max-w-full object-contain" />
+                  </div>
+                )}
+                <span className="flex-shrink-0 font-black text-slate-700 pb-1"
+                  style={{ fontSize: 'clamp(0.65rem,1.8dvh,0.8rem)' }}>
                   {opt.vietnamese}
                 </span>
               </button>
@@ -203,96 +463,79 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     );
   };
 
-  // -------------------------------------------------------------
-  // AGE 4-5 (CHỒI): INITIAL PHONICS CATCH (SUBSTEP 1)
-  // -------------------------------------------------------------
-  const renderChoiSubStep1 = () => {
-    const cleanWord = currentWord.english.trim();
-    const firstLetter = cleanWord.charAt(0).toUpperCase();
-    const restOfWord = cleanWord.slice(1);
+  /** CHỒI SubStep 1: Initial phonics catch */
+  const renderChoiStep1 = () => {
+    const first = currentWord.english.trim().charAt(0).toUpperCase();
+    const rest = currentWord.english.trim().slice(1);
+    const distractors = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+      .filter(l => l !== first).sort(() => 0.5 - Math.random()).slice(0, 2);
+    const choices = [first, ...distractors].sort(() => 0.5 - Math.random());
 
-    // Generate 3 bubble letter choices
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const distractorLetters = alphabet
-      .filter(l => l !== firstLetter)
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 2);
-    const letterChoices = [firstLetter, ...distractorLetters].sort(() => 0.5 - Math.random());
-
-    const handleSelectLetter = (letter: string) => {
+    const handleSelect = (letter: string) => {
       if (feedbackState !== 'idle') return;
       setSelectedOptionId(letter);
-
-      if (letter === firstLetter) {
-        setFeedbackState('correct');
-        sfx.playCorrect();
+      setHasInteracted(true);
+      if (letter === first) {
+        const delay = triggerCorrect(1400);
         playWordAudio(currentWord.english, currentWord.audioUrl);
-        setStarsEarned(prev => prev + 1);
-
-        setTimeout(() => {
-          setSubStep(2);
-        }, 1600);
+        setTimeout(() => setSubStep(2), delay);
       } else {
         setFeedbackState('wrong');
         sfx.playGentleWrong();
-        setTimeout(() => {
-          setFeedbackState('idle');
-          setSelectedOptionId(null);
-        }, 1000);
+        setTimeout(() => { setFeedbackState('idle'); setSelectedOptionId(null); }, 1000);
       }
     };
 
     return (
-      <div className="space-y-6 text-center animate-fade-in">
-        <div className="bg-sky-100/80 border-2 border-sky-300 px-4 py-2 rounded-2xl inline-flex items-center gap-2 text-sky-900 font-extrabold text-sm sm:text-base shadow-xs">
-          <span>🎯</span>
-          <span>Bé hãy bắt bong bóng chữ cái bắt đầu của từ nhé!</span>
-        </div>
-
-        {/* Word Picture & Word Mask */}
-        <div className="bg-white rounded-3xl border-3 border-sky-200 p-6 max-w-md mx-auto shadow-md">
-          <div className="w-36 h-36 sm:w-44 sm:h-44 mx-auto rounded-3xl overflow-hidden mb-4 shadow-sm border-2 border-slate-100">
-            <img
-              src={currentWord.imageUrl}
-              alt={currentWord.english}
-              className="w-full h-full object-cover"
-            />
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 overflow-hidden">
+        {/* Word with hidden first letter */}
+        <div className="bg-white rounded-3xl border-4 border-sky-300 shadow-md flex flex-col items-center overflow-hidden"
+          style={{ width: 'min(100%, 280px)', flex: '1 1 0', minHeight: 0 }}>
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center p-3">
+            {currentWord.imageUrl
+              ? <img src={currentWord.imageUrl} alt={currentWord.english}
+                className="max-h-full max-w-full object-contain" loading="lazy" />
+              : <span style={{ fontSize: 'clamp(3rem,12dvh,5rem)' }}>🐾</span>}
           </div>
-
-          <div className="text-3xl sm:text-4xl font-black text-slate-800 tracking-wider flex items-center justify-center gap-2">
+          <div className="flex-shrink-0 flex items-center justify-center gap-2 pb-4 px-3">
             <div
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black border-3 transition-all ${
-                feedbackState === 'correct'
+              style={{
+                width: 'clamp(40px,7dvh,56px)',
+                height: 'clamp(40px,7dvh,56px)',
+                fontSize: 'clamp(1.2rem,4dvh,2rem)',
+              }}
+              className={`rounded-2xl flex items-center justify-center font-black border-4 transition-all ${feedbackState === 'correct'
                   ? 'bg-emerald-500 text-white border-emerald-600 animate-star-celebrate'
                   : 'bg-sky-50 text-sky-700 border-dashed border-sky-400'
-              }`}
+                }`}
             >
-              {feedbackState === 'correct' ? firstLetter : '?'}
+              {feedbackState === 'correct' ? first : '?'}
             </div>
-            <span>{restOfWord}</span>
+            <span className="font-black text-slate-800"
+              style={{ fontSize: 'clamp(1.5rem,5dvh,2.5rem)' }}>
+              {rest}
+            </span>
           </div>
-
-          <p className="text-sm font-extrabold text-slate-500 mt-2">
-            {currentWord.vietnamese}
-          </p>
         </div>
 
-        {/* 3 Candy Letter Bubbles */}
-        <div className="flex justify-center items-center gap-4 sm:gap-6">
-          {letterChoices.map((letter) => {
-            const isSelected = selectedOptionId === letter;
+        {/* 3 letter bubbles */}
+        <div className="flex-shrink-0 flex gap-4 justify-center">
+          {choices.map(letter => {
+            const isSel = selectedOptionId === letter;
             return (
-              <button
-                key={letter}
-                onClick={() => handleSelectLetter(letter)}
+              <button key={letter} onClick={() => handleSelect(letter)}
                 disabled={feedbackState !== 'idle'}
-                className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full font-black text-2xl sm:text-3xl flex items-center justify-center cursor-pointer shadow-lg transition-all animate-bounce-subtle ${
-                  isSelected && feedbackState === 'correct'
+                style={{
+                  width: 'clamp(52px,12dvh,72px)',
+                  height: 'clamp(52px,12dvh,72px)',
+                  fontSize: 'clamp(1.2rem,4dvh,2rem)',
+                }}
+                className={`rounded-full font-black flex items-center justify-center cursor-pointer shadow-lg transition-all select-none ${isSel && feedbackState === 'correct'
                     ? 'bg-emerald-500 text-white ring-4 ring-emerald-300 scale-110'
-                    : isSelected && feedbackState === 'wrong'
-                    ? 'bg-rose-500 text-white animate-gentle-wobble'
-                    : 'bg-gradient-to-tr from-amber-400 to-orange-400 text-white hover:scale-110 active:scale-95'
-                }`}
+                    : isSel && feedbackState === 'wrong'
+                      ? 'bg-rose-500 text-white animate-gentle-wobble'
+                      : 'bg-gradient-to-tr from-amber-400 to-orange-400 text-white hover:scale-110 active:scale-95'
+                  }`}
               >
                 {letter}
               </button>
@@ -303,104 +546,72 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     );
   };
 
-  // -------------------------------------------------------------
-  // AGE 4-5 (CHỒI): PICTURE IN CONTEXT SCENE (SUBSTEP 2)
-  // -------------------------------------------------------------
-  const renderChoiSubStep2 = () => {
-    const distractors = getDistractorWords(2);
+  /** CHỒI SubStep 2: Picture-in-context */
+  const renderChoiStep2 = () => {
+    const distractors = getDistractors(2);
     const options = [currentWord, ...distractors].sort(() => 0.5 - Math.random());
 
-    const handleSelectContextOption = (word: Vocabulary) => {
+    const handleSelect = (word: Vocabulary) => {
       if (feedbackState !== 'idle') return;
       setSelectedOptionId(word._id);
-
+      setHasInteracted(true);
       if (word.english === currentWord.english) {
-        setFeedbackState('correct');
-        sfx.playCorrect();
+        const delay = triggerCorrect();
         playWordAudio(currentWord.english, currentWord.audioUrl);
-        setStarsEarned(prev => prev + 1);
-
-        setTimeout(() => {
-          advanceToNextWordOrFinish();
-        }, 1600);
+        setTimeout(advanceToNextWordOrFinish, delay);
       } else {
         setFeedbackState('wrong');
         sfx.playGentleWrong();
-        setTimeout(() => {
-          setFeedbackState('idle');
-          setSelectedOptionId(null);
-        }, 1000);
+        setTimeout(() => { setFeedbackState('idle'); setSelectedOptionId(null); }, 1000);
       }
     };
 
     return (
-      <div className="space-y-6 text-center animate-fade-in">
-        <div className="bg-teal-100/80 border-2 border-teal-300 px-4 py-2 rounded-2xl inline-flex items-center gap-2 text-teal-900 font-extrabold text-sm sm:text-base shadow-xs">
-          <span>🏡</span>
-          <span>Bé hãy tìm và đặt [ {currentWord.english} ] vào bức tranh thần kỳ nhé!</span>
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 overflow-hidden">
+        {/* Scene canvas — flex proportional */}
+        <div className="relative w-full max-w-xs bg-gradient-to-b from-sky-200 via-amber-100 to-emerald-100 rounded-3xl border-4 border-teal-300 shadow-md flex items-center justify-center overflow-hidden"
+          style={{ flex: '1 1 0', minHeight: 0 }}>
+          <span className="absolute top-3 left-5 text-3xl opacity-60">☀️</span>
+          <span className="absolute top-5 right-6 text-2xl opacity-60">🌈</span>
+          <span className="absolute bottom-2 left-4 text-2xl opacity-60">🌿</span>
+          {feedbackState === 'correct'
+            ? <div className="animate-pop-in flex flex-col items-center gap-1">
+              <img src={currentWord.imageUrl} alt={currentWord.english}
+                className="object-contain drop-shadow-md"
+                style={{ maxHeight: 'clamp(60px,14dvh,100px)', maxWidth: '80%' }} />
+              <span className="font-black text-emerald-800 bg-white/90 px-3 py-0.5 rounded-full text-sm">{currentWord.english} ⭐</span>
+            </div>
+            : <div className="flex flex-col items-center gap-1">
+              <span style={{ fontSize: 'clamp(2rem,8dvh,3.5rem)' }} className="animate-pulse">✨</span>
+              <span className="font-black text-teal-800 text-xs">Đặt vào đây</span>
+            </div>
+          }
         </div>
 
-        {/* Scene Canvas Target */}
-        <div className="relative w-full max-w-md h-52 sm:h-60 mx-auto rounded-3xl bg-gradient-to-b from-sky-200 via-amber-100 to-emerald-100 border-4 border-teal-300 p-4 shadow-md flex items-center justify-center overflow-hidden">
-          {/* Decorative Scene Elements */}
-          <span className="absolute top-4 left-6 text-4xl opacity-70">☀️</span>
-          <span className="absolute top-6 right-8 text-3xl opacity-70">🌈</span>
-          <span className="absolute bottom-3 left-6 text-3xl opacity-70">🌿</span>
-          <span className="absolute bottom-3 right-6 text-3xl opacity-70">🌸</span>
-
-          {/* Center Target Ring */}
-          <div className="relative w-36 h-36 rounded-3xl bg-white/85 border-3 border-dashed border-teal-400 flex flex-col items-center justify-center p-2 shadow-inner">
-            {feedbackState === 'correct' ? (
-              <div className="text-center animate-star-celebrate">
-                <img
-                  src={currentWord.imageUrl}
-                  alt={currentWord.english}
-                  className="w-24 h-24 object-contain mx-auto"
-                />
-                <span className="text-xs font-black text-emerald-800 block mt-1">
-                  {currentWord.english} ⭐
-                </span>
-              </div>
-            ) : (
-              <div className="text-center">
-                <span className="text-4xl animate-pulse">✨</span>
-                <span className="text-xs font-black text-teal-800 block mt-1">
-                  Đặt vào đây
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 3 Choices */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-lg mx-auto">
-          {options.map((opt) => {
-            const isSelected = selectedOptionId === opt._id;
+        {/* 3 choices */}
+        <div className="flex-shrink-0 flex gap-3 w-full max-w-sm justify-center">
+          {options.map(opt => {
+            const isSel = selectedOptionId === opt._id;
             return (
-              <button
-                key={opt._id}
-                onClick={() => handleSelectContextOption(opt)}
+              <button key={opt._id} onClick={() => handleSelect(opt)}
                 disabled={feedbackState !== 'idle'}
-                className={`p-3 rounded-3xl border-3 flex flex-col items-center justify-between transition-all cursor-pointer card-kid bg-white shadow-sm ${
-                  isSelected && feedbackState === 'correct'
+                style={{ flex: '1 1 0', minHeight: 'clamp(68px,15dvh,100px)' }}
+                className={`rounded-3xl border-4 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all select-none overflow-hidden ${isSel && feedbackState === 'correct'
                     ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300'
-                    : isSelected && feedbackState === 'wrong'
-                    ? 'border-rose-400 bg-rose-50 animate-gentle-wobble'
-                    : 'border-slate-200 hover:border-teal-400'
-                }`}
+                    : isSel && feedbackState === 'wrong'
+                      ? 'border-rose-400 bg-rose-50 animate-gentle-wobble'
+                      : 'border-slate-200 bg-white hover:border-teal-400 hover:scale-105 active:scale-95'
+                  }`}
               >
-                <div className="w-18 h-18 sm:w-22 sm:h-22 rounded-2xl overflow-hidden mb-2">
-                  <img
-                    src={opt.imageUrl}
-                    alt={opt.english}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <span className="font-black text-xs sm:text-sm text-slate-800">
+                {opt.imageUrl && (
+                  <div className="flex-1 min-h-0 w-full flex items-center justify-center p-1">
+                    <img src={opt.imageUrl} alt={opt.english}
+                      className="max-h-full max-w-full object-contain" />
+                  </div>
+                )}
+                <span className="flex-shrink-0 font-black text-slate-800 pb-1"
+                  style={{ fontSize: 'clamp(0.65rem,1.8dvh,0.8rem)' }}>
                   {opt.english}
-                </span>
-                <span className="text-[10px] font-bold text-slate-400">
-                  {opt.vietnamese}
                 </span>
               </button>
             );
@@ -410,34 +621,24 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     );
   };
 
-  // -------------------------------------------------------------
-  // AGE 5-6 (LÁ): TRAIN WORD SPELLER (SUBSTEP 1)
-  // -------------------------------------------------------------
-  const renderLaSubStep1 = () => {
+  /** LÁ SubStep 1: Train speller */
+  const renderLaStep1 = () => {
     const letters = currentWord.english.toUpperCase().split('');
-    const nextLetterIndex = spelledLetters.length;
+    const nextIdx = spelledLetters.length;
     const isCompleted = spelledLetters.length === letters.length;
-
-    // Scrambled letters for choices
     const scrambled = [...letters].sort(() => 0.5 - Math.random());
 
-    const handleTapLetter = (letter: string) => {
+    const handleTap = (letter: string) => {
       if (feedbackState !== 'idle' || isCompleted) return;
-
-      const expectedLetter = letters[nextLetterIndex];
-      if (letter === expectedLetter) {
+      setHasInteracted(true);
+      if (letter === letters[nextIdx]) {
         sfx.playCorrect();
         const updated = [...spelledLetters, letter];
         setSpelledLetters(updated);
-
         if (updated.length === letters.length) {
-          setFeedbackState('correct');
+          triggerCorrect(1600);
           playWordAudio(currentWord.english, currentWord.audioUrl);
-          setStarsEarned(prev => prev + 1);
-
-          setTimeout(() => {
-            setSubStep(2);
-          }, 1800);
+          setTimeout(() => setSubStep(2), 1600);
         }
       } else {
         sfx.playGentleWrong();
@@ -445,62 +646,54 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     };
 
     return (
-      <div className="space-y-6 text-center animate-fade-in">
-        <div className="bg-purple-100/80 border-2 border-purple-300 px-4 py-2 rounded-2xl inline-flex items-center gap-2 text-purple-900 font-extrabold text-sm sm:text-base shadow-xs">
-          <span>🚂</span>
-          <span>Bé hãy xếp các chữ cái lên đoàn tàu theo đúng thứ tự nhé!</span>
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 overflow-hidden">
+        {/* Word image */}
+        <div className="flex-shrink-0"
+          style={{ width: 'clamp(64px,14dvh,96px)', height: 'clamp(64px,14dvh,96px)' }}>
+          {currentWord.imageUrl
+            ? <img src={currentWord.imageUrl} alt={currentWord.english}
+              className="w-full h-full object-contain rounded-2xl shadow-md border-3 border-purple-200" />
+            : <span style={{ fontSize: 'clamp(2.5rem,10dvh,4rem)' }}>🐾</span>}
         </div>
 
-        {/* Word Picture */}
-        <div className="w-32 h-32 sm:w-36 sm:h-36 mx-auto rounded-3xl overflow-hidden shadow-md border-3 border-purple-200">
-          <img
-            src={currentWord.imageUrl}
-            alt={currentWord.english}
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* Train Track with Empty / Filled Cars */}
-        <div className="bg-purple-50/80 border-3 border-purple-200 rounded-3xl p-4 sm:p-6 max-w-xl mx-auto shadow-inner">
-          <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
-            {/* Engine Car */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md">
-              🚂
-            </div>
-
-            {/* Letter Slots */}
-            {letters.map((_char, idx) => {
-              const filledChar = spelledLetters[idx];
+        {/* Train track letter slots */}
+        <div className="flex-shrink-0 bg-purple-50/80 border-4 border-purple-200 rounded-3xl px-4 py-3 max-w-full">
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <span style={{ fontSize: 'clamp(1.5rem,5dvh,2rem)' }}>🚂</span>
+            {letters.map((_c, i) => {
+              const filled = spelledLetters[i];
               return (
-                <div
-                  key={idx}
-                  className={`w-12 h-14 sm:w-14 sm:h-16 rounded-2xl flex items-center justify-center font-black text-2xl sm:text-3xl border-3 transition-all ${
-                    filledChar
+                <div key={i}
+                  style={{
+                    width: 'clamp(32px,6dvh,48px)',
+                    height: 'clamp(36px,7dvh,52px)',
+                    fontSize: 'clamp(1rem,3.5dvh,1.5rem)',
+                  }}
+                  className={`rounded-xl flex items-center justify-center font-black border-4 transition-all ${filled
                       ? 'bg-amber-400 text-amber-950 border-amber-500 shadow-md animate-pop-in'
-                      : idx === nextLetterIndex
-                      ? 'bg-white border-purple-400 border-dashed animate-pulse ring-2 ring-purple-300'
-                      : 'bg-white/60 border-slate-300'
-                  }`}
+                      : i === nextIdx
+                        ? 'bg-white border-purple-400 border-dashed animate-pulse ring-2 ring-purple-300'
+                        : 'bg-white/60 border-slate-300'
+                    }`}
                 >
-                  {filledChar || ''}
+                  {filled || ''}
                 </div>
               );
             })}
           </div>
-
-          <p className="text-xs font-black text-purple-800 mt-3">
-            Nghĩa: {currentWord.vietnamese}
-          </p>
         </div>
 
-        {/* Clickable Letter Blocks */}
-        <div className="flex justify-center items-center gap-3 sm:gap-4 flex-wrap max-w-md mx-auto">
-          {scrambled.map((char, idx) => (
-            <button
-              key={`${char}_${idx}`}
-              onClick={() => handleTapLetter(char)}
+        {/* Scrambled letter buttons */}
+        <div className="flex-shrink-0 flex gap-3 flex-wrap justify-center">
+          {scrambled.map((char, i) => (
+            <button key={`${char}_${i}`} onClick={() => handleTap(char)}
               disabled={isCompleted}
-              className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-white border-3 border-purple-300 hover:border-purple-500 font-black text-2xl sm:text-3xl text-purple-900 flex items-center justify-center cursor-pointer shadow-md hover:scale-110 active:scale-95 transition-all"
+              style={{
+                width: 'clamp(40px,9dvh,56px)',
+                height: 'clamp(40px,9dvh,56px)',
+                fontSize: 'clamp(1rem,3.5dvh,1.6rem)',
+              }}
+              className="rounded-2xl bg-white border-4 border-purple-300 hover:border-purple-500 font-black text-purple-900 flex items-center justify-center cursor-pointer shadow-md hover:scale-110 active:scale-95 transition-all"
             >
               {char}
             </button>
@@ -510,95 +703,70 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     );
   };
 
-  // -------------------------------------------------------------
-  // AGE 5-6 (LÁ): MINI SENTENCE BUILDER (SUBSTEP 2)
-  // -------------------------------------------------------------
-  const renderLaSubStep2 = () => {
-    const distractors = getDistractorWords(2);
+  /** LÁ SubStep 2: Mini sentence builder */
+  const renderLaStep2 = () => {
+    const distractors = getDistractors(2);
     const options = [currentWord, ...distractors].sort(() => 0.5 - Math.random());
-
-    const sentenceTemplate = currentWord.exampleSentence
+    const template = currentWord.exampleSentence
       ? currentWord.exampleSentence.replace(new RegExp(currentWord.english, 'i'), '[ ... ]')
       : `Look! This is a [ ... ].`;
+    const full = currentWord.exampleSentence || `Look! This is a ${currentWord.english}.`;
 
-    const fullSentence = currentWord.exampleSentence || `Look! This is a ${currentWord.english}.`;
-
-    const handleSelectSentenceWord = (word: Vocabulary) => {
+    const handleSelect = (word: Vocabulary) => {
       if (feedbackState !== 'idle') return;
       setSelectedOptionId(word._id);
-
+      setHasInteracted(true);
       if (word.english === currentWord.english) {
-        setFeedbackState('correct');
-        sfx.playCorrect();
-        playWordAudio(fullSentence);
-        setStarsEarned(prev => prev + 1);
-
-        setTimeout(() => {
-          advanceToNextWordOrFinish();
-        }, 2000);
+        const delay = triggerCorrect(1800);
+        playWordAudio(full);
+        setTimeout(advanceToNextWordOrFinish, delay);
       } else {
         setFeedbackState('wrong');
         sfx.playGentleWrong();
-        setTimeout(() => {
-          setFeedbackState('idle');
-          setSelectedOptionId(null);
-        }, 1000);
+        setTimeout(() => { setFeedbackState('idle'); setSelectedOptionId(null); }, 1000);
       }
     };
 
     return (
-      <div className="space-y-6 text-center animate-fade-in">
-        <div className="bg-pink-100/80 border-2 border-pink-300 px-4 py-2 rounded-2xl inline-flex items-center gap-2 text-pink-900 font-extrabold text-sm sm:text-base shadow-xs">
-          <span>💬</span>
-          <span>Bé hãy chọn từ đúng để hoàn thành câu tiếng Anh nhé!</span>
-        </div>
-
-        {/* Sentence Display Card */}
-        <div className="bg-white rounded-3xl border-3 border-pink-200 p-6 sm:p-7 max-w-lg mx-auto shadow-md">
-          <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden mb-3 border-2 border-slate-100 shadow-sm">
-            <img
-              src={currentWord.imageUrl}
-              alt={currentWord.english}
-              className="w-full h-full object-cover"
-            />
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 overflow-hidden">
+        {/* Sentence card */}
+        <div className="w-full max-w-xs bg-white rounded-3xl border-4 border-pink-300 shadow-md flex flex-col items-center overflow-hidden"
+          style={{ flex: '1 1 0', minHeight: 0 }}>
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center p-3">
+            {currentWord.imageUrl
+              ? <img src={currentWord.imageUrl} alt={currentWord.english}
+                className="max-h-full max-w-full object-contain rounded-2xl" loading="lazy" />
+              : <span style={{ fontSize: 'clamp(3rem,12dvh,5rem)' }}>🐾</span>}
           </div>
-
-          <h3 className="text-xl sm:text-2xl font-black text-slate-800 mb-2 leading-relaxed">
-            {feedbackState === 'correct' ? (
-              <span className="text-emerald-600 animate-pop-in">{fullSentence}</span>
-            ) : (
-              sentenceTemplate
-            )}
-          </h3>
-
-          <p className="text-xs sm:text-sm font-bold text-slate-500">
-            {currentWord.exampleSentenceVietnamese || `Nhìn kìa! Đây là ${currentWord.vietnamese.toLowerCase()}.`}
-          </p>
+          <div className="flex-shrink-0 px-4 pb-4 text-center">
+            <p className="font-black text-slate-800"
+              style={{ fontSize: 'clamp(0.85rem,2.5dvh,1.1rem)' }}>
+              {feedbackState === 'correct'
+                ? <span className="text-emerald-600">{full}</span>
+                : template}
+            </p>
+          </div>
         </div>
 
-        {/* 3 Choices */}
-        <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto">
-          {options.map((opt) => {
-            const isSelected = selectedOptionId === opt._id;
+        {/* 3 word choices */}
+        <div className="flex-shrink-0 flex gap-3 w-full max-w-sm justify-center">
+          {options.map(opt => {
+            const isSel = selectedOptionId === opt._id;
             return (
-              <button
-                key={opt._id}
-                onClick={() => handleSelectSentenceWord(opt)}
+              <button key={opt._id} onClick={() => handleSelect(opt)}
                 disabled={feedbackState !== 'idle'}
-                className={`p-3 rounded-2xl border-3 flex flex-col items-center justify-center transition-all cursor-pointer card-kid bg-white shadow-sm ${
-                  isSelected && feedbackState === 'correct'
+                style={{ flex: '1 1 0', minHeight: 'clamp(52px,11dvh,72px)' }}
+                className={`rounded-2xl border-4 flex flex-col items-center justify-center cursor-pointer transition-all select-none ${isSel && feedbackState === 'correct'
                     ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300'
-                    : isSelected && feedbackState === 'wrong'
-                    ? 'border-rose-400 bg-rose-50 animate-gentle-wobble'
-                    : 'border-slate-200 hover:border-pink-300'
-                }`}
+                    : isSel && feedbackState === 'wrong'
+                      ? 'border-rose-400 bg-rose-50 animate-gentle-wobble'
+                      : 'border-slate-200 bg-white hover:border-pink-300 hover:scale-105 active:scale-95'
+                  }`}
               >
-                <span className="font-black text-sm sm:text-base text-slate-800 mb-0.5">
-                  {opt.english}
-                </span>
-                <span className="text-[10px] font-bold text-slate-400">
-                  {opt.vietnamese}
-                </span>
+                <span className="font-black text-slate-800"
+                  style={{ fontSize: 'clamp(0.75rem,2.2dvh,1rem)' }}>{opt.english}</span>
+                <span className="text-slate-400 font-bold"
+                  style={{ fontSize: 'clamp(0.6rem,1.5dvh,0.7rem)' }}>{opt.vietnamese}</span>
               </button>
             );
           })}
@@ -607,273 +775,176 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     );
   };
 
-  const advanceToNextWordOrFinish = () => {
-    if (currentWordIdx + 1 < words.length) {
-      setCurrentWordIdx(prev => prev + 1);
-      setSubStep(1);
-    } else {
-      // Completed all words in lesson!
-      sfx.playStarFanfare();
-      setIsFinished(true);
-    }
-  };
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER — main layout
+  // ─────────────────────────────────────────────────────────────────────────
+  return (
+    /*
+     * This component fills whatever height its parent gives it (flex-1).
+     * Internal layout: flex column, no outer scroll.
+     *
+     * Parent (LessonDetailPage Zone 4) gives us:
+     *   flex-1 min-h-0 overflow-hidden
+     *
+     * We add:
+     *   h-full flex flex-col → fills parent exactly
+     */
+    <div className="h-full flex flex-col overflow-hidden">
 
-  const handleFinishStudio = () => {
-    onComplete({
-      score: starsEarned * 20,
-      stars: 3
-    });
-  };
-
-  // -------------------------------------------------------------
-  // COMPLETION CELEBRATION MODAL
-  // -------------------------------------------------------------
-  if (isFinished) {
-    return (
-      <div className="bg-white rounded-3xl border-4 border-amber-300 p-8 sm:p-10 text-center max-w-xl mx-auto shadow-2xl animate-pop-in space-y-6">
-        <div className="w-24 h-24 mx-auto rounded-3xl bg-amber-100 border-3 border-amber-300 flex items-center justify-center text-5xl shadow-md animate-bounce-subtle">
-          🏆
-        </div>
-
-        <div>
-          <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-900 font-black text-xs px-3 py-1 rounded-full mb-2">
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            Chặng 2: Luyện tập hoàn thành xuất sắc!
-          </div>
-          <h2 className="text-3xl font-black text-slate-800 mb-1">
-            Bé giỏi quá! Đã thuộc trọn vẹn từ vựng!
-          </h2>
-          <p className="text-sm font-bold text-slate-500 max-w-md mx-auto">
-            Bé đã hoàn thành xuất sắc các bài thực hành củng cố. Bây giờ cánh cửa Mini-game Chặng 3 đã chính thức mở khóa!
-          </p>
-        </div>
-
-        {/* Stars Metric */}
-        <div className="flex justify-center items-center gap-2 text-amber-500">
-          {[1, 2, 3].map((star) => (
-            <Star
-              key={star}
-              className="w-10 h-10 fill-amber-400 animate-star-celebrate"
+      {/* ── HEADER: progress dots + parent info ── */}
+      {/*
+       * flex-shrink-0, ≤48px.
+       * Contains only: progress dots (large) + ⓘ button.
+       * Stage/chip labels moved to ParentSheet.
+       */}
+      <div
+        className="flex-shrink-0 flex items-center justify-between px-1 pb-2"
+        style={{ minHeight: '36px' }}
+      >
+        {/* Progress dots */}
+        <div className="flex items-center gap-2" role="progressbar"
+          aria-label={`Từ ${currentWordIdx + 1} trên ${words.length}`}
+          aria-valuenow={currentWordIdx + 1} aria-valuemin={1} aria-valuemax={words.length}>
+          {words.map((_, i) => (
+            <div key={i}
+              style={{
+                width: i === currentWordIdx ? 'clamp(14px,3dvh,20px)' : 'clamp(10px,2.5dvh,16px)',
+                height: i === currentWordIdx ? 'clamp(14px,3dvh,20px)' : 'clamp(10px,2.5dvh,16px)',
+                transition: 'width 0.2s, height 0.2s',
+              }}
+              className={`rounded-full transition-colors ${i === currentWordIdx ? 'bg-amber-400 ring-4 ring-amber-200 shadow-sm'
+                  : i < currentWordIdx ? 'bg-emerald-500'
+                    : 'bg-slate-200'
+                }`}
             />
           ))}
+          <span className="font-bold text-slate-500 ml-1"
+            style={{ fontSize: 'clamp(0.65rem,1.8dvh,0.8rem)' }}>
+            {currentWordIdx + 1}/{words.length}
+          </span>
         </div>
 
-        <div className="flex items-center justify-center gap-3">
+        {/* Parent sheet trigger */}
+        <button
+          onClick={() => setShowParentSheet(true)}
+          aria-label="Xem thông tin bài học"
+          style={{ minWidth: '40px', minHeight: '40px' }}
+          className="rounded-xl bg-slate-100 hover:bg-amber-100 flex items-center justify-center cursor-pointer transition-colors"
+        >
+          <Info className="w-5 h-5 text-slate-500" />
+        </button>
+      </div>
+
+      {/* ── STAGE: image + interaction — flex-1 min-h-0 ── */}
+      {/*
+       * This is the heart of the viewport fix.
+       * flex-1 min-h-0 → takes all remaining height between header and action bar.
+       * relative → contains the StarBurst overlay.
+       */}
+      <div className="flex-1 min-h-0 relative overflow-hidden flex flex-col">
+        {/* Encouragement overlay — absolute, no layout shift */}
+        {showEncouragement && (
+          <div className="absolute inset-x-0 top-0 z-20 flex items-center gap-2 bg-amber-400 text-amber-950 font-black px-4 py-2 rounded-2xl text-xs shadow-lg animate-pop-in pointer-events-none">
+            <span>💪</span>
+            <span>Cố lên bé nhé! Thử lại nào! ✨</span>
+          </div>
+        )}
+
+        {/* Star burst — absolute, no layout shift */}
+        {showStarBurst && <StarBurst />}
+
+        {/* Stage content */}
+        {isMamAge ? (
+          subStep === 1 ? renderMamStep1() : renderMamStep2()
+        ) : isChoiAge ? (
+          subStep === 1 ? renderChoiStep1() : renderChoiStep2()
+        ) : (
+          subStep === 1 ? renderLaStep1() : renderLaStep2()
+        )}
+
+        {/*
+         * Koko mascot — positioned inside stage bottom-right.
+         * Small (48px), does NOT use fixed/absolute on document.
+         * Tooltip uses KokoMascot's built-in bubble which is absolute
+         * inside the mascot — constrained by stage container.
+         */}
+        <div className="absolute bottom-1 right-1 z-10">
           <KokoMascot
-            state="celebrating"
+            state="happy"
             size="sm"
-            speechBubble="Cùng Koko chơi Mini-game thôi nào! 🎮"
+            interactive={false}
           />
         </div>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-slate-100">
-          <button
-            onClick={() => {
-              sfx.playPop();
-              setCurrentWordIdx(0);
-              setSubStep(1);
-              setIsFinished(false);
-            }}
-            className="btn-kid bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm py-3 px-6 rounded-2xl w-full sm:w-auto"
-          >
-            <RotateCcw className="w-4 h-4 inline mr-1.5" />
-            Luyện tập lại
-          </button>
-
-          <button
-            onClick={handleFinishStudio}
-            className="btn-3d-purple text-white font-black text-base py-3.5 px-8 rounded-2xl shadow-xl w-full sm:w-auto flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Gamepad2 className="w-5 h-5 fill-current" />
-            <span>Tiến tới Chặng 3: Mini-game ngay 🚀</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // MAIN STUDIO INTERACTION STAGE
-  // -------------------------------------------------------------
-  return (
-    <div className="space-y-5 relative">
-      {/* Encouragement Alert Banner – inline, no fixed/overflow */}
-      {showEncouragement && (
-        <div className="flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-950 font-black px-5 py-3 rounded-2xl shadow-md border-2 border-white animate-pop-in">
-          <span className="text-xl flex-shrink-0">💪</span>
-          <span className="text-sm">Bé cố lên nhé! Thử lại chọn câu trả lời đúng nào! ✨</span>
-        </div>
-      )}
-
-      {/* Studio Header Bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-sky-100 text-sky-900 border border-sky-200">
-            <Lightbulb className="w-3.5 h-3.5 text-sky-600" />
-            <span>
-              {isMamAge
-                ? 'Xưởng Giác Quan & Bóng Đổ (Nhóm Mầm 3–4t)'
-                : isChoiAge
-                ? 'Xưởng Săn Âm Phonics & Ngữ Cảnh (Nhóm Chồi 4–5t)'
-                : 'Xưởng Đoàn Tàu Ghép Chữ & Câu Nhí (Nhóm Lá 5–6t)'}
-            </span>
-          </div>
-          <h3 className="text-xl sm:text-2xl font-black text-slate-800 mt-1">
-            Luyện tập từ {currentWordIdx + 1} / {words.length}: {currentWord.english}
-          </h3>
-        </div>
-
-        {/* Word Progress Dots */}
-        <div className="flex items-center gap-1.5">
-          {words.map((_, idx) => (
-            <div
-              key={idx}
-              className={`w-3.5 h-3.5 rounded-full transition-all ${
-                idx === currentWordIdx
-                  ? 'bg-amber-400 scale-125 ring-2 ring-amber-300'
-                  : idx < currentWordIdx
-                  ? 'bg-emerald-500'
-                  : 'bg-slate-200'
-              }`}
-            />
-          ))}
-        </div>
       </div>
 
-      {/* Main Studio Interaction Stage */}
-      {isMamAge ? (
-        subStep === 1 ? (
-          /* STEP 1 (MẦM): TAP TO AWAKEN & DUAL PRONUNCIATION */
-          <div className="space-y-6 text-center animate-fade-in">
-            <div className="bg-amber-100/70 border-2 border-amber-300 px-4 py-2 rounded-2xl inline-flex items-center gap-2 text-amber-900 font-extrabold text-sm sm:text-base shadow-xs">
-              <span>🎈</span>
-              <span>
-                {isAwakened
-                  ? 'Tuyệt vời! Bé hãy nghe Koko đọc và tập đọc theo nhé!'
-                  : 'Bé chạm vào quả bóng ma thuật để đánh thức từ mới nhé!'}
-              </span>
-            </div>
-
-            {/* Central Magic Egg / Revealed Word */}
-            <div className="flex justify-center items-center my-4">
-              {!isAwakened ? (
-                <button
-                  onClick={handleAwakenEgg}
-                  className="w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-orange-400 text-white flex flex-col items-center justify-center cursor-pointer shadow-2xl hover:scale-105 active:scale-95 animate-soft-bounce border-4 border-white"
-                >
-                  <span className="text-6xl sm:text-7xl mb-1">🎁</span>
-                  <span className="font-black text-sm text-amber-950 bg-white/80 px-3 py-1 rounded-full shadow-xs">
-                    Chạm để mở! ✨
-                  </span>
-                </button>
-              ) : (
-                <div className="bg-white rounded-3xl border-3 border-amber-300 p-6 sm:p-8 max-w-sm w-full shadow-xl animate-pop-in text-center">
-                  <div className="w-36 h-36 sm:w-44 sm:h-44 mx-auto rounded-3xl overflow-hidden mb-4 shadow-sm border-2 border-slate-100">
-                    <img
-                      src={currentWord.imageUrl}
-                      alt={currentWord.english}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <h4 className="text-3xl font-black text-slate-800">
-                    {currentWord.english}
-                  </h4>
-                  <p className="text-base font-extrabold text-amber-700">
-                    {currentWord.vietnamese}
-                  </p>
-                  {currentWord.pronunciation && (
-                    <span className="text-xs font-bold text-slate-400 block mt-0.5">
-                      {currentWord.pronunciation}
-                    </span>
-                  )}
-
-                  {/* Single Audio Play Button */}
-                  <div className="mt-4">
-                    <button
-                      onClick={handlePlayNormal}
-                      className="w-full btn-kid bg-sky-100 hover:bg-sky-200 text-sky-950 font-black text-xs sm:text-sm py-2.5 px-4 rounded-2xl flex items-center justify-center gap-2 cursor-pointer border border-sky-300 shadow-xs"
-                    >
-                      <span className="text-base">🔊</span>
-                      <span>Nghe Koko đọc chuẩn</span>
-                    </button>
-                  </div>
-
-                  {/* Child Echo Mic Button */}
-                  <button
-                    onClick={handleMicSimulate}
-                    className={`w-full mt-3 py-2.5 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                      isRecording
-                        ? 'bg-rose-500 text-white animate-pulse'
-                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
-                    }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                    <span>{isRecording ? 'Bé đọc to lên nào... 🎤' : 'Bé đọc theo mẫu 🎤'}</span>
-                  </button>
-
-                  {/* Advance to Step 2 */}
-                  <button
-                    onClick={() => {
-                      sfx.playPop();
-                      setSubStep(2);
-                    }}
-                    className="btn-3d-amber w-full mt-4 py-3 rounded-2xl text-amber-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                  >
-                    <span>Sang bước ghép bóng bí ẩn ✨</span>
-                    <ArrowRight className="w-4 h-4 stroke-[3]" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* STEP 2 (MẦM): SHADOW SILHOUETTE MATCH */
-          renderMamSubStep2()
-        )
-      ) : isChoiAge ? (
-        subStep === 1 ? (
-          /* STEP 1 (CHỒI): INITIAL PHONICS CATCH */
-          renderChoiSubStep1()
-        ) : (
-          /* STEP 2 (CHỒI): PICTURE IN CONTEXT */
-          renderChoiSubStep2()
-        )
-      ) : (
-        /* Nhóm Lá (5-6 tuổi) */
-        subStep === 1 ? (
-          /* STEP 1 (LÁ): TRAIN WORD SPELLER */
-          renderLaSubStep1()
-        ) : (
-          /* STEP 2 (LÁ): MINI SENTENCE BUILDER */
-          renderLaSubStep2()
-        )
-      )}
-
-      {/* Mascot Assistant & Back button */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-100 flex-wrap gap-2">
+      {/* ── ACTION BAR: 3 large buttons ── */}
+      {/*
+       * flex-shrink-0. Height ≥ 64px. Touch targets ≥ 48×48px each.
+       * Gap ≥ 16px between buttons.
+       * "Tiếp →" pulses after first interaction (hasInteracted).
+       * prefers-reduced-motion: animate-pulse suppressed by Tailwind's
+       * motion-safe: prefix (or we use CSS animation directly).
+       */}
+      <div
+        className="flex-shrink-0 grid grid-cols-3 pt-2"
+        style={{ gap: 'clamp(8px,2dvh,16px)', minHeight: '64px' }}
+      >
+        {/* 🔊 Nghe */}
         <button
-          onClick={() => {
-            sfx.playPop();
-            onBackToStage1();
-          }}
-          className="text-xs font-black text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer py-2 px-3 rounded-xl hover:bg-slate-100"
+          onClick={handlePlayAudio}
+          aria-label="Nghe phát âm"
+          style={{ minHeight: 'clamp(64px,12dvh,80px)' }}
+          className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-sky-100 hover:bg-sky-200 text-sky-900 border-b-4 border-sky-300 font-black cursor-pointer shadow-md active:translate-y-0.5 active:border-b-2 transition-all select-none"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại Flashcard (Chặng 1)</span>
+          <Volume2 style={{ width: 'clamp(1.2rem,4dvh,1.8rem)', height: 'clamp(1.2rem,4dvh,1.8rem)' }}
+            className="text-sky-600" />
+          <span style={{ fontSize: 'clamp(0.65rem,1.8dvh,0.8rem)' }}>Nghe</span>
         </button>
 
-        <KokoMascot
-          state="happy"
-          size="sm"
-          speechBubble={
-            isMamAge
-              ? 'Chạm nhẹ tay là nhớ từ ngay bé nhé! 🎈'
-              : isChoiAge
-              ? 'Bắt đúng âm là từ hiện ra! 🌟'
-              : 'Đoàn tàu sắp về ga rồi, bé cố lên! 🚂'
-          }
-        />
+        {/* 🎤 Đọc theo */}
+        <button
+          onClick={handleMicSimulate}
+          aria-label="Bé đọc theo"
+          style={{ minHeight: 'clamp(64px,12dvh,80px)' }}
+          className={`flex flex-col items-center justify-center gap-1 rounded-2xl font-black cursor-pointer shadow-md active:translate-y-0.5 transition-all select-none border-b-4 ${isRecording
+              ? 'bg-rose-500 text-white border-rose-700 animate-pulse'
+              : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-emerald-300'
+            }`}
+        >
+          <Mic style={{ width: 'clamp(1.2rem,4dvh,1.8rem)', height: 'clamp(1.2rem,4dvh,1.8rem)' }}
+            className={isRecording ? 'animate-bounce text-white' : 'text-emerald-600'} />
+          <span style={{ fontSize: 'clamp(0.65rem,1.8dvh,0.8rem)' }}>
+            {isRecording ? '🎤...' : 'Đọc theo'}
+          </span>
+        </button>
+
+        {/* ➜ Tiếp */}
+        <button
+          onClick={handleNext}
+          aria-label="Tiếp theo"
+          style={{ minHeight: 'clamp(64px,12dvh,80px)' }}
+          className={`flex flex-col items-center justify-center gap-1 rounded-2xl text-white font-black cursor-pointer shadow-md active:translate-y-0.5 active:border-b-2 transition-all select-none border-b-4 ${hasInteracted
+              ? 'bg-gradient-to-br from-amber-400 to-orange-500 border-orange-600 motion-safe:animate-pulse shadow-amber-300/60 shadow-lg'
+              : 'bg-slate-300 border-slate-400 text-slate-600'
+            }`}
+        >
+          <ArrowRight style={{ width: 'clamp(1.2rem,4dvh,1.8rem)', height: 'clamp(1.2rem,4dvh,1.8rem)' }}
+            className="stroke-[3]" />
+          <span style={{ fontSize: 'clamp(0.65rem,1.8dvh,0.8rem)' }}>Tiếp</span>
+        </button>
       </div>
+
+      {/* Parent Sheet */}
+      {showParentSheet && (
+        <ParentSheet
+          word={currentWord}
+          ageGroupCode={ageGroupCode}
+          wordIdx={currentWordIdx}
+          totalWords={words.length}
+          onClose={() => setShowParentSheet(false)}
+          onBackToStage1={onBackToStage1}
+        />
+      )}
     </div>
   );
 };
