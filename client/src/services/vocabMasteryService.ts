@@ -23,6 +23,14 @@ export interface WordMasteryDetail {
   lastPracticedAt: number;
   masteryScore: number; // 0 - 100%
   source: 'JOURNEY' | 'TOPIC';
+
+  // Thêm các trường hỗ trợ Giai đoạn 2 & theo dõi sự kiện
+  firstSeenAt?: number;
+  lastSuccessAt?: number;
+  successDays?: string[];
+  lastResult?: 'correct' | 'wrong' | 'assisted';
+  reviewStage?: number;
+  parentOverride?: 'mastered' | 'review' | null;
 }
 
 export interface VocabMasteryRecord {
@@ -332,40 +340,148 @@ export const vocabMasteryService = {
   },
 
   /**
+   * Set parent override on a word (Phase 1 & 2 support)
+   */
+  setParentOverride(childId: string, vocabId: string, override: 'mastered' | 'review' | null): void {
+    const data = this.getMastery(childId);
+    const item = data.vocabDetails[vocabId];
+    if (!item) return;
+
+    item.parentOverride = override;
+    if (override === 'mastered') {
+      item.status = 'MASTERED';
+      if (!data.masteredIds.includes(vocabId)) data.masteredIds.push(vocabId);
+      data.reviewIds = data.reviewIds.filter(id => id !== vocabId);
+    } else if (override === 'review') {
+      item.status = 'REVIEW';
+      if (!data.reviewIds.includes(vocabId)) data.reviewIds.push(vocabId);
+      data.masteredIds = data.masteredIds.filter(id => id !== vocabId);
+    }
+
+    item.lastPracticedAt = Date.now();
+    data.vocabDetails[vocabId] = item;
+    this.saveMastery(childId, data);
+  },
+
+  /**
+   * SINGLE SOURCE OF TRUTH: Trả về toàn bộ danh sách từ kèm trạng thái đã suy ra
+   * Đảm bảo bất biến: learned = learning + mastered + review
+   */
+  getVocabSummary(childId: string, now: number = Date.now()): {
+    learned: number;
+    learning: number;
+    mastered: number;
+    review: number;
+    words: (WordMasteryDetail & {
+      state: 'learning' | 'mastered' | 'review';
+      reviewReason?: 'due' | 'failed' | 'override';
+    })[];
+  } {
+    const data = this.getMastery(childId);
+    const detailsList = Object.values(data.vocabDetails || {}) as WordMasteryDetail[];
+    const allItems = detailsList.map(item => ({
+      ...item,
+      _id: item._id || item.vocabId
+    }));
+
+    let learningCount = 0;
+    let masteredCount = 0;
+    let reviewCount = 0;
+
+    const words = allItems.map(item => {
+      // Nhúng hàm deriveWordState
+      let state: 'learning' | 'mastered' | 'review' = 'learning';
+      let reviewReason: 'due' | 'failed' | 'override' | undefined;
+
+      if (item.parentOverride === 'mastered') {
+        state = 'mastered';
+      } else if (item.parentOverride === 'review') {
+        state = 'review';
+        reviewReason = 'override';
+      } else {
+        // Kiểm tra xem item có được đánh dấu Mastered từ trước không
+        const isMasteredLegacy = item.status === 'MASTERED' || data.masteredIds.includes(item.vocabId);
+        const isReviewLegacy = item.status === 'REVIEW' || data.reviewIds.includes(item.vocabId);
+
+        if (isMasteredLegacy) {
+          // Kiểm tra hạn ôn (Spaced Repetition: 1 ngày cho vòng đầu)
+          const lastSuccess = item.lastSuccessAt || item.lastPracticedAt || now;
+          const daysSince = Math.floor((now - lastSuccess) / (24 * 60 * 60 * 1000));
+          if (daysSince >= 1 && item.reviewCount > 0) {
+            state = 'review';
+            reviewReason = 'due';
+          } else {
+            state = 'mastered';
+          }
+        } else if (isReviewLegacy) {
+          state = 'review';
+          reviewReason = 'failed';
+        } else {
+          state = 'learning';
+        }
+      }
+
+      if (state === 'mastered') masteredCount++;
+      else if (state === 'review') reviewCount++;
+      else learningCount++;
+
+      return {
+        ...item,
+        state,
+        reviewReason
+      };
+    });
+
+    // Sắp xếp mặc định: review -> learning -> mastered
+    words.sort((a, b) => {
+      const order = { review: 0, learning: 1, mastered: 2 };
+      if (order[a.state] !== order[b.state]) {
+        return order[a.state] - order[b.state];
+      }
+      return b.lastPracticedAt - a.lastPracticedAt;
+    });
+
+    return {
+      learned: words.length,
+      learning: learningCount,
+      mastered: masteredCount,
+      review: reviewCount,
+      words
+    };
+  },
+
+  /**
    * Retrieve all words that the child has actually learned/interacted with
    */
   getAllLearnedWords(childId: string): WordMasteryDetail[] {
-    const data = this.getMastery(childId);
-    return Object.values(data.vocabDetails)
-      .map(item => ({ ...item, _id: item._id || item.vocabId }))
-      .sort((a, b) => b.lastPracticedAt - a.lastPracticedAt);
+    const summary = this.getVocabSummary(childId);
+    return summary.words;
   },
 
   getMasteredWords(childId: string): WordMasteryDetail[] {
-    const data = this.getMastery(childId);
-    return Object.values(data.vocabDetails)
-      .filter(v => v.status === 'MASTERED' || data.masteredIds.includes(v.vocabId))
-      .map(item => ({ ...item, _id: item._id || item.vocabId }))
-      .sort((a, b) => (b.masteryScore || 0) - (a.masteryScore || 0));
+    const summary = this.getVocabSummary(childId);
+    return summary.words.filter(w => w.state === 'mastered');
   },
 
   getReviewWords(childId: string): WordMasteryDetail[] {
-    const data = this.getMastery(childId);
-    return Object.values(data.vocabDetails)
-      .filter(v => v.status === 'REVIEW' || data.reviewIds.includes(v.vocabId))
-      .map(item => ({ ...item, _id: item._id || item.vocabId }))
-      .sort((a, b) => a.lastPracticedAt - b.lastPracticedAt);
+    const summary = this.getVocabSummary(childId);
+    return summary.words.filter(w => w.state === 'review');
+  },
+
+  getLearningWords(childId: string): WordMasteryDetail[] {
+    const summary = this.getVocabSummary(childId);
+    return summary.words.filter(w => w.state === 'learning');
   },
 
   isMastered(childId: string, vocabId: string): boolean {
-    const data = this.getMastery(childId);
-    const item = data.vocabDetails[vocabId];
-    return item ? item.status === 'MASTERED' : data.masteredIds.includes(vocabId);
+    const summary = this.getVocabSummary(childId);
+    const word = summary.words.find(w => w.vocabId === vocabId || w._id === vocabId);
+    return word?.state === 'mastered';
   },
 
   isReview(childId: string, vocabId: string): boolean {
-    const data = this.getMastery(childId);
-    const item = data.vocabDetails[vocabId];
-    return item ? item.status === 'REVIEW' : data.reviewIds.includes(vocabId);
+    const summary = this.getVocabSummary(childId);
+    const word = summary.words.find(w => w.vocabId === vocabId || w._id === vocabId);
+    return word?.state === 'review';
   }
 };

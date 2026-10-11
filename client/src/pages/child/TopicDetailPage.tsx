@@ -1,57 +1,247 @@
+/**
+ * TopicDetailPage — /topics/:slug
+ *
+ * 100dvh viewport-locked shell (LessonShell), no outer scroll.
+ * Flashcard now uses the shared FlashcardView (variant='topic') so the
+ * layout and action-bar are identical to Chặng 1 in LessonDetailPage.
+ *
+ * What's different from variant='lesson':
+ *   • Koko state machine is OFF (Koko stays 'happy', no auto-advance)
+ *   • 🧡/💚 mastery buttons shown in the right column (TOPIC_SELF_MARKING=true)
+ *   • Swipe left = 🧡 (cần ôn), swipe right = 💚 (đã nhớ)
+ *   • onCompleteStep → shows completion screen inside FlashcardView
+ *     (we pass a handler that navigates nowhere; session-complete screen
+ *      is rendered by FlashcardView itself when idx >= deck.length)
+ *
+ * Layout:
+ *   ┌──────────────────────────────────────────────┐ ← 100dvh
+ *   │  TopicTopBar           (~60–72px)            │
+ *   ├──────────────────────────────────────────────┤
+ *   │  FlashcardView variant='topic'  (flex-1)     │
+ *   │  ├─ ProgressDots  (inside FlashcardView)    │
+ *   │  ├─ card frame 2-col md / 1-col mobile      │
+ *   │  └─ footer ◀🔊🎤➜                          │
+ *   └──────────────────────────────────────────────┘
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Gamepad2, Compass } from 'lucide-react';
+import { ArrowLeft, Home, Shield, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { topicsApi, vocabularyApi } from '../../services/api';
 import type { Topic, Vocabulary } from '../../types';
-import { ChildHeader } from '../../components/child/ChildHeader';
-import { ChildBottomNav } from '../../components/child/ChildBottomNav';
-import { BigInteractiveFlashcard } from '../../components/child/BigInteractiveFlashcard';
-import { KokoMascot } from '../../components/child/KokoMascot';
+import { LessonShell } from '../../components/child/lesson/LessonShell';
+import { FlashcardView } from '../../components/child/lesson/FlashcardView';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import { sfx } from '../../utils/audio';
 
-export const TopicDetailPage: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const { user } = useAuth();
-  const navigate = useNavigate();
+// ─────────────────────────────────────────────────────────────────────────────
+//  TopicTopBar
+// ─────────────────────────────────────────────────────────────────────────────
+interface TopicTopBarProps {
+  topicIcon?: string;
+  topicName?: string;
+  onBack: () => void;
+  onHome: () => void;
+  onOpenParentSheet: () => void;
+}
 
-  const childId = (user as any)?.id || (user as any)?._id || 'guest';
+const TopicTopBar: React.FC<TopicTopBarProps> = ({
+  topicIcon = '🌈',
+  topicName = '',
+  onBack,
+  onHome,
+  onOpenParentSheet,
+}) => (
+  <header
+    style={{ height: 'clamp(60px, 9dvh, 72px)', minHeight: '60px', maxHeight: '72px' }}
+    className="flex-shrink-0 w-full bg-white/95 backdrop-blur-md border-b-3 border-amber-300 px-3 sm:px-6 flex items-center justify-between z-30 select-none shadow-xs"
+  >
+    {/* Left: ← and 🏠 */}
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <button
+        onClick={onBack}
+        aria-label="Quay lại danh sách chủ đề"
+        style={{ width: '56px', height: '56px' }}
+        className="rounded-2xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-slate-800 cursor-pointer active:scale-95 transition-all shadow-sm"
+      >
+        <ArrowLeft className="w-7 h-7 stroke-[2.8]" />
+      </button>
+      <button
+        onClick={onHome}
+        aria-label="Về trang chủ"
+        style={{ width: '56px', height: '56px' }}
+        className="rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-300 flex items-center justify-center text-emerald-800 cursor-pointer active:scale-95 transition-all shadow-sm"
+      >
+        <Home className="w-7 h-7 stroke-[2.6]" />
+      </button>
+    </div>
+
+    {/* Center: topic icon + name */}
+    <div className="flex items-center gap-2 min-w-0 flex-1 justify-center px-3">
+      <span className="text-2xl flex-shrink-0" aria-hidden="true">{topicIcon}</span>
+      <span
+        className="font-black text-slate-800 truncate"
+        style={{ fontSize: 'clamp(16px, 2.5vw, 22px)' }}
+        title={topicName}
+      >
+        {topicName}
+      </span>
+    </div>
+
+    {/* Right: Parent sheet */}
+    <div className="flex items-center flex-shrink-0">
+      <button
+        onClick={onOpenParentSheet}
+        aria-label="Thông tin chủ đề và cài đặt"
+        style={{ minHeight: '48px', minWidth: '48px' }}
+        className="rounded-2xl bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 px-3 py-1.5 flex items-center gap-1.5 text-slate-700 cursor-pointer active:scale-95 transition-all shadow-xs"
+      >
+        <Shield className="w-5 h-5 text-amber-600 flex-shrink-0" />
+        <span className="font-black text-xs hidden md:inline">Phụ huynh</span>
+      </button>
+    </div>
+  </header>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ParentSheet
+// ─────────────────────────────────────────────────────────────────────────────
+interface ParentSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  topic: Topic | null;
+  vocabItems: Vocabulary[];
+  masteredCount: number;
+  reviewCount: number;
+}
+
+const ParentSheet: React.FC<ParentSheetProps> = ({
+  isOpen,
+  onClose,
+  topic,
+  vocabItems,
+  masteredCount,
+  reviewCount,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl border-t-4 border-amber-300 shadow-2xl flex flex-col"
+        style={{ maxHeight: '70dvh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1.5 rounded-full bg-slate-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pb-3 flex-shrink-0 border-b border-slate-100">
+          <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+            <Shield className="w-4 h-4 text-amber-600" />
+            Thông tin chủ đề
+          </h3>
+          <button
+            onClick={onClose}
+            aria-label="Đóng"
+            style={{ minWidth: '48px', minHeight: '48px' }}
+            className="rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5 text-slate-600" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          {/* Topic info */}
+          <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{topic?.icon || '🌈'}</span>
+              <div>
+                <p className="font-black text-slate-800">
+                  {topic?.englishName || ''}{topic?.vietnameseName ? ` · ${topic.vietnameseName}` : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Mastery stats */}
+          <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
+            <p className="text-xs font-black text-slate-500 uppercase tracking-wide mb-3">Tiến độ học</p>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-2xl font-black text-slate-700">{vocabItems.length}</p>
+                <p className="text-xs font-bold text-slate-500">Tổng từ</p>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-emerald-600">{masteredCount}</p>
+                <p className="text-xs font-bold text-emerald-700">💚 Đã nhớ</p>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-amber-600">{reviewCount}</p>
+                <p className="text-xs font-bold text-amber-700">💡 Cần ôn</p>
+              </div>
+            </div>
+          </div>
+
+          {/* How it works */}
+          <div className="bg-sky-50 rounded-2xl border border-sky-200 p-4">
+            <p className="text-xs font-black text-sky-600 uppercase tracking-wide mb-2">Hướng dẫn</p>
+            <p className="text-sm font-bold text-sky-900 leading-relaxed">
+              Bấm 💚 hoặc vuốt phải để đánh dấu Đã nhớ. Bấm 🧡 hoặc vuốt trái để đánh dấu Cần ôn. Từ cần ôn sẽ xuất hiện lại ở cuối bộ thẻ. Bấm ➜ để sang thẻ tiếp theo mà không đánh dấu.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TopicDetailPage
+// ─────────────────────────────────────────────────────────────────────────────
+export const TopicDetailPage: React.FC = () => {
+  const { slug }  = useParams<{ slug: string }>();
+  const { user }  = useAuth();
+  const navigate  = useNavigate();
+
+  const childId  = (user as any)?.id || (user as any)?._id || 'guest';
   const childAge = user?.ageGroupCode || '3-4';
 
-  const [topic, setTopic] = useState<Topic | null>(null);
+  const [topic, setTopic]             = useState<Topic | null>(null);
   const [topicVocabs, setTopicVocabs] = useState<Vocabulary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [, setMasteryUpdateTick] = useState(0);
+  const [loading, setLoading]         = useState(true);
+  const [showParentSheet, setShowParentSheet] = useState(false);
+  const [, setMasteryTick]            = useState(0);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    if (!user) { navigate('/login'); return; }
 
-    const loadTopicData = async () => {
+    const load = async () => {
       try {
         if (!slug) return;
         setLoading(true);
 
-        // Fetch topic by slug/id
         const res = await topicsApi.getTopicById(slug);
-        let currentTopic: Topic | null = null;
+        let current: Topic | null = null;
         if (res.success && res.data) {
-          currentTopic = res.data;
-          setTopic(currentTopic);
+          current = res.data;
+          setTopic(current);
         }
 
-        // Fetch curated vocabulary for this topic and age group
-        if (currentTopic?._id) {
-          const vRes = await vocabularyApi.getVocabulary(childAge, undefined, currentTopic._id);
+        if (current?._id) {
+          const vRes = await vocabularyApi.getVocabulary(childAge, undefined, current._id);
           if (vRes.success && Array.isArray(vRes.data) && vRes.data.length > 0) {
-            // Keep curated age-appropriate count (6 to 10 words)
             setTopicVocabs(vRes.data.slice(0, 10));
           } else {
-            // Fallback: search by topic name/english name in vocabulary
-            const searchRes = await vocabularyApi.getVocabulary(childAge, currentTopic.englishName);
+            const searchRes = await vocabularyApi.getVocabulary(childAge, current.englishName);
             if (searchRes.success && Array.isArray(searchRes.data) && searchRes.data.length > 0) {
               setTopicVocabs(searchRes.data.slice(0, 10));
             }
@@ -64,183 +254,79 @@ export const TopicDetailPage: React.FC = () => {
       }
     };
 
-    loadTopicData();
+    load();
 
-    // Listen to mastery updates to refresh counts
-    const handleMasteryUpdate = () => {
-      setMasteryUpdateTick(t => t + 1);
-    };
-    window.addEventListener('kc_vocab_mastery_updated', handleMasteryUpdate);
-    return () => {
-      window.removeEventListener('kc_vocab_mastery_updated', handleMasteryUpdate);
-    };
+    const onMasteryUpdate = () => setMasteryTick(t => t + 1);
+    window.addEventListener('kc_vocab_mastery_updated', onMasteryUpdate);
+    return () => window.removeEventListener('kc_vocab_mastery_updated', onMasteryUpdate);
   }, [slug, user, navigate, childAge]);
 
-  const getBookTitle = (code?: string) => {
-    if (code === '5-6') return 'Sách Book 3 (5–6 tuổi)';
-    if (code === '4-5') return 'Sách Book 2 (4–5 tuổi)';
-    return 'Sách Book 1 (3–4 tuổi)';
-  };
-
-  // Compute stats for this topic's vocabularies
+  // Mastery counts for ParentSheet (same service as game)
   const masteredCount = topicVocabs.filter(v => vocabMasteryService.isMastered(childId, v._id)).length;
-  const reviewCount = topicVocabs.filter(v => vocabMasteryService.isReview(childId, v._id)).length;
+  const reviewCount   = topicVocabs.filter(v => vocabMasteryService.isReview(childId, v._id)).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-amber-50/40 to-yellow-50 flex flex-col pb-24 md:pb-12">
-      <ChildHeader />
+    <LessonShell stage={1}>
+      {/* ── Top bar ── */}
+      <TopicTopBar
+        topicIcon={topic?.icon || '🌈'}
+        topicName={topic?.englishName || ''}
+        onBack={() => { sfx.playPop(); navigate('/?tab=topics'); }}
+        onHome={() => { sfx.playPop(); navigate('/'); }}
+        onOpenParentSheet={() => { sfx.playPop(); setShowParentSheet(true); }}
+      />
 
-      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8 flex-1">
-        {/* Top Nav: Back to topics tab */}
-        <div className="flex items-center gap-5 mb-8">
-          <button
-            onClick={() => {
-              sfx.playPop();
-              navigate('/?tab=topics');
-            }}
-            aria-label="Quay lại danh sách chủ đề"
-            className="w-14 h-14 rounded-2xl bg-white border-3 border-slate-200 hover:bg-amber-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
-          >
-            <ArrowLeft className="w-8 h-8 stroke-[2.5]" />
-          </button>
-
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl sm:text-5xl">{topic?.icon || '🌈'}</span>
-              <h1 className="text-3xl sm:text-5xl font-black text-slate-800 tracking-tight">
-                {topic?.englishName || 'Chủ đề từ vựng'}
-              </h1>
-            </div>
-            <p className="text-base sm:text-lg font-extrabold text-amber-700 mt-1">
-              {topic?.vietnameseName} • {getBookTitle(user?.ageGroupCode)}
-            </p>
-          </div>
-        </div>
-
-        {/* Hero Banner: Decoupled Flashcard Exploration space */}
-        <section className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 rounded-3xl p-8 sm:p-10 text-white shadow-xl mb-8 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
-            <div className="flex items-center gap-5 text-center sm:text-left flex-col sm:flex-row pt-2 sm:pt-0">
-              <div className="flex-shrink-0 pt-2">
-                <KokoMascot
-                  state="happy"
-                  size="md"
-                  speechBubble="Quẹt thẻ cùng Koko nào! 🐾"
-                />
-              </div>
-              <div>
-                <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-4 py-1.5 rounded-full text-xs sm:text-sm font-black mb-2 shadow-xs">
-                  <Sparkles className="w-4 h-4 text-yellow-200" />
-                  Chủ đề mở rộng • Thẻ thông minh Flashcard
-                </div>
-                <h2 className="text-3xl sm:text-4xl font-black mb-2">
-                  Khám phá từ vựng {topic?.englishName || ''}
-                </h2>
-                <p className="text-amber-50 font-bold text-sm sm:text-base max-w-lg">
-                  Quẹt phải để lưu từ <span className="text-emerald-200 underline font-black">Đã nhớ 💚</span>, quẹt trái để đánh dấu <span className="text-yellow-200 underline font-black">Chưa nhớ 🧡</span> nhé bé!
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Topic Mastery Stats */}
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-4 py-2.5 rounded-2xl">
-              <div className="text-center">
-                <span className="text-xs font-bold text-amber-100 block">Tổng số từ</span>
-                <span className="text-xl font-black text-white">{topicVocabs.length}</span>
-              </div>
-              <div className="w-px h-8 bg-white/30" />
-              <div className="text-center">
-                <span className="text-xs font-bold text-emerald-200 block">Đã nhớ</span>
-                <span className="text-xl font-black text-emerald-300">
-                  {masteredCount}
-                </span>
-              </div>
-              <div className="w-px h-8 bg-white/30" />
-              <div className="text-center">
-                <span className="text-xs font-bold text-yellow-200 block">Cần ôn</span>
-                <span className="text-xl font-black text-yellow-300">
-                  {reviewCount}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
+      {/* ── Content area ── */}
+      <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col px-3 sm:px-5 py-2">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
             <p className="font-black text-amber-800 text-sm">Đang tải bộ thẻ từ vựng...</p>
           </div>
         ) : topicVocabs.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border-3 border-dashed border-amber-200">
-            <p className="font-black text-slate-600 text-lg mb-2">Chưa có từ vựng cho chủ đề này.</p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+            <span className="text-6xl">🔍</span>
+            <p className="font-black text-slate-600 text-lg">Chưa có từ vựng cho chủ đề này.</p>
             <button
               onClick={() => navigate('/?tab=topics')}
-              className="btn-3d-amber text-amber-950 font-black text-sm px-6 py-2.5 rounded-2xl mt-3"
+              className="btn-3d-amber text-amber-950 font-black text-sm px-6 py-3 rounded-2xl"
             >
               Chọn chủ đề khác
             </button>
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* Interactive Flashcard Component */}
-            <section className="bg-white/80 rounded-3xl border-3 border-amber-200/90 p-6 sm:p-8 shadow-sm">
-              <BigInteractiveFlashcard items={topicVocabs} childId={childId} />
-            </section>
-
-            {/* Quick Action Navigation Buttons */}
-            <div className="grid sm:grid-cols-2 gap-4">
-              {/* Button: Play mini games with words */}
-              <div
-                onClick={() => {
-                  sfx.playPop();
-                  navigate('/?tab=games');
-                }}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-3xl p-5 flex items-center justify-between gap-4 cursor-pointer shadow-md hover:scale-103 active:scale-98 transition-all border-3 border-emerald-600"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shadow-inner">
-                    🎮
-                  </div>
-                  <div>
-                    <h3 className="font-black text-lg">Chơi trò chơi từ vựng</h3>
-                    <p className="text-xs font-bold text-emerald-100">
-                      Luyện phản xạ với các từ bé đã thuộc!
-                    </p>
-                  </div>
-                </div>
-                <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
-              </div>
-
-              {/* Button: Return to all topics */}
-              <div
-                onClick={() => {
-                  sfx.playPop();
-                  navigate('/?tab=topics');
-                }}
-                className="bg-white hover:bg-amber-50 border-3 border-amber-300 text-slate-700 rounded-3xl p-5 flex items-center justify-between gap-4 cursor-pointer shadow-md hover:scale-103 active:scale-98 transition-all"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-2xl shadow-inner">
-                    🌈
-                  </div>
-                  <div>
-                    <h3 className="font-black text-lg text-slate-800">Khám phá chủ đề khác</h3>
-                    <p className="text-xs font-bold text-slate-500">
-                      Rất nhiều chủ đề từ vựng phong phú!
-                    </p>
-                  </div>
-                </div>
-                <Compass className="w-6 h-6 text-amber-500 stroke-[2.5]" />
-              </div>
-            </div>
-          </div>
+          /*
+           * FlashcardView variant='topic':
+           *   • Same layout as Chặng 1 (grid 2-col md / 1-col, WordImage,
+           *     clamp font sizes, identical action bar ◀🔊🎤➜)
+           *   • Koko stays 'happy' (no state machine, no auto-advance)
+           *   • 🧡/💚 mastery buttons in right column
+           *   • Swipe left/right → handleReview/handleRemember
+           *   • onCompleteStep → FlashcardView renders its own session-
+           *     complete screen (with 🎮/🌈 CTAs) when idx >= deck.length
+           */
+          <FlashcardView
+            key={topic?._id}       /* reset deck when topic slug changes */
+            variant="topic"
+            items={topicVocabs}
+            childId={childId}
+            onCompleteStep={() => {
+              /* FlashcardView handles the completion screen internally.
+                 Nothing to do at the page level. */
+            }}
+          />
         )}
-      </main>
+      </div>
 
-      <ChildBottomNav />
-    </div>
+      {/* ── Parent sheet ── */}
+      <ParentSheet
+        isOpen={showParentSheet}
+        onClose={() => setShowParentSheet(false)}
+        topic={topic}
+        vocabItems={topicVocabs}
+        masteredCount={masteredCount}
+        reviewCount={reviewCount}
+      />
+    </LessonShell>
   );
 };

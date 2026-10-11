@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { HelpCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Activity } from '../../../types';
 import { sfx, playWordAudio } from '../../../utils/audio';
+import { WordImage } from '../common/WordImage';
+import { useFitGrid } from '../../../hooks/useFitGrid';
 
 interface CardItem {
   id: string;
@@ -26,9 +27,26 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
   const [flippedIds, setFlippedIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ w: 800, h: 420 });
+
   useEffect(() => {
-    // 3-4yo defaults to 2 pairs (4 cards) or 3 pairs (6 cards)
-    const rawPairs = (activity.questions || []).slice(0, 3);
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setDims({
+          w: entry.contentRect.width,
+          h: entry.contentRect.height,
+        });
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    // 3-4yo: Standard 4 pairs (8 cards)
+    const rawPairs = (activity.questions || []).slice(0, 4);
     const cardList: CardItem[] = [];
 
     rawPairs.forEach((q, idx) => {
@@ -62,6 +80,8 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
     const shuffled = [...cardList].sort(() => Math.random() - 0.5);
     setCards(shuffled);
   }, [activity]);
+
+  const { cardSize, gap } = useFitGrid(cards.length, dims.w, dims.h, 240);
 
   const handleCardClick = (card: CardItem) => {
     if (isProcessing || card.isFlipped || card.isMatched) return;
@@ -120,18 +140,14 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
     }
   };
 
-  // Dynamic grid column sizing based on card count (N = 4, 6, 8, 12)
-  const colsClass =
-    cards.length <= 4
-      ? 'grid-cols-2'
-      : cards.length <= 6
-      ? 'grid-cols-3'
-      : 'grid-cols-4';
-
   return (
-    <div className="w-full h-full flex flex-col justify-center items-center select-none py-1">
+    <div
+      ref={containerRef}
+      className="w-full h-full flex flex-col justify-center items-center select-none py-1 overflow-hidden"
+    >
       <div
-        className={`grid ${colsClass} gap-2.5 sm:gap-4 w-full max-w-xl max-h-[360px] justify-items-center items-center`}
+        style={{ gap: `${gap}px` }}
+        className="flex flex-wrap justify-center items-center my-auto p-2"
       >
         {cards.map((card) => {
           const showFront = card.isFlipped || card.isMatched;
@@ -143,31 +159,32 @@ export const MemoryCardEngine: React.FC<MemoryCardEngineProps> = ({
               disabled={showFront || isProcessing}
               type="button"
               style={{
-                width: 'clamp(70px, 18vw, 120px)',
-                height: 'clamp(70px, 18vw, 120px)',
+                width: `${cardSize}px`,
+                height: `${cardSize}px`,
               }}
-              className={`rounded-2xl sm:rounded-3xl border-3 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative shadow-md p-1.5 ${
+              className={`rounded-3xl border-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 relative shadow-lg p-2 ${
                 card.isMatched
-                  ? 'border-emerald-400 bg-emerald-50 scale-95 ring-4 ring-emerald-200'
+                  ? 'border-emerald-400 bg-emerald-50 scale-95 ring-6 ring-emerald-200'
                   : showFront
-                  ? 'border-amber-400 bg-white ring-4 ring-amber-200'
-                  : 'border-white bg-gradient-to-br from-amber-400 via-pink-400 to-indigo-500 hover:scale-105 active:scale-95'
+                  ? 'border-amber-400 bg-white ring-6 ring-amber-200'
+                  : 'border-white bg-gradient-to-br from-amber-400 via-pink-400 to-indigo-500 hover:scale-104 active:scale-95'
               }`}
             >
               {showFront ? (
                 card.type === 'image' && card.imageUrl ? (
-                  <img
-                    src={card.imageUrl}
-                    alt={card.text}
-                    className="max-h-full max-w-full object-contain pointer-events-none"
-                  />
+                  <div className="w-full h-full p-1 overflow-hidden rounded-2xl flex items-center justify-center">
+                    <WordImage word={{ english: card.text, imageUrl: card.imageUrl }} />
+                  </div>
                 ) : (
-                  <span className="font-black text-xs sm:text-sm text-slate-800 uppercase text-center px-1">
+                  <span
+                    style={{ fontSize: `${Math.max(18, Math.min(32, cardSize * 0.16))}px` }}
+                    className="font-black text-slate-800 uppercase text-center px-1"
+                  >
                     {card.text}
                   </span>
                 )
               ) : (
-                <HelpCircle className="w-8 h-8 text-white/90" />
+                <span className="text-4xl sm:text-5xl select-none filter drop-shadow">✨</span>
               )}
             </button>
           );

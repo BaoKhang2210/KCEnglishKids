@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Volume2, Mic, Eye, CheckCircle, RotateCcw } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Vocabulary } from '../../../types';
+import { WordImage } from '../common/WordImage';
 
 interface ParentSheetModalProps {
   isOpen: boolean;
@@ -23,6 +24,14 @@ interface ParentSheetModalProps {
   onToggleSubtitles: (val: boolean) => void;
   muted: boolean;
   onToggleMute: (val: boolean) => void;
+
+  // New preschool presentation switches
+  showCaptions?: boolean;
+  onToggleShowCaptions?: (val: boolean) => void;
+  showVietnamese?: boolean;
+  onToggleShowVietnamese?: (val: boolean) => void;
+  showPromptWordText?: boolean;
+  onToggleShowPromptWordText?: (val: boolean) => void;
 }
 
 export const ParentSheetModal: React.FC<ParentSheetModalProps> = ({
@@ -41,6 +50,12 @@ export const ParentSheetModal: React.FC<ParentSheetModalProps> = ({
   onToggleSubtitles,
   muted,
   onToggleMute,
+  showCaptions = true,
+  onToggleShowCaptions,
+  showVietnamese = false,
+  onToggleShowVietnamese,
+  showPromptWordText = false,
+  onToggleShowPromptWordText,
 }) => {
   if (!isOpen) return null;
 
@@ -99,12 +114,44 @@ export const ParentSheetModal: React.FC<ParentSheetModalProps> = ({
             </div>
           </div>
 
-          {/* 2. Audio & Accessibility Switches */}
+          {/* 2. Visual & Audio Presentation Switches */}
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
-              Tùy chọn tương tác & Giọng nói
+              Tùy chọn hiển thị & Ngôn ngữ
             </h4>
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-3 space-y-2.5">
+              <label className="flex items-center justify-between cursor-pointer text-xs font-bold text-slate-700">
+                <span>Hiện chữ tiếng Anh dưới thẻ (Captions)</span>
+                <input
+                  type="checkbox"
+                  checked={showCaptions}
+                  onChange={(e) => onToggleShowCaptions?.(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500"
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer text-xs font-bold text-slate-700">
+                <span>Hiện nghĩa tiếng Việt dưới thẻ (Mặc định tắt cho bé 3–4t)</span>
+                <input
+                  type="checkbox"
+                  checked={showVietnamese}
+                  onChange={(e) => onToggleShowVietnamese?.(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500"
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer text-xs font-bold text-slate-700">
+                <span>Hiện chữ của từ câu hỏi (Mặc định tắt tránh lộ đáp án)</span>
+                <input
+                  type="checkbox"
+                  checked={showPromptWordText}
+                  onChange={(e) => onToggleShowPromptWordText?.(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500"
+                />
+              </label>
+
+              <div className="pt-1 border-t border-slate-200" />
+
               <label className="flex items-center justify-between cursor-pointer text-xs font-bold text-slate-700">
                 <span>Tự động chuyển từ (Auto Advance)</span>
                 <input
@@ -161,22 +208,15 @@ export const ParentSheetModal: React.FC<ParentSheetModalProps> = ({
                     className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2.5">
-                      {w.imageUrl ? (
-                        <img
-                          src={w.imageUrl}
-                          alt={w.english}
-                          className="w-10 h-10 object-contain rounded-lg bg-white border border-slate-200 p-0.5"
-                        />
-                      ) : (
-                        <span className="text-xl">🐾</span>
-                      )}
+                      <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden">
+                        <WordImage word={w} />
+                      </div>
                       <div>
                         <p className="font-black text-xs text-slate-800">{w.english}</p>
                         <p className="text-[11px] font-bold text-slate-500">{w.vietnamese}</p>
                       </div>
                     </div>
 
-                    {/* Stats Pill */}
                     <div className="flex items-center gap-1.5 text-[11px]">
                       {stat ? (
                         stat.firstTry ? (

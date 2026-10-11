@@ -39,6 +39,7 @@ import {
   BookOpen,
   CheckCircle2,
   ChevronRight,
+  Download,
   Eye,
   EyeOff,
   Lock,
@@ -47,6 +48,7 @@ import {
   X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { childExportApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { ALL_BADGES } from '../../data/badges';
@@ -161,12 +163,12 @@ const StatTile: React.FC<StatTileProps> = ({ icon, value, label, color }) => (
 
 // ─── Parent Gate ─────────────────────────────────────────────────────────────
 
-interface ParentGateProps {
+export interface ParentGateProps {
   onUnlock: () => void;
   onCancel: () => void;
 }
 
-const ParentGate: React.FC<ParentGateProps> = ({ onUnlock, onCancel }) => {
+export const ParentGate: React.FC<ParentGateProps> = ({ onUnlock, onCancel }) => {
   const [q] = useState(makeMathQuestion);
   const [input, setInput] = useState('');
   const [error, setError] = useState(false);
@@ -279,6 +281,83 @@ const SensitiveField: React.FC<SensitiveFieldProps> = ({
       >
         {revealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
+    </div>
+  );
+};
+
+// ─── Export buttons ───────────────────────────────────────────────────────────
+// Placed in the parent layer so children cannot accidentally trigger a download.
+
+interface ExportButtonsProps {
+  childId: string;
+}
+
+const ExportButtons: React.FC<ExportButtonsProps> = ({ childId }) => {
+  const [loadingFormat, setLoadingFormat] = useState<'json' | 'csv' | null>(null);
+  const [exportError, setExportError]     = useState<string | null>(null);
+
+  const handleExport = async (format: 'json' | 'csv') => {
+    setLoadingFormat(format);
+    setExportError(null);
+    try {
+      const blob     = await childExportApi.exportData(childId, format);
+      const mimeType = format === 'json' ? 'application/json' : 'text/csv';
+      const url      = URL.createObjectURL(new Blob([blob], { type: mimeType }));
+      const a        = document.createElement('a');
+      a.href         = url;
+      a.download     = `kc_export_${Date.now()}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setExportError('Không thể xuất dữ liệu. Vui lòng thử lại.');
+      console.error('[ExportButtons]', err);
+    } finally {
+      setLoadingFormat(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-black text-slate-500 uppercase tracking-wide">
+        Xuất dữ liệu học tập
+      </p>
+      <div className="flex gap-2">
+        {/* JSON download */}
+        <button
+          onClick={() => handleExport('json')}
+          disabled={!!loadingFormat}
+          aria-label="Xuất dữ liệu định dạng JSON"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 hover:bg-amber-50 hover:border-amber-300 border-2 border-slate-200 text-slate-700 font-black text-xs cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+        >
+          {loadingFormat === 'json' ? (
+            <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Download className="w-3.5 h-3.5" />
+          )}
+          JSON
+        </button>
+
+        {/* CSV download */}
+        <button
+          onClick={() => handleExport('csv')}
+          disabled={!!loadingFormat}
+          aria-label="Xuất dữ liệu định dạng CSV (mở được bằng Excel)"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:border-emerald-300 border-2 border-slate-200 text-slate-700 font-black text-xs cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+        >
+          {loadingFormat === 'csv' ? (
+            <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Download className="w-3.5 h-3.5" />
+          )}
+          CSV (Excel)
+        </button>
+      </div>
+
+      {exportError && (
+        <p className="text-xs font-bold text-red-500" role="alert">{exportError}</p>
+      )}
     </div>
   );
 };
@@ -579,6 +658,9 @@ export const ChildProfilePanel: React.FC<ChildProfilePanelProps> = ({
                 <p className="mb-1 font-black text-slate-500">Dữ liệu được lưu trữ:</p>
                 <p>Tên hiển thị, cấp sách, tiến độ học (sao, bài đã hoàn thành, từ vựng). Dữ liệu chỉ dùng để cá nhân hoá trải nghiệm học và theo dõi tiến độ.</p>
               </div>
+
+              {/* Export buttons */}
+              <ExportButtons childId={childId} />
 
               {/* Re-lock */}
               <button

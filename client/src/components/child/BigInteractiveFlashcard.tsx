@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   RotateCw,
-  Sparkles,
   Check,
   ChevronLeft,
   RefreshCw,
-  Mic
+  Gamepad2,
+  Compass,
+  Sparkles,
+  Mic,
+  List,
+  X,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Vocabulary } from '../../types';
 import { AudioButton } from './AudioButton';
 import { sfx, playWordAudio } from '../../utils/audio';
@@ -29,6 +34,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   onCompleteStep
 }) => {
   const { user } = useAuth();
+  const navigate  = useNavigate();
   const effectiveChildId = childId || (user as any)?.id || (user as any)?._id || 'guest';
 
   // Active study deck (can expand if words needing review are re-queued)
@@ -46,6 +52,9 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   const [sessionMastered, setSessionMastered] = useState<string[]>([]);
   const [sessionReview, setSessionReview] = useState<string[]>([]);
   const [showEncouragement, setShowEncouragement] = useState(false);
+
+  // Word list bottom-sheet
+  const [wordListOpen, setWordListOpen] = useState(false);
 
   const handleSpeakAlong = (word: string, audio?: string) => {
     if (isSpeakingAlong) return;
@@ -95,50 +104,77 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
     const uniqueReview = new Set(sessionReview).size;
 
     return (
-      <div className="w-full max-w-lg mx-auto bg-gradient-to-b from-amber-50 via-white to-emerald-50 rounded-3xl border-4 border-amber-300 p-8 text-center shadow-xl">
-        <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-400/20 border-2 border-amber-300 flex items-center justify-center text-4xl mb-4 shadow-sm">
-          🏆
-        </div>
-        <h3 className="text-2xl sm:text-3xl font-black text-slate-800 mb-2">
-          Bé đã hoàn thành lượt học! 🎉
-        </h3>
-        <p className="text-sm sm:text-base font-extrabold text-slate-500 mb-6">
-          Bé đã khám phá tất cả các từ vựng trong Lesson này!
-        </p>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 text-center">
-            <span className="text-3xl font-black text-emerald-600 block mb-1">
-              {uniqueMastered}
-            </span>
-            <span className="text-xs font-black text-emerald-800 uppercase tracking-wide">
-              💚 Đã nhớ tốt
-            </span>
+      /* Fills the flex-1 space given by the parent — no fixed height */
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 p-4 overflow-y-auto">
+        <div className="w-full max-w-md bg-gradient-to-b from-amber-50 via-white to-emerald-50 rounded-3xl border-4 border-amber-300 p-6 text-center shadow-xl flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-3xl bg-amber-400/20 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-sm">
+            🏆
           </div>
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
-            <span className="text-3xl font-black text-amber-600 block mb-1">
-              {uniqueReview}
-            </span>
-            <span className="text-xs font-black text-amber-800 uppercase tracking-wide">
-              💡 Cần nhắc lại
-            </span>
-          </div>
-        </div>
+          <h3 className="text-xl sm:text-2xl font-black text-slate-800">
+            Bé đã xem hết {items.length} từ! 🎉
+          </h3>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-3 text-center">
+              <span className="text-2xl font-black text-emerald-600 block">{uniqueMastered}</span>
+              <span className="text-xs font-black text-emerald-800">💚 Đã nhớ</span>
+            </div>
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 text-center">
+              <span className="text-2xl font-black text-amber-600 block">{uniqueReview}</span>
+              <span className="text-xs font-black text-amber-800">💡 Cần ôn</span>
+            </div>
+          </div>
+
+          {/* Primary CTA from lesson flow */}
           {onCompleteStep && (
             <button
               type="button"
-              onClick={() => {
-                sfx.playSuccess();
-                onCompleteStep();
-              }}
-              className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm sm:text-base py-3 px-6 rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
+              onClick={() => { sfx.playSuccess(); onCompleteStep(); }}
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm py-3 px-6 rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
             >
-              <span>Tiến tới phần Luyện tập 🚀</span>
+              Tiến tới phần Luyện tập 🚀
             </button>
           )}
+
+          {/* Topic-page CTAs — visible when not inside a lesson (no onCompleteStep) */}
+          {!onCompleteStep && (
+            <div className="w-full flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => { sfx.playPop(); navigate('/?tab=games'); }}
+                className="w-full flex items-center justify-between gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl px-4 py-3 cursor-pointer shadow-md active:scale-95 transition-all"
+                style={{ minHeight: '56px' }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎮</span>
+                  <div className="text-left">
+                    <p className="font-black text-sm">Chơi trò chơi từ vựng</p>
+                    <p className="text-xs text-emerald-100 font-bold">Luyện phản xạ với từ đã nhớ!</p>
+                  </div>
+                </div>
+                <Gamepad2 className="w-5 h-5 flex-shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { sfx.playPop(); navigate('/?tab=topics'); }}
+                className="w-full flex items-center justify-between gap-3 bg-white hover:bg-amber-50 border-3 border-amber-300 text-slate-700 rounded-2xl px-4 py-3 cursor-pointer shadow-md active:scale-95 transition-all"
+                style={{ minHeight: '56px' }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🌈</span>
+                  <div className="text-left">
+                    <p className="font-black text-sm text-slate-800">Chủ đề khác</p>
+                    <p className="text-xs text-slate-500 font-bold">Khám phá thêm từ vựng!</p>
+                  </div>
+                </div>
+                <Compass className="w-5 h-5 text-amber-500 flex-shrink-0" />
+              </button>
+            </div>
+          )}
+
+          {/* Review again */}
           <button
             type="button"
             onClick={() => {
@@ -149,10 +185,10 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
               setSessionMastered([]);
               setSessionReview([]);
             }}
-            className="w-full sm:w-auto btn-3d-amber text-amber-950 font-black text-sm sm:text-base py-3 px-6 rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-700 font-bold text-sm cursor-pointer transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Học lại từ đầu</span>
+            Học lại từ đầu
           </button>
         </div>
       </div>
@@ -290,41 +326,63 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   const isReviewWord = vocabMasteryService.isReview(effectiveChildId, currentItem._id);
 
   return (
-    <div className="w-full flex flex-col items-center relative">
+    /*
+     * flex-1 min-h-0: fills the parent's available height without overflow.
+     * The parent (TopicDetailPage content zone) is flex-1 min-h-0 inside
+     * LessonShell, so this component occupies the exact remaining viewport.
+     */
+    <div className="w-full flex-1 min-h-0 flex flex-col items-center relative overflow-hidden">
       {/* Encouragement banner – inline, no fixed/overflow */}
       {showEncouragement && (
-        <div className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-950 font-black px-5 py-3 rounded-2xl shadow-md border-2 border-white animate-pop-in mb-3">
+        <div className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-950 font-black px-5 py-3 rounded-2xl shadow-md border-2 border-white animate-pop-in mb-3 flex-shrink-0">
           <span className="text-xl flex-shrink-0">💪</span>
           <span className="text-sm">Bé cố lên nhé! Thử lại từ này ở cuối lượt học nào! ✨</span>
         </div>
       )}
 
-      {/* Top Header & Instruction info */}
-      <div className="w-full max-w-lg flex items-center justify-between mb-3 px-2">
-        <span className="bg-amber-100 text-amber-900 text-sm font-black px-4 py-1.5 rounded-full border-2 border-amber-300 shadow-xs flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4 text-amber-600 fill-amber-500" />
-          Thẻ {currentIndex + 1} / {deck.length}
+      {/* ── Status row: counter + mastery badge + word-list trigger ──
+           flex-shrink-0 so it never gets squashed.
+           The 📋 button opens the word-list bottom-sheet. */}
+      <div className="w-full flex items-center justify-between mb-2 px-1 flex-shrink-0">
+        {/* Card counter */}
+        <span className="bg-amber-100 text-amber-900 text-xs font-black px-3 py-1.5 rounded-full border border-amber-300 flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+          {currentIndex + 1} / {deck.length}
         </span>
 
-        {/* Current Word Status Badge */}
+        {/* Mastery badge */}
         {isMasteredWord ? (
           <span className="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1.5 rounded-full border border-emerald-300 flex items-center gap-1">
-            <Check className="w-3.5 h-3.5 stroke-[3]" /> Đã nhớ
+            <Check className="w-3 h-3 stroke-[3]" /> Đã nhớ
           </span>
         ) : isReviewWord ? (
-          <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1.5 rounded-full border border-amber-300 flex items-center gap-1">
-            💡 Cần ôn lại
+          <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1.5 rounded-full border border-amber-300">
+            💡 Cần ôn
           </span>
         ) : (
-          <span className="text-xs font-extrabold text-slate-500 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-xs">
-            Quẹt để ghi nhớ 👆
-          </span>
+          <span className="w-4" /> /* spacer */
+        )}
+
+        {/* Word list trigger (📋) */}
+        {items.length > 1 && (
+          <button
+            type="button"
+            onClick={() => { sfx.playPop(); setWordListOpen(true); }}
+            aria-label={`Xem danh sách ${items.length} từ`}
+            style={{ minWidth: '40px', minHeight: '40px' }}
+            className="rounded-2xl bg-white border-2 border-slate-200 hover:border-amber-300 hover:bg-amber-50 flex items-center justify-center text-slate-600 cursor-pointer active:scale-95 transition-all shadow-xs"
+          >
+            <List className="w-5 h-5" />
+          </button>
         )}
       </div>
 
-      {/* 3D Flip & Swipe Card Container */}
+      {/* ── 3D Flip & Swipe Card Container ──
+           flex-1 min-h-0 fills whatever space the parent gives.
+           The parent (TopicDetailPage zone) controls the actual height.
+           touch-none stops pointer-capture interference with swipe. */}
       <div
-        className="w-full max-w-lg sm:max-w-xl md:max-w-2xl h-[480px] sm:h-[540px] md:h-[580px] relative touch-none select-none"
+        className="w-full flex-1 min-h-0 relative touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -503,68 +561,70 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
         </div>
       </div>
 
-      {/* Big Tactile Action Buttons: Chưa nhớ (Trái) - Lật thẻ (Giữa) - Đã nhớ (Phải) */}
-      <div className="w-full max-w-lg sm:max-w-xl md:max-w-2xl grid grid-cols-3 gap-3 sm:gap-5 mt-6">
-        {/* Nút Chưa Nhớ (Trái) */}
+      {/* ── Action Bar: ◀ prev | Chưa nhớ | Lật nghĩa | Đã nhớ ──
+           flex-shrink-0 so it always stays at the bottom of the viewport.
+           Lề đáy = max(24px, safe-area) is handled by LessonShell. */}
+      <div className="w-full flex items-center justify-center gap-3 sm:gap-4 pt-2 flex-shrink-0">
+        {/* ◀ Back to previous card */}
+        <button
+          type="button"
+          onClick={handlePrev}
+          disabled={currentIndex === 0}
+          aria-label="Quay lại thẻ trước"
+          style={{ width: '56px', height: '72px' }}
+          className={`rounded-2xl border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+            currentIndex === 0
+              ? 'opacity-30 border-slate-200 text-slate-300 cursor-not-allowed'
+              : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-600 active:scale-95 cursor-pointer shadow-xs'
+          }`}
+        >
+          <ChevronLeft className="w-7 h-7 stroke-[2.5]" />
+        </button>
+
+        {/* Chưa nhớ */}
         <button
           type="button"
           onClick={handleReview}
-          className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3.5 sm:py-4 px-3 rounded-2xl bg-gradient-to-b from-amber-50 to-orange-100 hover:from-amber-100 hover:to-orange-200 border-b-6 border-orange-300 text-orange-950 font-black text-xs sm:text-base shadow-md active:translate-y-1 active:border-b-2 transition-all cursor-pointer select-none"
+          aria-label="Chưa nhớ từ này — đánh dấu cần ôn lại"
+          style={{ minHeight: '72px', flex: '1' }}
+          className="flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-2xl bg-gradient-to-b from-amber-50 to-orange-100 hover:from-amber-100 hover:to-orange-200 border-b-4 border-orange-300 text-orange-950 font-black text-sm shadow-md active:translate-y-1 active:border-b-2 transition-all cursor-pointer select-none"
         >
-          <span className="text-xl sm:text-2xl">🧡</span>
-          <span className="text-center font-display">Chưa nhớ</span>
-          <span className="text-[10px] text-orange-800 font-extrabold hidden md:inline">(Trái)</span>
+          <span className="text-2xl">🧡</span>
+          <span>Chưa nhớ</span>
         </button>
 
-        {/* Nút Lật Thẻ (Giữa) */}
+        {/* Lật nghĩa — most prominent */}
         <button
           type="button"
           onClick={handleFlip}
-          className="btn-3d-amber text-amber-950 font-black text-xs sm:text-base py-3.5 sm:py-4 px-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none"
+          aria-label={isFlipped ? 'Lật lại mặt tiếng Anh' : 'Lật xem nghĩa tiếng Việt'}
+          style={{ minHeight: '72px', flex: '1.2' }}
+          className="btn-3d-amber text-amber-950 font-black text-sm py-2 px-3 rounded-2xl flex flex-col items-center justify-center gap-1 cursor-pointer shadow-md select-none"
         >
-          <RotateCw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-          <span className="font-display">{isFlipped ? 'Mặt Anh' : 'Lật nghĩa'}</span>
+          <RotateCw className="w-5 h-5 stroke-[2.5]" />
+          <span>{isFlipped ? 'Mặt Anh' : 'Lật nghĩa'}</span>
         </button>
 
-        {/* Nút Đã Nhớ (Phải) */}
+        {/* Đã nhớ */}
         <button
           type="button"
           onClick={handleRemember}
-          className="btn-3d-emerald text-white font-black text-xs sm:text-base py-3.5 sm:py-4 px-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none"
+          aria-label="Đã nhớ từ này — lưu vào danh sách đã thuộc"
+          style={{ minHeight: '72px', flex: '1' }}
+          className="btn-3d-emerald text-white font-black text-sm py-2 px-3 rounded-2xl flex flex-col items-center justify-center gap-1 cursor-pointer shadow-md select-none"
         >
-          <span className="text-xl sm:text-2xl">💚</span>
-          <span className="text-center font-display">Đã nhớ!</span>
-          <span className="text-[10px] text-emerald-100 font-extrabold hidden md:inline">(Phải)</span>
+          <span className="text-2xl">💚</span>
+          <span>Đã nhớ!</span>
         </button>
       </div>
 
-      {/* Previous / Next Card Helper */}
-      <div className="w-full max-w-2xl sm:max-w-3xl flex items-center justify-between text-xs sm:text-sm font-bold text-slate-400 mt-4 px-3">
-        <button
-          onClick={handlePrev}
-          disabled={currentIndex === 0}
-          className={`flex items-center gap-1.5 ${
-            currentIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:text-slate-700 cursor-pointer'
-          }`}
-        >
-          <ChevronLeft className="w-5 h-5" />
-          <span>Quay lại từ trước</span>
-        </button>
-        <span className="text-slate-400 text-xs sm:text-sm">
-          Vuốt trái: Chưa nhớ • Vuốt phải: Đã nhớ
-        </span>
-      </div>
-
-      {/* Advance to Practice Button */}
+      {/* ── Advance to next stage (lesson flow only) ── */}
       {onCompleteStep && (
-        <div className="w-full max-w-2xl sm:max-w-3xl mt-4">
+        <div className="w-full pt-2 flex-shrink-0">
           <button
             type="button"
-            onClick={() => {
-              sfx.playSuccess();
-              onCompleteStep();
-            }}
-            className="w-full py-4 sm:py-5 px-6 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-base sm:text-lg shadow-xl hover:shadow-2xl hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-3 cursor-pointer border-3 border-emerald-400"
+            onClick={() => { sfx.playSuccess(); onCompleteStep(); }}
+            className="w-full py-3.5 px-6 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-base shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer border-3 border-emerald-400"
           >
             <span>Bé đã sẵn sàng! Chuyển sang Luyện tập</span>
             <span className="text-2xl">🚀</span>
@@ -572,53 +632,84 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
         </div>
       )}
 
-      {/* Mini Thumbnails Carousel with Mastery status dots */}
-      {items.length > 1 && (
-        <div className="w-full max-w-2xl sm:max-w-3xl mt-6 bg-white/70 border-3 border-amber-200/80 rounded-3xl p-4 shadow-xs">
-          <p className="text-xs font-black uppercase text-amber-800 tracking-wider mb-3 px-2 flex items-center justify-between">
-            <span>Danh sách từ trong Lesson ({items.length})</span>
-            <span className="text-[10px] text-slate-500 font-bold">
-              💚 Đã nhớ • 💡 Cần ôn
-            </span>
-          </p>
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {items.map((vocab, idx) => {
-              const isSelected = idx === currentIndex;
-              const isItemMastered = vocabMasteryService.isMastered(effectiveChildId, vocab._id);
-              const isItemReview = vocabMasteryService.isReview(effectiveChildId, vocab._id);
+      {/* ── Word-list bottom-sheet ──
+           max-height 70dvh, scrolls internally, locks body scroll when open. */}
+      {wordListOpen && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setWordListOpen(false)}
+        >
+          <div
+            className="bg-white rounded-t-3xl border-t-4 border-amber-300 shadow-2xl flex flex-col"
+            style={{ maxHeight: '70dvh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1.5 rounded-full bg-slate-200" />
+            </div>
 
-              return (
-                <button
-                  key={vocab._id || idx}
-                  onClick={() => {
-                    sfx.playPop();
-                    setCurrentIndex(idx);
-                    playWordAudio(items[idx].english, items[idx].audioUrl);
-                  }}
-                  className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-2xl border-2 transition-all cursor-pointer relative ${
-                    isSelected
-                      ? 'border-amber-400 bg-amber-100 shadow-sm scale-105 ring-2 ring-amber-300'
-                      : 'border-slate-200 bg-white hover:border-amber-300'
-                  }`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center overflow-hidden relative">
-                    {vocab.imageUrl ? (
-                      <img src={vocab.imageUrl} alt={vocab.english} className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-xs">🐾</span>
-                    )}
-                  </div>
-                  <span className="text-xs font-black text-slate-800 capitalize">{vocab.english}</span>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pb-3 flex-shrink-0 border-b border-slate-100">
+              <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+                <List className="w-4 h-4 text-amber-600" />
+                Danh sách từ ({items.length})
+              </h3>
+              <button
+                onClick={() => setWordListOpen(false)}
+                aria-label="Đóng danh sách từ"
+                style={{ minWidth: '48px', minHeight: '48px' }}
+                className="rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
 
-                  {/* Indicator Dot */}
-                  {isItemMastered ? (
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Đã nhớ" />
-                  ) : isItemReview ? (
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white" title="Cần ôn lại" />
-                  ) : null}
-                </button>
-              );
-            })}
+            {/* Scrollable word grid */}
+            <div className="overflow-y-auto flex-1 p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {items.map((vocab, vIdx) => {
+                  const isSel      = vIdx === currentIndex;
+                  const isMast     = vocabMasteryService.isMastered(effectiveChildId, vocab._id);
+                  const isRev      = vocabMasteryService.isReview(effectiveChildId, vocab._id);
+                  return (
+                    <button
+                      key={vocab._id || vIdx}
+                      onClick={() => {
+                        sfx.playPop();
+                        setCurrentIndex(vIdx);
+                        playWordAudio(vocab.english, vocab.audioUrl);
+                        setWordListOpen(false);
+                      }}
+                      style={{ minHeight: '72px' }}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border-2 transition-all cursor-pointer text-left ${
+                        isSel
+                          ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-amber-200'
+                      }`}
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {vocab.imageUrl
+                          ? <img src={vocab.imageUrl} alt={vocab.english} className="w-full h-full object-contain" />
+                          : <span className="text-base">🐾</span>}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-black text-slate-800 block truncate capitalize">{vocab.english}</span>
+                        <span className="text-xs font-bold text-slate-400 truncate block">{vocab.vietnamese}</span>
+                      </div>
+                      {/* Status dot */}
+                      {isMast
+                        ? <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" title="Đã nhớ" />
+                        : isRev
+                        ? <span className="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0" title="Cần ôn" />
+                        : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
