@@ -132,6 +132,8 @@ export const FlashcardView: React.FC<FlashcardViewProps> = ({
     setDeck(items);
     setIdx(0);
     setPassiveCount(0);
+    setSessionMastered([]);
+    setSessionReview([]);
   }, [items]);
 
   // ── Reset drag on card change ─────────────────────────────────────────────
@@ -262,6 +264,7 @@ export const FlashcardView: React.FC<FlashcardViewProps> = ({
     setExitDir('right');
     vocabMasteryService.markMastered(childId, deck[idx]);
     setMasteryTick(t => t + 1);
+    setSessionMastered(prev => [...prev, deck[idx]._id]);
     setTimeout(() => {
       setExitDir(null);
       setDragOffset(0);
@@ -277,6 +280,7 @@ export const FlashcardView: React.FC<FlashcardViewProps> = ({
     // Re-queue for spaced repetition
     setDeck(prev => [...prev, prev[idx]]);
     setMasteryTick(t => t + 1);
+    setSessionReview(prev => [...prev, deck[idx]._id]);
     setTimeout(() => {
       setExitDir(null);
       setDragOffset(0);
@@ -318,6 +322,76 @@ export const FlashcardView: React.FC<FlashcardViewProps> = ({
   // ── Early returns ─────────────────────────────────────────────────────────
   if (!deck.length) return null;
   if (idx >= deck.length) {
+    // ── Topic completion screen ───────────────────────────────────────────
+    if (isTopic) {
+      const uniqueMastered = new Set(sessionMastered).size;
+      const uniqueReview   = new Set(sessionReview).size;
+      return (
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-5 p-5 overflow-y-auto">
+          <div className="w-full max-w-sm bg-white rounded-3xl border-4 border-amber-300 shadow-xl p-6 flex flex-col items-center gap-4 text-center">
+            {/* Koko celebrating */}
+            <KokoMascot state="celebrating" size="md" interactive={false} />
+
+            <div>
+              <h2 className="font-black text-2xl text-slate-800">
+                Giỏi lắm bé ơi! 🎉
+              </h2>
+              <p className="text-slate-500 font-bold text-sm mt-1">
+                Bé đã xem hết {items.length} từ trong chủ đề này!
+              </p>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3">
+                <p className="text-2xl font-black text-emerald-600">{uniqueMastered}</p>
+                <p className="text-xs font-black text-emerald-700">💚 Đã nhớ</p>
+              </div>
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3">
+                <p className="text-2xl font-black text-amber-600">{uniqueReview}</p>
+                <p className="text-xs font-black text-amber-700">🧡 Cần ôn</p>
+              </div>
+            </div>
+
+            {/* Primary actions */}
+            <div className="flex flex-col gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => { sfx.playPop(); navigate('/?tab=games'); }}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-base shadow-lg active:scale-95 transition-all cursor-pointer"
+                style={{ minHeight: '56px' }}
+              >
+                🎮 Chơi trò chơi từ vựng
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playPop();
+                  setDeck(items);
+                  setIdx(0);
+                  setSessionMastered([]);
+                  setSessionReview([]);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-950 font-black text-base active:scale-95 transition-all cursor-pointer"
+                style={{ minHeight: '56px' }}
+              >
+                🔁 Xem lại từ đầu
+              </button>
+            </div>
+
+            {/* Secondary */}
+            <button
+              type="button"
+              onClick={() => { sfx.playPop(); navigate('/'); }}
+              className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer transition-colors"
+            >
+              🏠 Về trang chủ
+            </button>
+          </div>
+        </div>
+      );
+    }
     // Lesson → caller handles (onCompleteStep already called)
     return null;
   }
