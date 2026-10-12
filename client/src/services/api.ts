@@ -235,9 +235,11 @@ export const teacherApi = {
   }) => api.post('/teacher/assignments', data),
   updateAssignmentStatus: (id: string, status: string) =>
     api.patch(`/teacher/assignments/${id}/status`, { status }),
-  cancelAssignment: (id: string) => api.patch(`/teacher/assignments/${id}/status`, { status: 'CANCELLED' }),
-  // Legacy dashboard compatibility: cancellation preserves result history.
-  deleteAssignment: (id: string) => api.patch(`/teacher/assignments/${id}/status`, { status: 'CANCELLED' }),
+  cancelAssignment: (id: string) =>
+    api.patch(`/teacher/assignments/${id}/status`, { status: 'CANCELLED' }),
+  deleteAssignment: (id: string) => api.delete(`/teacher/assignments/${id}`),
+  reviewSubmission: (assignmentId: string, childId: string, data: { comment?: string; bonusStars?: number; notifyParent?: boolean }) =>
+    api.post(`/teacher/assignments/${assignmentId}/submissions/${childId}/review`, data),
   getCurriculumOptions: (ageGroupCode?: string) => {
     const query = ageGroupCode ? `?ageGroupCode=${ageGroupCode}` : '';
     return api.get(`/teacher/curriculum-options${query}`);

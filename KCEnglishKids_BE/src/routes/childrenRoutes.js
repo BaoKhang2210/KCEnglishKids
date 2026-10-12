@@ -35,7 +35,7 @@ router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(),
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');
-const { Assignment, User } = require('../models');
+const { Assignment, User, ActivityResult } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
 router.post('/:childId/parent-notifications/:id/reply', protect, ownChildOr403(), pn.replyAsParent);
@@ -54,12 +54,28 @@ router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, n
         ...(child.assignedClass ? [{ classRoom: child.assignedClass, assignedToType: 'CLASS' }] : [])
       ]
     };
-    const data = await Assignment.find(q)
+    const assignments = await Assignment.find(q)
       .populate('lesson', 'title vietnameseTitle')
-      .populate('activity', 'title activityType')
+      .populate('activity', 'title activityType instructions passingScore maxScore')
       .populate('teacher', 'name')
       .sort({ createdAt: -1 });
-    res.json({ success: true, count: data.length, data });
+
+    const dataWithStatus = await Promise.all(assignments.map(async (a) => {
+      const aObj = a.toObject();
+      const resQuery = {
+        child: childId,
+        ...(a.activity ? { activity: a.activity._id } : { lesson: a.lesson._id })
+      };
+      const result = await ActivityResult.findOne(resQuery)
+        .select('score stars duration completed createdAt teacherFeedback')
+        .sort({ createdAt: -1 });
+
+      aObj.isCompleted = !!result;
+      aObj.result = result || null;
+      return aObj;
+    }));
+
+    res.json({ success: true, count: dataWithStatus.length, data: dataWithStatus });
   } catch (e) {
     next(e);
   }

@@ -84,9 +84,227 @@ exports.createAssignment = async (req, res, next) => { try {
   const { classRoomId, assignedToType = 'CLASS', studentId, lessonId, activityId, dueDate, startDate, instructions } = req.body; if (![classRoomId, lessonId].every(validId) || !['CLASS', 'STUDENT'].includes(assignedToType)) return invalid(res, 'Classroom, lesson and target are required.'); const room = await classFor(req, classRoomId); if (!room) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); if (!(await Lesson.exists({ _id: lessonId, status: 'ACTIVE' }))) return invalid(res, 'Selected lesson is unavailable.'); if (activityId && !(await Activity.exists({ _id: activityId, lesson: lessonId, status: 'ACTIVE' }))) return invalid(res, 'Selected activity is unavailable for this lesson.'); if (assignedToType === 'STUDENT' && (!validId(studentId) || !room.students.some(x => String(x) === studentId))) return invalid(res, 'Selected child is not in this classroom.'); const item = await Assignment.create({ teacher: req.user._id, classRoom: room._id, assignedToType, student: assignedToType === 'STUDENT' ? studentId : null, lesson: lessonId, activity: activityId || null, dueDate: dueDate || null, startDate: startDate || null, instructions: String(instructions || '').trim() }); res.status(201).json({ success: true, data: item });
 } catch (e) { next(e); } };
 exports.getAssignments = async (req, res, next) => { try { const q = { teacher: req.user._id }; if (req.query.classRoomId) q.classRoom = req.query.classRoomId; if (req.query.status) q.status = req.query.status; const data = await Assignment.find(q).populate('classRoom', 'name students').populate('student', 'name avatar avatarUrl').populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }); res.json({ success: true, count: data.length, data }); } catch (e) { next(e); } };
-exports.getAssignment = async (req, res, next) => { try { const assignment = await Assignment.findOne({ _id: req.params.id, teacher: req.user._id }).populate('classRoom', 'name students').populate('student', 'name avatar').populate('lesson', 'title').populate('activity', 'title activityType'); if (!assignment) return res.status(403).json({ success: false, message: 'You do not have access to this assignment.' }); const ids = assignment.assignedToType === 'STUDENT' ? [assignment.student._id] : assignment.classRoom.students; const results = await ActivityResult.find({ child: { $in: ids }, ...(assignment.activity ? { activity: assignment.activity._id } : { lesson: assignment.lesson._id }) }).populate('child', 'name avatar').sort({ createdAt: -1 }); res.json({ success: true, data: { assignment, results } }); } catch (e) { next(e); } };
-exports.updateAssignment = async (req, res, next) => { try { const values = {}; ['dueDate', 'startDate', 'instructions'].forEach(k => { if (req.body[k] !== undefined) values[k] = req.body[k] || null; }); const data = await Assignment.findOneAndUpdate({ _id: req.params.id, teacher: req.user._id, status: { $nin: ['COMPLETED', 'CANCELLED'] } }, values, { new: true, runValidators: true }); if (!data) return res.status(403).json({ success: false, message: 'This assignment cannot be edited.' }); res.json({ success: true, data }); } catch (e) { next(e); } };
-exports.updateAssignmentStatus = async (req, res, next) => { try { if (!['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(req.body.status)) return invalid(res, 'Invalid assignment status.'); const data = await Assignment.findOneAndUpdate({ _id: req.params.id, teacher: req.user._id }, { status: req.body.status }, { new: true }); if (!data) return res.status(403).json({ success: false, message: 'You do not have access to this assignment.' }); res.json({ success: true, data }); } catch (e) { next(e); } };
+exports.getAssignment = async (req, res, next) => {
+  try {
+    const assignment = await Assignment.findOne({ _id: req.params.id, teacher: req.user._id })
+      .populate({
+        path: 'classRoom',
+        select: 'name ageGroupCode students',
+        populate: {
+          path: 'students',
+          select: 'name username avatar avatarUrl stars totalScore'
+        }
+      })
+      .populate('student', 'name username avatar avatarUrl stars totalScore')
+      .populate('lesson', 'title vietnameseTitle')
+      .populate('activity', 'title activityType instructions passingScore maxScore');
+
+    if (!assignment) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this assignment.' });
+    }
+
+    let targetStudents = [];
+    if (assignment.assignedToType === 'STUDENT' && assignment.student) {
+      targetStudents = [assignment.student];
+    } else if (assignment.classRoom && Array.isArray(assignment.classRoom.students)) {
+      targetStudents = assignment.classRoom.students;
+    }
+
+    const studentIds = targetStudents.map(s => s._id || s);
+
+    const query = {
+      child: { $in: studentIds }
+    };
+    if (assignment.activity) {
+      query.activity = assignment.activity._id;
+    } else if (assignment.lesson) {
+      query.lesson = assignment.lesson._id;
+    }
+
+    const results = await ActivityResult.find(query)
+      .populate('child', 'name username avatar avatarUrl')
+      .populate('answers.vocabularyId', 'english vietnamese imageUrl pronunciation')
+      .sort({ createdAt: -1 });
+
+    const resultsByChild = new Map();
+    results.forEach(r => {
+      const cId = String(r.child?._id || r.child);
+      if (!resultsByChild.has(cId)) {
+        resultsByChild.set(cId, r);
+      }
+    });
+
+    const studentSubmissions = targetStudents.map(student => {
+      const sId = String(student._id || student);
+      const submission = resultsByChild.get(sId) || null;
+      return {
+        student: {
+          _id: student._id || student,
+          name: student.name || 'Học sinh',
+          username: student.username || '',
+          avatar: student.avatar || '',
+          avatarUrl: student.avatarUrl || ''
+        },
+        hasSubmitted: !!submission,
+        submission: submission
+          ? {
+              _id: submission._id,
+              score: submission.score,
+              stars: submission.stars,
+              correctCount: submission.correctCount,
+              incorrectCount: submission.incorrectCount,
+              duration: submission.duration,
+              completed: submission.completed,
+              submittedAt: submission.createdAt,
+              answers: submission.answers,
+              teacherFeedback: submission.teacherFeedback || null
+            }
+          : null
+      };
+    });
+
+    const submittedCount = studentSubmissions.filter(s => s.hasSubmitted).length;
+    const totalCount = studentSubmissions.length;
+    const avgScore = submittedCount > 0
+      ? Math.round(studentSubmissions.filter(s => s.hasSubmitted).reduce((sum, s) => sum + (s.submission?.score || 0), 0) / submittedCount)
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        assignment,
+        results,
+        studentSubmissions,
+        stats: {
+          totalStudents: totalCount,
+          submittedStudents: submittedCount,
+          unsubmittedStudents: totalCount - submittedCount,
+          submissionRate: totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0,
+          averageScore: avgScore
+        }
+      }
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.reviewAssignmentSubmission = async (req, res, next) => {
+  try {
+    const { assignmentId, childId } = req.params;
+    const { comment = '', bonusStars = 0, notifyParent = true } = req.body;
+
+    const assignment = await Assignment.findOne({ _id: assignmentId, teacher: req.user._id })
+      .populate('lesson', 'title')
+      .populate('activity', 'title activityType');
+    if (!assignment) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this assignment.' });
+    }
+
+    const student = await User.findById(childId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    const query = {
+      child: childId,
+      ...(assignment.activity ? { activity: assignment.activity._id } : { lesson: assignment.lesson._id })
+    };
+
+    let result = await ActivityResult.findOne(query).sort({ createdAt: -1 });
+    if (!result) {
+      return res.status(400).json({ success: false, message: 'Học sinh chưa hoàn thành bài tập này để chấm điểm.' });
+    }
+
+    const addedStars = Math.max(0, Number(bonusStars) || 0);
+
+    result.teacherFeedback = {
+      comment: String(comment || '').trim(),
+      bonusStars: addedStars,
+      reviewedAt: new Date(),
+      teacher: req.user._id
+    };
+
+    if (addedStars > 0) {
+      student.stars = (student.stars || 0) + addedStars;
+      await student.save();
+    }
+
+    await result.save();
+
+    let notification = null;
+    if (notifyParent) {
+      const ParentNotification = require('../models/ParentNotification');
+      const actTitle = assignment.activity?.title || assignment.lesson?.title || 'Bài tập';
+      const feedbackText = String(comment || 'Bé đã hoàn thành bài tập rất tốt!').trim();
+      notification = await ParentNotification.create({
+        child: childId,
+        teacher: req.user._id,
+        templateType: 'GENERAL',
+        teacherNote: `[Nhận xét bài tập "${actTitle}"]: ${feedbackText}${addedStars > 0 ? ` (Cô tặng thêm bé ${addedStars} sao ⭐)` : ''}`,
+        score: result.score,
+        stars: (result.stars || 0) + addedStars,
+        status: 'SENT'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        result,
+        studentStars: student.stars,
+        notification
+      }
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.deleteAssignment = async (req, res, next) => {
+  try {
+    const data = await Assignment.findOneAndDelete({ _id: req.params.id, teacher: req.user._id });
+    if (!data) return res.status(404).json({ success: false, message: 'Assignment not found or unauthorized.' });
+    res.json({ success: true, message: 'Assignment deleted successfully.' });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.updateAssignment = async (req, res, next) => {
+  try {
+    const values = {};
+    ['dueDate', 'startDate', 'instructions'].forEach(k => {
+      if (req.body[k] !== undefined) values[k] = req.body[k] || null;
+    });
+    const data = await Assignment.findOneAndUpdate(
+      { _id: req.params.id, teacher: req.user._id, status: { $nin: ['COMPLETED', 'CANCELLED'] } },
+      values,
+      { new: true, runValidators: true }
+    );
+    if (!data) return res.status(403).json({ success: false, message: 'This assignment cannot be edited.' });
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.updateAssignmentStatus = async (req, res, next) => {
+  try {
+    if (!['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(req.body.status)) {
+      return invalid(res, 'Invalid assignment status.');
+    }
+    const data = await Assignment.findOneAndUpdate(
+      { _id: req.params.id, teacher: req.user._id },
+      { status: req.body.status },
+      { new: true }
+    );
+    if (!data) return res.status(403).json({ success: false, message: 'You do not have access to this assignment.' });
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
 
 exports.createTeacherNote = async (req, res, next) => { try { const { studentId, lessonId, noteType = 'GENERAL', content } = req.body; if (!content || !String(content).trim() || !(await getStudent(req, studentId))) return invalid(res, 'A permitted child and note content are required.'); const data = await TeacherNote.create({ teacher: req.user._id, student: studentId, lesson: validId(lessonId) ? lessonId : null, noteType, content: String(content).trim() }); res.status(201).json({ success: true, data }); } catch (e) { next(e); } };
 exports.getStudentNotes = async (req, res, next) => { try { if (!(await getStudent(req, req.params.studentId))) return res.status(403).json({ success: false, message: 'You do not have access to this child.' }); const data = await TeacherNote.find({ student: req.params.studentId, teacher: req.user._id }).populate('teacher', 'name').populate('lesson', 'title').sort({ createdAt: -1 }); res.json({ success: true, data }); } catch (e) { next(e); } };

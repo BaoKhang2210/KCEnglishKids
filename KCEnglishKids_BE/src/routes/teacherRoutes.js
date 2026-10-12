@@ -24,7 +24,9 @@ router.get('/assignments', c.getAssignments);
 router.post('/assignments', c.createAssignment);
 router.get('/assignments/:id', c.getAssignment);
 router.put('/assignments/:id', c.updateAssignment);
+router.delete('/assignments/:id', c.deleteAssignment);
 router.patch('/assignments/:id/status', c.updateAssignmentStatus);
+router.post('/assignments/:assignmentId/submissions/:childId/review', c.reviewAssignmentSubmission);
 
 router.get('/students', c.getStudents);
 router.get('/students/:studentId/overview', c.getStudentOverview);

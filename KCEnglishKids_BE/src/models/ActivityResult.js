@@ -67,7 +67,25 @@ const activityResultSchema = new mongoose.Schema(
         },
         responseTimeMs: Number
       }
-    ]
+    ],
+    teacherFeedback: {
+      comment: {
+        type: String,
+        default: ''
+      },
+      bonusStars: {
+        type: Number,
+        default: 0
+      },
+      reviewedAt: {
+        type: Date,
+        default: null
+      },
+      teacher: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    }
   },
   { timestamps: true }
 );
