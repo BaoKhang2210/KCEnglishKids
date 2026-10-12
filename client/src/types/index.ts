@@ -267,5 +267,43 @@ export interface ParentNotification {
   readAt?: string | null;
 }
 
+// ─── Daily Streak (Chuỗi ngày học) ───────────────────────────────────────────
 
+export interface StreakLevelInfo {
+  level: number;
+  title: string;
+  englishTitle: string;
+  badge: string;
+  theme: 'warm' | 'blazing' | 'phoenix' | 'cosmic';
+  description: string;
+  color: string;
+  glowColor: string;
+}
 
+export interface StreakWeekDay {
+  dayIndex: number;
+  label: string;
+  date: string;
+  isToday: boolean;
+  isPast: boolean;
+  isActive: boolean;
+}
+
+export interface StreakNextMilestone {
+  target: number;
+  rewardStars: number;
+  label: string;
+}
+
+export interface ChildStreakData {
+  childId: string;
+  childName: string;
+  streak: number;
+  longestStreak: number;
+  lastActiveDate: string;
+  isNewDayIncrement?: boolean;
+  levelInfo: StreakLevelInfo;
+  nextMilestone: StreakNextMilestone;
+  weekDays: StreakWeekDay[];
+  activeDates: string[];
+}

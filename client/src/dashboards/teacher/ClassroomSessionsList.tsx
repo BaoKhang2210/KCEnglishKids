@@ -130,7 +130,7 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
       to={link}
       className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-300 hover:shadow-md transition-all"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
         <div className={`h-10 w-10 flex-shrink-0 rounded-xl grid place-items-center ${
           s.status === 'LIVE' ? 'bg-emerald-100' : s.status === 'SCHEDULED' ? 'bg-blue-100' : 'bg-slate-100'
         }`}>
@@ -143,9 +143,9 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
           )}
         </div>
 
-        <div>
-          <p className="font-bold text-slate-900">{s.title}</p>
-          <p className="text-sm text-slate-500">
+        <div className="min-w-0">
+          <p className="font-bold text-slate-900 truncate text-sm sm:text-base">{s.title}</p>
+          <p className="text-xs sm:text-sm text-slate-500 truncate">
             {classroom?.name || '—'} · {lesson?.title || 'Buổi tự do'} ·{' '}
             {fmt(s.startedAt || s.createdAt)}
             {dur !== null && ` · ${dur} min`}

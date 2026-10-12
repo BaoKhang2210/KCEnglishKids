@@ -81,4 +81,10 @@ router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, n
   }
 });
 
+// Daily Streak for child (Chuỗi ngày học)
+const { getChildStreak, testChildStreakLevel } = require('../controllers/streakController');
+router.get('/:childId/streak', protect, ownChildOr403(), getChildStreak);
+router.post('/:childId/streak/test-level', protect, ownChildOr403(), testChildStreakLevel);
+
 module.exports = router;
+

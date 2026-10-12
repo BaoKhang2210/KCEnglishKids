@@ -142,40 +142,586 @@ export const TeacherLayout = () => {
   );
 };
 
-export const TeacherDashboard = () => { const [data, setData] = useState<any>(); const [error, setError] = useState(''); useEffect(() => { teacherApi.getDashboard().then(x => setData(x.data)).catch(e => setError(e.message)); }, []); if (error) return <Empty>Không thể tải thông tin. Vui lòng thử lại.</Empty>; if (!data) return <Loader/>; const m=data.metrics; return <><div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-medium text-teal-700">Tổng quan giảng dạy</p><h2 className="text-3xl font-bold">Lớp học của bạn trong tầm mắt</h2></div><Link to="/teacher/assignments" className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Giao bài tập</Link></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Lớp đang phụ trách" value={m.classes} icon={<Users size={18}/>}/><Metric label="Tổng số học sinh" value={m.students} icon={<GraduationCap size={18}/>}/><Metric label="Bài đang hiệu lực" value={m.activeAssignments} icon={<ClipboardList size={18}/>}/><Metric label="Cần quan tâm" value={m.needingAttention} icon={<CheckCircle2 size={18}/>}/></div><div className="mt-6 grid gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-6"><h3 className="mb-4 font-bold">Tổng kết học tập</h3><div className="grid grid-cols-3 gap-3 text-center"><div><b className="block text-2xl">{m.averageScore}%</b><span className="text-xs text-slate-500">Điểm trung bình</span></div><div><b className="block text-2xl">{m.stars}</b><span className="text-xs text-slate-500">Sao đã đạt</span></div><div><b className="block text-2xl">{m.completedAssignments}</b><span className="text-xs text-slate-500">Đã hoàn thành</span></div></div></section><section className="rounded-2xl border border-slate-200 bg-white p-6"><h3 className="mb-4 font-bold">Bài giao gần đây</h3>{data.recentAssignments.length ? data.recentAssignments.map((a:any)=><Link key={a._id} to={`/teacher/assignments/${a._id}`} className="mb-3 flex justify-between rounded-lg bg-slate-50 p-3 hover:bg-teal-50"><span><b>{a.activity?.title || a.lesson?.title}</b><small className="ml-2 text-slate-500">{a.classRoom?.name}</small></span><span className="text-xs font-semibold text-teal-700">{a.status}</span></Link>) : <p className="text-sm text-slate-500">Chưa có bài giao nào.</p>}</section></div><section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6"><h3 className="mb-4 font-bold">Buổi học gần đây</h3>{data.recentSessions.length ? data.recentSessions.map((s:any)=><div key={s._id} className="flex justify-between border-t py-3 text-sm"><span><b>{s.child?.name}</b> · {s.lesson?.title}</span><span className="text-slate-500">{date(s.lastActivityAt)}</span></div>) : <p className="text-sm text-slate-500">Chưa có buổi học nào.</p>}</section></> };
+export const TeacherDashboard = () => {
+  const [data, setData] = useState<any>();
+  const [error, setError] = useState('');
 
-export const TeacherClasses = () => { const [classes,setClasses]=useState<any[]>(); const [search,setSearch]=useState(''); const load=()=>teacherApi.getClasses().then(x=>setClasses(x.data)); useEffect(() => { void load(); },[]); const filtered=useMemo(()=>classes?.filter(c=>c.name.toLowerCase().includes(search.toLowerCase())),[classes,search]); if(!classes)return <Loader/>; return <><Header title="Lớp học của tôi" text="Các lớp học bạn đang phụ trách."/><SearchBox value={search} onChange={setSearch}/>{filtered?.length?<div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(c=><Link key={c._id} to={`/teacher/classes/${c._id}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-300"><div className="flex justify-between"><h3 className="font-bold">{c.name}</h3><span className="rounded-full bg-teal-50 px-2 py-1 text-xs text-teal-700">{c.status}</span></div><p className="mt-2 text-sm text-slate-500">Độ tuổi {c.ageGroupCode || '—'} · {c.academicYear || '—'}</p><div className="mt-5 flex items-center gap-2 text-sm"><Users size={16} className="text-teal-600"/>{c.students?.length || 0} học sinh</div></Link>)}</div>:<Empty>Bạn chưa được phân công lớp nào.</Empty>}</> };
-const Header=({title,text,action}:any)=><div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm text-teal-700">Không gian giảng dạy</p><h2 className="text-3xl font-bold">{title}</h2><p className="mt-1 text-slate-500">{text}</p></div>{action}</div>;
-const SearchBox=({value,onChange}:any)=><label className="flex max-w-md items-center gap-2 rounded-xl border bg-white px-3 py-2"><Search size={17} className="text-slate-400"/><input value={value} onChange={e=>onChange(e.target.value)} placeholder="Tìm theo tên hoặc mã học sinh" className="w-full outline-none"/></label>;
+  useEffect(() => {
+    teacherApi
+      .getDashboard()
+      .then((x) => setData(x.data))
+      .catch((e) => setError(e.message));
+  }, []);
 
-export const TeacherClassDetail=()=>{
-  const {classId=''}=useParams();
-  const [data,setData]=useState<any>();
-  const [error,setError]=useState('');
-  const [eligible,setEligible]=useState<any[]>([]);
-  const [selected,setSelected]=useState<string[]>([]);
-  const [show,setShow]=useState(false);
-  // §1.1.7 — search + column sort state
-  const [search,setSearch]=useState('');
-  const [sortKey,setSortKey]=useState<'name'|'age'|'stars'|'progress'>('name');
-  // §1.1.6 — real error state instead of an endless loader
-  const load=()=>teacherApi.getClassDetail(classId).then(x=>{setData(x.data);setError('')}).catch(e=>setError(e?.message||'Không thể tải lớp học này.'));
-  useEffect(() => { void load(); },[classId]);
-  const openAdd=async()=>{setEligible(sortByNameVi((await teacherApi.getEligibleStudents(classId)).data||[]));setShow(true)};
-  const add=async()=>{await teacherApi.addStudents(classId,selected);setShow(false);setSelected([]);void load()};
-  if(error)return <Empty>Không thể tải lớp học này. <button onClick={()=>{setError('');void load()}} className="font-semibold text-teal-700">Thử lại</button></Empty>;
-  if(!data)return <Loader/>;
-  const remove=async(s:any)=>{if(confirm(`Cho ${s.name} ra khỏi lớp? (Không xóa tài khoản và lịch sử học của bé.)`)){await teacherApi.removeStudent(classId,s._id);void load()}};
-  // §1.1.1 + §1.1.7 — Vietnamese A-Z first, then the chosen column sort
-  const students=sortByNameVi(data.students||[]);
-  const filteredStudents=search?students.filter((s:any)=>String(s.name||'').toLowerCase().includes(search.toLowerCase())):students;
-  const sortedStudents=sortKey==='name'?filteredStudents:[...filteredStudents].sort((a:any,b:any)=>sortKey==='stars'?((b.stats?.totalStars??b.stats?.stars??0)-(a.stats?.totalStars??a.stats?.stars??0)):sortKey==='progress'?((b.stats?.completedLessons??0)-(a.stats?.completedLessons??0)):String(a.ageGroupCode||'').localeCompare(String(b.ageGroupCode||'')));
-  const th=(key:typeof sortKey,label:string)=><button type="button" onClick={()=>setSortKey(key)} className={`text-left text-xs font-semibold uppercase tracking-wide ${sortKey===key?'text-teal-700':'text-slate-400 hover:text-slate-600'}`}>{label}{sortKey===key?' ↓':''}</button>;
-  return <><Header title={data.name} text={`Độ tuổi ${data.ageGroupCode||'—'} · ${data.students.length} học sinh`} action={<div className="flex gap-2"><Link to={`/teacher/classes/${classId}/sessions/new`} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"><Play size={16}/>Bắt đầu buổi dạy</Link><button onClick={openAdd} className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white"><Plus className="mr-1 inline" size={16}/>Thêm học sinh</button></div>}/><div className="grid gap-6 lg:grid-cols-3"><section className="lg:col-span-2 rounded-2xl border bg-white p-6"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-bold">Học sinh ({sortedStudents.length})</h3><div className="w-full max-w-xs"><SearchBox value={search} onChange={setSearch}/></div></div><div className="sm:grid sm:grid-cols-[minmax(0,1fr)_70px_130px_80px_90px_70px] sm:items-center sm:gap-3 sm:border-b sm:pb-2">{th('name','Họ tên')}<span className="hidden sm:block">{th('age','Tuổi')}</span><span className="hidden sm:block text-xs font-semibold uppercase tracking-wide text-slate-400">Liên hệ PH</span><span className="hidden sm:block">{th('stars','Sao')}</span><span className="hidden sm:block">{th('progress','Bài học')}</span><span className="hidden sm:block"/></div>{sortedStudents.length?sortedStudents.map((s:any)=><div key={s._id} className="flex items-center justify-between gap-3 border-t py-3 sm:grid sm:grid-cols-[minmax(0,1fr)_70px_130px_80px_90px_70px] sm:items-center"><Link to={`/teacher/students/${s._id}`} className="flex min-w-0 items-center gap-3"><Avatar name={s.name}/><span className="min-w-0"><b className="block truncate">{s.name}</b><small className="block truncate text-slate-500">{s.stats?.averageScore ? `${Math.round(s.stats.averageScore)}% trung bình` : 'Chưa có hoạt động'}</small></span></Link><span className="hidden sm:block text-sm text-slate-600">Tuổi {s.ageGroupCode||'—'}</span><span className="hidden sm:block truncate text-sm text-slate-600" title={s.contact||s.parentContact||''}>{s.contact||s.parentContact||'—'}</span><span className="hidden sm:block text-sm"><Star className="inline fill-amber-400 text-amber-400" size={14}/> {s.stats?.totalStars??s.stats?.stars??0}</span><span className="hidden sm:block text-sm text-slate-600">{s.stats?.completedLessons??0} bài học</span><button onClick={()=>remove(s)} className="text-sm text-rose-600">Xóa khỏi lớp</button></div>):<Empty>{data.students.length?'Không có học sinh nào khớp tìm kiếm.':"Lớp này chưa có học sinh nào."}</Empty>}</section><section className="rounded-2xl border bg-white p-6"><h3 className="mb-4 font-bold">Bài được giao</h3>{data.assignments.length?data.assignments.slice(0,5).map((a:any)=><Link className="mb-2 block rounded-lg bg-slate-50 p-3 text-sm" to={`/teacher/assignments/${a._id}`} key={a._id}>{a.activity?.title||a.lesson?.title}<small className="block text-slate-500">{a.status}</small></Link>):<p className="text-sm text-slate-500">Chưa có bài giao nào.</p>}</section></div>{show&&<Modal title="Thêm học sinh" close={()=>setShow(false)}><div className="max-h-80 overflow-auto">{eligible.length?eligible.map(s=><label key={s._id} className="flex items-center gap-3 border-b p-3"><input type="checkbox" checked={selected.includes(s._id)} onChange={e=>setSelected(e.target.checked?[...selected,s._id]:selected.filter(x=>x!==s._id))}/><Avatar name={s.name}/><span>{s.name}<small className="block text-slate-500">Độ tuổi {s.ageGroupCode}</small></span></label>):<Empty>Không tìm thấy học sinh đủ điều kiện.</Empty>}</div><button disabled={!selected.length} onClick={add} className="mt-4 rounded-xl bg-teal-600 px-4 py-2 text-white disabled:opacity-50">Thêm ({selected.length}) bé đã chọn</button></Modal>}</>};
-const Avatar=({name}:any)=><div className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">{initials(name)}</div>;
-const Modal=({title,close,children}:any)=><div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"><div className="mb-4 flex justify-between"><h3 className="font-bold">{title}</h3><button onClick={close}><X/></button></div>{children}</div></div>;
+  if (error) return <Empty>Không thể tải thông tin. Vui lòng thử lại.</Empty>;
+  if (!data) return <Loader />;
+  const m = data.metrics;
 
-export const TeacherContent=()=>{const [data,setData]=useState<any>();const [age,setAge]=useState(''); const [lesson,setLesson]=useState<any>();const load=(a='')=>teacherApi.getContent(a?`ageGroupCode=${a}`:'').then(x=>setData(x.data));useEffect(()=>{void load()},[]);if(!data)return <Loader/>;return <><Header title="Nội dung học tập" text="Xem trước nội dung chương trình trước khi giao bài."/><div className="mb-5 flex gap-2">{['','3-4','4-5','5-6'].map(a=><button key={a||'all'} onClick={()=>{setAge(a);void load(a)}} className={`rounded-full px-3 py-1.5 text-sm ${age===a?'bg-teal-600 text-white':'bg-white border'}`}>{a?`Độ tuổi ${a}`:'Tất cả sách'}</button>)}</div><div className="grid gap-6 lg:grid-cols-3"><section className="lg:col-span-2 space-y-3">{data.units.map((u:any)=><div key={u._id} className="rounded-2xl border bg-white p-5"><p className="text-xs font-semibold text-teal-700">Sách {u.bookNumber} · Độ tuổi {u.ageGroupCode} · Unit {u.unitNumber}</p><h3 className="mt-1 font-bold">{u.bigQuestion}</h3><p className="mt-2 text-sm text-slate-500">{u.vocabularyReferences?.join(' · ')}</p><div className="mt-4 flex flex-wrap gap-2">{data.lessons.filter((l:any)=>l.curriculumUnits?.some((x:any)=>String(x)===String(u._id))).map((l:any)=><button key={l._id} onClick={()=>setLesson(l)} className="rounded-lg bg-slate-100 px-3 py-2 text-sm hover:bg-teal-50">{l.title}</button>)}</div></div>)}</section><section className="rounded-2xl border bg-white p-5"><h3 className="font-bold">Chương trình học</h3><p className="mt-2 text-sm text-slate-500">27 Unit chính thức trong Sách 1–3. Giáo viên chỉ xem.</p><p className="mt-4 text-sm"><b>{data.lessons.length}</b> bài học đã duyệt<br/><b>{data.activities.length}</b> hoạt động đã duyệt</p></section></div>{lesson&&<Modal title={lesson.title} close={()=>setLesson(null)}><p className="text-sm text-slate-500">{lesson.description||'Xem trước bài học'}</p><p className="mt-3 text-sm"><b>Mục tiêu:</b> {lesson.learningObjectives?.join(' · ')||'—'}</p><p className="mt-3 text-sm"><b>Từ vựng:</b> {lesson.vocabularyItems?.map((v:any)=>v.english).join(', ')||'—'}</p><Link className="mt-4 inline-block rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white" to={`/teacher/assignments?lesson=${lesson._id}`}>Giao bài học này</Link></Modal>}</>};
+  return (
+    <>
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold text-teal-700">Tổng quan giảng dạy</p>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Lớp học của bạn trong tầm mắt
+          </h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/teacher/sentences"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:from-emerald-500 hover:to-teal-500 transition-all cursor-pointer"
+          >
+            <MessageSquare size={16} /> Dạy mẫu câu
+          </Link>
+          <Link
+            to="/teacher/assignments"
+            className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 transition-all cursor-pointer"
+          >
+            Giao bài tập
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Metric label="Lớp đang phụ trách" value={m.classes} icon={<Users size={18} className="text-teal-600" />} />
+        <Metric label="Tổng số học sinh" value={m.students} icon={<GraduationCap size={18} className="text-indigo-600" />} />
+        <Metric label="Bài đang hiệu lực" value={m.activeAssignments} icon={<ClipboardList size={18} className="text-amber-600" />} />
+        <Metric label="Cần quan tâm" value={m.needingAttention} icon={<CheckCircle2 size={18} className="text-rose-500" />} />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <h3 className="mb-4 font-bold text-slate-900">Tổng kết học tập</h3>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+            <div className="p-3 rounded-xl bg-slate-50">
+              <b className="block text-xl sm:text-2xl text-teal-700 font-black">{m.averageScore}%</b>
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Điểm trung bình</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-50">
+              <b className="block text-xl sm:text-2xl text-amber-600 font-black flex items-center justify-center gap-1">
+                <Star size={18} className="fill-amber-400 text-amber-400" /> {m.stars}
+              </b>
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Sao đã đạt</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-50">
+              <b className="block text-xl sm:text-2xl text-indigo-700 font-black">{m.completedAssignments}</b>
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Đã hoàn thành</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <h3 className="mb-4 font-bold text-slate-900">Bài giao gần đây</h3>
+          {data.recentAssignments.length ? (
+            data.recentAssignments.map((a: any) => (
+              <Link
+                key={a._id}
+                to={`/teacher/assignments/${a._id}`}
+                className="mb-2.5 flex items-center justify-between rounded-xl bg-slate-50 p-3 hover:bg-teal-50 transition-colors"
+              >
+                <span className="min-w-0 pr-2">
+                  <b className="block truncate text-sm text-slate-800">{a.activity?.title || a.lesson?.title}</b>
+                  <small className="text-slate-500">{a.classRoom?.name}</small>
+                </span>
+                <span className="text-xs font-bold text-teal-700 shrink-0">{a.status}</span>
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500 py-3">Chưa có bài giao nào.</p>
+          )}
+        </section>
+      </div>
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+        <h3 className="mb-4 font-bold text-slate-900">Buổi học gần đây</h3>
+        {data.recentSessions.length ? (
+          data.recentSessions.map((s: any) => (
+            <div key={s._id} className="flex items-center justify-between border-t border-slate-100 py-3 text-sm">
+              <span className="min-w-0 pr-2">
+                <b className="text-slate-900">{s.child?.name}</b>
+                <span className="text-slate-500"> · {s.lesson?.title}</span>
+              </span>
+              <span className="text-xs text-slate-400 shrink-0">{date(s.lastActivityAt)}</span>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-slate-500 py-3">Chưa có buổi học nào.</p>
+        )}
+      </section>
+    </>
+  );
+};
+
+export const TeacherClasses = () => {
+  const [classes, setClasses] = useState<any[]>();
+  const [search, setSearch] = useState('');
+  const load = () => teacherApi.getClasses().then((x) => setClasses(x.data));
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const filtered = useMemo(
+    () => classes?.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
+    [classes, search]
+  );
+
+  if (!classes) return <Loader />;
+
+  return (
+    <>
+      <Header title="Lớp học của tôi" text="Các lớp học bạn đang phụ trách." />
+      <SearchBox value={search} onChange={setSearch} />
+      {filtered?.length ? (
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((c) => (
+            <Link
+              key={c._id}
+              to={`/teacher/classes/${c._id}`}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-bold text-slate-900">{c.name}</h3>
+                  <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-700">
+                    {c.status}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm text-slate-500">
+                  Độ tuổi {c.ageGroupCode || '—'} · Niên khóa {c.academicYear || '—'}
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-slate-600 font-semibold">
+                  <Users size={16} className="text-teal-600" /> {c.students?.length || 0} học sinh
+                </span>
+                <span className="text-xs font-bold text-teal-700 flex items-center gap-1">
+                  Vào lớp <ChevronRight size={14} />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Empty>Bạn chưa được phân công lớp nào.</Empty>
+      )}
+    </>
+  );
+};
+
+const Header = ({ title, text, action }: any) => (
+  <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <p className="text-sm font-bold text-teal-700">Không gian giảng dạy</p>
+      <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{title}</h2>
+      <p className="mt-1 text-sm text-slate-500">{text}</p>
+    </div>
+    {action}
+  </div>
+);
+
+const SearchBox = ({ value, onChange }: any) => (
+  <label className="flex max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-xs">
+    <Search size={17} className="text-slate-400 shrink-0" />
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Tìm theo tên hoặc mã học sinh…"
+      className="w-full outline-none text-sm font-medium"
+    />
+  </label>
+);
+
+export const TeacherClassDetail = () => {
+  const { classId = '' } = useParams();
+  const [data, setData] = useState<any>();
+  const [error, setError] = useState('');
+  const [eligible, setEligible] = useState<any[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [show, setShow] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<'name' | 'age' | 'stars' | 'progress'>('name');
+
+  const load = () =>
+    teacherApi
+      .getClassDetail(classId)
+      .then((x) => {
+        setData(x.data);
+        setError('');
+      })
+      .catch((e) => setError(e?.message || 'Không thể tải lớp học này.'));
+
+  useEffect(() => {
+    void load();
+  }, [classId]);
+
+  const openAdd = async () => {
+    setEligible(sortByNameVi((await teacherApi.getEligibleStudents(classId)).data || []));
+    setShow(true);
+  };
+
+  const add = async () => {
+    await teacherApi.addStudents(classId, selected);
+    setShow(false);
+    setSelected([]);
+    void load();
+  };
+
+  if (error)
+    return (
+      <Empty>
+        Không thể tải lớp học này.{' '}
+        <button onClick={() => { setError(''); void load(); }} className="font-semibold text-teal-700">
+          Thử lại
+        </button>
+      </Empty>
+    );
+  if (!data) return <Loader />;
+
+  const remove = async (s: any) => {
+    if (confirm(`Cho ${s.name} ra khỏi lớp? (Không xóa tài khoản và lịch sử học của bé.)`)) {
+      await teacherApi.removeStudent(classId, s._id);
+      void load();
+    }
+  };
+
+  const students = sortByNameVi(data.students || []);
+  const filteredStudents = search
+    ? students.filter((s: any) => String(s.name || '').toLowerCase().includes(search.toLowerCase()))
+    : students;
+  const sortedStudents =
+    sortKey === 'name'
+      ? filteredStudents
+      : [...filteredStudents].sort((a: any, b: any) =>
+          sortKey === 'stars'
+            ? (b.stats?.totalStars ?? b.stats?.stars ?? 0) - (a.stats?.totalStars ?? a.stats?.stars ?? 0)
+            : sortKey === 'progress'
+            ? (b.stats?.completedLessons ?? 0) - (a.stats?.completedLessons ?? 0)
+            : String(a.ageGroupCode || '').localeCompare(String(b.ageGroupCode || ''))
+        );
+
+  const th = (key: typeof sortKey, label: string) => (
+    <button
+      type="button"
+      onClick={() => setSortKey(key)}
+      className={`text-left text-xs font-bold uppercase tracking-wide cursor-pointer ${
+        sortKey === key ? 'text-teal-700' : 'text-slate-400 hover:text-slate-600'
+      }`}
+    >
+      {label}
+      {sortKey === key ? ' ↓' : ''}
+    </button>
+  );
+
+  return (
+    <>
+      <Header
+        title={data.name}
+        text={`Độ tuổi ${data.ageGroupCode || '—'} · ${data.students.length} học sinh`}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/teacher/classes/${classId}/sessions/new`}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-xs transition-all"
+            >
+              <Play size={16} /> Bắt đầu buổi dạy
+            </Link>
+            <button
+              onClick={openAdd}
+              className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 shadow-xs cursor-pointer transition-all"
+            >
+              <Plus className="mr-1 inline" size={16} /> Thêm học sinh
+            </button>
+          </div>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-bold text-slate-900">Học sinh ({sortedStudents.length})</h3>
+            <div className="w-full max-w-xs">
+              <SearchBox value={search} onChange={setSearch} />
+            </div>
+          </div>
+
+          <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_70px_130px_80px_90px_70px] sm:items-center sm:gap-3 sm:border-b sm:pb-2">
+            {th('name', 'Họ tên')}
+            <span className="hidden sm:block">{th('age', 'Tuổi')}</span>
+            <span className="hidden sm:block text-xs font-bold uppercase tracking-wide text-slate-400">Liên hệ PH</span>
+            <span className="hidden sm:block">{th('stars', 'Sao')}</span>
+            <span className="hidden sm:block">{th('progress', 'Bài học')}</span>
+            <span className="hidden sm:block" />
+          </div>
+
+          {sortedStudents.length ? (
+            sortedStudents.map((s: any) => (
+              <div
+                key={s._id}
+                className="flex items-center justify-between gap-3 border-t border-slate-100 py-3 sm:grid sm:grid-cols-[minmax(0,1fr)_70px_130px_80px_90px_70px] sm:items-center"
+              >
+                <Link to={`/teacher/students/${s._id}`} className="flex min-w-0 items-center gap-3">
+                  <Avatar name={s.name} />
+                  <span className="min-w-0">
+                    <b className="block truncate text-sm text-slate-900">{s.name}</b>
+                    <small className="block truncate text-slate-500">
+                      {s.stats?.averageScore ? `${Math.round(s.stats.averageScore)}% trung bình` : 'Chưa có hoạt động'}
+                    </small>
+                  </span>
+                </Link>
+                <span className="hidden sm:block text-sm text-slate-600">Tuổi {s.ageGroupCode || '—'}</span>
+                <span className="hidden sm:block truncate text-sm text-slate-600" title={s.contact || s.parentContact || ''}>
+                  {s.contact || s.parentContact || '—'}
+                </span>
+                <span className="hidden sm:block text-sm font-semibold">
+                  <Star className="inline fill-amber-400 text-amber-400" size={14} />{' '}
+                  {s.stats?.totalStars ?? s.stats?.stars ?? 0}
+                </span>
+                <span className="hidden sm:block text-sm text-slate-600">{s.stats?.completedLessons ?? 0} bài học</span>
+                <button
+                  onClick={() => remove(s)}
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
+                >
+                  Xóa khỏi lớp
+                </button>
+              </div>
+            ))
+          ) : (
+            <Empty>{data.students.length ? 'Không có học sinh nào khớp tìm kiếm.' : 'Lớp này chưa có học sinh nào.'}</Empty>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <h3 className="mb-4 font-bold text-slate-900">Bài được giao</h3>
+          {data.assignments.length ? (
+            data.assignments.slice(0, 5).map((a: any) => (
+              <Link
+                className="mb-2 block rounded-xl bg-slate-50 p-3 text-sm hover:bg-teal-50 transition-colors"
+                to={`/teacher/assignments/${a._id}`}
+                key={a._id}
+              >
+                <b className="text-slate-800">{a.activity?.title || a.lesson?.title}</b>
+                <small className="block text-slate-500">{a.status}</small>
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500 py-3">Chưa có bài giao nào.</p>
+          )}
+        </section>
+      </div>
+
+      {show && (
+        <Modal title="Thêm học sinh vào lớp" close={() => setShow(false)}>
+          <div className="max-h-80 overflow-auto">
+            {eligible.length ? (
+              eligible.map((s) => (
+                <label key={s._id} className="flex items-center gap-3 border-b border-slate-100 p-3 hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(s._id)}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? [...selected, s._id] : selected.filter((x) => x !== s._id))
+                    }
+                    className="rounded border-slate-300 text-teal-600"
+                  />
+                  <Avatar name={s.name} />
+                  <span>
+                    <b className="text-slate-900">{s.name}</b>
+                    <small className="block text-slate-500">Độ tuổi {s.ageGroupCode}</small>
+                  </span>
+                </label>
+              ))
+            ) : (
+              <Empty>Không tìm thấy học sinh đủ điều kiện.</Empty>
+            )}
+          </div>
+          <button
+            disabled={!selected.length}
+            onClick={add}
+            className="mt-4 w-full rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50 cursor-pointer"
+          >
+            Thêm ({selected.length}) bé đã chọn
+          </button>
+        </Modal>
+      )}
+    </>
+  );
+};
+
+const Avatar = ({ name }: any) => (
+  <div className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 shrink-0">
+    {initials(name)}
+  </div>
+);
+
+const Modal = ({ title, close, children }: any) => (
+  <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4">
+    <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] flex flex-col">
+      <div className="mb-4 flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 className="font-bold text-slate-900">{title}</h3>
+        <button onClick={close} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
+          <X size={20} />
+        </button>
+      </div>
+      <div className="overflow-y-auto flex-1">{children}</div>
+    </div>
+  </div>
+);
+
+export const TeacherContent = () => {
+  const [data, setData] = useState<any>();
+  const [age, setAge] = useState('');
+  const [lesson, setLesson] = useState<any>();
+
+  const load = (a = '') => teacherApi.getContent(a ? `ageGroupCode=${a}` : '').then((x) => setData(x.data));
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  if (!data) return <Loader />;
+
+  return (
+    <>
+      <Header
+        title="Nội dung học tập"
+        text="Xem trước nội dung chương trình, từ vựng và chọn mẫu câu bài học để dạy trực tiếp trên lớp."
+      />
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        {['', '3-4', '4-5', '5-6'].map((a) => (
+          <button
+            key={a || 'all'}
+            onClick={() => {
+              setAge(a);
+              void load(a);
+            }}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              age === a
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {a ? `Độ tuổi ${a}` : 'Tất cả 3 cấp độ'}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="lg:col-span-2 space-y-4">
+          {data.units.map((u: any) => {
+            const unitLessons = data.lessons.filter((l: any) =>
+              l.curriculumUnits?.some((x: any) => String(x) === String(u._id))
+            );
+
+            return (
+              <div key={u._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <span className="text-xs font-black uppercase tracking-wider text-teal-700">
+                    Sách {u.bookNumber} · Độ tuổi {u.ageGroupCode} · Unit {u.unitNumber}
+                  </span>
+                  <span className="text-xs text-slate-400 font-semibold">
+                    {unitLessons.length} bài học
+                  </span>
+                </div>
+
+                <h3 className="mt-2 text-lg font-black text-slate-900">{u.bigQuestion}</h3>
+                <p className="mt-1 text-xs text-slate-500 font-medium">
+                  {u.vocabularyReferences?.join(' · ') || 'Chủ đề từ vựng và đàm thoại theo chuẩn giáo trình'}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {unitLessons.map((l: any) => (
+                    <button
+                      key={l._id}
+                      onClick={() => setLesson(l)}
+                      className="group flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 hover:border-teal-400 hover:bg-teal-50/50 hover:text-teal-900 transition-all cursor-pointer"
+                    >
+                      <span>{l.title}</span>
+                      <span className="text-[11px] text-teal-600 opacity-70 group-hover:opacity-100">💬</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <h3 className="font-bold text-slate-900 mb-2">Chương trình học chuẩn</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              27 Unit chính thức trong Sách 1–3 thiết kế cho lứa tuổi mầm non (3-6 tuổi).
+            </p>
+            <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-700">
+              <div className="flex justify-between">
+                <span>Bài học đã duyệt:</span>
+                <b className="text-teal-700">{data.lessons.length} bài</b>
+              </div>
+              <div className="flex justify-between">
+                <span>Hoạt động tương tác:</span>
+                <b className="text-teal-700">{data.activities.length} hoạt động</b>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-5 shadow-xs">
+            <span className="text-2xl">💬</span>
+            <h4 className="mt-2 font-bold text-teal-900 text-sm">Dạy mẫu câu trên lớp</h4>
+            <p className="mt-1 text-xs text-teal-700 leading-relaxed">
+              Chiếu trực tiếp câu hỏi và câu trả lời tương ứng với bài học lên máy chiếu trong giờ dạy.
+            </p>
+            <Link
+              to="/teacher/sentences"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs transition-all"
+            >
+              Mở công cụ chiếu mẫu câu <ChevronRight size={13} />
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      {lesson && (
+        <Modal title={`Xem trước: ${lesson.title}`} close={() => setLesson(null)}>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{lesson.description || 'Nội dung bài học chuẩn chương trình.'}</p>
+
+            {lesson.learningObjectives?.length > 0 && (
+              <div className="rounded-xl bg-slate-50 p-3 text-xs">
+                <b className="text-slate-800 block mb-1">Mục tiêu học tập:</b>
+                <p className="text-slate-600">{lesson.learningObjectives.join(' · ')}</p>
+              </div>
+            )}
+
+            {lesson.vocabularyItems?.length > 0 && (
+              <div className="rounded-xl bg-slate-50 p-3 text-xs">
+                <b className="text-slate-800 block mb-1">Từ vựng bài học ({lesson.vocabularyItems.length} từ):</b>
+                <p className="text-slate-600">
+                  {lesson.vocabularyItems.map((v: any) => v.english).join(', ')}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+              <Link
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
+                to={`/teacher/sentences?lessonId=${lesson._id}&mode=classroom`}
+              >
+                <MessageSquare size={14} /> Dạy mẫu câu bài này ngay 💬
+              </Link>
+              <Link
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                to={`/teacher/assignments?lesson=${lesson._id}`}
+              >
+                <ClipboardList size={14} /> Giao bài học này
+              </Link>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+};
 
 export const TeacherAssignments = () => {
   const [items, setItems] = useState<any[]>();
@@ -1106,7 +1652,61 @@ export const TeacherAssignmentDetail = () => {
   );
 };
 
-export const TeacherStudents=()=>{const [items,setItems]=useState<any[]>();const [search,setSearch]=useState('');useEffect(()=>{teacherApi.getStudents().then(x=>setItems(x.data))},[]);if(!items)return <Loader/>;const filtered=items.filter(s=>s.name.toLowerCase().includes(search.toLowerCase())||s.username?.toLowerCase().includes(search.toLowerCase()));return <><Header title="Học sinh" text="Học sinh trong các lớp bạn phụ trách."/><SearchBox value={search} onChange={setSearch}/><div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(s=><Link key={s._id} to={`/teacher/students/${s._id}`} className="rounded-2xl border bg-white p-5"><div className="flex gap-3"><Avatar name={s.name}/><div><b>{s.name}</b><p className="text-sm text-slate-500">{s.assignedClass?.name||'Chưa có lớp'} · Độ tuổi {s.ageGroupCode}</p></div></div><div className="mt-4 flex justify-between text-sm"><span>{Math.round(s.stats?.averageScore||0)}% trung bình</span><span>{s.stats?.stars||0} sao</span></div></Link>)}</div>{!filtered.length&&<Empty>Không tìm thấy học sinh nào.</Empty>}</>};
+export const TeacherStudents = () => {
+  const [items, setItems] = useState<any[]>();
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    teacherApi.getStudents().then((x) => setItems(x.data));
+  }, []);
+
+  if (!items) return <Loader />;
+
+  const filtered = items.filter(
+    (s) =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.username?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <>
+      <Header title="Học sinh" text="Học sinh trong các lớp bạn phụ trách." />
+      <SearchBox value={search} onChange={setSearch} />
+      {filtered.length ? (
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((s) => (
+            <Link
+              key={s._id}
+              to={`/teacher/students/${s._id}`}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <Avatar name={s.name} />
+                <div className="min-w-0">
+                  <b className="block truncate text-slate-900">{s.name}</b>
+                  <p className="text-xs text-slate-500 truncate">
+                    {s.assignedClass?.name || 'Chưa phân lớp'} · Độ tuổi {s.ageGroupCode || '—'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
+                <span className="text-teal-700 font-bold">
+                  {Math.round(s.stats?.averageScore || 0)}% trung bình
+                </span>
+                <span className="text-amber-600 font-bold flex items-center gap-1">
+                  <Star size={13} className="fill-amber-400 text-amber-400" />
+                  {s.stats?.stars || 0} sao
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Empty>Không tìm thấy học sinh nào.</Empty>
+      )}
+    </>
+  );
+};
 
 export const TeacherStudentDetail = () => {
   const { studentId = '' } = useParams();
@@ -1183,7 +1783,7 @@ export const TeacherStudentDetail = () => {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Metric label="Điểm tổng" value={`${stats.averageScore}%`} />
         <Metric label="Bài đã hoàn thành" value={stats.completedLessons} />
         <Metric label="Số sao" value={stats.totalStars} />

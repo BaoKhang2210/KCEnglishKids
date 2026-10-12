@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { learningApi, topicsApi, lessonsApi, vocabularyApi } from '../../services/api';
-import type { ProgressSummary, Topic, Vocabulary, RewardChest } from '../../types';
+import { learningApi, topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
+import type { ProgressSummary, Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { KokoMascot } from '../../components/child/KokoMascot';
@@ -22,6 +22,8 @@ import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
 import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
+import { DailyStreakBanner } from '../../components/child/DailyStreakBanner';
+import { DailyStreakModal } from '../../components/child/DailyStreakModal';
 import { ALL_BADGES } from '../../data/badges';
 import { getReqUnitLabel, lessonsDoneLabel } from '../../data/labels';
 import { ALL_STICKERS } from '../../data/stickers';
@@ -31,6 +33,7 @@ import { BadgeShowcaseModal } from '../../components/child/BadgeShowcaseModal';
 import { CuteRosetteMedal } from '../../components/child/CuteRosetteMedal';
 import { CuteStickerCard } from '../../components/child/CuteStickerCard';
 import { StickerShowcaseModal } from '../../components/child/StickerShowcaseModal';
+
 
 interface CurriculumLesson {
   _id: string;
@@ -97,7 +100,12 @@ export const ChildHomePage: React.FC = () => {
   const [selectedSticker, setSelectedSticker] = useState<any>(null);
   const [stickerRarityFilter, setStickerRarityFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
 
+  // Daily Streak Data & Modal
+  const [streakData, setStreakData] = useState<ChildStreakData | null>(null);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+
   // Friendly Sequential Gatekeeper Toast State
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = React.useRef<any>(null);
 
@@ -155,6 +163,18 @@ export const ChildHomePage: React.FC = () => {
         if (topicsRes.success) setAgeTopics(topicsRes.data);
         if (vocabRes.success) setVocabularyList(vocabRes.data);
         if (progressRes.success) setProgress(progressRes.data);
+
+        // Fetch daily learning streak
+        if (childId) {
+          try {
+            const streakRes = await streakApi.getStreak(childId);
+            if (streakRes.success && streakRes.data) {
+              setStreakData(streakRes.data);
+            }
+          } catch (stErr) {
+            console.warn('Could not fetch daily streak:', stErr);
+          }
+        }
       } catch (err) {
         console.error('Failed to load child home data:', err);
       } finally {
@@ -164,6 +184,7 @@ export const ChildHomePage: React.FC = () => {
 
     loadAll();
   }, [ageCode, navigate, user]);
+
 
   // §1.2.11 — refresh reward state whenever the child returns to the home page
   useEffect(() => {
@@ -205,7 +226,21 @@ export const ChildHomePage: React.FC = () => {
 
   return (
     <div className="h-screen overflow-hidden bg-[#fffaf0] flex flex-col">
-      <div className="flex-shrink-0"><ChildHeader totalStars={totalStars} completedCount={completedLessons} activeTab={activeTab} /></div>
+      {/* Daily Streak Banner shown upon login */}
+      <DailyStreakBanner
+        streakData={streakData}
+        onOpenModal={() => setShowStreakModal(true)}
+      />
+
+      <div className="flex-shrink-0">
+        <ChildHeader
+          totalStars={totalStars}
+          completedCount={completedLessons}
+          activeTab={activeTab}
+          streakData={streakData}
+          onStreakUpdate={setStreakData}
+        />
+      </div>
 
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-3 pb-24 md:pb-8">
@@ -1063,6 +1098,15 @@ export const ChildHomePage: React.FC = () => {
             onClose={() => setSelectedSticker(null)}
           />
         )}
+
+        {/* Daily Streak Modal */}
+        <DailyStreakModal
+          isOpen={showStreakModal}
+          onClose={() => setShowStreakModal(false)}
+          streakData={streakData}
+          onStreakUpdate={setStreakData}
+        />
+
 
         {/* Friendly Gatekeeper Notification Toast */}
         {toastMessage && (

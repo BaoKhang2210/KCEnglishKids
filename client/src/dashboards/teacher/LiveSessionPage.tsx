@@ -21,11 +21,18 @@ import {
   Square,
   ThumbsUp,
   Trophy,
-  ArrowRight
+  ArrowRight,
+  MessageSquare,
+  HelpCircle,
+  EyeOff,
+  ExternalLink
 } from 'lucide-react';
-import { classroomSessionApi } from '../../services/api';
+import { classroomSessionApi, sentenceApi } from '../../services/api';
 import type { ClassroomSession, StudentSessionScore, User } from '../../types';
 import { sfx, playWordAudio } from '../../utils/audio';
+import { childSpeechEngine, type SpeechRecognitionResult } from '../../utils/speechRecognition';
+import type { SentencePattern } from './SentenceTeachingPage';
+import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const initials = (name?: string) =>
@@ -42,7 +49,8 @@ const elapsedMin = (startedAt?: string) => {
 };
 
 type AnswerMap = Record<string, 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED'>;
-type ViewTab = 'presentation' | 'grid' | 'games';
+type ViewTab = 'presentation' | 'sentences' | 'grid' | 'games';
+
 
 const makeSvgUri = (emoji: string, bg: string, label: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -91,6 +99,14 @@ export const LiveSessionPage: React.FC = () => {
   const [currentVocabIndex, setCurrentVocabIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Sentence Patterns teaching state
+  const [patterns, setPatterns] = useState<SentencePattern[]>([]);
+  const [currentPatternIndex, setCurrentPatternIndex] = useState(0);
+  const [loadingPatterns, setLoadingPatterns] = useState(false);
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
+  const [isListeningMic, setIsListeningMic] = useState(false);
+  const [speechResult, setSpeechResult] = useState<SpeechRecognitionResult | null>(null);
+
   // Bulk / Multi-select mode
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -102,6 +118,71 @@ export const LiveSessionPage: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const loadSentencePatterns = useCallback(async (lessonId?: string, ageGroup?: string) => {
+    try {
+      setLoadingPatterns(true);
+      const res = await sentenceApi.getPatterns({
+        lessonId: lessonId || undefined,
+        ageGroupCode: ageGroup || undefined
+      });
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setPatterns(res.data);
+      } else {
+        const fallbackRes = await sentenceApi.getPatterns({ ageGroupCode: ageGroup || '3-4' });
+        if (fallbackRes.success && Array.isArray(fallbackRes.data)) {
+          setPatterns(fallbackRes.data);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load sentence patterns for session:', e);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  }, []);
+
+  const handleStartMic = async (targetSentence: string) => {
+    if (isListeningMic) {
+      childSpeechEngine.stop();
+      setIsListeningMic(false);
+      return;
+    }
+
+    if (!childSpeechEngine.isAvailable()) {
+      showToast('⚠️ Trình duyệt chưa hỗ trợ micro nhận diện giọng nói. Cô hãy cho bé phát âm theo loa nhé!');
+      return;
+    }
+
+    sfx.playPop();
+    setIsListeningMic(true);
+    setSpeechResult(null);
+
+    try {
+      const result = await childSpeechEngine.listenAndVerify(targetSentence, 8000);
+      setIsListeningMic(false);
+      setSpeechResult(result);
+      if (result.isMatch) {
+        sfx.playStarFanfare();
+        showToast(`🎉 Bé phát âm rất tốt (${Math.round(result.confidence * 100)}%): "${result.spokenText}"`);
+      } else {
+        sfx.playGentleWrong();
+        showToast(`Bé nói: "${result.spokenText || '...'}" — Thử lại nhé!`);
+      }
+    } catch (error) {
+      setIsListeningMic(false);
+      console.warn('Speech error:', error);
+    }
+  };
+
+  const playDialogue = async (qText: string, aText?: string) => {
+    sfx.playPop();
+    playWordAudio(qText);
+    if (aText) {
+      setTimeout(() => {
+        playWordAudio(aText);
+      }, 2200);
+    }
   };
 
   const pickRandomStudent = () => {
@@ -126,6 +207,8 @@ export const LiveSessionPage: React.FC = () => {
       const res = await classroomSessionApi.getSession(sessionId);
       const s: ClassroomSession = res.data;
       setSession(s);
+      const lessonId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
+      void loadSentencePatterns(lessonId, s.ageGroup || s.classroom?.ageGroupCode);
       // Initialise answer map for this question
       const initialAnswers: AnswerMap = {};
       (s.studentScores || []).forEach((sc) => {
@@ -138,11 +221,12 @@ export const LiveSessionPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, loadSentencePatterns]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
 
   // Elapsed timer
   useEffect(() => {
@@ -176,6 +260,7 @@ export const LiveSessionPage: React.FC = () => {
   }, [session?.lesson]);
 
   const currentVocab = activeVocabList[currentVocabIndex] || activeVocabList[0];
+  const currentLessonId = typeof session?.lesson === 'object' ? (session?.lesson as any)?._id : session?.lesson;
 
   // ── Question result submission ─────────────────────────────────────────────
   const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '') => {
@@ -353,53 +438,67 @@ export const LiveSessionPage: React.FC = () => {
           </div>
         </div>
 
-        {/* View Mode Switcher Tabs */}
-        <div className="hidden md:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15 shadow-inner">
+        {/* View Mode Switcher Tabs (Desktop / Laptop) */}
+        <div className="hidden lg:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15 shadow-inner">
           <button
             type="button"
             onClick={() => setActiveTab('presentation')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'presentation'
                 ? 'bg-amber-400 text-amber-950 shadow-md scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
             <BookOpen size={16} />
-            <span>Giảng Bài Từ Vựng</span>
+            <span>1. Giảng Từ Vựng</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('sentences')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeTab === 'sentences'
+                ? 'bg-teal-400 text-teal-950 shadow-md scale-105'
+                : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <MessageSquare size={16} />
+            <span>2. Dạy Mẫu Câu ({patterns.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('games')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'games'
                 ? 'bg-purple-500 text-white shadow-md scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
             <Gamepad2 size={16} />
-            <span>Trò Chơi Lớp Học</span>
+            <span>3. Trò Chơi Lớp Học</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('grid')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'grid'
-                ? 'bg-teal-500 text-white shadow-md scale-105'
+                ? 'bg-sky-500 text-white shadow-md scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
             <Users size={16} />
-            <span>Lưới Quản Lý ({scores.length} bé)</span>
+            <span>4. Lưới Quản Lý ({scores.length})</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-2 sm:gap-3 text-sm">
           {/* Elapsed time */}
-          <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-bold text-xs">
+          <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 sm:px-3 py-1 font-bold text-xs">
             <Clock size={14} className="text-amber-300" />
-            {elapsed > 0 ? `${elapsed} phút` : 'Vừa bắt đầu'}
+            <span className="hidden xs:inline">{elapsed > 0 ? `${elapsed} phút` : 'Vừa bắt đầu'}</span>
+            <span className="xs:hidden">{elapsed}m</span>
           </span>
 
           {/* Total correct answers */}
@@ -409,41 +508,56 @@ export const LiveSessionPage: React.FC = () => {
           </span>
 
           {/* Total stars */}
-          <span className="flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3.5 py-1 text-amber-300 font-black border border-amber-500/30">
-            <Star size={15} className="fill-amber-400 text-amber-400" />
+          <span className="flex items-center gap-1.5 rounded-full bg-amber-500/20 px-2.5 sm:px-3.5 py-1 text-amber-300 font-black text-xs border border-amber-500/30">
+            <Star size={14} className="fill-amber-400 text-amber-400" />
             {totalStars} sao
           </span>
 
           <button
             onClick={handleEnd}
             disabled={ending}
-            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-black text-white shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
           >
             <StopCircle size={15} />
-            {ending ? 'Đang kết thúc…' : 'Kết thúc'}
+            <span className="hidden xs:inline">{ending ? 'Đang kết thúc…' : 'Kết thúc'}</span>
+            <span className="xs:hidden">Dừng</span>
           </button>
         </div>
       </header>
 
-      {/* Mobile Tab switcher bar */}
-      <div className="flex md:hidden items-center justify-around bg-slate-900 border-b border-white/10 p-2">
+      {/* Mobile & Tablet Tab switcher bar */}
+      <div className="flex lg:hidden items-center justify-start gap-1.5 bg-slate-900 border-b border-white/10 p-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('presentation')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold ${activeTab === 'presentation' ? 'bg-amber-400 text-amber-950' : 'text-slate-400'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
+            activeTab === 'presentation' ? 'bg-amber-400 text-amber-950' : 'text-slate-300 hover:bg-white/10'
+          }`}
         >
-          <BookOpen size={14} /> Giảng bài
+          <BookOpen size={14} /> Từ Vựng
+        </button>
+        <button
+          onClick={() => setActiveTab('sentences')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
+            activeTab === 'sentences' ? 'bg-teal-400 text-teal-950' : 'text-slate-300 hover:bg-white/10'
+          }`}
+        >
+          <MessageSquare size={14} /> Mẫu Câu ({patterns.length})
         </button>
         <button
           onClick={() => setActiveTab('games')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold ${activeTab === 'games' ? 'bg-purple-500 text-white' : 'text-slate-400'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
+            activeTab === 'games' ? 'bg-purple-500 text-white' : 'text-slate-300 hover:bg-white/10'
+          }`}
         >
-          <Gamepad2 size={14} /> Trò chơi
+          <Gamepad2 size={14} /> Trò Chơi
         </button>
         <button
           onClick={() => setActiveTab('grid')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold ${activeTab === 'grid' ? 'bg-teal-500 text-white' : 'text-slate-400'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
+            activeTab === 'grid' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'
+          }`}
         >
-          <Users size={14} /> Quản lý ({scores.length})
+          <Users size={14} /> Lớp ({scores.length})
         </button>
       </div>
 
@@ -456,7 +570,7 @@ export const LiveSessionPage: React.FC = () => {
       )}
 
       {/* ── MAIN CONTENT AREA BASED ON TAB ───────────────────────────────────── */}
-      <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-x-hidden">
+      <div className="flex-1 flex flex-col p-3 sm:p-6 overflow-x-hidden">
 
         {/* ========================================================================= */}
         {/* TAB 1: PRESENTATION & VOCABULARY TEACHING (Màn hình Giảng dạy Từ vựng)   */}
@@ -464,7 +578,7 @@ export const LiveSessionPage: React.FC = () => {
         {activeTab === 'presentation' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
             {/* Left Col (8 cols): Giant Presentation Flashcard for classroom display */}
-            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 to-slate-800 rounded-4xl border-3 border-amber-400/40 p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 to-slate-800 rounded-4xl border-3 border-amber-400/40 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
               <div className="w-full flex items-center justify-between mb-4">
                 <span className="bg-amber-400/20 border border-amber-400/40 text-amber-300 font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5">
                   <Sparkles size={14} />
@@ -498,7 +612,7 @@ export const LiveSessionPage: React.FC = () => {
               {/* Giant Flashcard Content */}
               <div className="flex flex-col items-center text-center my-auto w-full">
                 {/* Visual Image Frame */}
-                <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-4xl bg-white p-4 shadow-2xl border-4 border-amber-300 mb-6 flex items-center justify-center relative group">
+                <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-4xl bg-white p-4 shadow-2xl border-4 border-amber-300 mb-6 flex items-center justify-center relative group">
                   <img
                     src={currentVocab.imageUrl}
                     alt={currentVocab.english}
@@ -510,25 +624,25 @@ export const LiveSessionPage: React.FC = () => {
                       sfx.playPop();
                       playWordAudio(currentVocab.english, currentVocab.audioUrl);
                     }}
-                    className="absolute -bottom-4 -right-4 w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-6 ring-amber-300/50"
+                    className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-6 ring-amber-300/50"
                     title="Cô bấm để phát âm chuẩn"
                   >
-                    <Volume2 size={28} />
+                    <Volume2 size={26} />
                   </button>
                 </div>
 
                 {/* English Word */}
-                <h2 className="text-5xl sm:text-6xl md:text-7xl font-black text-amber-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
+                <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-amber-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
                   {currentVocab.english}
                 </h2>
 
                 {/* Vietnamese Meaning & Pronunciation hint */}
-                <div className="flex items-center gap-3 text-slate-300 text-lg sm:text-2xl font-bold mb-6">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-slate-300 text-base sm:text-2xl font-bold mb-6">
                   <span className="text-white bg-white/10 px-4 py-1 rounded-2xl">
                     {currentVocab.vietnamese}
                   </span>
                   {currentVocab.pronunciation && (
-                    <span className="text-amber-300/80 font-mono text-sm sm:text-base">
+                    <span className="text-amber-300/80 font-mono text-xs sm:text-base">
                       {currentVocab.pronunciation}
                     </span>
                   )}
@@ -540,7 +654,7 @@ export const LiveSessionPage: React.FC = () => {
                     onClick={() => {
                       playWordAudio(currentVocab.english, currentVocab.audioUrl);
                     }}
-                    className="flex items-center gap-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/40 px-5 py-2.5 rounded-2xl font-black text-sm cursor-pointer active:scale-95 transition-all"
+                    className="flex items-center gap-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/40 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm cursor-pointer active:scale-95 transition-all"
                   >
                     <Volume2 size={18} />
                     <span>Cả lớp đồng thanh đọc</span>
@@ -548,7 +662,7 @@ export const LiveSessionPage: React.FC = () => {
 
                   <button
                     onClick={pickRandomStudent}
-                    className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-6 py-2.5 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer"
+                    className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-5 sm:px-6 py-2.5 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer text-xs sm:text-sm"
                   >
                     <Mic size={18} />
                     <span>Mời 1 bé đọc từ này 🎲</span>
@@ -580,8 +694,8 @@ export const LiveSessionPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Col (4 cols): Quick Grading on the Spot */}
-            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-5 shadow-xl">
+            {/* Right Col: Quick Grading on the Spot */}
+            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-4 sm:p-5 shadow-xl">
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
                   <Award size={18} className="text-amber-400" />
@@ -627,10 +741,9 @@ export const LiveSessionPage: React.FC = () => {
                           ) : (
                             initials(sName)
                           )}
-                          {/* Parent feedback recommendation icon indicator */}
                           <div
                             className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-white shadow-xs font-bold"
-                            title="Ý kiến / Đề xuất của phụ huynh: Bé hăng hái học từ vựng hình ảnh ở nhà!"
+                            title="Ý kiến phụ huynh: Bé chăm ngoan!"
                           >
                             💬
                           </div>
@@ -659,6 +772,407 @@ export const LiveSessionPage: React.FC = () => {
                           onClick={() => setSpotlightStudent(sc)}
                           className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95"
                           title="Mời bé phát biểu"
+                        >
+                          <Mic size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 2: SENTENCES & DIALOGUE TEACHING (Màn hình Giảng dạy Mẫu câu của bài) */}
+        {/* ========================================================================= */}
+        {activeTab === 'sentences' && (
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
+            {/* Left Col (8 cols): Giant Presentation for Sentence Patterns */}
+            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-indigo-950/40 to-slate-900 rounded-4xl border-3 border-teal-400/40 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+              {/* Top bar in sentence presentation */}
+              <div className="w-full flex items-center justify-between mb-4">
+                <span className="bg-teal-400/20 border border-teal-400/40 text-teal-300 font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5">
+                  <MessageSquare size={14} />
+                  Mẫu câu bài học {patterns.length > 0 ? `${currentPatternIndex + 1} / ${patterns.length}` : '—'}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  {currentLessonId && (
+                    <a
+                      href={`/teacher/sentences?lessonId=${currentLessonId}&mode=classroom`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-400/30 text-xs font-bold transition-all cursor-pointer"
+                      title="Mở màn hình chiếu mẫu câu độc lập ở tab mới"
+                    >
+                      <ExternalLink size={13} />
+                      <span className="hidden sm:inline">Chiếu riêng ↗</span>
+                    </a>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      sfx.playPop();
+                      setIsAnswerRevealed(false);
+                      setSpeechResult(null);
+                      setCurrentPatternIndex(i => (i > 0 ? i - 1 : patterns.length - 1));
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all disabled:opacity-40"
+                    title="Mẫu câu trước"
+                    disabled={patterns.length <= 1}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      sfx.playPop();
+                      setIsAnswerRevealed(false);
+                      setSpeechResult(null);
+                      setCurrentPatternIndex(i => (i < patterns.length - 1 ? i + 1 : 0));
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all disabled:opacity-40"
+                    title="Mẫu câu tiếp theo"
+                    disabled={patterns.length <= 1}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Sentence Content */}
+              {loadingPatterns ? (
+                <div className="my-auto py-16 text-center text-slate-400">
+                  <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-teal-400 border-t-transparent" />
+                  <p className="font-bold">Đang tải mẫu câu tương ứng của bài học...</p>
+                </div>
+              ) : patterns.length > 0 && patterns[currentPatternIndex] ? (
+                (() => {
+                  const currentPattern = patterns[currentPatternIndex];
+                  const primaryAnswer = currentPattern.answers?.[0];
+
+                  return (
+                    <div className="flex flex-col items-center text-center my-auto w-full max-w-2xl">
+                      {/* Question or Lead Sentence Card */}
+                      <div className="relative w-full rounded-3xl bg-white/10 border-2 border-teal-300/40 p-5 sm:p-7 shadow-xl backdrop-blur-xs mb-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-teal-300 bg-teal-950/60 px-3 py-1 rounded-full border border-teal-400/30">
+                            {currentPattern.contentType === 'QUESTION' ? '❓ Câu hỏi tương tác' : '💬 Mẫu câu đàm thoại'}
+                          </span>
+
+                          {/* Speaker Audio Button */}
+                          <button
+                            onClick={() => {
+                              sfx.playPop();
+                              playWordAudio(currentPattern.english, currentPattern.audioUrl || undefined);
+                            }}
+                            className="w-12 h-12 rounded-2xl bg-teal-500 hover:bg-teal-400 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer ring-4 ring-teal-400/30"
+                            title="Cô bấm để phát âm câu hỏi"
+                          >
+                            <Volume2 size={24} />
+                          </button>
+                        </div>
+
+                        {/* Question Visual Illustration Frame */}
+                        <div className="relative mx-auto mb-4 w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 rounded-4xl bg-white p-3 shadow-2xl border-4 border-teal-300 flex items-center justify-center group">
+                          <img
+                            src={getSentenceIllustration(currentPattern.english, currentPattern.imageUrl, false)}
+                            alt={currentPattern.english}
+                            className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+
+                        {/* Big Question Text */}
+                        <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white font-display tracking-wide drop-shadow-md mb-3 leading-tight">
+                          {currentPattern.english}
+                        </h2>
+
+                        {/* Vietnamese Meaning & Pronunciation */}
+                        <div className="flex flex-wrap items-center justify-center gap-2 text-slate-300 text-sm sm:text-base font-bold">
+                          {currentPattern.vietnamese && (
+                            <span className="text-teal-200 bg-teal-900/50 px-3.5 py-1 rounded-xl border border-teal-500/30">
+                              {currentPattern.vietnamese}
+                            </span>
+                          )}
+                          {currentPattern.pronunciation && (
+                            <span className="text-amber-300 font-mono text-xs sm:text-sm">
+                              /{currentPattern.pronunciation}/
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Interactive Answer Section (Reveal / Hide) */}
+                      <div className="w-full mb-6">
+                        {!isAnswerRevealed ? (
+                          <button
+                            onClick={() => {
+                              sfx.playCorrect();
+                              setIsAnswerRevealed(true);
+                            }}
+                            className="w-full py-4 sm:py-5 px-6 rounded-3xl border-2 border-dashed border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 font-black text-base sm:text-xl flex items-center justify-center gap-3 transition-all cursor-pointer group active:scale-98 shadow-md"
+                          >
+                            <HelpCircle size={24} className="group-hover:rotate-12 transition-transform text-amber-400" />
+                            <span>Bấm để lật mở câu trả lời cho bé ✨</span>
+                          </button>
+                        ) : (
+                          <div className="w-full rounded-3xl bg-gradient-to-r from-emerald-950/70 via-teal-900/60 to-emerald-950/70 border-2 border-emerald-400 p-5 sm:p-6 shadow-xl relative animate-pop-in">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-400/30">
+                                ✨ Câu trả lời của bé
+                              </span>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setIsAnswerRevealed(false)}
+                                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-bold"
+                                  title="Che lại đáp án để đố tiếp"
+                                >
+                                  <EyeOff size={16} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const ansText = primaryAnswer?.english || currentPattern.english;
+                                    const ansAudio = primaryAnswer?.audioUrl;
+                                    sfx.playPop();
+                                    playWordAudio(ansText, ansAudio || undefined);
+                                  }}
+                                  className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
+                                  title="Phát âm câu trả lời"
+                                >
+                                  <Volume2 size={20} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Answer options with intuitive illustrations */}
+                            <div className="space-y-3 py-1">
+                              {(currentPattern.answers && currentPattern.answers.length > 0
+                                ? currentPattern.answers
+                                : [{ english: currentPattern.english, vietnamese: currentPattern.vietnamese, imageUrl: currentPattern.imageUrl }]
+                              ).map((ans, aIdx) => (
+                                <div
+                                  key={ans._id || aIdx}
+                                  className="flex flex-col sm:flex-row items-center justify-center gap-4 bg-white/5 rounded-2xl p-3 border border-emerald-400/30"
+                                >
+                                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-1.5 shadow-md border-2 border-emerald-300 shrink-0 flex items-center justify-center">
+                                    <img
+                                      src={getSentenceIllustration(ans.english, ans.imageUrl, true)}
+                                      alt={ans.english}
+                                      className="w-full h-full object-contain"
+                                    />
+                                  </div>
+                                  <div className="text-center sm:text-left min-w-0">
+                                    <p className="text-2xl sm:text-3xl md:text-4xl font-black text-amber-300 font-display drop-shadow-sm leading-tight">
+                                      {ans.english}
+                                    </p>
+                                    {ans.vietnamese && (
+                                      <p className="text-emerald-200 text-sm sm:text-base font-bold mt-1">
+                                        {ans.vietnamese}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Interactive Speech & Classroom Actions */}
+                      <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+                        {/* Live Mic Button */}
+                        <button
+                          onClick={() => {
+                            const targetText = primaryAnswer?.english || currentPattern.english;
+                            handleStartMic(targetText);
+                          }}
+                          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all cursor-pointer ${
+                            isListeningMic
+                              ? 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-400/50'
+                              : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white'
+                          }`}
+                        >
+                          <Mic size={18} className={isListeningMic ? 'animate-bounce' : ''} />
+                          <span>{isListeningMic ? 'Đang nghe bé nói...' : 'Mời bé đọc vào Mic 🎙️'}</span>
+                        </button>
+
+                        {/* Whole class dialogue */}
+                        <button
+                          onClick={() => {
+                            const aText = primaryAnswer?.english;
+                            void playDialogue(currentPattern.english, aText);
+                          }}
+                          className="flex items-center gap-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/40 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-black text-xs sm:text-sm cursor-pointer active:scale-95 transition-all"
+                        >
+                          <Volume2 size={18} />
+                          <span>Cả lớp đồng thanh đọc 🗣️</span>
+                        </button>
+
+                        {/* Random student picker */}
+                        <button
+                          onClick={pickRandomStudent}
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer text-xs sm:text-sm"
+                        >
+                          <span>Mời 1 bé trả lời 🎲</span>
+                        </button>
+                      </div>
+
+                      {/* Speech Result Display */}
+                      {speechResult && (
+                        <div className={`mt-4 p-3 rounded-2xl border text-xs sm:text-sm font-black flex items-center justify-between gap-3 w-full animate-pop-in ${
+                          speechResult.isMatch
+                            ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200'
+                            : 'bg-amber-500/20 border-amber-400/50 text-amber-200'
+                        }`}>
+                          <span>
+                            {speechResult.isMatch ? '🎉 Phát âm chuẩn!' : '👉 Bé nói:'}{' '}
+                            "{speechResult.spokenText || '...'}" ({Math.round(speechResult.confidence * 100)}%)
+                          </span>
+                          <button
+                            onClick={() => {
+                              if (spotlightStudent) {
+                                const sid = typeof spotlightStudent.student === 'string' ? spotlightStudent.student : (spotlightStudent.student as User)._id;
+                                if (sid) {
+                                  void applyScore(sid, { stars: 1, points: 5 });
+                                  showToast(`⭐ Đã thưởng sao cho bé đọc xuất sắc!`);
+                                }
+                              } else {
+                                handleAwardWholeClass(1, 5);
+                              }
+                            }}
+                            className="px-3 py-1 rounded-xl bg-amber-400 text-amber-950 text-xs font-black shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
+                          >
+                            Thưởng bé +1 ⭐
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="my-auto py-16 text-center text-slate-400 max-w-md mx-auto">
+                  <div className="w-16 h-16 rounded-3xl bg-teal-500/20 text-teal-400 flex items-center justify-center mx-auto mb-4 text-3xl">
+                    💬
+                  </div>
+                  <p className="text-xl font-bold text-white mb-2">Chưa có mẫu câu riêng cho bài này</p>
+                  <p className="text-sm text-slate-400 leading-relaxed mb-6">
+                    Cô giáo có thể chuyển sang trang Quản lý Mẫu câu để chọn mẫu câu từ ngân hàng 27 Unit mẫu!
+                  </p>
+                  <button
+                    onClick={() => navigate('/teacher/sentences')}
+                    className="px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black text-sm shadow-lg active:scale-95 transition-all cursor-pointer"
+                  >
+                    Xem ngân hàng mẫu câu 🚀
+                  </button>
+                </div>
+              )}
+
+              {/* Pattern Carousel Strip at bottom */}
+              <div className="w-full flex items-center gap-2 overflow-x-auto pt-4 border-t border-white/10 scrollbar-none">
+                {patterns.map((p, idx) => (
+                  <button
+                    key={p._id || idx}
+                    onClick={() => {
+                      sfx.playPop();
+                      setIsAnswerRevealed(false);
+                      setSpeechResult(null);
+                      setCurrentPatternIndex(idx);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                      currentPatternIndex === idx
+                        ? 'border-teal-400 bg-teal-400/20 text-teal-300 ring-2 ring-teal-400/40'
+                        : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-md overflow-hidden bg-white/20 inline-flex items-center justify-center shrink-0">
+                      <img
+                        src={getSentenceIllustration(p.english, p.imageUrl, false)}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </span>
+                    <span>Câu {idx + 1}:</span>
+                    <span className="truncate max-w-[130px]">{p.english}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Col: Quick Grading Panel */}
+            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-4 sm:p-5 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                <div className="flex items-center gap-2">
+                  <Award size={18} className="text-teal-400" />
+                  <h3 className="font-black text-base text-white">Chấm Điểm Mẫu Câu</h3>
+                </div>
+                <span className="text-xs font-bold text-slate-400">{scores.length} học sinh</span>
+              </div>
+
+              {/* Master whole-class award buttons */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button
+                  onClick={() => handleAwardWholeClass(1, 5)}
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all shadow-sm"
+                >
+                  <Star size={14} className="fill-amber-400" />
+                  <span>Cả lớp +1 ⭐</span>
+                </button>
+                <button
+                  onClick={() => handleAwardWholeClass(0, 5)}
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 hover:bg-teal-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all shadow-sm"
+                >
+                  <ThumbsUp size={14} />
+                  <span>Khen nói hay +5đ</span>
+                </button>
+              </div>
+
+              {/* Quick Students list */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[460px]">
+                {scores.map((sc) => {
+                  const student = sc.student as User;
+                  const sid = typeof sc.student === 'string' ? sc.student : student?._id || '';
+                  const sName = student?.name || 'Bé yêu';
+
+                  return (
+                    <div
+                      key={sid}
+                      className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:border-teal-400/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 border border-white/20">
+                          {student?.avatarUrl ? (
+                            <img src={student.avatarUrl} alt={sName} className="w-full h-full object-cover" />
+                          ) : (
+                            initials(sName)
+                          )}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-xs font-bold text-white truncate">{sName}</p>
+                          <p className="text-[11px] text-teal-300 flex items-center gap-1 font-semibold">
+                            <Star size={10} className="fill-amber-400 text-amber-400" />
+                            {sc.stars} sao &bull; {sc.points}đ
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            void applyScore(sid, { stars: 1, points: 5 });
+                            showToast(`⭐ +1 Sao cho ${sName}!`);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-teal-400 hover:bg-teal-300 text-teal-950 font-black text-xs cursor-pointer active:scale-95 shadow-xs"
+                          title="Thưởng 1 sao"
+                        >
+                          +1 ⭐
+                        </button>
+                        <button
+                          onClick={() => setSpotlightStudent(sc)}
+                          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95"
+                          title="Mời bé đọc mẫu câu"
                         >
                           <Mic size={13} />
                         </button>

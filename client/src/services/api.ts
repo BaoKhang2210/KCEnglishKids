@@ -410,3 +410,9 @@ export const parentNotificationApi = {
     api.get(`/children/${childId}/assignments`)
 };
 
+export const streakApi = {
+  getStreak: (childId: string) =>
+    api.get(`/children/${childId}/streak`),
+  testStreakLevel: (childId: string, streak: number) =>
+    api.post(`/children/${childId}/streak/test-level`, { streak })
+};

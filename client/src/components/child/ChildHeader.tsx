@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Star, LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, Mail } from 'lucide-react';
+import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { ChildBadgesModal } from './ChildBadgesModal';
 import { ParentNotebookModal } from './ParentNotebookModal';
+import { DailyStreakBadge } from './DailyStreakBadge';
+import { DailyStreakModal } from './DailyStreakModal';
+import { streakApi } from '../../services/api';
+import type { ChildStreakData } from '../../types';
 
 interface ChildHeaderProps {
   totalStars?: number;
   completedCount?: number;
   activeTab?: string;
+  streakData?: ChildStreakData | null;
+  onStreakUpdate?: (updated: ChildStreakData) => void;
 }
 
 export const ChildHeader: React.FC<ChildHeaderProps> = ({
   totalStars = 0,
   completedCount = 0,
-  activeTab: propActiveTab
+  activeTab: propActiveTab,
+  streakData: propStreakData,
+  onStreakUpdate
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -24,6 +32,27 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
   const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [showParentModal, setShowParentModal] = useState(false);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  const [localStreakData, setLocalStreakData] = useState<ChildStreakData | null>(propStreakData || null);
+
+  useEffect(() => {
+    if (propStreakData) {
+      setLocalStreakData(propStreakData);
+      return;
+    }
+    const childId = user?.id || (user as any)?._id;
+    if (childId && user?.role === 'CHILD') {
+      streakApi.getStreak(childId)
+        .then((res) => {
+          if (res.success && res.data) {
+            setLocalStreakData(res.data);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load streak in header:', err);
+        });
+    }
+  }, [propStreakData, user]);
 
   const handleLogout = () => {
     sfx.playPop();
@@ -170,32 +199,20 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 </div>
             </div>
 
-            {/* User Info & Interactive Star Jar */}
+            {/* User Info & Interactive Daily Streak Flame */}
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              {/* Clickable Star Jar Counter (Opens Badges Modal) */}
-              <button
+              {/* Daily Streak Flame Counter (Replaces Star Jar, opens DailyStreakModal) */}
+              <DailyStreakBadge
+                streak={localStreakData?.streak || 1}
+                level={localStreakData?.levelInfo?.level || 1}
                 onClick={() => {
                   sfx.playPop();
-                  setShowBadgesModal(true);
+                  setShowStreakModal(true);
                 }}
-                title="Xem huy hiệu & sao của bé"
-                className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-200 border-[3px] border-amber-400 px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-[20px] shadow-[0_4px_0_#d97706] animate-pulse-glow cursor-pointer hover:scale-105 active:scale-95 transition-transform"
-              >
-                <Star className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500 fill-amber-400 animate-soft-bounce" />
-                <div className="flex flex-col text-left whitespace-nowrap">
-                  <span 
-                    className="font-black text-[18px] sm:text-[22px] text-amber-950 leading-none"
-                    style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
-                  >
-                    {totalStars}
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] font-black text-amber-700 uppercase tracking-widest hidden xs:block mt-1">
-                    Ngôi sao
-                  </span>
-                </div>
-              </button>
+              />
 
-              {/* Child Profile Pill (Clickable) */}
+              {/* Child Profile Pill (Clickable - opens Badges & Stars Modal) */}
+
               {user && (
                 <button
                   onClick={() => {
@@ -282,6 +299,18 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
         completedCount={completedCount}
         childName={user?.name || 'Bé'}
       />
+
+      {/* Daily Streak Modal */}
+      <DailyStreakModal
+        isOpen={showStreakModal}
+        onClose={() => setShowStreakModal(false)}
+        streakData={localStreakData}
+        onStreakUpdate={(updated) => {
+          setLocalStreakData(updated);
+          if (onStreakUpdate) onStreakUpdate(updated);
+        }}
+      />
     </>
   );
 };
+
