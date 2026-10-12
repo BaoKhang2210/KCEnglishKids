@@ -1,0 +1,6 @@
+- API surface is organized per domain: each feature area exports a named object (e.g. `authApi`, `teacherApi`, `classroomSessionApi`) wrapping the shared `api.{get|post|patch|put|delete}` helpers rather than calling fetch directly.
+- Authentication tokens are read/written through `localStorage` keys `kc_token` and `kc_user`, with the Authorization header injected centrally in `services/api.ts`'s `getHeaders()`.
+- Route guards are implemented as higher-order components (`ProtectedChildRoute`, `ProtectedTeacherRoute`) that inspect `useAuth().user.role` and redirect via `Navigate` instead of inline role checks inside page components.
+- Each child activity game lives in its own file under `components/child/games/` and follows a uniform prop contract `{ question: ActivityQuestion, onAnswer: (isCorrect, optionId) => void, disabled?: boolean }` so they can be rendered generically.
+- All cross-cutting domain shapes (User, Topic, Lesson, Activity, ClassroomSession, VocabularyMasteryRecord, etc.) are declared once in `src/types/index.ts` and imported by both services and components rather than re-declared locally.
+- Audio feedback in games goes through the shared `utils/audio.ts` helpers (`playWordAudio`, `sfx.playPop()`) instead of invoking Howler or the Web Audio API directly inside game components.

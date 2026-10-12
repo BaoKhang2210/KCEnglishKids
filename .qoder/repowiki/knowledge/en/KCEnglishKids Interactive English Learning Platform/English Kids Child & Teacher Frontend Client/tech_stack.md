@@ -1,0 +1,1 @@
+React 19 + TypeScript 6 + Vite 8; Tailwind CSS v4 via `@tailwindcss/vite`; `react-router-dom` v7 for routing; `howler` for audio/SFX; `canvas-confetti` for celebration effects; `lucide-react` icons; `oxlint` for linting.

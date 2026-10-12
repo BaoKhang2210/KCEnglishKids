@@ -1,0 +1,6 @@
+- Controllers wrap every handler in try/catch and forward errors via `next(error)` instead of returning error responses directly.
+- Successful responses are wrapped in a `{ success: true/false, data?, message?, count? }` JSON envelope consistently across all handlers.
+- Content queries filter by `status: 'ACTIVE'` and sort by `displayOrder` / `order` / `lessonNumber` to enforce editorial ordering.
+- Child-specific enrichment (progress, stars, scores) is gated on `req.user.role === 'CHILD'` or an explicit `childId` query param, then merged into results via a Map keyed by `_id.toString()`.
+- Mongoose schemas declare composite indexes on `(topic|lesson|classroom|teacher, status)` and on `ageGroupCode` to support the age-group filtered queries used throughout the controllers.
+- Models export a single mongoose model via `module.exports = mongoose.model(...)` and reference sibling collections through `ref: 'ModelName'` ObjectId fields.

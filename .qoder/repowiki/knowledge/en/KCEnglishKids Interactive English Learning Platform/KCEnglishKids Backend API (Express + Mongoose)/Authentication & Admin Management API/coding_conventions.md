@@ -1,0 +1,6 @@
+- Every controller handler wraps its body in try/catch and forwards errors via `next(error)` so a central error handler can consume them.
+- Successful responses follow a `{ success: true, ... }` envelope, while validation/authentication failures return `{ success: false, message: '...' }` with appropriate HTTP status codes.
+- Protected routes compose `protect` and `authorize('ADMIN')` middlewares directly in the route declaration chain rather than wrapping handlers.
+- Sensitive fields (`password`, `pin`) are stripped from query results using `.select('-password -pin')` before being sent to clients.
+- Admin mutations that modify state call `AuditLog.create({ user, action, targetType, targetId, details })` after the write to record who did what.
+- User creation normalizes identifiers to lowercase and trims whitespace before persisting, and validates child PINs against the `/^\d{4}$/` regex.

@@ -1,0 +1,1 @@
+Node.js + Express + Mongoose + MongoDB for the shared backend; React 19 + TypeScript + Vite 8 + Tailwind CSS v4 for both frontend clients; Howler.js/Web Audio API for child-facing audio feedback; JSON Web Tokens for role-based access across CHILD, TEACHER, and ADMIN actors.

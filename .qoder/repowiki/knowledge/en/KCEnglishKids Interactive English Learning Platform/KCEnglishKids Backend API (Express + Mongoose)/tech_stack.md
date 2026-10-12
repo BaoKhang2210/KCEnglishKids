@@ -1,0 +1,1 @@
+Node.js CommonJS with Express 5, Mongoose 9 for MongoDB, bcryptjs for password hashing, jsonwebtoken for JWT, dotenv for config, cors for cross-origin requests.

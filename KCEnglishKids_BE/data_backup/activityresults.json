@@ -1,0 +1,1372 @@
+[
+  {
+    "_id": "6aa04f546e802e82891c8ebe",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a970",
+    "lesson": "6aa04e52f81d292bdb10a776",
+    "session": "6aa04f546e802e82891c8ebd",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 95,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "dog",
+        "selectedOptionId": "opt_0_2_dog",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5af",
+        "responseTimeMs": 11343,
+        "_id": "6aa04f546e802e82891c8ebf"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "cat",
+        "selectedOptionId": "opt_1_0_cat",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b4",
+        "responseTimeMs": 72362,
+        "_id": "6aa04f546e802e82891c8ec0"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "rabbit",
+        "selectedOptionId": "opt_2_0_rabbit",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b1",
+        "responseTimeMs": 1592,
+        "_id": "6aa04f546e802e82891c8ec1"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "fish",
+        "selectedOptionId": "opt_3_0_fish",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b2",
+        "responseTimeMs": 5072,
+        "_id": "6aa04f546e802e82891c8ec2"
+      }
+    ],
+    "createdAt": "2026-09-08T18:09:24.488Z",
+    "updatedAt": "2026-09-08T18:09:24.488Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa055a2bf467b0b00d6565c",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a970",
+    "lesson": "6aa04e52f81d292bdb10a776",
+    "session": "6aa04f546e802e82891c8ebd",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 45,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "dog",
+        "selectedOptionId": "opt_0_2_dog",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5af",
+        "responseTimeMs": 15371,
+        "_id": "6aa055a2bf467b0b00d6565d"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "cat",
+        "selectedOptionId": "opt_1_0_cat",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b4",
+        "responseTimeMs": 8147,
+        "_id": "6aa055a2bf467b0b00d6565e"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "rabbit",
+        "selectedOptionId": "opt_2_0_rabbit",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b1",
+        "responseTimeMs": 9074,
+        "_id": "6aa055a2bf467b0b00d6565f"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "fish",
+        "selectedOptionId": "opt_3_0_fish",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b2",
+        "responseTimeMs": 7100,
+        "_id": "6aa055a2bf467b0b00d65660"
+      }
+    ],
+    "createdAt": "2026-09-08T18:36:18.663Z",
+    "updatedAt": "2026-09-08T18:36:18.663Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa055f9bf467b0b00d656a4",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a9c8",
+    "lesson": "6aa04e52f81d292bdb10a778",
+    "session": "6aa055f9bf467b0b00d656a3",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 5,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Find the hamster!",
+        "selectedOptionId": "fo_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b5",
+        "responseTimeMs": 4114,
+        "_id": "6aa055f9bf467b0b00d656a5"
+      }
+    ],
+    "createdAt": "2026-09-08T18:37:45.083Z",
+    "updatedAt": "2026-09-08T18:37:45.083Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa05af1351655ab7f5c2b9e",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a970",
+    "lesson": "6aa04e52f81d292bdb10a776",
+    "session": "6aa04f546e802e82891c8ebd",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 45,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "dog",
+        "selectedOptionId": "opt_0_2_dog",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5af",
+        "responseTimeMs": 9820,
+        "_id": "6aa05af1351655ab7f5c2b9f"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "cat",
+        "selectedOptionId": "opt_1_0_cat",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b4",
+        "responseTimeMs": 9947,
+        "_id": "6aa05af1351655ab7f5c2ba0"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "rabbit",
+        "selectedOptionId": "opt_2_0_rabbit",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b1",
+        "responseTimeMs": 9572,
+        "_id": "6aa05af1351655ab7f5c2ba1"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "fish",
+        "selectedOptionId": "opt_3_0_fish",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b2",
+        "responseTimeMs": 10224,
+        "_id": "6aa05af1351655ab7f5c2ba2"
+      }
+    ],
+    "createdAt": "2026-09-08T18:58:57.279Z",
+    "updatedAt": "2026-09-08T18:58:57.279Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa05b93351655ab7f5c2bff",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a992",
+    "lesson": "6aa04e52f81d292bdb10a776",
+    "session": "6aa04f546e802e82891c8ebd",
+    "score": 99,
+    "stars": 3,
+    "correctCount": 3,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 13,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Find the matching pair: dog",
+        "selectedOptionId": "mem_opt_0_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5af",
+        "responseTimeMs": 2000,
+        "_id": "6aa05b93351655ab7f5c2c00"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Find the matching pair: cat",
+        "selectedOptionId": "mem_opt_1_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b4",
+        "responseTimeMs": 2000,
+        "_id": "6aa05b93351655ab7f5c2c01"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Find the matching pair: rabbit",
+        "selectedOptionId": "mem_opt_2_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5b1",
+        "responseTimeMs": 2000,
+        "_id": "6aa05b93351655ab7f5c2c02"
+      }
+    ],
+    "createdAt": "2026-09-08T19:01:39.874Z",
+    "updatedAt": "2026-09-08T19:01:39.874Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa06c27351655ab7f5c2ce6",
+    "child": "6aa04e53f81d292bdb10b326",
+    "activity": "6aa04e52f81d292bdb10abce",
+    "lesson": "6aa04e52f81d292bdb10a78c",
+    "session": "6aa06c27351655ab7f5c2ce5",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 4,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Find the listen to stories!",
+        "selectedOptionId": "fo_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5f3",
+        "responseTimeMs": 2927,
+        "_id": "6aa06c27351655ab7f5c2ce7"
+      }
+    ],
+    "createdAt": "2026-09-08T20:12:23.777Z",
+    "updatedAt": "2026-09-08T20:12:23.777Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa06c8d351655ab7f5c2d41",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a970",
+    "lesson": "6aa04e52f81d292bdb10a776",
+    "session": "6aa04f546e802e82891c8ebd",
+    "score": 25,
+    "stars": 0,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 25,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Test",
+        "selectedOptionId": "opt_1",
+        "isCorrect": true,
+        "responseTimeMs": 1500,
+        "_id": "6aa06c8d351655ab7f5c2d42"
+      }
+    ],
+    "createdAt": "2026-09-08T20:14:05.498Z",
+    "updatedAt": "2026-09-08T20:14:05.498Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa06e9e351655ab7f5c2e6d",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a7d2",
+    "lesson": "6aa04e52f81d292bdb10a766",
+    "session": "6aa06e9e351655ab7f5c2e6c",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 16,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "book",
+        "selectedOptionId": "opt_0_2_book",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a583",
+        "responseTimeMs": 5238,
+        "_id": "6aa06e9e351655ab7f5c2e6e"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "crayon",
+        "selectedOptionId": "opt_1_0_crayon",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 2196,
+        "_id": "6aa06e9e351655ab7f5c2e6f"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "chair",
+        "selectedOptionId": "opt_2_1_chair",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a585",
+        "responseTimeMs": 2191,
+        "_id": "6aa06e9e351655ab7f5c2e70"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "table",
+        "selectedOptionId": "opt_3_0_table",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a586",
+        "responseTimeMs": 1324,
+        "_id": "6aa06e9e351655ab7f5c2e71"
+      }
+    ],
+    "createdAt": "2026-09-08T20:22:54.128Z",
+    "updatedAt": "2026-09-08T20:22:54.128Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0788dcf60f3bfcec28d92",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a820",
+    "lesson": "6aa04e52f81d292bdb10a768",
+    "session": "6aa0788dcf60f3bfcec28d91",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 3,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Find the sun!",
+        "selectedOptionId": "fo_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a581",
+        "responseTimeMs": 1616,
+        "_id": "6aa0788dcf60f3bfcec28d93"
+      }
+    ],
+    "createdAt": "2026-09-08T21:05:17.302Z",
+    "updatedAt": "2026-09-08T21:05:17.302Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa078b3cf60f3bfcec28ea6",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a7f4",
+    "lesson": "6aa04e52f81d292bdb10a767",
+    "session": "6aa078b3cf60f3bfcec28ea5",
+    "score": 200,
+    "stars": 3,
+    "correctCount": 8,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 24,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "teacher",
+        "selectedOptionId": "opt_0_0_teacher",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a57d",
+        "responseTimeMs": 1650,
+        "_id": "6aa078b3cf60f3bfcec28ea7"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "boy",
+        "selectedOptionId": "opt_1_0_boy",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a57e",
+        "responseTimeMs": 1139,
+        "_id": "6aa078b3cf60f3bfcec28ea8"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "girl",
+        "selectedOptionId": "opt_2_0_girl",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a57f",
+        "responseTimeMs": 1180,
+        "_id": "6aa078b3cf60f3bfcec28ea9"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "Leo",
+        "selectedOptionId": "opt_3_0_Leo",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a587",
+        "responseTimeMs": 1606,
+        "_id": "6aa078b3cf60f3bfcec28eaa"
+      },
+      {
+        "questionIndex": 4,
+        "promptText": "Tickles",
+        "selectedOptionId": "6aa077be2ffca63e5733859b",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a588",
+        "responseTimeMs": 1519,
+        "_id": "6aa078b3cf60f3bfcec28eab"
+      },
+      {
+        "questionIndex": 5,
+        "promptText": "Dad",
+        "selectedOptionId": "6aa077be2ffca63e573385a0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a589",
+        "responseTimeMs": 1456,
+        "_id": "6aa078b3cf60f3bfcec28eac"
+      },
+      {
+        "questionIndex": 6,
+        "promptText": "Mom",
+        "selectedOptionId": "6aa077be2ffca63e573385a5",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a58a",
+        "responseTimeMs": 2828,
+        "_id": "6aa078b3cf60f3bfcec28ead"
+      },
+      {
+        "questionIndex": 7,
+        "promptText": "Mia",
+        "selectedOptionId": "6aa077be2ffca63e573385aa",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a58b",
+        "responseTimeMs": 2143,
+        "_id": "6aa078b3cf60f3bfcec28eae"
+      }
+    ],
+    "createdAt": "2026-09-08T21:05:55.320Z",
+    "updatedAt": "2026-09-08T21:05:55.320Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa078c8cf60f3bfcec28eef",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a805",
+    "lesson": "6aa04e52f81d292bdb10a767",
+    "session": "6aa078b3cf60f3bfcec28ea5",
+    "score": 99,
+    "stars": 3,
+    "correctCount": 3,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 18,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Find the pair for: teacher",
+        "selectedOptionId": "mem_0_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a57d",
+        "responseTimeMs": 2000,
+        "_id": "6aa078c8cf60f3bfcec28ef0"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Find the pair for: boy",
+        "selectedOptionId": "mem_1_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a57e",
+        "responseTimeMs": 2000,
+        "_id": "6aa078c8cf60f3bfcec28ef1"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Find the pair for: girl",
+        "selectedOptionId": "mem_2_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a57f",
+        "responseTimeMs": 2000,
+        "_id": "6aa078c8cf60f3bfcec28ef2"
+      }
+    ],
+    "createdAt": "2026-09-08T21:06:16.652Z",
+    "updatedAt": "2026-09-08T21:06:16.652Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa078dfcf60f3bfcec28fb5",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a824",
+    "lesson": "6aa04e52f81d292bdb10a769",
+    "session": "6aa078dfcf60f3bfcec28fb4",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 10,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "crayon",
+        "selectedOptionId": "opt_0_1_crayon",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 1468,
+        "_id": "6aa078dfcf60f3bfcec28fb6"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "book",
+        "selectedOptionId": "opt_1_0_book",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a583",
+        "responseTimeMs": 1237,
+        "_id": "6aa078dfcf60f3bfcec28fb7"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "chair",
+        "selectedOptionId": "opt_2_0_chair",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a585",
+        "responseTimeMs": 1224,
+        "_id": "6aa078dfcf60f3bfcec28fb8"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "sun",
+        "selectedOptionId": "opt_3_1_sun",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a581",
+        "responseTimeMs": 1273,
+        "_id": "6aa078dfcf60f3bfcec28fb9"
+      }
+    ],
+    "createdAt": "2026-09-08T21:06:39.707Z",
+    "updatedAt": "2026-09-08T21:06:39.707Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa078e7cf60f3bfcec28fdb",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a835",
+    "lesson": "6aa04e52f81d292bdb10a769",
+    "session": "6aa078dfcf60f3bfcec28fb4",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 4,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Which one is crayon?",
+        "selectedOptionId": "color_opt_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 2296,
+        "_id": "6aa078e7cf60f3bfcec28fdc"
+      }
+    ],
+    "createdAt": "2026-09-08T21:06:47.107Z",
+    "updatedAt": "2026-09-08T21:06:47.107Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa078f0cf60f3bfcec28ffd",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a83a",
+    "lesson": "6aa04e52f81d292bdb10a769",
+    "session": "6aa078dfcf60f3bfcec28fb4",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 7,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "How many crayons can you see?",
+        "selectedOptionId": "cnt_opt_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 6167,
+        "_id": "6aa078f0cf60f3bfcec28ffe"
+      }
+    ],
+    "createdAt": "2026-09-08T21:06:56.153Z",
+    "updatedAt": "2026-09-08T21:06:56.153Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa07afe58b27c3a3ff62d7e",
+    "child": "6aa04e53f81d292bdb10b326",
+    "activity": "6aa04e52f81d292bdb10af46",
+    "lesson": "6aa04e52f81d292bdb10a7ae",
+    "session": "6aa07afe58b27c3a3ff62d7d",
+    "score": 125,
+    "stars": 3,
+    "correctCount": 5,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 20,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Monday",
+        "selectedOptionId": "opt_0_2_Monday",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a666",
+        "responseTimeMs": 2172,
+        "_id": "6aa07afe58b27c3a3ff62d7f"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Tuesday",
+        "selectedOptionId": "opt_1_0_Tuesday",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a667",
+        "responseTimeMs": 1736,
+        "_id": "6aa07afe58b27c3a3ff62d80"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Wednesday",
+        "selectedOptionId": "opt_2_2_Wednesday",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a668",
+        "responseTimeMs": 1704,
+        "_id": "6aa07afe58b27c3a3ff62d81"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "Thursday",
+        "selectedOptionId": "opt_3_0_Thursday",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a669",
+        "responseTimeMs": 4978,
+        "_id": "6aa07afe58b27c3a3ff62d82"
+      },
+      {
+        "questionIndex": 4,
+        "promptText": "Friday",
+        "selectedOptionId": "6aa077bf2ffca63e57339299",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a66a",
+        "responseTimeMs": 2378,
+        "_id": "6aa07afe58b27c3a3ff62d83"
+      }
+    ],
+    "createdAt": "2026-09-08T21:15:42.655Z",
+    "updatedAt": "2026-09-08T21:15:42.655Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa07b9e58b27c3a3ff62e53",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10ab8c",
+    "lesson": "6aa04e52f81d292bdb10a78a",
+    "session": "6aa07b9e58b27c3a3ff62e52",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 6,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Drag the pencil into the box",
+        "selectedOptionId": "dd_opt_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ee",
+        "responseTimeMs": 4567,
+        "_id": "6aa07b9e58b27c3a3ff62e54"
+      }
+    ],
+    "createdAt": "2026-09-08T21:18:22.030Z",
+    "updatedAt": "2026-09-08T21:18:22.030Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa07e3458b27c3a3ff62fc4",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10aa4a",
+    "lesson": "6aa04e52f81d292bdb10a77e",
+    "session": "6aa07e3458b27c3a3ff62fc3",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 13,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "car",
+        "selectedOptionId": "opt_0_2_car",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5c7",
+        "responseTimeMs": 2181,
+        "_id": "6aa07e3458b27c3a3ff62fc5"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "teddy bear",
+        "selectedOptionId": "opt_1_2_teddy_bear",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5c8",
+        "responseTimeMs": 2724,
+        "_id": "6aa07e3458b27c3a3ff62fc6"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "doll",
+        "selectedOptionId": "opt_2_2_doll",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5c9",
+        "responseTimeMs": 1427,
+        "_id": "6aa07e3458b27c3a3ff62fc7"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "ball",
+        "selectedOptionId": "opt_3_2_ball",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ca",
+        "responseTimeMs": 1802,
+        "_id": "6aa07e3458b27c3a3ff62fc8"
+      }
+    ],
+    "createdAt": "2026-09-08T21:29:24.905Z",
+    "updatedAt": "2026-09-08T21:29:24.905Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0ced11157d041a74ca693",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a7d2",
+    "lesson": "6aa04e52f81d292bdb10a766",
+    "session": "6aa06e9e351655ab7f5c2e6c",
+    "score": 125,
+    "stars": 3,
+    "correctCount": 5,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 72,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "book",
+        "selectedOptionId": "opt_0_2_book",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a583",
+        "responseTimeMs": 20477,
+        "_id": "6aa0ced11157d041a74ca694"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "crayon",
+        "selectedOptionId": "opt_1_0_crayon",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 12289,
+        "_id": "6aa0ced11157d041a74ca695"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "chair",
+        "selectedOptionId": "opt_2_1_chair",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a585",
+        "responseTimeMs": 12246,
+        "_id": "6aa0ced11157d041a74ca696"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "table",
+        "selectedOptionId": "opt_3_0_table",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a586",
+        "responseTimeMs": 9343,
+        "_id": "6aa0ced11157d041a74ca697"
+      },
+      {
+        "questionIndex": 4,
+        "promptText": "school",
+        "selectedOptionId": "6aa077be2ffca63e57338568",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a580",
+        "responseTimeMs": 11006,
+        "_id": "6aa0ced11157d041a74ca698"
+      }
+    ],
+    "createdAt": "2026-09-09T03:13:21.085Z",
+    "updatedAt": "2026-09-09T03:13:21.085Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0cf951157d041a74ca8bb",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a7e3",
+    "lesson": "6aa04e52f81d292bdb10a766",
+    "session": "6aa06e9e351655ab7f5c2e6c",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 14,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Match the word: book",
+        "selectedOptionId": "match_opt_0_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a583",
+        "responseTimeMs": 3597,
+        "_id": "6aa0cf951157d041a74ca8bc"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Match the word: crayon",
+        "selectedOptionId": "match_opt_1_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 1763,
+        "_id": "6aa0cf951157d041a74ca8bd"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Match the word: chair",
+        "selectedOptionId": "match_opt_2_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a585",
+        "responseTimeMs": 1361,
+        "_id": "6aa0cf951157d041a74ca8be"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "Match the word: table",
+        "selectedOptionId": "match_opt_3_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a586",
+        "responseTimeMs": 2394,
+        "_id": "6aa0cf951157d041a74ca8bf"
+      }
+    ],
+    "createdAt": "2026-09-09T03:16:37.568Z",
+    "updatedAt": "2026-09-09T03:16:37.568Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d448587b4f34347c1188",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10abb3",
+    "lesson": "6aa04e52f81d292bdb10a78b",
+    "session": "6aa0d448587b4f34347c1187",
+    "score": 99,
+    "stars": 3,
+    "correctCount": 3,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 15,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Find the pair for: paint",
+        "selectedOptionId": "mem_0_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5e9",
+        "responseTimeMs": 2000,
+        "_id": "6aa0d448587b4f34347c1189"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Find the pair for: draw",
+        "selectedOptionId": "mem_1_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ea",
+        "responseTimeMs": 2000,
+        "_id": "6aa0d448587b4f34347c118a"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Find the pair for: color",
+        "selectedOptionId": "mem_2_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5eb",
+        "responseTimeMs": 2000,
+        "_id": "6aa0d448587b4f34347c118b"
+      }
+    ],
+    "createdAt": "2026-09-09T03:36:40.369Z",
+    "updatedAt": "2026-09-09T03:36:40.369Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d45f587b4f34347c1200",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10aba2",
+    "lesson": "6aa04e52f81d292bdb10a78b",
+    "session": "6aa0d448587b4f34347c1187",
+    "score": 125,
+    "stars": 3,
+    "correctCount": 5,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 17,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "paint",
+        "selectedOptionId": "opt_0_2_paint",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5e9",
+        "responseTimeMs": 1562,
+        "_id": "6aa0d45f587b4f34347c1201"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "draw",
+        "selectedOptionId": "opt_1_0_draw",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ea",
+        "responseTimeMs": 1464,
+        "_id": "6aa0d45f587b4f34347c1202"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "color",
+        "selectedOptionId": "opt_2_0_color",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5eb",
+        "responseTimeMs": 1623,
+        "_id": "6aa0d45f587b4f34347c1203"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "cut",
+        "selectedOptionId": "opt_3_2_cut",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ec",
+        "responseTimeMs": 1795,
+        "_id": "6aa0d45f587b4f34347c1204"
+      },
+      {
+        "questionIndex": 4,
+        "promptText": "glue",
+        "selectedOptionId": "6aa077be2ffca63e57338b5e",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ed",
+        "responseTimeMs": 4082,
+        "_id": "6aa0d45f587b4f34347c1205"
+      }
+    ],
+    "createdAt": "2026-09-09T03:37:03.566Z",
+    "updatedAt": "2026-09-09T03:37:03.566Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d4af587b4f34347c133e",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10ab8c",
+    "lesson": "6aa04e52f81d292bdb10a78a",
+    "session": "6aa07b9e58b27c3a3ff62e52",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 4,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Drag the pencil into the box",
+        "selectedOptionId": "dd_opt_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ee",
+        "responseTimeMs": 3164,
+        "_id": "6aa0d4af587b4f34347c133f"
+      }
+    ],
+    "createdAt": "2026-09-09T03:38:23.960Z",
+    "updatedAt": "2026-09-09T03:38:23.960Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d4b4587b4f34347c1371",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10ab8c",
+    "lesson": "6aa04e52f81d292bdb10a78a",
+    "session": "6aa07b9e58b27c3a3ff62e52",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 3,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Drag the pencil into the box",
+        "selectedOptionId": "dd_opt_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ee",
+        "responseTimeMs": 8139,
+        "_id": "6aa0d4b4587b4f34347c1372"
+      }
+    ],
+    "createdAt": "2026-09-09T03:38:28.934Z",
+    "updatedAt": "2026-09-09T03:38:28.934Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d4c6587b4f34347c13db",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10ab7b",
+    "lesson": "6aa04e52f81d292bdb10a78a",
+    "session": "6aa07b9e58b27c3a3ff62e52",
+    "score": 125,
+    "stars": 3,
+    "correctCount": 5,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 14,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "pencil",
+        "selectedOptionId": "opt_0_2_pencil",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ee",
+        "responseTimeMs": 1445,
+        "_id": "6aa0d4c6587b4f34347c13dc"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "marker",
+        "selectedOptionId": "opt_1_1_marker",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ef",
+        "responseTimeMs": 1705,
+        "_id": "6aa0d4c6587b4f34347c13dd"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "paintbrush",
+        "selectedOptionId": "opt_2_0_paintbrush",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5f0",
+        "responseTimeMs": 1057,
+        "_id": "6aa0d4c6587b4f34347c13de"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "glue stick",
+        "selectedOptionId": "opt_3_2_glue_stick",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5f1",
+        "responseTimeMs": 1790,
+        "_id": "6aa0d4c6587b4f34347c13df"
+      },
+      {
+        "questionIndex": 4,
+        "promptText": "scissors",
+        "selectedOptionId": "6aa077be2ffca63e57338b2b",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5f2",
+        "responseTimeMs": 1617,
+        "_id": "6aa0d4c6587b4f34347c13e0"
+      }
+    ],
+    "createdAt": "2026-09-09T03:38:46.166Z",
+    "updatedAt": "2026-09-09T03:38:46.166Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d4cc587b4f34347c1412",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10ab8c",
+    "lesson": "6aa04e52f81d292bdb10a78a",
+    "session": "6aa07b9e58b27c3a3ff62e52",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 3,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Drag the pencil into the box",
+        "selectedOptionId": "dd_opt_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ee",
+        "responseTimeMs": 2117,
+        "_id": "6aa0d4cc587b4f34347c1413"
+      }
+    ],
+    "createdAt": "2026-09-09T03:38:52.604Z",
+    "updatedAt": "2026-09-09T03:38:52.604Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0d4da587b4f34347c145d",
+    "child": "6aa04e53f81d292bdb10b325",
+    "activity": "6aa04e52f81d292bdb10ab91",
+    "lesson": "6aa04e52f81d292bdb10a78a",
+    "session": "6aa07b9e58b27c3a3ff62e52",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 13,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Match the word: pencil",
+        "selectedOptionId": "match_opt_0_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ee",
+        "responseTimeMs": 3177,
+        "_id": "6aa0d4da587b4f34347c145e"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Match the word: marker",
+        "selectedOptionId": "match_opt_1_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5ef",
+        "responseTimeMs": 1292,
+        "_id": "6aa0d4da587b4f34347c145f"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Match the word: paintbrush",
+        "selectedOptionId": "match_opt_2_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5f0",
+        "responseTimeMs": 1604,
+        "_id": "6aa0d4da587b4f34347c1460"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "Match the word: glue stick",
+        "selectedOptionId": "match_opt_3_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a5f1",
+        "responseTimeMs": 1439,
+        "_id": "6aa0d4da587b4f34347c1461"
+      }
+    ],
+    "createdAt": "2026-09-09T03:39:06.654Z",
+    "updatedAt": "2026-09-09T03:39:06.654Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa10843e6ea6e4530aca80a",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a824",
+    "lesson": "6aa04e52f81d292bdb10a769",
+    "session": "6aa10843e6ea6e4530aca809",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 22,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "crayon",
+        "selectedOptionId": "opt_0_1_crayon",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 9618,
+        "_id": "6aa10843e6ea6e4530aca80b"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "book",
+        "selectedOptionId": "opt_1_0_book",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a583",
+        "responseTimeMs": 3014,
+        "_id": "6aa10843e6ea6e4530aca80c"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "chair",
+        "selectedOptionId": "opt_2_0_chair",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a585",
+        "responseTimeMs": 1391,
+        "_id": "6aa10843e6ea6e4530aca80d"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "sun",
+        "selectedOptionId": "opt_3_1_sun",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a581",
+        "responseTimeMs": 3157,
+        "_id": "6aa10843e6ea6e4530aca80e"
+      }
+    ],
+    "createdAt": "2026-09-09T07:18:27.544Z",
+    "updatedAt": "2026-09-09T07:18:27.544Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa10850e6ea6e4530aca82f",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a835",
+    "lesson": "6aa04e52f81d292bdb10a769",
+    "session": "6aa10843e6ea6e4530aca809",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 10,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Which one is crayon?",
+        "selectedOptionId": "color_opt_0",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 8293,
+        "_id": "6aa10850e6ea6e4530aca830"
+      }
+    ],
+    "createdAt": "2026-09-09T07:18:40.158Z",
+    "updatedAt": "2026-09-09T07:18:40.158Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa10857e6ea6e4530aca851",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a83a",
+    "lesson": "6aa04e52f81d292bdb10a769",
+    "session": "6aa10843e6ea6e4530aca809",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 1,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 6,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "How many crayons can you see?",
+        "selectedOptionId": "cnt_opt_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 5139,
+        "_id": "6aa10857e6ea6e4530aca852"
+      }
+    ],
+    "createdAt": "2026-09-09T07:18:47.836Z",
+    "updatedAt": "2026-09-09T07:18:47.836Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab79aa7d43b7296219f8062",
+    "child": "6aa04e53f81d292bdb10b324",
+    "activity": "6aa04e52f81d292bdb10a7e3",
+    "lesson": "6aa04e52f81d292bdb10a766",
+    "session": "6ab79aa7d43b7296219f8061",
+    "score": 100,
+    "stars": 3,
+    "correctCount": 4,
+    "incorrectCount": 0,
+    "attempts": 1,
+    "duration": 46,
+    "completed": true,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "promptText": "Match the word: book",
+        "selectedOptionId": "match_opt_0_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a583",
+        "responseTimeMs": 22696,
+        "_id": "6ab79aa7d43b7296219f8063"
+      },
+      {
+        "questionIndex": 1,
+        "promptText": "Match the word: crayon",
+        "selectedOptionId": "match_opt_1_1",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a584",
+        "responseTimeMs": 4236,
+        "_id": "6ab79aa7d43b7296219f8064"
+      },
+      {
+        "questionIndex": 2,
+        "promptText": "Match the word: chair",
+        "selectedOptionId": "match_opt_2_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a585",
+        "responseTimeMs": 5718,
+        "_id": "6ab79aa7d43b7296219f8065"
+      },
+      {
+        "questionIndex": 3,
+        "promptText": "Match the word: table",
+        "selectedOptionId": "match_opt_3_2",
+        "isCorrect": true,
+        "vocabularyId": "6aa04e52f81d292bdb10a586",
+        "responseTimeMs": 8309,
+        "_id": "6ab79aa7d43b7296219f8066"
+      }
+    ],
+    "createdAt": "2026-09-26T10:12:55.418Z",
+    "updatedAt": "2026-09-26T10:12:55.418Z",
+    "__v": 0
+  }
+]

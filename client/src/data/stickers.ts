@@ -130,32 +130,7 @@ export const ALL_STICKERS: StickerItem[] = [
   }
 ];
 
-export const stickerService = {
-  getUnlockedStickers(childId: string): string[] {
-    try {
-      const data = localStorage.getItem(`kc_stickers_${childId}`);
-      if (!data) return ['st_star']; // default starter sticker
-      return JSON.parse(data);
-    } catch {
-      return ['st_star'];
-    }
-  },
-
-  awardRandomSticker(childId: string): StickerItem | null {
-    try {
-      const current = this.getUnlockedStickers(childId);
-      const locked = ALL_STICKERS.filter(s => !current.includes(s.id));
-      if (locked.length === 0) {
-        // All unlocked, pick any to reward again
-        const random = ALL_STICKERS[Math.floor(Math.random() * ALL_STICKERS.length)];
-        return random;
-      }
-      const picked = locked[Math.floor(Math.random() * locked.length)];
-      const nextList = [...current, picked.id];
-      localStorage.setItem(`kc_stickers_${childId}`, JSON.stringify(nextList));
-      return picked;
-    } catch {
-      return null;
-    }
-  }
-};
+// §1.2.16 — Stickers are granted ONLY by the server on Unit completion
+// (revealed via reward chests). The old localStorage `stickerService`
+// (awardRandomSticker / getUnlockedStickers) was removed — the server
+// reward state in RewardContext is the single source of truth.

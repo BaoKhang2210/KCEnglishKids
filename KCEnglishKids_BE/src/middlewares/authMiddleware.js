@@ -55,4 +55,31 @@ const optionalProtect = async (req, res, next) => {
   next();
 };
 
-module.exports = { protect, optionalProtect, authorize };
+/**
+ * §3.1.11/§3.1.12 — ownership guard for routes scoped to a child.
+ * Use AFTER `protect`. A CHILD may only access their own profile;
+ * TEACHER/ADMIN may access any (needed for classroom/admin views).
+ */
+const ownChildOr403 = (paramName = 'childId') => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authorization token required.' });
+    }
+
+    const targetId = req.params[paramName] || req.params.childId || req.params.id;
+    if (!targetId) {
+      return res.status(400).json({ success: false, message: 'Missing child id parameter.' });
+    }
+
+    if (req.user.role === 'CHILD' && String(req.user._id) !== String(targetId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access forbidden: you can only access your own data.'
+      });
+    }
+
+    return next();
+  };
+};
+
+module.exports = { protect, optionalProtect, authorize, ownChildOr403 };

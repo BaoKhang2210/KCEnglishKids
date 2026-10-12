@@ -1,0 +1,13 @@
+[
+  {
+    "_id": "6aa0533ebf467b0b00d65613",
+    "teacher": "6aa04e53f81d292bdb10b322",
+    "student": "6aa04e53f81d292bdb10b324",
+    "lesson": null,
+    "noteType": "INTEREST",
+    "content": "Bé rất hứng thú học phát âm từ vựng, tự tin phát biểu trong giờ học.",
+    "createdAt": "2026-09-08T18:26:06.750Z",
+    "updatedAt": "2026-09-08T18:26:06.750Z",
+    "__v": 0
+  }
+]

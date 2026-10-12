@@ -1,0 +1,6 @@
+- Route-level authorization is applied once via `router.use(protect, authorize('TEACHER', 'ADMIN'))` rather than per-endpoint.
+- Controllers validate MongoDB ObjectIds through a local `validId = id => mongoose.isValidObjectId(id)` helper before any DB query.
+- Error responses follow a uniform shape `{ success: false, message }` returned via small helpers like `bad(res, msg)`, `notFound(res, msg)`, or `forbidden(res, msg)`.
+- Ownership checks filter queries by `req.user.role === 'ADMIN' ? { _id } : { _id, teacher: req.user._id }` so admins bypass per-teacher scoping.
+- All successful JSON responses wrap data in `{ success: true, ... }` (with optional `count` for list endpoints).
+- Nested array mutations on Mongoose documents use `session.markModified('studentScores')` / `'questionResults'` before `save()`.

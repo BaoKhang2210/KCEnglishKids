@@ -1,0 +1,16 @@
+schema_version: 1
+module_path: backend_api/auth_admin
+title: Authentication & Admin Management API
+scope:
+    - KCEnglishKids_BE/src/controllers/authController.js
+    - KCEnglishKids_BE/src/controllers/adminController.js
+    - KCEnglishKids_BE/src/routes/authRoutes.js
+    - KCEnglishKids_BE/src/routes/adminRoutes.js
+    - KCEnglishKids_BE/src/middlewares/authMiddleware.js
+    - KCEnglishKids_BE/src/models/User.js
+    - KCEnglishKids_BE/src/models/AuditLog.js
+source_files: []
+depends_on: []
+related_to:
+    - path: admin_app
+    - path: child_client

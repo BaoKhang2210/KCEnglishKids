@@ -1,0 +1,18 @@
+schema_version: 1
+module_path: backend_api/classroom_management
+title: Teacher Classroom & Session Management API
+scope:
+    - KCEnglishKids_BE/src/controllers/classroomSessionController.js
+    - KCEnglishKids_BE/src/controllers/teacherController.js
+    - KCEnglishKids_BE/src/controllers/parentNotificationController.js
+    - KCEnglishKids_BE/src/routes/classroomSessionRoutes.js
+    - KCEnglishKids_BE/src/routes/teacherRoutes.js
+    - KCEnglishKids_BE/src/models/ClassRoom.js
+    - KCEnglishKids_BE/src/models/TeacherNote.js
+    - KCEnglishKids_BE/src/models/ParentNotification.js
+    - KCEnglishKids_BE/src/models/AgeGroup.js
+    - KCEnglishKids_BE/src/models/Assignment.js
+source_files: []
+depends_on: []
+related_to:
+    - path: child_client

@@ -229,6 +229,104 @@ exports.getChildNotifications = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/teacher/parent-notifications/:id/reply
+// Teacher replies to parent's message on a remark thread
+// ─────────────────────────────────────────────────────────────────────────────
+exports.replyAsTeacher = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    if (!validId(id)) return bad(res, 'Invalid notification id.');
+    if (!message || !message.trim()) return bad(res, 'Message is required.');
+
+    const notif = await ParentNotification.findOne({ _id: id, teacher: req.user._id });
+    if (!notif) return bad(res, 'Notification not found.');
+
+    notif.replies.push({
+      senderRole: 'TEACHER',
+      senderName: req.user.name || 'Cô giáo',
+      message: message.trim(),
+      createdAt: new Date()
+    });
+    await notif.save();
+
+    res.json({ success: true, data: notif });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/children/:childId/parent-notifications
+// Parent views all teacher remarks & notifications for their child
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getChildNotificationsForParent = async (req, res, next) => {
+  try {
+    const { childId } = req.params;
+    if (!validId(childId)) return bad(res, 'Invalid childId.');
+
+    const data = await ParentNotification.find({ child: childId })
+      .populate('teacher', 'name email avatar')
+      .populate('session', 'title startedAt')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, count: data.length, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/children/:childId/parent-notifications/:id/reply
+// Parent sends a reply / message to the teacher
+// ─────────────────────────────────────────────────────────────────────────────
+exports.replyAsParent = async (req, res, next) => {
+  try {
+    const { childId, id } = req.params;
+    const { message, parentName } = req.body;
+    if (!validId(childId) || !validId(id)) return bad(res, 'Invalid IDs.');
+    if (!message || !message.trim()) return bad(res, 'Message is required.');
+
+    const notif = await ParentNotification.findOne({ _id: id, child: childId });
+    if (!notif) return bad(res, 'Notification not found.');
+
+    notif.replies.push({
+      senderRole: 'PARENT',
+      senderName: parentName?.trim() || `Phụ huynh bé ${notif.childName || 'bé'}`,
+      message: message.trim(),
+      createdAt: new Date()
+    });
+    await notif.save();
+
+    res.json({ success: true, data: notif });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/children/:childId/parent-notifications/:id/read
+// Parent marks notification as read
+// ─────────────────────────────────────────────────────────────────────────────
+exports.markAsReadByParent = async (req, res, next) => {
+  try {
+    const { childId, id } = req.params;
+    if (!validId(childId) || !validId(id)) return bad(res, 'Invalid IDs.');
+
+    const notif = await ParentNotification.findOneAndUpdate(
+      { _id: id, child: childId },
+      { readAt: new Date() },
+      { new: true }
+    );
+    if (!notif) return bad(res, 'Notification not found.');
+
+    res.json({ success: true, data: notif });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Template builder (rule-based, no AI)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildContent({

@@ -5,10 +5,12 @@ const {
   getSession,
   submitActivityResult
 } = require('../controllers/learningController');
-const { optionalProtect } = require('../middlewares/authMiddleware');
+const { protect, optionalProtect } = require('../middlewares/authMiddleware');
 
-router.post('/sessions', optionalProtect, startSession);
+// §3.1.3/§3.1.4 — writes require a valid token; a child can only write their
+// own results (controller resolves childId from req.user for CHILD role).
+router.post('/sessions', protect, startSession);
 router.get('/sessions/:id', optionalProtect, getSession);
-router.post('/activity-results', optionalProtect, submitActivityResult);
+router.post('/activity-results', protect, submitActivityResult);
 
 module.exports = router;

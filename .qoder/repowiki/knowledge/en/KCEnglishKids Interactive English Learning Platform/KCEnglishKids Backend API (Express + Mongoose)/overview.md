@@ -1,0 +1,1 @@
+Single Express application wiring per-domain route/controller/model bundles under shared auth, error-handling, and MongoDB connection into a REST API for children's English learning.

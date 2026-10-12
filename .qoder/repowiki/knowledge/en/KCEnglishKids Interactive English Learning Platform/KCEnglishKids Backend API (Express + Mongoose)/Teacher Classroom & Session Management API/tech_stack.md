@@ -1,0 +1,1 @@
+Node.js + Express with Mongoose ODM; authentication via a custom `authMiddleware` (`protect`, `authorize`).

@@ -1,0 +1,6 @@
+- Controllers wrap every async handler in try/catch and forward errors via `next(error)` so a central error middleware handles responses.
+- Route handlers return a uniform `{ success: true/false, data?, message? }` JSON envelope rather than raw documents.
+- Read-only list/detail endpoints use chained `.populate(...)` calls to eagerly resolve related Media and curriculum entities before responding.
+- Role-based access checks compare `req.user.role` against 'CHILD'/'TEACHER'/'ADMIN', with CHILD restricted to `req.user._id === params.childId`.
+- Model schemas declare enums for status/sourceType/ageGroupCode and add explicit `index({...})` declarations alongside field definitions.
+- Cross-cutting business rules (e.g., mastery level thresholds) are extracted into named functions/constants (`calculateMasteryLevel`, `MASTERY_CONFIG`) and re-exported from the model for reuse in controllers.

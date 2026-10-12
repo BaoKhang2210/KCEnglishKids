@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Sparkles, Trophy, Lock, Bell, ArrowRight } from 'lucide-react';
 import type { BadgeItem } from '../../data/badges';
+import { getReqFullLabel } from '../../data/labels';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { CuteRosetteMedal } from './CuteRosetteMedal';
@@ -41,9 +42,8 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
   const remaining = Math.max(0, reqValue - currentProgress);
 
   const getReqLabel = () => {
-    if (badge.reqType === 'star') return `${badge.requirement} Ngôi sao vàng ⭐`;
-    if (badge.reqType === 'unit') return `${badge.requirement} Unit bài học 🎒`;
-    return `${badge.requirement} Bài học đã hoàn thành 📚`;
+    // §1.4 — shared terminology (Unit – Lesson)
+    return getReqFullLabel(badge.reqType, badge.requirement);
   };
 
   const getTierColor = () => {

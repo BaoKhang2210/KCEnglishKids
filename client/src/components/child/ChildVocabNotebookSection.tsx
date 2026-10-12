@@ -4,11 +4,13 @@ import {
   Check,
   Volume2,
   Gamepad2,
-  Search
+  Search,
+  Mic
 } from 'lucide-react';
 import { vocabMasteryService, type WordMasteryDetail } from '../../services/vocabMasteryService';
 import { useAuth } from '../../context/AuthContext';
 import { playWordAudio, sfx } from '../../utils/audio';
+import { childSpeechEngine } from '../../utils/speechRecognition';
 import { getSensibleSentenceClient } from '../../utils/sentenceDictionary';
 import { KokoMascot } from './KokoMascot';
 
@@ -80,6 +82,44 @@ export const ChildVocabNotebookSection: React.FC<ChildVocabNotebookSectionProps>
     u.lang = 'en-US';
     u.rate = 0.85;
     window.speechSynthesis.speak(u);
+  };
+
+  // §1.3.3 — per-word mic practice: read the word aloud anytime; a correct read
+  // counts as a game rep toward MASTERED (2 successful reps solidify the word).
+  const [micVocabId, setMicVocabId] = useState<string | null>(null);
+  const [micStatus, setMicStatus] = useState<'idle' | 'listening' | 'good' | 'retry'>('idle');
+
+  const handleMicPractice = async (item: WordMasteryDetail) => {
+    if (micStatus === 'listening') {
+      childSpeechEngine.stop();
+      setMicStatus('idle');
+      setMicVocabId(null);
+      return;
+    }
+
+    sfx.playPop();
+    setMicVocabId(item.vocabId);
+    setMicStatus('listening');
+
+    try {
+      const result = await childSpeechEngine.listenAndVerify(item.english, 5000);
+      if (result.isMatch) {
+        sfx.playCorrect();
+        setMicStatus('good');
+        vocabMasteryService.recordGameResult(childId, item.vocabId, true);
+      } else {
+        sfx.playGentleWrong();
+        setMicStatus('retry');
+      }
+    } catch {
+      sfx.playGentleWrong();
+      setMicStatus('retry');
+    } finally {
+      setTimeout(() => {
+        setMicStatus('idle');
+        setMicVocabId(null);
+      }, 2500);
+    }
   };
 
   return (
@@ -254,7 +294,7 @@ export const ChildVocabNotebookSection: React.FC<ChildVocabNotebookSectionProps>
             </h3>
             <p className="text-sm font-bold text-slate-500 max-w-md mx-auto">
               {allWords.length === 0
-                ? 'Hãy vào Hành trình học bài hoặc khám phá Chủ đề mở rộng và quẹt thẻ Flashcard để tích lũy những từ đầu tiên nhé!'
+                ? 'Hãy vào Hành trình học Lesson hoặc khám phá Chủ đề mở rộng và quẹt thẻ Flashcard để tích lũy những từ đầu tiên nhé!'
                 : 'Bé hãy thử chọn tab lọc khác hoặc xóa từ khóa tìm kiếm nhé!'}
             </p>
           </div>
@@ -349,6 +389,20 @@ export const ChildVocabNotebookSection: React.FC<ChildVocabNotebookSectionProps>
                       title="Nghe phát âm"
                     >
                       <Volume2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMicPractice(item)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95 border-2 ${
+                        micVocabId === item.vocabId && micStatus === 'listening'
+                          ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
+                          : micVocabId === item.vocabId && micStatus === 'good'
+                          ? 'bg-emerald-500 text-white border-emerald-600'
+                          : 'bg-white hover:bg-rose-50 text-rose-600 border-rose-200'
+                      }`}
+                      title="Bấm mic rồi đọc to từ này nhé!"
+                    >
+                      <Mic className={`w-4 h-4 ${micVocabId === item.vocabId && micStatus === 'listening' ? 'animate-bounce' : ''}`} />
                     </button>
                   </div>
 

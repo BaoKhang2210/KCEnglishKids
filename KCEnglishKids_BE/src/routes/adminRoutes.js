@@ -10,6 +10,7 @@ const {
   getAuditLogs,
   toggleTopicStatus
 } = require('../controllers/adminController');
+const { getRewardsSummary } = require('../controllers/rewardController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
 router.get('/dashboard', protect, authorize('ADMIN'), getDashboardStats);
@@ -23,6 +24,9 @@ router.patch('/users/:id/status', protect, authorize('ADMIN'), toggleUserStatus)
 
 // Audit Logs
 router.get('/audit-logs', protect, authorize('ADMIN'), getAuditLogs);
+
+// §1.2 — reward system overview
+router.get('/rewards/summary', protect, authorize('ADMIN'), getRewardsSummary);
 
 // Topic Status Controls
 router.patch('/topics/:id/status', protect, authorize('ADMIN'), toggleTopicStatus);

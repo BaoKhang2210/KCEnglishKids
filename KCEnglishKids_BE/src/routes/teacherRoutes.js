@@ -39,11 +39,12 @@ router.delete('/notes/:id', c.deleteNote);
 // Vocabulary mastery — teacher view of student mastery
 router.get('/students/:studentId/vocabulary-mastery', vm.getStudentMastery);
 
-// Parent notifications
+// Parent notifications & remarks
 router.get('/parent-notifications', pn.getNotifications);
 router.post('/parent-notifications', pn.sendNotification);
 router.post('/parent-notifications/bulk', pn.sendBulkNotifications);
 router.get('/parent-notifications/child/:childId', pn.getChildNotifications);
+router.post('/parent-notifications/:id/reply', pn.replyAsTeacher);
 
 module.exports = router;
 

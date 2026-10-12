@@ -38,6 +38,25 @@ const progressSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // §1.3.1 — 3-stage pipeline state (server = source of truth; localStorage = cache)
+    stage1Completed: {
+      type: Boolean,
+      default: false
+    },
+    stage2Completed: {
+      type: Boolean,
+      default: false
+    },
+    stage2Score: {
+      type: Number,
+      default: 0
+    },
+    stage2Stars: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 3
+    },
     weakVocabulary: [
       {
         vocabulary: {
@@ -47,6 +66,11 @@ const progressSchema = new mongoose.Schema(
         mistakeCount: {
           type: Number,
           default: 1
+        },
+        // §4.10 — consecutive correct answers shrink mistakeCount (2 in a row → -1)
+        consecutiveCorrect: {
+          type: Number,
+          default: 0
         }
       }
     ],

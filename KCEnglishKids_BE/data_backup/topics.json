@@ -1,0 +1,475 @@
+[
+  {
+    "_id": "6aa04e52f81d292bdb10a0e7",
+    "englishName": "Animals",
+    "vietnameseName": "Động vật",
+    "slug": "animals",
+    "description": "Explore friendly pets, cheerful farm animals, and magnificent wild creatures.",
+    "icon": "🐶",
+    "colorCode": "#FF7043",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5",
+      "5-6"
+    ],
+    "relatedUnits": [
+      "6aa04e52f81d292bdb10a0d0"
+    ],
+    "displayOrder": 1,
+    "status": "ACTIVE",
+    "featured": true,
+    "createdAt": "2026-09-08T18:05:06.191Z",
+    "updatedAt": "2026-09-08T21:01:49.460Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0e8",
+    "englishName": "School",
+    "vietnameseName": "Trường học",
+    "slug": "school",
+    "description": "Discover the classroom, friends, teachers, art supplies, and fun school days.",
+    "icon": "🎒",
+    "colorCode": "#7E57C2",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 2,
+    "status": "ACTIVE",
+    "featured": true,
+    "createdAt": "2026-09-08T18:05:06.194Z",
+    "updatedAt": "2026-09-08T21:01:49.526Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0e9",
+    "englishName": "My Body",
+    "vietnameseName": "Cơ thể em",
+    "slug": "my-body",
+    "description": "Learn body parts, facial features, and exciting physical movements.",
+    "icon": "👋",
+    "colorCode": "#26A69A",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 3,
+    "status": "ACTIVE",
+    "featured": true,
+    "createdAt": "2026-09-08T18:05:06.195Z",
+    "updatedAt": "2026-09-08T21:01:49.578Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0ea",
+    "englishName": "Family",
+    "vietnameseName": "Gia đình",
+    "slug": "family",
+    "description": "Cherish loving family members, relatives, and describing people around us.",
+    "icon": "👨‍👩‍👧",
+    "colorCode": "#AB47BC",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 4,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.199Z",
+    "updatedAt": "2026-09-08T21:01:49.597Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0eb",
+    "englishName": "Food",
+    "vietnameseName": "Thực phẩm",
+    "slug": "food",
+    "description": "Taste delicious fruits, healthy vegetables, daily meals, and restaurant menus.",
+    "icon": "🍎",
+    "colorCode": "#66BB6A",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 5,
+    "status": "ACTIVE",
+    "featured": true,
+    "createdAt": "2026-09-08T18:05:06.202Z",
+    "updatedAt": "2026-09-08T21:01:49.607Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0ec",
+    "englishName": "Toys",
+    "vietnameseName": "Đồ chơi",
+    "slug": "toys",
+    "description": "Play with cars, dolls, balls, puzzles, kites, and favorite games.",
+    "icon": "🧸",
+    "colorCode": "#FFA726",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 6,
+    "status": "ACTIVE",
+    "featured": true,
+    "createdAt": "2026-09-08T18:05:06.205Z",
+    "updatedAt": "2026-09-08T21:01:49.616Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0ed",
+    "englishName": "Colors",
+    "vietnameseName": "Màu sắc",
+    "slug": "colors",
+    "description": "Paint the world with red, blue, yellow, green, and vibrant rainbows.",
+    "icon": "🎨",
+    "colorCode": "#EC407A",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 7,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.208Z",
+    "updatedAt": "2026-09-08T21:01:49.624Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0ee",
+    "englishName": "Numbers",
+    "vietnameseName": "Chữ số",
+    "slug": "numbers",
+    "description": "Count objects, numbers, and quantities from 1 to 100 with cheerful rhymes.",
+    "icon": "🔢",
+    "colorCode": "#29B6F6",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 8,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.209Z",
+    "updatedAt": "2026-09-08T21:01:49.633Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0ef",
+    "englishName": "Nature",
+    "vietnameseName": "Thiên nhiên",
+    "slug": "nature",
+    "description": "Wander through green parks, blossoming flowers, tall trees, and growing seeds.",
+    "icon": "🌳",
+    "colorCode": "#9CCC65",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 9,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.212Z",
+    "updatedAt": "2026-09-08T21:01:49.639Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f0",
+    "englishName": "My House",
+    "vietnameseName": "Ngôi nhà của em",
+    "slug": "my-house",
+    "description": "Explore rooms, cozy beds, useful home objects, and daily chores at home.",
+    "icon": "🏡",
+    "colorCode": "#8D6E63",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "4-5"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 10,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.215Z",
+    "updatedAt": "2026-09-08T21:01:49.649Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f1",
+    "englishName": "Clothes",
+    "vietnameseName": "Trang phục",
+    "slug": "clothes",
+    "description": "Dress up in shirts, skirts, shoes, cozy sweaters, and protective raincoats.",
+    "icon": "👕",
+    "colorCode": "#42A5F5",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "4-5"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 11,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.218Z",
+    "updatedAt": "2026-09-08T21:01:49.658Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f2",
+    "englishName": "Feelings",
+    "vietnameseName": "Cảm xúc",
+    "slug": "feelings",
+    "description": "Express when we feel happy, sad, angry, surprised, silly, or excited.",
+    "icon": "😊",
+    "colorCode": "#FFCA28",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "3-4",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 12,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.221Z",
+    "updatedAt": "2026-09-08T21:01:49.665Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f3",
+    "englishName": "Senses",
+    "vietnameseName": "Năm giác quan",
+    "slug": "senses",
+    "description": "Discover how we see, touch, hear, smell, and taste the world around us.",
+    "icon": "👃",
+    "colorCode": "#26C6DA",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "4-5"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 13,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.223Z",
+    "updatedAt": "2026-09-08T21:01:49.674Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f4",
+    "englishName": "Transportation",
+    "vietnameseName": "Giao thông",
+    "slug": "transportation",
+    "description": "Travel by car, bus, train, bicycle, boat on water, or airplane in the sky.",
+    "icon": "🚗",
+    "colorCode": "#EF5350",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "4-5"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 14,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.225Z",
+    "updatedAt": "2026-09-08T21:01:49.680Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f5",
+    "englishName": "Weather",
+    "vietnameseName": "Thời tiết",
+    "slug": "weather",
+    "description": "Notice sunny mornings, cloudy skies, gentle rain, cool wind, and snowy days.",
+    "icon": "☀️",
+    "colorCode": "#FFA000",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "4-5"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 15,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.228Z",
+    "updatedAt": "2026-09-08T21:01:49.687Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f6",
+    "englishName": "Daily Routines",
+    "vietnameseName": "Thói quen hằng ngày",
+    "slug": "daily-routines",
+    "description": "From waking up, washing face, having breakfast to bedtime stories.",
+    "icon": "⏰",
+    "colorCode": "#5C6BC0",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "4-5",
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 16,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.230Z",
+    "updatedAt": "2026-09-08T21:01:49.693Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f7",
+    "englishName": "Community",
+    "vietnameseName": "Cộng đồng",
+    "slug": "community",
+    "description": "Meet doctors, firefighters, chefs, police officers, and community helpers.",
+    "icon": "🧑‍🚒",
+    "colorCode": "#E53935",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 17,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.231Z",
+    "updatedAt": "2026-09-08T21:01:49.699Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f8",
+    "englishName": "Environment",
+    "vietnameseName": "Bảo vệ Trái Đất",
+    "slug": "environment",
+    "description": "Learn to care for our Earth, recycle plastic and paper, and save water.",
+    "icon": "🌍",
+    "colorCode": "#43A047",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 18,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.234Z",
+    "updatedAt": "2026-09-08T21:01:49.706Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0f9",
+    "englishName": "Vacation",
+    "vietnameseName": "Kỳ nghỉ kỳ thú",
+    "slug": "vacation",
+    "description": "Pack backpacks, visit beaches and mountains, and make happy campfires.",
+    "icon": "🏖️",
+    "colorCode": "#00ACC1",
+    "ageGroups": [
+      "6aa04e52f81d292bdb10a0c6",
+      "6aa04e52f81d292bdb10a0c7",
+      "6aa04e52f81d292bdb10a0c8"
+    ],
+    "ageGroupCodes": [
+      "5-6"
+    ],
+    "relatedUnits": [],
+    "displayOrder": 19,
+    "status": "ACTIVE",
+    "featured": false,
+    "createdAt": "2026-09-08T18:05:06.236Z",
+    "updatedAt": "2026-09-08T21:01:49.716Z",
+    "__v": 0
+  }
+]

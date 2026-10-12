@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { RewardProvider } from './context/RewardContext';
 import { StudentLoginPage } from './pages/child/StudentLoginPage';
 import { ChildHomePage } from './pages/child/ChildHomePage';
 import { TopicDetailPage } from './pages/child/TopicDetailPage';
@@ -12,7 +13,9 @@ import { ClassroomSessionSetup } from './dashboards/teacher/ClassroomSessionSetu
 import { LiveSessionPage } from './dashboards/teacher/LiveSessionPage';
 import { SessionSummaryPage } from './dashboards/teacher/SessionSummaryPage';
 import { ClassroomSessionsList } from './dashboards/teacher/ClassroomSessionsList';
+import { SentenceTeachingPage } from './dashboards/teacher/SentenceTeachingPage';
 import { ChangePinPage } from './pages/child/ChangePinPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Protected Route wrapper for Child
 const ProtectedChildRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -40,8 +43,11 @@ const ProtectedTeacherRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 export function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
+      <RewardProvider>
+        <Router>
+          {/* §2.3.1 — catch any render error instead of a white screen */}
+          <ErrorBoundary>
+          <Routes>
           {/* Child Routes */}
           <Route path="/login" element={<StudentLoginPage />} />
           <Route
@@ -105,6 +111,7 @@ export function App() {
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
             <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
+            <Route path="sentences" element={<SentenceTeachingPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
@@ -124,8 +131,10 @@ export function App() {
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+          </Routes>
+          </ErrorBoundary>
+        </Router>
+      </RewardProvider>
     </AuthProvider>
   );
 }

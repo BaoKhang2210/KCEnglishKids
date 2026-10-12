@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: backend_api
+title: KCEnglishKids Backend API (Express + Mongoose)
+scope:
+    - KCEnglishKids_BE/
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,41 @@
+[
+  {
+    "_id": "6aa04e52f81d292bdb10a0c9",
+    "bookNumber": 1,
+    "title": "Book 1",
+    "ageGroup": "6aa04e52f81d292bdb10a0c6",
+    "ageGroupCode": "3-4",
+    "description": "Foundational English curriculum for learners aged 3–4 (9 Units)",
+    "totalUnits": 9,
+    "active": true,
+    "createdAt": "2026-09-08T18:05:06.103Z",
+    "updatedAt": "2026-09-08T18:05:06.103Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0ca",
+    "bookNumber": 2,
+    "title": "Book 2",
+    "ageGroup": "6aa04e52f81d292bdb10a0c7",
+    "ageGroupCode": "4-5",
+    "description": "Expanding English communication curriculum for learners aged 4–5 (9 Units)",
+    "totalUnits": 9,
+    "active": true,
+    "createdAt": "2026-09-08T18:05:06.107Z",
+    "updatedAt": "2026-09-08T18:05:06.107Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0cb",
+    "bookNumber": 3,
+    "title": "Book 3",
+    "ageGroup": "6aa04e52f81d292bdb10a0c8",
+    "ageGroupCode": "5-6",
+    "description": "Advanced conversational & literacy English curriculum for learners aged 5–6 (9 Units)",
+    "totalUnits": 9,
+    "active": true,
+    "createdAt": "2026-09-08T18:05:06.111Z",
+    "updatedAt": "2026-09-08T18:05:06.111Z",
+    "__v": 0
+  }
+]

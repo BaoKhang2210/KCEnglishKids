@@ -1,0 +1,2 @@
+- Each actor (CHILD, TEACHER, ADMIN) has its own React application under a sibling directory rather than feature-flagged routes within a single SPA.
+- Authentication and authorization flow through JWT issued by the backend, with role checks enforced on both server-side middlewares and client-side route guards.

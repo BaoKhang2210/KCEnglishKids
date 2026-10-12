@@ -1,0 +1,1 @@
+React 19 + TypeScript + Vite 8 with `@vitejs/plugin-react`; Tailwind CSS v4 via `@tailwindcss/vite`; `react-router-dom` v7 for routing; `lucide-react` for icons; `clsx` + `tailwind-merge` for class composition. No UI component library — styles are hand-written Tailwind classes.

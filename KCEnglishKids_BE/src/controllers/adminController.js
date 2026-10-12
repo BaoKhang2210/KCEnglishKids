@@ -111,6 +111,8 @@ const getCurriculum = async (req, res, next) => {
 const getUsers = async (req, res, next) => {
   try {
     const { role, search } = req.query;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
     const query = {};
 
     if (role && role !== 'ALL') {
@@ -125,15 +127,25 @@ const getUsers = async (req, res, next) => {
       ];
     }
 
-    const users = await User.find(query)
-      .select('-password -pin')
-      .populate('assignedClass', 'name academicYear')
-      .populate('ageGroup', 'name code')
-      .sort({ createdAt: -1 });
+    // §1.1.9 — sort A-Z (Vietnamese collation) + pagination instead of fixed order/limit
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .select('-password -pin')
+        .populate('assignedClass', 'name academicYear')
+        .populate('ageGroup', 'name code')
+        .sort({ name: 1 })
+        .collation({ locale: 'vi', strength: 2 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      User.countDocuments(query)
+    ]);
 
     res.status(200).json({
       success: true,
       count: users.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit) || 1,
       data: users
     });
   } catch (error) {

@@ -1,0 +1,47 @@
+[
+  {
+    "_id": "6aa04e52f81d292bdb10a0c6",
+    "code": "3-4",
+    "name": "Age 3–4 (Book 1)",
+    "vietnameseName": "Lớp Mầm (3–4 tuổi)",
+    "description": "Single words, large recognition cards, audio-first learning, 2-3 choices",
+    "targetAgeMin": 3,
+    "targetAgeMax": 4,
+    "maxChoicesPerQuestion": 3,
+    "defaultQuestionCount": 4,
+    "active": true,
+    "createdAt": "2026-09-08T18:05:06.077Z",
+    "updatedAt": "2026-09-08T18:05:06.077Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0c7",
+    "code": "4-5",
+    "name": "Age 4–5 (Book 2)",
+    "vietnameseName": "Lớp Chồi (4–5 tuổi)",
+    "description": "Short phrases, simple matching, everyday descriptions, 3-4 choices",
+    "targetAgeMin": 4,
+    "targetAgeMax": 5,
+    "maxChoicesPerQuestion": 4,
+    "defaultQuestionCount": 5,
+    "active": true,
+    "createdAt": "2026-09-08T18:05:06.089Z",
+    "updatedAt": "2026-09-08T18:05:06.089Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa04e52f81d292bdb10a0c8",
+    "code": "5-6",
+    "name": "Age 5–6 (Book 3)",
+    "vietnameseName": "Lớp Lá (5–6 tuổi)",
+    "description": "Conversational sentences, questions & answers, opinions, reasoning",
+    "targetAgeMin": 5,
+    "targetAgeMax": 6,
+    "maxChoicesPerQuestion": 4,
+    "defaultQuestionCount": 6,
+    "active": true,
+    "createdAt": "2026-09-08T18:05:06.097Z",
+    "updatedAt": "2026-09-08T18:05:06.097Z",
+    "__v": 0
+  }
+]

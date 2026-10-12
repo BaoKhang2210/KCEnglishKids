@@ -6,7 +6,7 @@ import { teacherApi, classroomSessionApi } from '../../services/api';
 const Loader = () => (
   <div className="flex h-60 items-center justify-center">
     <div className="h-10 w-10 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />
-    <span className="ml-3 text-slate-600">Loading…</span>
+    <span className="ml-3 text-slate-600">Đang tải…</span>
   </div>
 );
 
@@ -68,7 +68,7 @@ export const ClassroomSessionSetup: React.FC = () => {
       const res = await classroomSessionApi.createSession({
         classroomId: classId,
         lessonId: selectedLessonId || undefined,
-        title: title || 'Classroom Session',
+        title: title || 'Buổi dạy trên lớp',
         activityIds: selectedActivityIds,
         plannedDuration: duration
       });
@@ -77,7 +77,7 @@ export const ClassroomSessionSetup: React.FC = () => {
       await classroomSessionApi.startSession(sessionId);
       navigate(`/teacher/classroom-sessions/${sessionId}/live`);
     } catch (e: any) {
-      setError(e.message || 'Failed to create session');
+      setError(e.message || 'Không thể tạo buổi dạy');
       setCreating(false);
     }
   };
@@ -102,13 +102,13 @@ export const ClassroomSessionSetup: React.FC = () => {
         onClick={() => navigate(`/teacher/classes/${classId}`)}
         className="mb-6 flex items-center gap-2 text-sm text-slate-500 hover:text-teal-700"
       >
-        <ArrowLeft size={16} /> Back to {classroom.name}
+        <ArrowLeft size={16} /> Quay lại {classroom.name}
       </button>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Start a Session</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Tạo buổi dạy mới</h1>
         <p className="mt-1 text-slate-500">
-          {classroom.name} · {ageLabel[classroom.ageGroupCode] || classroom.ageGroupCode} · {classroom.students?.length || 0} students
+          {classroom.name} · {ageLabel[classroom.ageGroupCode] || classroom.ageGroupCode} · {classroom.students?.length || 0} học sinh
         </p>
       </div>
 
@@ -148,14 +148,14 @@ export const ClassroomSessionSetup: React.FC = () => {
               <BookOpen size={20} className="text-teal-700" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Step 1 — Choose a Lesson</h2>
-              <p className="text-sm text-slate-500">Select the lesson to teach today</p>
+              <h2 className="text-xl font-bold">Bước 1 — Chọn bài học</h2>
+              <p className="text-sm text-slate-500">Chọn bài học sẽ dạy hôm nay</p>
             </div>
           </div>
 
           <div className="space-y-2 max-h-80 overflow-auto pr-1">
             {filteredLessons.length === 0 && (
-              <p className="text-slate-500 text-sm">No lessons available for this age group.</p>
+              <p className="text-slate-500 text-sm">Chưa có bài học nào cho độ tuổi này.</p>
             )}
             {filteredLessons.map((l: any) => (
               <button
@@ -169,9 +169,9 @@ export const ClassroomSessionSetup: React.FC = () => {
               >
                 <p className="font-semibold text-slate-900">{l.title}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {l.vocabularyItems?.length || 0} words ·{' '}
-                  {(content.activities.filter((a: any) => String(a.lesson) === l._id)).length} activities ·{' '}
-                  ~{l.estimatedDuration || 15} min
+                  {l.vocabularyItems?.length || 0} từ ·{' '}
+                  {(content.activities.filter((a: any) => String(a.lesson) === l._id)).length} hoạt động ·{' '}
+                  ~{l.estimatedDuration || 15} phút
                 </p>
               </button>
             ))}
@@ -183,7 +183,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               onClick={() => setStep(2)}
               className="flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-2.5 font-semibold text-white disabled:opacity-40 hover:bg-teal-700"
             >
-              Next <ChevronRight size={18} />
+              Tiếp tục <ChevronRight size={18} />
             </button>
           </div>
         </div>
@@ -197,13 +197,13 @@ export const ClassroomSessionSetup: React.FC = () => {
               <CheckSquare size={20} className="text-violet-700" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Step 2 — Choose Activities</h2>
-              <p className="text-sm text-slate-500">Select activities for this session</p>
+              <h2 className="text-xl font-bold">Bước 2 — Chọn hoạt động</h2>
+              <p className="text-sm text-slate-500">Chọn các hoạt động cho buổi dạy này</p>
             </div>
           </div>
 
           {lessonActivities.length === 0 ? (
-            <p className="text-slate-500 text-sm">No activities for this lesson. The session will proceed without specific activities.</p>
+            <p className="text-slate-500 text-sm">Bài học này chưa có hoạt động nào. Buổi dạy vẫn có thể diễn ra bình thường.</p>
           ) : (
             <div className="space-y-2">
               {lessonActivities.map((a: any) => {
@@ -226,7 +226,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                     <div>
                       <p className="font-semibold text-slate-900">{a.title}</p>
                       <p className="text-xs text-slate-500">
-                        {a.activityType?.replace(/_/g, ' ')} · {a.questionCount || '?'} questions
+                        {a.activityType?.replace(/_/g, ' ')} · {a.questionCount || '?'} câu hỏi
                       </p>
                     </div>
                   </button>
@@ -237,7 +237,7 @@ export const ClassroomSessionSetup: React.FC = () => {
 
           <div className="mt-6">
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Planned duration (minutes)
+              Thời lượng dự kiến (phút)
             </label>
             <div className="flex gap-3">
               {[20, 30, 45, 60].map((d) => (
@@ -250,7 +250,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                       : 'border-slate-200 bg-white text-slate-700 hover:border-teal-400'
                   }`}
                 >
-                  {d} min
+                  {d} phút
                 </button>
               ))}
             </div>
@@ -261,13 +261,13 @@ export const ClassroomSessionSetup: React.FC = () => {
               onClick={() => setStep(1)}
               className="flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-slate-600 hover:bg-slate-50"
             >
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> Quay lại
             </button>
             <button
               onClick={() => setStep(3)}
               className="flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-2.5 font-semibold text-white hover:bg-teal-700"
             >
-              Next <ChevronRight size={18} />
+              Tiếp tục <ChevronRight size={18} />
             </button>
           </div>
         </div>
@@ -281,31 +281,31 @@ export const ClassroomSessionSetup: React.FC = () => {
               <Play size={20} className="text-emerald-700" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Step 3 — Ready to Start!</h2>
-              <p className="text-sm text-slate-500">Review and launch the session</p>
+              <h2 className="text-xl font-bold">Bước 3 — Sẵn sàng bắt đầu!</h2>
+              <p className="text-sm text-slate-500">Xem lại thông tin và bắt đầu buổi dạy</p>
             </div>
           </div>
 
           {/* Session title edit */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Session title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tên buổi dạy</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-xl border border-slate-200 p-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Session title…"
+              placeholder="Tên buổi dạy…"
             />
           </div>
 
           {/* Summary */}
           <div className="space-y-3 rounded-xl bg-slate-50 p-4">
-            <Row label="Class" value={classroom.name} />
-            <Row label="Lesson" value={selectedLesson?.title || '(No lesson selected)'} />
-            <Row label="Activities" value={`${selectedActivityIds.length} selected`} />
-            <Row label="Students" value={`${classroom.students?.length || 0}`} />
+            <Row label="Lớp" value={classroom.name} />
+            <Row label="Bài học" value={selectedLesson?.title || '(Chưa chọn bài học)'} />
+            <Row label="Hoạt động" value={`Đã chọn ${selectedActivityIds.length}`} />
+            <Row label="Học sinh" value={`${classroom.students?.length || 0}`} />
             <Row
-              label="Duration"
-              value={`~${duration} minutes`}
+              label="Thời lượng"
+              value={`~${duration} phút`}
               icon={<Clock size={14} className="text-slate-400" />}
             />
           </div>
@@ -315,7 +315,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               onClick={() => setStep(2)}
               className="flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-slate-600 hover:bg-slate-50"
             >
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> Quay lại
             </button>
             <button
               onClick={handleCreate}
@@ -325,11 +325,11 @@ export const ClassroomSessionSetup: React.FC = () => {
               {creating ? (
                 <>
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Starting…
+                  Đang bắt đầu…
                 </>
               ) : (
                 <>
-                  <Play size={20} /> Start Session 🎯
+                  <Play size={20} /> Bắt đầu buổi dạy 🎯
                 </>
               )}
             </button>

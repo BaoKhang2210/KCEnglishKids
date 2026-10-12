@@ -119,6 +119,45 @@ export interface ProgressSummary {
   }>;
 }
 
+// ─── Rewards (§1.2) ───────────────────────────────────────────────────────────
+
+export interface RewardChest {
+  id: string;
+  unitId: string | null;
+  unitCode: string;
+  unitNumber: number | null;
+  bookNumber: number | null;
+  title: string | null;
+  completedAt: string;
+  revealedAt: string | null;
+  rewards: {
+    stars: number;
+    stickerId: string | null;
+  };
+}
+
+export interface RewardSummary {
+  totalStars: number;
+  earnedStars: number;
+  bonusStars: number;
+  completedUnits: number;
+  completedLessons: number;
+  totalLessonsAttempted: number;
+  grantedStickerIds: string[];
+  chests: RewardChest[];
+}
+
+export interface RevealedChest {
+  chestId: string;
+  unitId: string;
+  unitCode: string;
+  revealedAt: string;
+  rewards: {
+    stars: number;
+    stickerId: string | null;
+  };
+}
+
 // ─── Classroom Session (Phase 2) ──────────────────────────────────────────────
 
 export type SessionStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED';

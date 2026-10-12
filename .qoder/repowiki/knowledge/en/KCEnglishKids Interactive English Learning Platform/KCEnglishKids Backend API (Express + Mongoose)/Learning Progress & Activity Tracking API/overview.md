@@ -1,0 +1,1 @@
+Express routes and controllers that manage children's learning sessions, activity submissions, star/progress scoring, and weak-vocabulary tracking backed by Mongoose models.

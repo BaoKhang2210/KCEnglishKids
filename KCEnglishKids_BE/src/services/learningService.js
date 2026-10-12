@@ -1,4 +1,5 @@
 const { LearningSession, ActivityResult, Activity, Lesson, Progress } = require('../models');
+const { checkAndGrantUnitCompletion } = require('./rewardService');
 
 /**
  * Calculates star rating based on score percentage
@@ -11,6 +12,76 @@ const calculateStars = (score, maxScore = 100, starConfig = { threeStarsMin: 90,
   if (percentage >= (starConfig.twoStarsMin || 70)) return 2;
   if (percentage >= (starConfig.oneStarMin || 50)) return 1;
   return 0;
+};
+
+const normalizeText = (value) => (value == null ? '' : value.toString().trim().toLowerCase());
+
+/**
+ * §3.2.1 — Canonical server-side grading.
+ * Recomputes correctness from `selectedOptionId` against DB options; the
+ * client-sent `isCorrect` flag is NEVER trusted for scoring.
+ * Special case: MEMORY_CARD is a completion-based game (all pairs matched
+ * = every answer counts as correct).
+ */
+const gradeActivityAnswers = (activity, answers = []) => {
+  const questions = activity.questions || [];
+
+  return answers.map((ans, fallbackIdx) => {
+    const questionIndex = Number.isInteger(ans.questionIndex) ? ans.questionIndex : fallbackIdx;
+    const question = questions[questionIndex];
+
+    if (!question) {
+      return {
+        questionIndex,
+        selectedOptionId: ans.selectedOptionId ?? null,
+        isCorrect: false,
+        vocabularyId: ans.vocabularyId ?? null,
+        responseTimeMs: ans.responseTimeMs ?? 0,
+        unverifiable: true
+      };
+    }
+
+    const vocabularyId = question.vocabulary || ans.vocabularyId || null;
+    const base = {
+      questionIndex,
+      selectedOptionId: ans.selectedOptionId ?? null,
+      vocabularyId,
+      responseTimeMs: ans.responseTimeMs ?? 0,
+      correctAnswer: question.correctAnswer
+    };
+
+    // Completion-based game — matching all pairs counts as correct.
+    if (activity.activityType === 'MEMORY_CARD') {
+      return { ...base, isCorrect: true };
+    }
+
+    // 1) Canonical path: match the selected option id against server options.
+    if (ans.selectedOptionId) {
+      const option = (question.options || []).find((o) => o.id === ans.selectedOptionId);
+      if (option) {
+        return { ...base, isCorrect: !!option.isCorrect };
+      }
+
+      // TRUE_FALSE synthetic ids (only used when seed data omits options).
+      if (ans.selectedOptionId === 'opt_true' || ans.selectedOptionId === 'opt_false') {
+        const expected = normalizeText(question.correctAnswer);
+        const wantsTrue = ans.selectedOptionId === 'opt_true';
+        const isCorrect = wantsTrue
+          ? ['true', 'yes', 'đúng', 'dung'].includes(expected)
+          : ['false', 'no', 'sai'].includes(expected);
+        return { ...base, isCorrect };
+      }
+    }
+
+    // 2) Text answers (typing / sentence building).
+    const text = ans.answerText ?? ans.selectedText;
+    if (typeof text === 'string' && text.trim() && question.correctAnswer) {
+      return { ...base, isCorrect: normalizeText(text) === normalizeText(question.correctAnswer) };
+    }
+
+    // 3) No verifiable payload — score as wrong (never trust client flags).
+    return { ...base, isCorrect: false, unverifiable: true };
+  });
 };
 
 /**
@@ -40,7 +111,9 @@ const getOrCreateSession = async (childId, lessonId) => {
 };
 
 /**
- * Submit activity result, update session, and persist child progress
+ * Submit activity result, update session, and persist child progress.
+ * §1.2.9 — after Progress is saved, check whether the lesson's unit is now
+ * fully complete and auto-grant rewards (idempotent).
  */
 const processActivityResult = async ({
   childId,
@@ -63,24 +136,19 @@ const processActivityResult = async ({
     session = await getOrCreateSession(childId, lessonId);
   }
 
-  // Evaluate answers
+  // Evaluate answers — server-side grading (§3.2.1)
+  const gradedAnswers = gradeActivityAnswers(activity, answers);
   let correctCount = 0;
   let incorrectCount = 0;
-  const incorrectVocabIds = [];
 
-  answers.forEach(ans => {
-    if (ans.isCorrect) {
-      correctCount++;
-    } else {
-      incorrectCount++;
-      if (ans.vocabularyId) {
-        incorrectVocabIds.push(ans.vocabularyId);
-      }
-    }
-  });
+  for (const ans of gradedAnswers) {
+    if (ans.isCorrect) correctCount++;
+    else incorrectCount++;
+  }
 
-  const totalQuestions = activity.questions.length || answers.length || 1;
-  const pointsPerQuestion = activity.pointsPerQuestion || 25;
+  const totalQuestions = activity.questions.length || gradedAnswers.length || 1;
+  // §4.16 — single source of truth for points (model default is 10)
+  const pointsPerQuestion = activity.pointsPerQuestion || 10;
   const maxScore = totalQuestions * pointsPerQuestion;
   const totalScore = correctCount * pointsPerQuestion;
   const starsEarned = calculateStars(totalScore, maxScore, activity.starConfig);
@@ -98,13 +166,16 @@ const processActivityResult = async ({
     attempts: 1,
     duration,
     completed: true,
-    answers
+    answers: gradedAnswers
   });
 
-  // 2. Update Session
+  // 2. Update Session (dedupe hardened: ObjectId vs string compare)
   session.lastActivityAt = new Date();
   session.currentActivity = activityId;
-  if (!session.completedActivities.includes(activityId)) {
+  const alreadyDone = (session.completedActivities || []).some(
+    (id) => id.toString() === activityId.toString()
+  );
+  if (!alreadyDone) {
     session.completedActivities.push(activityId);
   }
   session.totalScore = (session.totalScore || 0) + totalScore;
@@ -118,45 +189,70 @@ const processActivityResult = async ({
   }
   await session.save();
 
-  // 3. Update or create Progress
+  // 3. Update or create Progress (§1.2.20 — upsert, no E11000 race)
   const lesson = await Lesson.findById(lessonId);
   const topicId = lesson ? lesson.topic : null;
 
+  let unitCompletionsGranted = [];
+
   if (topicId) {
-    let progress = await Progress.findOne({ child: childId, lesson: lessonId });
-    if (!progress) {
-      progress = new Progress({
-        child: childId,
-        topic: topicId,
-        lesson: lessonId,
-        completed: session.status === 'COMPLETED',
-        stars: starsEarned,
-        highestScore: totalScore,
-        attempts: 1,
-        weakVocabulary: [],
-        lastActivityAt: new Date()
-      });
-    } else {
-      progress.completed = progress.completed || session.status === 'COMPLETED';
-      progress.stars = Math.max(progress.stars || 0, starsEarned);
-      progress.highestScore = Math.max(progress.highestScore || 0, totalScore);
-      progress.attempts = (progress.attempts || 0) + 1;
-      progress.lastActivityAt = new Date();
+    const progress = await Progress.findOneAndUpdate(
+      { child: childId, lesson: lessonId },
+      {
+        $setOnInsert: { topic: topicId, completed: false, weakVocabulary: [] },
+        $max: { stars: starsEarned, highestScore: totalScore },
+        $inc: { attempts: 1 },
+        $set: { lastActivityAt: new Date() }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    // "Lesson complete" is owned by Progress.completed (§4.11) — set once ALL
+    // activities of the lesson are done (session.status === 'COMPLETED').
+    if (session.status === 'COMPLETED' && !progress.completed) {
+      progress.completed = true;
     }
 
-    // Record weak vocabulary for personalized learning
-    for (const vocabId of incorrectVocabIds) {
-      const existingWeak = progress.weakVocabulary.find(
-        w => w.vocabulary && w.vocabulary.toString() === vocabId.toString()
-      );
-      if (existingWeak) {
-        existingWeak.mistakeCount += 1;
+    // §4.10 — weakVocabulary must be able to shrink: correct answers accumulate
+    // streaks; after 2 consecutive correct answers the mistakeCount decreases,
+    // and the entry is removed once it reaches 0.
+    const weakMap = new Map();
+    for (const entry of progress.weakVocabulary || []) {
+      if (entry.vocabulary) weakMap.set(entry.vocabulary.toString(), entry);
+    }
+
+    for (const ans of gradedAnswers) {
+      if (!ans.vocabularyId) continue;
+      const key = ans.vocabularyId.toString();
+
+      if (ans.isCorrect) {
+        const entry = weakMap.get(key);
+        if (!entry) continue;
+        entry.consecutiveCorrect = (entry.consecutiveCorrect || 0) + 1;
+        if (entry.consecutiveCorrect >= 2) {
+          entry.consecutiveCorrect = 0;
+          entry.mistakeCount = (entry.mistakeCount || 1) - 1;
+        }
       } else {
-        progress.weakVocabulary.push({ vocabulary: vocabId, mistakeCount: 1 });
+        const entry = weakMap.get(key);
+        if (entry) {
+          entry.mistakeCount = (entry.mistakeCount || 0) + 1;
+          entry.consecutiveCorrect = 0;
+        } else {
+          progress.weakVocabulary.push({ vocabulary: ans.vocabularyId, mistakeCount: 1, consecutiveCorrect: 0 });
+        }
       }
     }
 
+    // Drop entries that dropped to 0 mistakes
+    progress.weakVocabulary = progress.weakVocabulary.filter((entry) => (entry.mistakeCount || 0) > 0);
+
     await progress.save();
+
+    // §1.2.9 — unit completion hook (idempotent)
+    if (progress.completed) {
+      unitCompletionsGranted = await checkAndGrantUnitCompletion(childId, lessonId);
+    }
   }
 
   // Find next activity in this lesson
@@ -174,14 +270,22 @@ const processActivityResult = async ({
     stars: starsEarned,
     correctCount,
     incorrectCount,
+    gradedAnswers,
     isPassed: starsEarned > 0,
+    lessonCompleted: session.status === 'COMPLETED',
     nextActivityId: nextAct ? nextAct._id : null,
-    nextActivityTitle: nextAct ? nextAct.title : null
+    nextActivityTitle: nextAct ? nextAct.title : null,
+    unitCompletionsGranted: unitCompletionsGranted.map((doc) => ({
+      unitId: doc.unit,
+      unitCode: doc.unitCode,
+      rewards: doc.rewards
+    }))
   };
 };
 
 module.exports = {
   calculateStars,
+  gradeActivityAnswers,
   getOrCreateSession,
   processActivityResult
 };

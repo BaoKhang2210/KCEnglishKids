@@ -44,16 +44,31 @@ const elapsedMin = (startedAt?: string) => {
 type AnswerMap = Record<string, 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED'>;
 type ViewTab = 'presentation' | 'grid' | 'games';
 
-// Fallback rich preschool vocabulary in case lesson has no custom vocabulary yet
+const makeSvgUri = (emoji: string, bg: string, label: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${bg}"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0.3"/>
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" rx="36" fill="url(#g)"/>
+      <text x="50%" y="54%" font-size="110" dominant-baseline="middle" text-anchor="middle">${emoji}</text>
+      <text x="50%" y="86%" font-family="sans-serif" font-weight="900" font-size="22" fill="#1e293b" text-anchor="middle">${label}</text>
+    </svg>`
+  )}`;
+
+// Safe local preschool vocabulary with vector SVG illustrations for projection
 const DEFAULT_PRESCHOOL_VOCAB = [
-  { _id: 'v_cat', english: 'Cat', vietnamese: 'Con mèo', pronunciation: '/kæt/', imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500', audioUrl: '' },
-  { _id: 'v_dog', english: 'Dog', vietnamese: 'Con chó', pronunciation: '/dɒɡ/', imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=500', audioUrl: '' },
-  { _id: 'v_apple', english: 'Apple', vietnamese: 'Quả táo', pronunciation: '/ˈæp.əl/', imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=500', audioUrl: '' },
-  { _id: 'v_car', english: 'Car', vietnamese: 'Xe hơi', pronunciation: '/kɑːr/', imageUrl: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=500', audioUrl: '' },
-  { _id: 'v_bird', english: 'Bird', vietnamese: 'Con chim', pronunciation: '/bɜːd/', imageUrl: 'https://images.unsplash.com/photo-1444464666168-49d633b86797?w=500', audioUrl: '' },
-  { _id: 'v_fish', english: 'Fish', vietnamese: 'Con cá', pronunciation: '/fɪʃ/', imageUrl: 'https://images.unsplash.com/photo-1524704654690-b56c05c78a00?w=500', audioUrl: '' },
-  { _id: 'v_sun', english: 'Sun', vietnamese: 'Mặt trời', pronunciation: '/sʌn/', imageUrl: 'https://images.unsplash.com/photo-1538370965046-79c0d6907d47?w=500', audioUrl: '' },
-  { _id: 'v_bear', english: 'Bear', vietnamese: 'Con gấu', pronunciation: '/beər/', imageUrl: 'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?w=500', audioUrl: '' }
+  { _id: 'v_cat', english: 'Cat', vietnamese: 'Con mèo', pronunciation: '/kæt/', imageUrl: makeSvgUri('🐱', '#FDE68A', 'Cat'), audioUrl: '' },
+  { _id: 'v_dog', english: 'Dog', vietnamese: 'Con chó', pronunciation: '/dɒɡ/', imageUrl: makeSvgUri('🐶', '#FED7AA', 'Dog'), audioUrl: '' },
+  { _id: 'v_apple', english: 'Apple', vietnamese: 'Quả táo', pronunciation: '/ˈæp.əl/', imageUrl: makeSvgUri('🍎', '#FECDD3', 'Apple'), audioUrl: '' },
+  { _id: 'v_car', english: 'Car', vietnamese: 'Xe hơi', pronunciation: '/kɑːr/', imageUrl: makeSvgUri('🚗', '#BAE6FD', 'Car'), audioUrl: '' },
+  { _id: 'v_bird', english: 'Bird', vietnamese: 'Con chim', pronunciation: '/bɜːd/', imageUrl: makeSvgUri('🐦', '#A7F3D0', 'Bird'), audioUrl: '' },
+  { _id: 'v_fish', english: 'Fish', vietnamese: 'Con cá', pronunciation: '/fɪʃ/', imageUrl: makeSvgUri('🐟', '#C7D2FE', 'Fish'), audioUrl: '' },
+  { _id: 'v_sun', english: 'Sun', vietnamese: 'Mặt trời', pronunciation: '/sʌn/', imageUrl: makeSvgUri('☀️', '#FEF08A', 'Sun'), audioUrl: '' },
+  { _id: 'v_bear', english: 'Bear', vietnamese: 'Con gấu', pronunciation: '/beər/', imageUrl: makeSvgUri('🐻', '#E2E8F0', 'Bear'), audioUrl: '' }
 ];
 
 export const LiveSessionPage: React.FC = () => {
@@ -153,7 +168,7 @@ export const LiveSessionPage: React.FC = () => {
         english: v.english || v.word || 'Word',
         vietnamese: v.vietnamese || '',
         pronunciation: v.pronunciation || '',
-        imageUrl: v.imageUrl || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500',
+        imageUrl: v.imageUrl || makeSvgUri('📖', '#FEF08A', v.english || 'Word'),
         audioUrl: v.audioUrl || ''
       }));
     }

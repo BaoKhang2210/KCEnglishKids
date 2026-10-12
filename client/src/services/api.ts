@@ -157,6 +157,17 @@ export const learningApi = {
     api.get(`/children/${childId}/progress`)
 };
 
+// §1.3.1 — 3-stage pipeline: per-lesson stage completion (server = source of truth)
+export const stageProgressApi = {
+  getLessonProgress: (childId: string, lessonId: string) =>
+    api.get(`/children/${childId}/progress/${lessonId}`),
+  completeStage: (
+    childId: string,
+    lessonId: string,
+    payload: { stage: 1 | 2; score?: number; stars?: number }
+  ) => api.put(`/children/${childId}/progress/${lessonId}/stage`, payload)
+};
+
 // Admin API
 export const adminApi = {
   getDashboardStats: () => api.get('/admin/dashboard'),
@@ -317,10 +328,46 @@ export const vocabMasteryApi = {
     api.get(`/teacher/students/${studentId}/vocabulary-mastery`)
 };
 
+// Rewards API (§1.2 — server is the single source of truth)
+export const rewardsApi = {
+  getChildRewards: (childId: string) =>
+    api.get(`/children/${childId}/rewards`),
+  revealChest: (childId: string, unitId: string) =>
+    api.post(`/children/${childId}/rewards/chests/${unitId}/reveal`, {})
+};
+
+// Sentence-pattern teaching API (teacher classroom screen, Mongo languagecontents)
+export const sentenceApi = {
+  getPatterns: (params: {
+    ageGroupCode?: string;
+    unitId?: string;
+    lessonId?: string;
+    topicId?: string;
+    contentType?: string;
+    search?: string;
+  } = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v) q.append(k, String(v));
+    });
+    const qs = q.toString();
+    return api.get(`/teacher/sentence-patterns${qs ? `?${qs}` : ''}`);
+  },
+  getUnitsOverview: (params: { ageGroupCode?: string; contentType?: string } = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v) q.append(k, String(v));
+    });
+    const qs = q.toString();
+    return api.get(`/teacher/sentence-patterns/units-overview${qs ? `?${qs}` : ''}`);
+  }
+};
+
 // Parent Notification API (Phase 9)
 export const parentNotificationApi = {
   sendNotification: (data: {
     childId: string;
+    subject?: string;
     sessionId?: string;
     teacherNote?: string;
     templateType?: 'SESSION_REPORT' | 'PROGRESS_UPDATE' | 'GENERAL';
@@ -348,6 +395,16 @@ export const parentNotificationApi = {
     return api.get(`/teacher/parent-notifications${q}`);
   },
   getChildNotifications: (childId: string) =>
-    api.get(`/teacher/parent-notifications/child/${childId}`)
+    api.get(`/teacher/parent-notifications/child/${childId}`),
+  replyAsTeacher: (id: string, message: string) =>
+    api.post(`/teacher/parent-notifications/${id}/reply`, { message }),
+  getChildNotificationsForParent: (childId: string) =>
+    api.get(`/children/${childId}/parent-notifications`),
+  replyAsParent: (childId: string, id: string, message: string, parentName?: string) =>
+    api.post(`/children/${childId}/parent-notifications/${id}/reply`, { message, parentName }),
+  markAsReadByParent: (childId: string, id: string) =>
+    api.patch(`/children/${childId}/parent-notifications/${id}/read`, {}),
+  getChildAssignments: (childId: string) =>
+    api.get(`/children/${childId}/assignments`)
 };
 

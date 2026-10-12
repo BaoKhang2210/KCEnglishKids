@@ -1,0 +1,4 @@
+- Each domain exposes its own `routes/<domain>Routes.js` file that is imported and mounted under a dedicated `/api/*` prefix in `src/app.js`.
+- Controllers import `authMiddleware` from `src/middlewares/authMiddleware.js` to gate role-scoped endpoints rather than checking roles inline.
+- Database access goes through Mongoose models defined under `src/models/` (with an `index.js` barrel), never direct `mongoose.connection` calls inside controllers.
+- Global error handling is funneled through the centralized `notFound` and `errorHandler` middlewares from `src/middlewares/errorMiddleware.js`.

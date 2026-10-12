@@ -78,7 +78,31 @@ const parentNotificationSchema = new mongoose.Schema(
     readAt: {
       type: Date,
       default: null
-    }
+    },
+    // Two-way exchange between Teacher and Parent
+    replies: [
+      {
+        senderRole: {
+          type: String,
+          enum: ['TEACHER', 'PARENT'],
+          required: true
+        },
+        senderName: {
+          type: String,
+          required: true,
+          trim: true
+        },
+        message: {
+          type: String,
+          required: true,
+          trim: true
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ]
   },
   { timestamps: true }
 );

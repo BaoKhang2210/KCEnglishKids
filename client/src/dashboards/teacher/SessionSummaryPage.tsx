@@ -27,7 +27,7 @@ const initials = (name?: string) =>
 
 const fmt = (d?: string) =>
   d
-    ? new Date(d).toLocaleString('en-GB', {
+    ? new Date(d).toLocaleString('vi-VN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -61,14 +61,14 @@ export const SessionSummaryPage: React.FC = () => {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-        <span className="ml-3 text-slate-600">Loading summary…</span>
+        <span className="ml-3 text-slate-600">Đang tải tổng kết…</span>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="p-8 text-center text-slate-500">Session not found.</div>
+      <div className="p-8 text-center text-slate-500">Không tìm thấy buổi dạy này.</div>
     );
   }
 
@@ -89,13 +89,13 @@ export const SessionSummaryPage: React.FC = () => {
       {/* ── Hero banner ───────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-10 text-center">
         <p className="text-5xl mb-2">🎉</p>
-        <h1 className="text-4xl font-black tracking-tight">Session Complete!</h1>
+        <h1 className="text-4xl font-black tracking-tight">Buổi dạy kết thúc!</h1>
         <p className="mt-2 text-emerald-100 text-lg">
           {session.title}
         </p>
         <p className="text-sm text-emerald-200 mt-1">
           {fmt(session.startedAt)}
-          {session.endedAt && ` · ${duration} min`}
+          {session.endedAt && ` · ${duration} phút`}
         </p>
       </div>
 
@@ -104,26 +104,26 @@ export const SessionSummaryPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
           <MetricCard
             icon={<Users size={22} className="text-blue-600" />}
-            label="Participation"
+            label="Số bé tham gia"
             value={`${s?.participationCount || 0} / ${scores.length}`}
             bg="bg-blue-50"
           />
           <MetricCard
             icon={<Target size={22} className="text-emerald-600" />}
-            label="Avg Accuracy"
+            label="Tỷ lệ đúng"
             value={`${s?.averageAccuracy || 0}%`}
             bg="bg-emerald-50"
           />
           <MetricCard
             icon={<Star size={22} className="text-amber-600 fill-amber-400" />}
-            label="Total Stars"
+            label="Tổng số sao"
             value={`${s?.totalStars || 0} ⭐`}
             bg="bg-amber-50"
           />
           <MetricCard
             icon={<Clock size={22} className="text-violet-600" />}
-            label="Duration"
-            value={`${duration} min`}
+            label="Thời lượng"
+            value={`${duration} phút`}
             bg="bg-violet-50"
           />
         </div>
@@ -132,25 +132,25 @@ export const SessionSummaryPage: React.FC = () => {
           {/* ── Left: Student leaderboard ─────────────────────────────────── */}
           <div className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
             <h2 className="mb-4 text-xl font-bold text-slate-900">
-              Student Results
+              Kết quả của các bé
             </h2>
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-slate-500 border-b">
                   <tr>
-                    <th className="pb-3">Student</th>
-                    <th className="pb-3">✓ Correct</th>
-                    <th className="pb-3">✕ Wrong</th>
-                    <th className="pb-3">Accuracy</th>
-                    <th className="pb-3">Stars</th>
-                    <th className="pb-3">Points</th>
-                    <th className="pb-3">Status</th>
+                    <th className="pb-3">Học sinh</th>
+                    <th className="pb-3">✓ Đúng</th>
+                    <th className="pb-3">✕ Sai</th>
+                    <th className="pb-3">Chính xác</th>
+                    <th className="pb-3">Sao</th>
+                    <th className="pb-3">Điểm</th>
+                    <th className="pb-3">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scores.map((sc, i) => {
                     const stu = sc.student as User;
-                    const name = stu?.name || 'Student';
+                    const name = stu?.name || 'Học sinh';
                     const ans = sc.correctCount + sc.incorrectCount;
                     const acc = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
                     return (
@@ -188,7 +188,7 @@ export const SessionSummaryPage: React.FC = () => {
             {topPerformers.length > 0 && (
               <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5">
                 <h3 className="mb-3 font-bold text-slate-900 flex items-center gap-2">
-                  <Trophy size={18} className="text-amber-500" /> Top Performers
+                  <Trophy size={18} className="text-amber-500" /> Bé nổi bật
                 </h3>
                 <div className="space-y-2">
                   {topPerformers.map((t, i) => {
@@ -209,7 +209,7 @@ export const SessionSummaryPage: React.FC = () => {
             {needsPractice.length > 0 && (
               <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5">
                 <h3 className="mb-3 font-bold text-amber-800 flex items-center gap-2">
-                  <AlertTriangle size={18} className="text-amber-600" /> Needs Practice
+                  <AlertTriangle size={18} className="text-amber-600" /> Bé cần ôn thêm
                 </h3>
                 <div className="space-y-1">
                   {needsPractice.map((t, i) => {
@@ -220,7 +220,7 @@ export const SessionSummaryPage: React.FC = () => {
                   })}
                 </div>
                 <p className="mt-3 text-xs text-amber-600">
-                  Consider assigning extra practice activities for these students.
+                  Cô nên giao thêm bài luyện tập cho các bé này nhé.
                 </p>
               </div>
             )}
@@ -228,13 +228,13 @@ export const SessionSummaryPage: React.FC = () => {
             {/* Session info */}
             <div className="rounded-2xl bg-white border border-slate-200 p-5 text-sm">
               <h3 className="mb-3 font-bold text-slate-900 flex items-center gap-2">
-                <BookOpen size={18} className="text-teal-600" /> Session Info
+                <BookOpen size={18} className="text-teal-600" /> Thông tin buổi dạy
               </h3>
-              <InfoRow label="Class" value={(session.classroom as any)?.name || '—'} />
-              <InfoRow label="Lesson" value={(session.lesson as any)?.title || '—'} />
-              <InfoRow label="Activities" value={`${session.activities?.length || 0}`} />
-              <InfoRow label="Started" value={fmt(session.startedAt)} />
-              <InfoRow label="Ended" value={fmt(session.endedAt)} />
+              <InfoRow label="Lớp" value={(session.classroom as any)?.name || '—'} />
+              <InfoRow label="Bài học" value={(session.lesson as any)?.title || '—'} />
+              <InfoRow label="Hoạt động" value={`${session.activities?.length || 0}`} />
+              <InfoRow label="Bắt đầu" value={fmt(session.startedAt)} />
+              <InfoRow label="Kết thúc" value={fmt(session.endedAt)} />
             </div>
           </div>
         </div>
@@ -245,13 +245,13 @@ export const SessionSummaryPage: React.FC = () => {
             onClick={() => setShowReportModal(true)}
             className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white shadow hover:bg-teal-700"
           >
-            <Send size={18} /> Send Reports to Parents
+            <Send size={18} /> Gửi báo cáo cho phụ huynh
           </button>
           <Link
             to={`/teacher/classes/${(session.classroom as any)?._id || ''}`}
             className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
           >
-            <ArrowLeft size={16} /> Back to Classroom
+            <ArrowLeft size={16} /> Quay lại lớp học
           </Link>
         </div>
       </div>
@@ -294,9 +294,9 @@ const StatusBadge = ({ status }: { status: string }) => {
     NEEDS_PRACTICE: 'bg-amber-100 text-amber-700'
   };
   const labels: Record<string, string> = {
-    COMPLETED: '✓ Done',
-    ACTIVE: '● Active',
-    NEEDS_PRACTICE: '⚠ Needs practice'
+    COMPLETED: '✓ Hoàn thành',
+    ACTIVE: '● Đang diễn ra',
+    NEEDS_PRACTICE: '⚠ Cần ôn thêm'
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cfg[status] || 'bg-slate-100 text-slate-600'}`}>
@@ -354,7 +354,7 @@ const ParentReportModal = ({
       });
       setSent(true);
     } catch (e: any) {
-      setError(e.message || 'Failed to send reports');
+      setError(e.message || 'Không thể gửi báo cáo');
     } finally {
       setSending(false);
     }
@@ -365,7 +365,7 @@ const ParentReportModal = ({
       <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h3 className="text-lg font-bold text-slate-900">Send Parent Reports</h3>
+          <h3 className="text-lg font-bold text-slate-900">Gửi báo cáo cho phụ huynh</h3>
           <button onClick={onClose}>
             <X size={20} className="text-slate-500" />
           </button>
@@ -374,19 +374,19 @@ const ParentReportModal = ({
         {sent ? (
           <div className="flex flex-col items-center justify-center flex-1 p-8 text-center">
             <CheckCircle2 size={64} className="text-emerald-500 mb-4" />
-            <h4 className="text-xl font-bold text-slate-900">Reports Sent!</h4>
+            <h4 className="text-xl font-bold text-slate-900">Đã gửi báo cáo!</h4>
             <p className="mt-2 text-slate-500">
-              {scores.length} learning reports have been recorded successfully.
+              Đã ghi nhận {scores.length} báo cáo học tập thành công.
             </p>
             <button onClick={onClose} className="mt-6 rounded-xl bg-teal-600 px-6 py-2.5 font-semibold text-white">
-              Done
+              Hoàn tất
             </button>
           </div>
         ) : (
           <>
             <div className="flex-1 overflow-auto px-6 py-4">
               <p className="mb-4 text-sm text-slate-500">
-                A learning report will be created for each student. Optionally add a personal note per student.
+                Một báo cáo học tập sẽ được tạo cho mỗi bé. Cô có thể thêm nhận xét riêng cho từng bé.
               </p>
 
               {error && (
@@ -399,7 +399,7 @@ const ParentReportModal = ({
                 {scores.map((sc, i) => {
                   const stu = sc.student as User;
                   const studentId = typeof sc.student === 'string' ? sc.student : stu._id || stu.id || '';
-                  const name = stu?.name || 'Student';
+                  const name = stu?.name || 'Học sinh';
                   const ans = sc.correctCount + sc.incorrectCount;
                   const accuracy = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
 
@@ -414,7 +414,7 @@ const ParentReportModal = ({
                         </div>
                       </div>
                       <input
-                        placeholder={`Add a note for ${name.split(' ')[0]}… (optional)`}
+                        placeholder={`Thêm nhận xét cho bé ${name.split(' ')[0]}… (không bắt buộc)`}
                         value={notes[studentId] || ''}
                         onChange={(e) =>
                           setNotes((prev) => ({ ...prev, [studentId]: e.target.value }))
@@ -432,7 +432,7 @@ const ParentReportModal = ({
                 onClick={onClose}
                 className="rounded-xl border border-slate-200 px-5 py-2.5 text-slate-600 hover:bg-slate-50"
               >
-                Cancel
+                Hủy
               </button>
               <button
                 onClick={handleSendAll}
@@ -444,7 +444,7 @@ const ParentReportModal = ({
                 ) : (
                   <Send size={16} />
                 )}
-                {sending ? 'Sending…' : `Send to ${scores.length} Parents`}
+                {sending ? 'Đang gửi…' : `Gửi tới ${scores.length} phụ huynh`}
               </button>
             </div>
           </>

@@ -5,13 +5,13 @@ import { classroomSessionApi } from '../../services/api';
 import type { ClassroomSession } from '../../types';
 
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
-  SCHEDULED: { label: 'Scheduled', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
-  LIVE: { label: '● Live', color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500 animate-pulse' },
-  COMPLETED: { label: 'Completed', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' }
+  SCHEDULED: { label: 'Đã lên lịch', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
+  LIVE: { label: '● Đang dạy', color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500 animate-pulse' },
+  COMPLETED: { label: 'Đã kết thúc', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' }
 };
 
 const fmt = (d?: string) =>
-  d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  d ? new Date(d).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 const durationMin = (s?: ClassroomSession) => {
   if (!s?.startedAt || !s?.endedAt) return null;
@@ -34,7 +34,7 @@ export const ClassroomSessionsList: React.FC = () => {
     return (
       <div className="flex h-60 items-center justify-center">
         <Loader2 className="h-7 w-7 animate-spin text-teal-600" />
-        <span className="ml-3 text-slate-600">Loading sessions…</span>
+        <span className="ml-3 text-slate-600">Đang tải các buổi dạy…</span>
       </div>
     );
   }
@@ -47,9 +47,9 @@ export const ClassroomSessionsList: React.FC = () => {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-7 flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-teal-700">Teacher workspace</p>
-          <h1 className="text-3xl font-bold text-slate-900">Classroom Sessions</h1>
-          <p className="mt-1 text-slate-500">Your live and past teaching sessions.</p>
+          <p className="text-sm font-medium text-teal-700">Không gian giảng dạy</p>
+          <h1 className="text-3xl font-bold text-slate-900">Buổi dạy trên lớp</h1>
+          <p className="mt-1 text-slate-500">Các buổi dạy trực tiếp và đã kết thúc của bạn.</p>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export const ClassroomSessionsList: React.FC = () => {
         <section className="mb-8">
           <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-emerald-700">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live Now ({live.length})
+            Đang diễn ra ({live.length})
           </h2>
           <div className="space-y-3">
             {live.map((s) => (
@@ -72,7 +72,7 @@ export const ClassroomSessionsList: React.FC = () => {
       {upcoming.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-blue-700">
-            <Calendar size={18} /> Scheduled ({upcoming.length})
+            <Calendar size={18} /> Đã lên lịch ({upcoming.length})
           </h2>
           <div className="space-y-3">
             {upcoming.map((s) => (
@@ -86,7 +86,7 @@ export const ClassroomSessionsList: React.FC = () => {
       {past.length > 0 && (
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-700">
-            <Clock size={18} /> Past Sessions ({past.length})
+            <Clock size={18} /> Đã kết thúc ({past.length})
           </h2>
           <div className="space-y-3">
             {past.map((s) => (
@@ -99,13 +99,13 @@ export const ClassroomSessionsList: React.FC = () => {
       {sessions.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-500">
           <LayoutGrid size={40} className="mx-auto mb-3 text-slate-300" />
-          <p className="font-semibold">No sessions yet.</p>
-          <p className="text-sm mt-1">Go to a classroom and click "Start Session" to begin.</p>
+          <p className="font-semibold">Chưa có buổi dạy nào.</p>
+          <p className="text-sm mt-1">Hãy vào mục Lớp học và bấm "Bắt đầu buổi dạy" để tạo buổi dạy mới.</p>
           <Link
             to="/teacher/classes"
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
           >
-            <Plus size={16} /> View Classes
+            <Plus size={16} /> Xem các lớp học
           </Link>
         </div>
       )}
@@ -146,7 +146,7 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
         <div>
           <p className="font-bold text-slate-900">{s.title}</p>
           <p className="text-sm text-slate-500">
-            {classroom?.name || '—'} · {lesson?.title || 'Free session'} ·{' '}
+            {classroom?.name || '—'} · {lesson?.title || 'Buổi tự do'} ·{' '}
             {fmt(s.startedAt || s.createdAt)}
             {dur !== null && ` · ${dur} min`}
           </p>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { activitiesApi, learningApi } from '../../services/api';
+import { vocabMasteryService } from '../../services/vocabMasteryService';
 import type { Activity, ActivityQuestion, ActivityOption } from '../../types';
 import { ResultModal } from '../../components/child/ResultModal';
 import { KokoMascot } from '../../components/child/KokoMascot';
@@ -25,6 +26,8 @@ export const ActivityPlayPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const childId = user?.id || (user as any)?._id || 'guest';
+
   const [activity, setActivity] = useState<Activity | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export const ActivityPlayPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isFinished, setIsFinished] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const startTimeRef = useRef<number>(Date.now());
   const questionStartRef = useRef<number>(Date.now());
@@ -115,6 +119,12 @@ export const ActivityPlayPage: React.FC = () => {
     setSelectedOptionId(optionId);
     const responseTimeMs = Date.now() - questionStartRef.current;
 
+    // §1.3.3 — every arcade answer feeds the Vocabulary Notebook (Sổ từ vựng):
+    // 2 correct game reps solidify a word into MASTERED.
+    if (currentQuestion.vocabulary) {
+      vocabMasteryService.recordGameResult(childId, currentQuestion.vocabulary, isCorrect);
+    }
+
     if (isCorrect) {
       // Correct answer
       setFeedbackState('correct');
@@ -165,18 +175,31 @@ export const ActivityPlayPage: React.FC = () => {
       vocabularyId: q.vocabulary,
       responseTimeMs: 2000
     }));
+    // §1.3.3 — every matched memory pair counts as a correct rep for that word
+    (activity.questions || []).forEach(q => {
+      if (q.vocabulary) vocabMasteryService.recordGameResult(childId, q.vocabulary, true);
+    });
     await handleCompleteActivity(allAnswers);
   };
 
   const handleCompleteActivity = async (answers: any[]) => {
     if (!activity) return;
 
+    // §2.2.3 — resolve lessonId defensively; without it the submit request
+    // silently fails and the ResultModal never appears.
+    const lessonId = (activity as any).lesson?._id || (activity as any).lesson;
+    if (!lessonId) {
+      setSubmitError('Không tìm thấy Lesson của trò chơi này. Bé hãy quay lại và thử lại nhé!');
+      return;
+    }
+
     const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
 
     try {
+      setSubmitError(null);
       const res = await learningApi.submitActivityResult({
         activityId: activity._id,
-        lessonId: (activity as any).lesson?._id || (activity as any).lesson,
+        lessonId,
         childId: user?.id || (user as any)?._id,
         answers,
         duration: durationSeconds
@@ -185,9 +208,12 @@ export const ActivityPlayPage: React.FC = () => {
       if (res.success) {
         setResultData(res.data);
         setIsFinished(true);
+      } else {
+        setSubmitError(res.message || 'Không thể lưu kết quả. Bé thử lại nhé!');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit results:', err);
+      setSubmitError(err?.message || 'Có lỗi khi kết nối. Bé thử lại nhé!');
     }
   };
 
@@ -203,7 +229,9 @@ export const ActivityPlayPage: React.FC = () => {
 
   const handleFinish = () => {
     sfx.playPop();
-    navigate('/');
+    // §5.6.6 — return to the lesson page (child keeps context), not home.
+    const lessonId = (activity as any)?.lesson?._id || (activity as any)?.lesson;
+    navigate(lessonId ? `/lessons/${lessonId}` : '/');
   };
 
   if (loading) {
@@ -318,7 +346,9 @@ export const ActivityPlayPage: React.FC = () => {
                 onAnswer={handleEngineAnswer}
                 disabled={feedbackState !== 'idle'}
               />
-            ) : activity?.activityType === 'TAP_PICTURE' ? (
+            ) : activity?.activityType === 'TAP_PICTURE' || activity?.activityType === 'FIND_OBJECT' ? (
+              /* §2.2.4 — FIND_OBJECT (18 exercises) shares the giant tap-the-picture
+                 board instead of falling into the generic fallback */
               <TapPictureEngine
                 question={currentQuestion}
                 onAnswer={handleEngineAnswer}
@@ -332,6 +362,17 @@ export const ActivityPlayPage: React.FC = () => {
               />
             ) : activity?.activityType === 'STAR_CATCHER' ? (
               <StarCatcherEngine
+                question={currentQuestion}
+                selectedOptionId={selectedOptionId}
+                feedbackState={feedbackState}
+                onSelectOption={handleSelectOption}
+                onPlayPrompt={handlePlayPrompt}
+              />
+            ) : activity?.activityType === 'DRAG_DROP' || activity?.activityType === 'CLASSIFICATION' || activity?.activityType === 'LISTEN_REPEAT' ? (
+              /* §2.2.4 — text-option types play as big choose-the-answer cards;
+                 all 12 docs carry options[].isCorrect for server-side grading.
+                 LISTEN_REPEAT (1 option) = hear prompt → tap the word card. */
+              <ListenChooseEngine
                 question={currentQuestion}
                 selectedOptionId={selectedOptionId}
                 feedbackState={feedbackState}
@@ -361,6 +402,38 @@ export const ActivityPlayPage: React.FC = () => {
         />
       </aside>
 
+      {/* §2.2.3 — Error modal with retry (never leave the child on a frozen screen) */}
+      {submitError && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-4xl border-4 border-rose-200 p-8 max-w-md w-full text-center shadow-2xl animate-pop-in">
+            <div className="text-6xl mb-3">😢</div>
+            <h2 className="text-2xl font-black text-slate-800 mb-2">Ôi, có lỗi rồi!</h2>
+            <p className="text-slate-600 font-bold mb-6 leading-relaxed">{submitError}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => {
+                  sfx.playPop();
+                  setSubmitError(null);
+                  handleCompleteActivity(recordedAnswers);
+                }}
+                className="btn-3d-amber text-amber-950 font-black text-base py-3 px-6 rounded-2xl cursor-pointer"
+              >
+                Thử lại 🔄
+              </button>
+              <button
+                onClick={() => {
+                  sfx.playPop();
+                  navigate('/');
+                }}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-base py-3 px-6 rounded-2xl cursor-pointer transition-colors"
+              >
+                Về trang chủ 🏠
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Result Celebration Modal */}
       {isFinished && resultData && (
         <ResultModal
@@ -373,6 +446,7 @@ export const ActivityPlayPage: React.FC = () => {
           onFinish={handleFinish}
           nextActivityId={resultData.nextActivityId}
           nextActivityTitle={resultData.nextActivityTitle}
+          unitCompleted={Array.isArray(resultData.unitCompletionsGranted) && resultData.unitCompletionsGranted.length > 0}
           onPlayNext={() => {
             if (resultData.nextActivityId) {
               navigate(`/activities/${resultData.nextActivityId}`);

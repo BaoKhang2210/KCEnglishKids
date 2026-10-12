@@ -1,0 +1,1 @@
+Two-layer curriculum-driven platform wiring an Express/Mongoose backend with a child/teacher React client and a separate admin SPA, all sharing the same MongoDB schema and JWT auth.

@@ -1,0 +1,1 @@
+React/Vite frontend for the English Kids platform, providing a child-facing learning arcade and a teacher dashboard with live classroom session management.

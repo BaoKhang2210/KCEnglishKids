@@ -1,0 +1,1 @@
+Express routes and controllers exposing vocabulary catalog browsing plus per-child vocabulary mastery tracking, backed by Mongoose schemas for curriculum books, units, language content, and media.

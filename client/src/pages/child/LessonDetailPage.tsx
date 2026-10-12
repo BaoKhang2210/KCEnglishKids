@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -12,7 +12,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { lessonsApi } from '../../services/api';
+import { lessonsApi, stageProgressApi } from '../../services/api';
 import type { Lesson } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildBottomNav } from '../../components/child/ChildBottomNav';
@@ -21,15 +21,9 @@ import { InteractivePracticeStudio } from '../../components/child/InteractivePra
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { sfx } from '../../utils/audio';
 
-const GAME_TYPES = new Set([
-  'COLOR_RECOGNITION',
-  'IMAGE_WORD_MATCH',
-  'COUNT_OBJECTS',
-  'MISSING_OBJECT',
-  'MEMORY_CARD',
-  'DRAG_DROP_WORD',
-  'SPELL_PUZZLE'
-]);
+// §2.2.4 — activity types must match the BE Activity enum exactly (18 values).
+// All 18 are playable (12 dedicated engines + fallback), so Stage 3 lists
+// EVERY activity; the age sets below only control display priority.
 
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,14 +50,26 @@ export const LessonDetailPage: React.FC = () => {
         if (res.success) {
           setLesson(res.data);
 
+          // §1.3.1 — restore stage state: server flags win, localStorage is cache
+          try {
+            const progRes = await stageProgressApi.getLessonProgress(childId, id);
+            if (progRes.success && progRes.data) {
+              if (progRes.data.stage1Completed) {
+                localStorage.setItem(`kc_stage1_${childId}_${id}`, 'true');
+              }
+              if (progRes.data.stage2Completed) {
+                localStorage.setItem(`kc_stage2_${childId}_${id}`, 'true');
+              }
+            }
+          } catch {
+            /* offline — localStorage cache still applies */
+          }
+
           // Restore or calculate initial active stage
           const rawActs = res.data?.activities || [];
           const hasCompletedAny = rawActs.some((a: any) => a.completed);
           const savedStage1 = localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true' || hasCompletedAny;
-
-          const practiceActs = rawActs.filter((a: any) => !GAME_TYPES.has(a.type));
-          const isPracticeAllDone = practiceActs.length > 0 && practiceActs.every((a: any) => a.completed);
-          const savedStage2 = localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true' || isPracticeAllDone;
+          const savedStage2 = localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
           const savedActive = localStorage.getItem(`kc_stage_active_${childId}_${id}`);
           if (savedActive === '3' && savedStage2) {
@@ -92,29 +98,23 @@ export const LessonDetailPage: React.FC = () => {
   const completedCount = activities.filter((a: any) => a.completed).length;
   const isAllCompleted = activities.length > 0 && activities.every((a: any) => a.completed);
 
-  // Strict Age Group Filtering for Interactive Games
+  // Age-based PRIORITY ordering (not filtering!): gentler game types first.
   const isMamAge = (user?.ageGroupCode || '3-4') === '3-4';
-  const MAM_GAME_TYPES = new Set(['LISTEN_CHOOSE', 'COLOR_RECOGNITION']);
-  const CHOI_LA_GAME_TYPES = new Set(['IMAGE_WORD_MATCH', 'COUNT_OBJECTS', 'MISSING_OBJECT', 'MEMORY_CARD']);
+  const MAM_GAME_TYPES = new Set(['LISTEN_CHOOSE', 'COLOR_RECOGNITION', 'TAP_PICTURE', 'BUBBLE_POP', 'ANIMAL_SOUND']);
+  const CHOI_LA_GAME_TYPES = new Set([
+    'IMAGE_WORD_MATCH', 'COUNT_OBJECTS', 'MISSING_OBJECT', 'MEMORY_CARD',
+    'STAR_CATCHER', 'FEED_ANIMAL', 'TRUE_FALSE', 'DRAG_DROP',
+    'FIND_OBJECT', 'CLASSIFICATION', 'LISTEN_REPEAT', 'MATCHING', 'MEMORY'
+  ]);
   const allowedGameTypes = isMamAge ? MAM_GAME_TYPES : CHOI_LA_GAME_TYPES;
 
-  // Split activities into Practice and Games
-  const practiceActivities = activities.filter((a: any) => !allowedGameTypes.has(a.type));
-  const gameActivities = activities.filter((a: any) => allowedGameTypes.has(a.type));
-
-  let finalPractice = practiceActivities;
-  let finalGames = gameActivities;
-
-  if (finalGames.length === 0 && activities.length > 0) {
-    finalGames = activities.filter((a: any) => isMamAge ? a.type === 'LISTEN_CHOOSE' : a.type !== 'LISTEN_CHOOSE');
-    if (finalGames.length === 0) finalGames = activities;
-  }
-
-  if (finalPractice.length === 0 && activities.length > 1) {
-    finalPractice = activities.slice(0, Math.ceil(activities.length / 2));
-  } else if (finalPractice.length === 0 && activities.length === 1) {
-    finalPractice = activities;
-  }
+  // Stage 3 must expose EVERY activity of the lesson — each has a playable
+  // engine, and any unreachable activity would block lesson completion.
+  // §2.2.4: age filter = sort priority only, never a silent drop.
+  const finalGames = [...activities].sort(
+    (a: any, b: any) =>
+      Number(allowedGameTypes.has(b.activityType)) - Number(allowedGameTypes.has(a.activityType))
+  );
 
   // Stage completion flags
   const isStage1Completed =
@@ -123,8 +123,8 @@ export const LessonDetailPage: React.FC = () => {
     isAllCompleted;
 
   const isStage2Completed =
-    (finalPractice.length > 0 && finalPractice.every((a: any) => a.completed)) ||
-    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true' ||
+    isAllCompleted;
 
   const isStage3Completed =
     finalGames.length > 0 && finalGames.every((a: any) => a.completed);
@@ -137,7 +137,45 @@ export const LessonDetailPage: React.FC = () => {
     navigate(`/activities/${activityId}`);
   };
 
+  // §1.3.1 — sequential unlock: Stage 2 needs Stage 1, Stage 3 needs Stage 2.
+  // Trying to skip ahead triggers Koko's friendly spoken reminder.
+  const lockNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const speakKokoReminder = (text: string) => {
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'vi-VN';
+      utter.rate = 0.95;
+      window.speechSynthesis.speak(utter);
+    } catch {
+      /* speech synthesis unavailable */
+    }
+  };
+
+  const showKokoLockNotice = (message: string, spoken: string) => {
+    sfx.playGentleWrong();
+    setLockNotice(message);
+    speakKokoReminder(spoken);
+    if (lockNoticeTimer.current) clearTimeout(lockNoticeTimer.current);
+    lockNoticeTimer.current = setTimeout(() => setLockNotice(null), 5000);
+  };
+
   const handleSelectStage = (stage: 1 | 2 | 3) => {
+    if (stage >= 2 && !isStage1Completed) {
+      showKokoLockNotice(
+        'Bé chưa quẹt hết thẻ từ ở Chặng 1! Học hết các thẻ đã nhé 📖',
+        'Bé ơi, bé phải quẹt hết thẻ từ ở Chặng 1 trước đã nhé!'
+      );
+      return;
+    }
+    if (stage === 3 && !isStage2Completed) {
+      showKokoLockNotice(
+        'Bé hoàn thành bài Luyện tập Chặng 2 thì mở được Thử thách Game nha! 🎯',
+        'Bé ơi, hoàn thành bài luyện tập ở Chặng 2 đã rồi chơi game nhé!'
+      );
+      return;
+    }
     sfx.playPop();
     setLockNotice(null);
     setActiveStage(stage);
@@ -149,13 +187,25 @@ export const LessonDetailPage: React.FC = () => {
     localStorage.setItem(`kc_stage1_${childId}_${id}`, 'true');
     setActiveStage(2);
     localStorage.setItem(`kc_stage_active_${childId}_${id}`, '2');
+    // §1.3.1 — persist stage 1 on the server (localStorage is only a cache)
+    stageProgressApi
+      .completeStage(childId, id!, { stage: 1 })
+      .catch(err => console.warn('Stage 1 sync failed — kept offline:', err));
   };
 
-  const handleCompleteStage2 = () => {
+  const handleCompleteStage2 = (stats?: { score: number; stars: number }) => {
     sfx.playSuccess();
     localStorage.setItem(`kc_stage2_${childId}_${id}`, 'true');
     setActiveStage(3);
     localStorage.setItem(`kc_stage_active_${childId}_${id}`, '3');
+    // §1.3.1 — send the real practice score so it lands in LearningSession
+    stageProgressApi
+      .completeStage(childId, id!, {
+        stage: 2,
+        score: Math.max(0, Math.round(stats?.score || 0)),
+        stars: Math.min(3, Math.max(0, Math.round(stats?.stars || 0)))
+      })
+      .catch(err => console.warn('Stage 2 sync failed — kept offline:', err));
   };
 
   const topicIcon = (lesson as any)?.topic?.icon || '🌟';
@@ -187,7 +237,7 @@ export const LessonDetailPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="text-4xl sm:text-5xl">{topicIcon}</span>
               <h1 className="text-3xl sm:text-5xl font-black text-slate-800 tracking-tight">
-                {lesson?.title || 'Bài học tiếng Anh'}
+                {lesson?.title || 'Lesson tiếng Anh'}
               </h1>
             </div>
             <p className="text-base sm:text-lg font-extrabold text-amber-700 mt-1">
@@ -202,7 +252,7 @@ export const LessonDetailPage: React.FC = () => {
           </div>
         ) : !lesson ? (
           <div className="bg-white rounded-3xl p-12 text-center border-4 border-dashed border-amber-200">
-            <p className="font-black text-slate-600 text-xl">Không tìm thấy bài học.</p>
+            <p className="font-black text-slate-600 text-xl">Không tìm thấy Lesson.</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -313,9 +363,12 @@ export const LessonDetailPage: React.FC = () => {
 
               {/* Lock Warning Toast */}
               {lockNotice && (
-                <div className="mt-3 bg-amber-500 text-white text-xs sm:text-sm font-black px-4 py-2 rounded-2xl text-center shadow-md animate-pop-in flex items-center justify-center gap-2">
-                  <Lock className="w-4 h-4 flex-shrink-0" />
-                  <span>{lockNotice}</span>
+                <div className="mt-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs sm:text-sm font-black px-4 py-2.5 rounded-2xl shadow-md animate-pop-in flex items-center justify-center gap-3">
+                  <KokoMascot state="thinking" size="sm" interactive={false} />
+                  <span className="flex items-center gap-2 text-left">
+                    <Lock className="w-4 h-4 flex-shrink-0" />
+                    <span>{lockNotice}</span>
+                  </span>
                 </div>
               )}
             </section>
@@ -364,7 +417,7 @@ export const LessonDetailPage: React.FC = () => {
                   </section>
                 ) : (
                   <div className="bg-white rounded-3xl p-8 text-center border-2 border-slate-200">
-                    <p className="text-slate-600 font-bold mb-4">Bài học này chưa có danh sách từ vựng riêng.</p>
+                    <p className="text-slate-600 font-bold mb-4">Lesson này chưa có danh sách từ vựng riêng.</p>
                     <button
                       onClick={handleCompleteStage1}
                       className="btn-3d-amber py-3 px-6 rounded-2xl font-black text-amber-950"
@@ -390,7 +443,7 @@ export const LessonDetailPage: React.FC = () => {
                     <div>
                       <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-black mb-2">
                         <Pencil className="w-3.5 h-3.5 text-yellow-200" />
-                        Chặng 2: Luyện tập sau bài học
+                        Chặng 2: Luyện tập sau Lesson
                       </div>
                       <h2 className="text-2xl sm:text-3xl font-black mb-1">
                         Xưởng thực hành từ vựng tương tác
@@ -406,7 +459,7 @@ export const LessonDetailPage: React.FC = () => {
                   {isStage2Completed && (
                     <div className="flex-shrink-0 w-full md:w-auto relative z-10">
                       <button
-                        onClick={handleCompleteStage2}
+                        onClick={() => handleCompleteStage2()}
                         className="btn-3d-purple text-white font-black text-base py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-xl w-full md:w-auto"
                       >
                         <span>Tiến tới Mini-game 🎮</span>
@@ -422,8 +475,8 @@ export const LessonDetailPage: React.FC = () => {
                     vocabulary={lesson.vocabularyItems || []}
                     lessonTitle={lesson.title}
                     ageGroupCode={user?.ageGroupCode}
-                    onComplete={() => {
-                      handleCompleteStage2();
+                    onComplete={(stats: { score: number; stars: number }) => {
+                      handleCompleteStage2(stats);
                     }}
                     onBackToStage1={() => handleSelectStage(1)}
                   />
@@ -481,7 +534,7 @@ export const LessonDetailPage: React.FC = () => {
                       <span>Danh sách trò chơi ({completedGamesCount} / {finalGames.length})</span>
                     </h3>
                     <span className="text-xs font-black text-purple-700 bg-purple-100 px-3.5 py-1 rounded-full border border-purple-200">
-                      {isStage3Completed ? 'Đã hoàn thành toàn bộ bài học 🏆' : 'Độ khó tăng dần theo lứa tuổi'}
+                      {isStage3Completed ? 'Đã hoàn thành toàn bộ Lesson 🏆' : 'Độ khó tăng dần theo lứa tuổi'}
                     </span>
                   </div>
 
@@ -566,7 +619,7 @@ export const LessonDetailPage: React.FC = () => {
               <section className="bg-white/80 rounded-3xl border-2 border-amber-200/80 p-5 shadow-xs">
                 <h3 className="font-black text-base text-slate-800 mb-2.5 flex items-center gap-2">
                   <span>🎯</span>
-                  <span>Mục tiêu bài học</span>
+                  <span>Mục tiêu Lesson</span>
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {lesson.learningObjectives.map((obj, idx) => (

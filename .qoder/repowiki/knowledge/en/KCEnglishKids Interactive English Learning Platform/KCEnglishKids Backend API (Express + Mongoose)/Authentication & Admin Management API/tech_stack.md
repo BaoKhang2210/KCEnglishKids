@@ -1,0 +1,1 @@
+Express Router + JSON Web Tokens (`jsonwebtoken`) for bearer tokens signed with `process.env.JWT_SECRET` (fallback `kcenglishkids_jwt_secret_key_2026`), bcryptjs for hashing passwords and PINs, Mongoose ODM with schema pre-save hooks and `.populate()`.

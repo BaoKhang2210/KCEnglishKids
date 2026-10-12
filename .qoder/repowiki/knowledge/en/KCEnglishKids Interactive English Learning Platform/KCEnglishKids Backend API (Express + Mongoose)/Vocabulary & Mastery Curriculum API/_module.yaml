@@ -1,0 +1,18 @@
+schema_version: 1
+module_path: backend_api/vocabulary_curriculum
+title: Vocabulary & Mastery Curriculum API
+scope:
+    - KCEnglishKids_BE/src/controllers/vocabularyController.js
+    - KCEnglishKids_BE/src/controllers/vocabMasteryController.js
+    - KCEnglishKids_BE/src/routes/vocabularyRoutes.js
+    - KCEnglishKids_BE/src/routes/vocabMasteryRoutes.js
+    - KCEnglishKids_BE/src/models/Vocabulary.js
+    - KCEnglishKids_BE/src/models/VocabularyMastery.js
+    - KCEnglishKids_BE/src/models/CurriculumBook.js
+    - KCEnglishKids_BE/src/models/CurriculumUnit.js
+    - KCEnglishKids_BE/src/models/LanguageContent.js
+    - KCEnglishKids_BE/src/models/Media.js
+source_files: []
+depends_on: []
+related_to:
+    - path: child_client

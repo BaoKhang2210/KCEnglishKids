@@ -1,0 +1,1 @@
+Express routes and controllers handling multi-role authentication (child/teacher/admin) with JWT, plus an admin dashboard for user, curriculum, topic, and audit-log management.

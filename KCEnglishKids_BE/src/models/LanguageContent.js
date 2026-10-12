@@ -4,7 +4,7 @@ const languageContentSchema = new mongoose.Schema(
   {
     contentType: {
       type: String,
-      enum: ['WORD', 'PHRASE', 'SENTENCE', 'QUESTION', 'ANSWER', 'INSTRUCTION', 'PATTERN'],
+      enum: ['WORD', 'PHRASE', 'SENTENCE', 'QUESTION', 'ANSWER', 'INSTRUCTION', 'PATTERN', 'ORACY', 'DIALOGUE'],
       required: true
     },
     english: {

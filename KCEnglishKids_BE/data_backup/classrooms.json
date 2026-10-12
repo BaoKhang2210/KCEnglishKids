@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "6aa04e53f81d292bdb10b323",
+    "name": "Little Stars Class (Age 3–4)",
+    "teacher": "6aa04e53f81d292bdb10b322",
+    "ageGroup": "6aa04e52f81d292bdb10a0c6",
+    "ageGroupCode": "3-4",
+    "academicYear": "2026-2027",
+    "students": [
+      "6ab6ae8829ba296ed6801f1f",
+      "6ab6ae8829ba296ed6801f20",
+      "6ab6ae8929ba296ed6801f21",
+      "6ab6ae8929ba296ed6801f22",
+      "6ab6ae8929ba296ed6801f23",
+      "6ab6ae8929ba296ed6801f24",
+      "6ab6ae8929ba296ed6801f25",
+      "6ab6ae8929ba296ed6801f26",
+      "6ab6ae8929ba296ed6801f27",
+      "6ab6ae8a29ba296ed6801f28",
+      "6ab6ae8a29ba296ed6801f29",
+      "6ab6ae8a29ba296ed6801f2a",
+      "6ab6ae8a29ba296ed6801f2b",
+      "6ab6ae8a29ba296ed6801f2c",
+      "6ab6ae8a29ba296ed6801f2d",
+      "6ab6ae8a29ba296ed6801f2e",
+      "6ab6ae8b29ba296ed6801f2f",
+      "6ab6ae8b29ba296ed6801f30"
+    ],
+    "status": "ACTIVE",
+    "createdAt": "2026-09-08T18:05:07.361Z",
+    "updatedAt": "2026-09-26T10:20:50.963Z",
+    "__v": 2,
+    "description": ""
+  }
+]

@@ -1,0 +1,1 @@
+`npm start` runs `node src/server.js`; `npm run dev` uses nodemon on the same entry; `npm run seed` executes `src/seeds/index.js`; `npm run migrate:atlas` runs `scripts/migrate_to_atlas.js`.

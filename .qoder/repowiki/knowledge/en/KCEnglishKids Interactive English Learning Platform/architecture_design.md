@@ -1,0 +1,5 @@
+The repo composes three sibling applications around a single data plane:
+- `KCEnglishKids_BE` (Express + Mongoose) exposes REST endpoints for curriculum, lessons, activities, progress, and user management.
+- `client` (React/Vite) is the child-facing learning arcade plus teacher dashboard, authenticating via JWT against the BE.
+- `admin` (React/Vite) is an ADMIN-only portal for managing the 27-official Units, Topics, Lessons, and viewing audit logs.
+All three share one MongoDB database (`mongodb://localhost:27017/kcenglishkids`) and the same domain models (Curriculum, Topic, Lesson, Activity, User, Progress, etc.), so cross-child communication happens exclusively through the backend API — there is no direct DB or message-bus coupling between frontends. The README documents the two-layer architecture (Curriculum Foundation → Application Learning Experience) that both clients render from the same seed data.

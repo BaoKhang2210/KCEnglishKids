@@ -6,7 +6,20 @@ const invalid = (res, message) => res.status(400).json({ success: false, message
 const classFor = (req, id) => ClassRoom.findOne(req.user.role === 'ADMIN' ? { _id: id } : { _id: id, teacher: req.user._id });
 const studentsFor = async req => ClassRoom.find({ teacher: req.user._id }).distinct('students');
 const getStudent = async (req, id) => validId(id) ? User.findOne({ role: 'CHILD', $and: [{ _id: id }, { _id: { $in: await studentsFor(req) } }] }).select('-password -pin') : null;
-const statsFor = ids => ids.length ? ActivityResult.aggregate([{ $match: { child: { $in: ids } } }, { $group: { _id: '$child', averageScore: { $avg: '$score' }, stars: { $sum: '$stars' }, attempts: { $sum: '$attempts' }, learningTime: { $sum: '$duration' }, lastActivity: { $max: '$createdAt' } } }]) : [];
+// §1.1.4 — full zero-stats shape so no metric ever renders blank/undefined
+const EMPTY_STATS = { averageScore: 0, stars: 0, totalStars: 0, attempts: 0, learningTime: 0, completedLessons: 0, lastActivity: null };
+// §1.1.2 — Vietnamese-aware name order (á/ă/â/đ/ê/ô/ơ/ư sort like their base letters)
+const byNameVi = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi', { sensitivity: 'base' });
+// §1.1.4 — per-child stats: activity aggregates + completedLessons from Progress (completed === true).
+const statsFor = async ids => {
+  if (!ids.length) return [];
+  const [resultStats, progressStats] = await Promise.all([
+    ActivityResult.aggregate([{ $match: { child: { $in: ids } } }, { $group: { _id: '$child', averageScore: { $avg: '$score' }, stars: { $sum: '$stars' }, totalStars: { $sum: '$stars' }, attempts: { $sum: '$attempts' }, learningTime: { $sum: '$duration' }, lastActivity: { $max: '$createdAt' } } }]),
+    Progress.aggregate([{ $match: { child: { $in: ids }, completed: true } }, { $group: { _id: '$child', completedLessons: { $sum: 1 } } }])
+  ]);
+  const completedMap = new Map(progressStats.map(x => [String(x._id), x.completedLessons]));
+  return resultStats.map(x => ({ ...x, completedLessons: completedMap.get(String(x._id)) || 0 }));
+};
 const ownClassOr403 = async (req, res, id) => { if (!validId(id)) { invalid(res, 'Invalid classroom id.'); return null; } const item = await classFor(req, id); if (!item) res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); return item; };
 
 exports.getDashboard = async (req, res, next) => { try {
@@ -18,14 +31,18 @@ exports.getDashboard = async (req, res, next) => { try {
 
 exports.getTeacherClasses = async (req, res, next) => { try {
   const q = { teacher: req.user._id }; if (req.query.status) q.status = req.query.status; if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.name = { $regex: req.query.search, $options: 'i' };
-  const data = await ClassRoom.find(q).populate('teacher', 'name avatar avatarUrl').populate('ageGroup', 'name code').populate('students', 'name avatar avatarUrl ageGroupCode dob lastLogin').sort({ updatedAt: -1 }); res.json({ success: true, count: data.length, data });
+  const data = await ClassRoom.find(q).populate('teacher', 'name avatar avatarUrl').populate('ageGroup', 'name code').populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin', options: { sort: { name: 1 } } }).sort({ updatedAt: -1 }); res.json({ success: true, count: data.length, data });
 } catch (e) { next(e); } };
 
 exports.getClassDetail = async (req, res, next) => { try {
   const classRoom = await ownClassOr403(req, res, req.params.id); if (!classRoom) return;
-  await classRoom.populate('teacher', 'name avatar avatarUrl'); await classRoom.populate('ageGroup', 'name code'); await classRoom.populate('students', 'name avatar avatarUrl ageGroupCode dob lastLogin createdAt');
+  await classRoom.populate('teacher', 'name avatar avatarUrl'); await classRoom.populate('ageGroup', 'name code');
+  // §1.1.2 + §1.1.3 — sort students A-Z and include contact/parentContact/status/assignedClass
+  await classRoom.populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin createdAt contact parentContact status assignedClass', options: { sort: { name: 1 } } });
+  // §1.1.2 — Mongo sorts by code point; re-sort with Vietnamese locale so accented names order correctly
+  classRoom.students.sort(byNameVi);
   const [resultStats, assignments] = await Promise.all([statsFor(classRoom.students.map(x => x._id)), Assignment.find({ classRoom: classRoom._id, teacher: req.user._id }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 })]); const map = new Map(resultStats.map(x => [String(x._id), x]));
-  res.json({ success: true, data: { ...classRoom.toObject(), students: classRoom.students.map(x => ({ ...x.toObject(), stats: map.get(String(x._id)) || { averageScore: 0, stars: 0, attempts: 0, learningTime: 0 } })), assignments } });
+  res.json({ success: true, data: { ...classRoom.toObject(), students: classRoom.students.map(x => ({ ...x.toObject(), stats: map.get(String(x._id)) || { ...EMPTY_STATS } })), assignments } });
 } catch (e) { next(e); } };
 
 exports.updateClass = async (req, res, next) => { try {
@@ -34,7 +51,7 @@ exports.updateClass = async (req, res, next) => { try {
 } catch (e) { next(e); } };
 
 exports.getEligibleStudents = async (req, res, next) => { try {
-  const room = await ownClassOr403(req, res, req.params.id); if (!room) return; const q = { role: 'CHILD', status: 'ACTIVE', $or: [{ assignedClass: null }, { assignedClass: { $exists: false } }] }; if (req.query.ageGroupCode || room.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode || room.ageGroupCode; if (req.query.search) q.$and = [{ $or: [{ name: { $regex: req.query.search, $options: 'i' } }, { username: { $regex: req.query.search, $options: 'i' } }] }]; const data = await User.find(q).select('name username avatar avatarUrl ageGroupCode dob createdAt').sort({ name: 1 }); res.json({ success: true, data });
+  const room = await ownClassOr403(req, res, req.params.id); if (!room) return; const q = { role: 'CHILD', status: 'ACTIVE', $or: [{ assignedClass: null }, { assignedClass: { $exists: false } }] }; if (req.query.ageGroupCode || room.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode || room.ageGroupCode; if (req.query.search) q.$and = [{ $or: [{ name: { $regex: req.query.search, $options: 'i' } }, { username: { $regex: req.query.search, $options: 'i' } }] }]; const data = await User.find(q).select('name username avatar avatarUrl ageGroupCode dob createdAt').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 }); res.json({ success: true, data });
 } catch (e) { next(e); } };
 
 exports.addStudents = async (req, res, next) => { try {
@@ -48,7 +65,7 @@ exports.removeStudent = async (req, res, next) => { try {
 } catch (e) { next(e); } };
 
 exports.getStudents = async (req, res, next) => { try {
-  const ids = await studentsFor(req); const q = { _id: { $in: ids }, role: 'CHILD' }; if (req.query.classRoomId) { if (!(await classFor(req, req.query.classRoomId))) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); q.assignedClass = req.query.classRoomId; } if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.$or = [{ name: { $regex: req.query.search, $options: 'i' } }, { username: { $regex: req.query.search, $options: 'i' } }]; const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }); const statMap = new Map((await statsFor(data.map(x => x._id))).map(x => [String(x._id), x])); res.json({ success: true, data: data.map(x => ({ ...x.toObject(), stats: statMap.get(String(x._id)) || {} })) });
+  const ids = await studentsFor(req); const q = { _id: { $in: ids }, role: 'CHILD' }; if (req.query.classRoomId) { if (!(await classFor(req, req.query.classRoomId))) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); q.assignedClass = req.query.classRoomId; } if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.$or = [{ name: { $regex: req.query.search, $options: 'i' } }, { username: { $regex: req.query.search, $options: 'i' } }]; const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 }); const statMap = new Map((await statsFor(data.map(x => x._id))).map(x => [String(x._id), x])); res.json({ success: true, data: data.map(x => ({ ...x.toObject(), stats: statMap.get(String(x._id)) || { ...EMPTY_STATS } })) });
 } catch (e) { next(e); } };
 
 exports.getStudentOverview = async (req, res, next) => { try {

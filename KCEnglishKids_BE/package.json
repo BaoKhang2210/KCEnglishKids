@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node src/seeds/index.js"
+    "seed": "node src/seeds/index.js",
+    "migrate:atlas": "node scripts/migrate_to_atlas.js"
   },
   "keywords": [],
   "author": "",

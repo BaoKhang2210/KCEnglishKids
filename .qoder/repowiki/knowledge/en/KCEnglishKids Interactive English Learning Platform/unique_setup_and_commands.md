@@ -1,0 +1,1 @@
+Three independent npm workspaces are started separately: `cd KCEnglishKids_BE && npm run seed && npm start` (port 5000), `cd client && npm run dev` (port 5173), `cd admin && npm run dev` (port 5174); all require MongoDB running at `mongodb://localhost:27017/kcenglishkids`.

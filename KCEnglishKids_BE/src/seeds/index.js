@@ -337,7 +337,7 @@ async function seedDatabase() {
     });
 
     // 6. Seed Language Content (104 items)
-    console.log('[Seed] 7/9 Seeding 104 structured Language Content items...');
+    console.log(`[Seed] 7/9 Seeding ${LANGUAGE_CONTENT_DATA.length} structured Language Content items...`);
     const langDocsToInsert = [];
     LANGUAGE_CONTENT_DATA.forEach(lc => {
       const unitDoc = unitsMap[lc.unit];
@@ -368,6 +368,18 @@ async function seedDatabase() {
     });
     const insertedLang = await LanguageContent.insertMany(langDocsToInsert);
 
+    // Group inserted language content by unitKey
+    const langByUnitKey = new Map();
+    insertedLang.forEach((lDoc, idx) => {
+      const def = LANGUAGE_CONTENT_DATA[idx];
+      if (def && def.unit) {
+        if (!langByUnitKey.has(def.unit)) {
+          langByUnitKey.set(def.unit, []);
+        }
+        langByUnitKey.get(def.unit).push(lDoc._id);
+      }
+    });
+
     // 7. Seed 108 Lessons (4 per Unit)
     console.log('[Seed] 8/9 Seeding 108 Application Lessons (4 per unit across 27 units)...');
     const lessonDocsToInsert = [];
@@ -375,6 +387,7 @@ async function seedDatabase() {
       const unitDoc = unitsMap[l.unitKey];
       const topicDoc = topicsMap[l.topicSlug];
       const ageDoc = ageGroupsMap[l.ageGroupCode];
+      const unitLangIds = langByUnitKey.get(l.unitKey) || [];
 
       const vocabIds = (l.vocabularyWords || [])
         .map(w => vocabMapByWord.get(w.toLowerCase().trim())?._id)
@@ -397,7 +410,7 @@ async function seedDatabase() {
         thumbnailUrl: firstVocab?.imageUrl || '',
         curriculumUnits: unitDoc ? [unitDoc._id] : [],
         vocabularyItems: vocabIds,
-        languageContents: [],
+        languageContents: unitLangIds,
         displayOrder: l.order || 1,
         sourceType: 'SYSTEM_DESIGN',
         status: 'ACTIVE'

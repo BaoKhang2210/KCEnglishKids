@@ -1,0 +1,1 @@
+Run with `npm run dev` (Vite on port **5174**); build via `tsc -b && vite build`. The Vite proxy forwards `/api/*` to `http://localhost:5000`, so the backend must be running there for the SPA to work. A pre-filled admin credential is shown in the login page (`admin@kcenglishkids.com` / `Admin@123`).

@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: admin_app
+title: Admin Portal (KCEnglishKids Admin SPA)
+scope:
+    - admin/
+source_files: []
+depends_on: []
+related_to:
+    - path: backend_api/auth_admin

@@ -1,0 +1,150 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: "2026-10-09T16:57:21Z"
+modules:
+    "":
+        dir_name: KCEnglishKids Interactive English Learning Platform
+        title: KCEnglishKids Interactive English Learning Platform
+        scope:
+            - README.md
+            - docs/
+            - .gitignore
+        source_files: []
+        children:
+            - admin_app
+            - backend_api
+            - child_client
+        depends_on: []
+        related_to: []
+    admin_app:
+        dir_name: Admin Portal (KCEnglishKids Admin SPA)
+        title: Admin Portal (KCEnglishKids Admin SPA)
+        scope:
+            - admin/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: backend_api/auth_admin
+    backend_api:
+        dir_name: KCEnglishKids Backend API (Express + Mongoose)
+        title: KCEnglishKids Backend API (Express + Mongoose)
+        scope:
+            - KCEnglishKids_BE/
+        source_files: []
+        children:
+            - backend_api/auth_admin
+            - backend_api/classroom_management
+            - backend_api/learning_activities
+            - backend_api/progress_tracking
+            - backend_api/vocabulary_curriculum
+        depends_on: []
+        related_to: []
+    backend_api/auth_admin:
+        dir_name: Authentication & Admin Management API
+        title: Authentication & Admin Management API
+        scope:
+            - KCEnglishKids_BE/src/controllers/authController.js
+            - KCEnglishKids_BE/src/controllers/adminController.js
+            - KCEnglishKids_BE/src/routes/authRoutes.js
+            - KCEnglishKids_BE/src/routes/adminRoutes.js
+            - KCEnglishKids_BE/src/middlewares/authMiddleware.js
+            - KCEnglishKids_BE/src/models/User.js
+            - KCEnglishKids_BE/src/models/AuditLog.js
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: admin_app
+            - path: child_client
+    backend_api/classroom_management:
+        dir_name: Teacher Classroom & Session Management API
+        title: Teacher Classroom & Session Management API
+        scope:
+            - KCEnglishKids_BE/src/controllers/classroomSessionController.js
+            - KCEnglishKids_BE/src/controllers/teacherController.js
+            - KCEnglishKids_BE/src/controllers/parentNotificationController.js
+            - KCEnglishKids_BE/src/routes/classroomSessionRoutes.js
+            - KCEnglishKids_BE/src/routes/teacherRoutes.js
+            - KCEnglishKids_BE/src/models/ClassRoom.js
+            - KCEnglishKids_BE/src/models/TeacherNote.js
+            - KCEnglishKids_BE/src/models/ParentNotification.js
+            - KCEnglishKids_BE/src/models/AgeGroup.js
+            - KCEnglishKids_BE/src/models/Assignment.js
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: child_client
+    backend_api/learning_activities:
+        dir_name: Learning Activities & Curriculum Content API
+        title: Learning Activities & Curriculum Content API
+        scope:
+            - KCEnglishKids_BE/src/controllers/activityController.js
+            - KCEnglishKids_BE/src/controllers/lessonController.js
+            - KCEnglishKids_BE/src/controllers/topicController.js
+            - KCEnglishKids_BE/src/routes/activityRoutes.js
+            - KCEnglishKids_BE/src/routes/lessonRoutes.js
+            - KCEnglishKids_BE/src/routes/topicRoutes.js
+            - KCEnglishKids_BE/src/models/Activity.js
+            - KCEnglishKids_BE/src/models/Lesson.js
+            - KCEnglishKids_BE/src/models/Topic.js
+            - KCEnglishKids_BE/src/models/ClassroomSession.js
+            - KCEnglishKids_BE/src/models/LearningSession.js
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: child_client
+    backend_api/progress_tracking:
+        dir_name: Learning Progress & Activity Tracking API
+        title: Learning Progress & Activity Tracking API
+        scope:
+            - KCEnglishKids_BE/src/controllers/progressController.js
+            - KCEnglishKids_BE/src/controllers/learningController.js
+            - KCEnglishKids_BE/src/routes/progressRoutes.js
+            - KCEnglishKids_BE/src/routes/learningRoutes.js
+            - KCEnglishKids_BE/src/models/Progress.js
+            - KCEnglishKids_BE/src/models/ActivityResult.js
+            - KCEnglishKids_BE/src/services/learningService.js
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: child_client
+    backend_api/vocabulary_curriculum:
+        dir_name: Vocabulary & Mastery Curriculum API
+        title: Vocabulary & Mastery Curriculum API
+        scope:
+            - KCEnglishKids_BE/src/controllers/vocabularyController.js
+            - KCEnglishKids_BE/src/controllers/vocabMasteryController.js
+            - KCEnglishKids_BE/src/routes/vocabularyRoutes.js
+            - KCEnglishKids_BE/src/routes/vocabMasteryRoutes.js
+            - KCEnglishKids_BE/src/models/Vocabulary.js
+            - KCEnglishKids_BE/src/models/VocabularyMastery.js
+            - KCEnglishKids_BE/src/models/CurriculumBook.js
+            - KCEnglishKids_BE/src/models/CurriculumUnit.js
+            - KCEnglishKids_BE/src/models/LanguageContent.js
+            - KCEnglishKids_BE/src/models/Media.js
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: child_client
+    child_client:
+        dir_name: English Kids Child & Teacher Frontend Client
+        title: English Kids Child & Teacher Frontend Client
+        scope:
+            - client/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: backend_api/auth_admin
+            - path: backend_api/classroom_management
+            - path: backend_api/learning_activities
+            - path: backend_api/progress_tracking
+            - path: backend_api/vocabulary_curriculum

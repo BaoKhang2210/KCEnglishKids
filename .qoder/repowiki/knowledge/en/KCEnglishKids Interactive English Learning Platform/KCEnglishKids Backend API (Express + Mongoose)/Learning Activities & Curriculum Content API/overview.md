@@ -1,0 +1,1 @@
+Express routes and controllers that expose Topic, Lesson, and Activity content plus curriculum-path navigation, with Mongoose models for learning sessions and classroom sessions.

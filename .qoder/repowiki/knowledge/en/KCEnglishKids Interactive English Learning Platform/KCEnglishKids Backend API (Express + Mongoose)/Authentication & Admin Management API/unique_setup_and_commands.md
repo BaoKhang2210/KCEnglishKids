@@ -1,0 +1,1 @@
+JWT secret defaults to a hard-coded fallback when `JWT_SECRET` is not set in the environment; child avatars are generated inline as base64-encoded SVG strings rather than stored on disk.

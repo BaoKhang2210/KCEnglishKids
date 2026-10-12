@@ -1,0 +1,19 @@
+schema_version: 1
+module_path: backend_api/learning_activities
+title: Learning Activities & Curriculum Content API
+scope:
+    - KCEnglishKids_BE/src/controllers/activityController.js
+    - KCEnglishKids_BE/src/controllers/lessonController.js
+    - KCEnglishKids_BE/src/controllers/topicController.js
+    - KCEnglishKids_BE/src/routes/activityRoutes.js
+    - KCEnglishKids_BE/src/routes/lessonRoutes.js
+    - KCEnglishKids_BE/src/routes/topicRoutes.js
+    - KCEnglishKids_BE/src/models/Activity.js
+    - KCEnglishKids_BE/src/models/Lesson.js
+    - KCEnglishKids_BE/src/models/Topic.js
+    - KCEnglishKids_BE/src/models/ClassroomSession.js
+    - KCEnglishKids_BE/src/models/LearningSession.js
+source_files: []
+depends_on: []
+related_to:
+    - path: child_client

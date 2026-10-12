@@ -1,0 +1,1 @@
+Node.js + Express routers with Mongoose ODM; schemas use Mongoose `enum` constraints for `ageGroupCode` ('3-4' | '4-5' | '5-6'), `status` ('ACTIVE' | 'INACTIVE' | 'HIDDEN' | 'DRAFT'), and activity types such as `LISTEN_CHOOSE`, `MATCHING`, `MEMORY_CARD`, etc.

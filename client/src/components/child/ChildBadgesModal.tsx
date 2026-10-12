@@ -3,8 +3,9 @@ import { X, Star, Sparkles, Award, Gift } from 'lucide-react';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { ALL_BADGES, type BadgeItem } from '../../data/badges';
-import { ALL_STICKERS, stickerService } from '../../data/stickers';
-import { useAuth } from '../../context/AuthContext';
+import { getReqUnitLabel } from '../../data/labels';
+import { ALL_STICKERS } from '../../data/stickers';
+import { useRewards } from '../../context/RewardContext';
 import { BadgeShowcaseModal } from './BadgeShowcaseModal';
 import { CuteRosetteMedal } from './CuteRosetteMedal';
 import { CuteStickerCard } from './CuteStickerCard';
@@ -24,11 +25,13 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   onClose,
   totalStars,
   completedCount,
-  completedUnits = 0,
+  completedUnits,
   childName
 }) => {
-  const { user } = useAuth();
-  const childId = user?._id || user?.id || 'child_guest';
+  // §1.2.17 — RewardContext is the single source of truth; props still win
+  // when explicitly provided (backwards compatible).
+  const { rewards } = useRewards();
+  const effectiveCompletedUnits = completedUnits ?? rewards?.completedUnits ?? 0;
 
   const [activeTab, setActiveTab] = useState<'badges' | 'stickers'>('badges');
   const [selectedCat, setSelectedCat] = useState<'all' | 'journey' | 'stars' | 'skills'>('all');
@@ -48,7 +51,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
     if (badge.reqType === 'star') {
       unlocked = totalStars >= badge.requirement;
     } else if (badge.reqType === 'unit') {
-      unlocked = completedUnits >= badge.requirement;
+      unlocked = effectiveCompletedUnits >= badge.requirement;
     } else {
       unlocked = completedCount >= badge.requirement;
     }
@@ -61,7 +64,11 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   const filteredBadges = selectedCat === 'all' ? badges : badges.filter(b => b.category === selectedCat);
   const unlockedBadgesCount = badges.filter(b => b.unlocked).length;
 
-  const unlockedStickerIds = stickerService.getUnlockedStickers(childId);
+  // §1.2.16 — stickers come from the server (unit completion chests) only.
+  // 'st_star' stays as the starter sticker.
+  const unlockedStickerIds = Array.from(
+    new Set<string>(['st_star', ...(rewards?.grantedStickerIds || [])])
+  );
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
@@ -152,8 +159,8 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] sm:text-xs font-black text-amber-100 block">Bài hoàn thành</span>
-            <span className="text-lg sm:text-xl font-black">{completedCount} bài</span>
+            <span className="text-[10px] sm:text-xs font-black text-amber-100 block">Lesson hoàn thành</span>
+            <span className="text-lg sm:text-xl font-black">{completedCount} Lesson</span>
           </div>
         </div>
 
@@ -189,7 +196,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
             <div className="overflow-y-auto pr-1 flex-1 space-y-3 relative z-10">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {filteredBadges.map(badge => {
-                  const currentVal = badge.reqType === 'star' ? totalStars : badge.reqType === 'unit' ? completedUnits : completedCount;
+                  const currentVal = badge.reqType === 'star' ? totalStars : badge.reqType === 'unit' ? effectiveCompletedUnits : completedCount;
                   const percent = Math.min(100, Math.round((currentVal / badge.requirement) * 100));
 
                   return (
@@ -237,7 +244,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                             />
                           </div>
                           <span className="text-[9px] font-extrabold text-slate-400 block">
-                            {currentVal}/{badge.requirement} {badge.reqType === 'star' ? '⭐' : 'bài'}
+                            {currentVal}/{badge.requirement} {getReqUnitLabel(badge.reqType)}
                           </span>
                         </div>
                       )}
@@ -294,7 +301,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
             showcaseBadge.reqType === 'star'
               ? totalStars
               : showcaseBadge.reqType === 'unit'
-              ? completedUnits
+              ? effectiveCompletedUnits
               : completedCount
           }
           onClose={() => setShowcaseBadge(null)}

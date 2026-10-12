@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Star, LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound } from 'lucide-react';
+import { Star, LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { ChildBadgesModal } from './ChildBadgesModal';
+import { ParentNotebookModal } from './ParentNotebookModal';
 
 interface ChildHeaderProps {
   totalStars?: number;
@@ -22,6 +23,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const location = useLocation();
 
   const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [showParentModal, setShowParentModal] = useState(false);
 
   const handleLogout = () => {
     sfx.playPop();
@@ -222,6 +224,20 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 </button>
               )}
 
+              {/* Sổ liên lạc Phụ huynh */}
+              <button
+                onClick={() => {
+                  sfx.playPop();
+                  setShowParentModal(true);
+                }}
+                title="Sổ liên lạc & Lời nhắn từ cô giáo"
+                aria-label="Sổ liên lạc phụ huynh"
+                className="relative p-2 sm:p-3.5 rounded-[18px] bg-amber-50 hover:bg-amber-100 text-amber-700 hover:text-amber-800 border-[3px] border-amber-300 hover:border-amber-400 shadow-sm transition-all cursor-pointer flex-shrink-0"
+              >
+                <Mail className="w-5 h-5 sm:w-6 sm:h-6" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-white" />
+              </button>
+
               {/* Change Password */}
               <button
                 onClick={() => {
@@ -248,6 +264,15 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Sổ liên lạc Phụ huynh Modal */}
+      {showParentModal && user && (
+        <ParentNotebookModal
+          childId={user.id || (user as any)._id}
+          childName={user.name}
+          onClose={() => setShowParentModal(false)}
+        />
+      )}
 
       {/* Badges & Stars Modal */}
       <ChildBadgesModal

@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: child_client
+title: English Kids Child & Teacher Frontend Client
+scope:
+    - client/
+source_files: []
+depends_on: []
+related_to:
+    - path: backend_api/auth_admin
+    - path: backend_api/classroom_management
+    - path: backend_api/learning_activities
+    - path: backend_api/progress_tracking
+    - path: backend_api/vocabulary_curriculum

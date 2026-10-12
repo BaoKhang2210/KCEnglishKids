@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   Star,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Vocabulary } from '../../types';
 import { sfx, playWordAudio, stopWordAudio } from '../../utils/audio';
+import { childSpeechEngine } from '../../utils/speechRecognition';
 import { KokoMascot } from './KokoMascot';
 
 interface InteractivePracticeStudioProps {
@@ -67,6 +68,26 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
   const isMamAge = ageGroupCode === '3-4';
   const isChoiAge = ageGroupCode === '4-5';
 
+  // BUGFIX (§2.2.2): previously Math.random() ran inside the render body, so every
+  // tap/re-render re-shuffled the answer options under the child's finger.
+  // These choices are now computed ONCE per (word, sub-step).
+  const randomized = useMemo(() => {
+    const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => 0.5 - Math.random());
+    const others = shuffle(words.filter(w => w.english !== currentWord.english));
+    const distractors = others.slice(0, 2);
+    const cleanWord = currentWord.english.trim();
+    const firstLetter = cleanWord.charAt(0).toUpperCase();
+    const distractorLetters = shuffle(
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(l => l !== firstLetter)
+    ).slice(0, 2);
+    return {
+      distractors,
+      options: shuffle([currentWord, ...distractors]),
+      letterChoices: shuffle([firstLetter, ...distractorLetters]),
+      scrambled: shuffle(currentWord.english.toUpperCase().split(''))
+    };
+  }, [currentWordIdx, subStep, words]);
+
   // Play audio on new word or step
   useEffect(() => {
     setIsAwakened(false);
@@ -95,32 +116,56 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     playWordAudio(currentWord.english, currentWord.audioUrl);
   };
 
-  const handleMicSimulate = () => {
-    if (isRecording) return;
+  const [micFeedback, setMicFeedback] = useState<string | null>(null);
+  const [micStatus, setMicStatus] = useState<'idle' | 'listening' | 'success' | 'retry'>('idle');
+
+  const handleMicListen = async () => {
+    if (isRecording) {
+      childSpeechEngine.stop();
+      setIsRecording(false);
+      setMicStatus('idle');
+      setMicFeedback(null);
+      return;
+    }
+
     sfx.playPop();
     setIsRecording(true);
-    setTimeout(() => {
-      setIsRecording(false);
-      sfx.playCorrect();
-    }, 2500);
-  };
+    setMicStatus('listening');
+    setMicFeedback(`Đang nghe bé đọc: "${currentWord.english}"... 🎙️`);
 
-  // Generate options for Shadow / Context / Sentence match
-  const getDistractorWords = (count: number) => {
-    const others = words.filter(w => w.english !== currentWord.english);
-    if (others.length >= count) {
-      return [...others].sort(() => 0.5 - Math.random()).slice(0, count);
+    try {
+      const result = await childSpeechEngine.listenAndVerify(currentWord.english, 5000);
+      if (result.isMatch) {
+        sfx.playCorrect();
+        setMicStatus('success');
+        setMicFeedback(result.message);
+        setStarsEarned(prev => prev + 1);
+      } else if (result.spokenText) {
+        sfx.playGentleWrong();
+        setMicStatus('retry');
+        setMicFeedback(result.message);
+      } else {
+        sfx.playGentleWrong();
+        setMicStatus('retry');
+        setMicFeedback(result.message || 'Cô chưa nghe rõ, bé thử đọc lại nhé! 🐻');
+      }
+    } catch (e) {
+      setMicStatus('retry');
+      setMicFeedback('Bé kiểm tra quyền micro trên trình duyệt nhé! 🎙️');
+    } finally {
+      setTimeout(() => {
+        setIsRecording(false);
+        setMicStatus('idle');
+        setMicFeedback(null);
+      }, 3000);
     }
-    // Fallback if not enough words
-    return others;
   };
 
   // -------------------------------------------------------------
   // AGE 3-4 (MẦM): SHADOW SILHOUETTE MATCH (SUBSTEP 2)
   // -------------------------------------------------------------
   const renderMamSubStep2 = () => {
-    const distractors = getDistractorWords(2);
-    const options = [currentWord, ...distractors].sort(() => 0.5 - Math.random());
+    const options = randomized.options;
 
     const handleSelectShadowOption = (word: Vocabulary) => {
       if (feedbackState !== 'idle') return;
@@ -211,13 +256,8 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     const firstLetter = cleanWord.charAt(0).toUpperCase();
     const restOfWord = cleanWord.slice(1);
 
-    // Generate 3 bubble letter choices
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const distractorLetters = alphabet
-      .filter(l => l !== firstLetter)
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 2);
-    const letterChoices = [firstLetter, ...distractorLetters].sort(() => 0.5 - Math.random());
+    // Stable bubble letter choices (computed once per word/sub-step — see `randomized`)
+    const letterChoices = randomized.letterChoices;
 
     const handleSelectLetter = (letter: string) => {
       if (feedbackState !== 'idle') return;
@@ -307,8 +347,7 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
   // AGE 4-5 (CHỒI): PICTURE IN CONTEXT SCENE (SUBSTEP 2)
   // -------------------------------------------------------------
   const renderChoiSubStep2 = () => {
-    const distractors = getDistractorWords(2);
-    const options = [currentWord, ...distractors].sort(() => 0.5 - Math.random());
+    const options = randomized.options;
 
     const handleSelectContextOption = (word: Vocabulary) => {
       if (feedbackState !== 'idle') return;
@@ -418,8 +457,8 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
     const nextLetterIndex = spelledLetters.length;
     const isCompleted = spelledLetters.length === letters.length;
 
-    // Scrambled letters for choices
-    const scrambled = [...letters].sort(() => 0.5 - Math.random());
+    // Scrambled letters for choices (stable — with repeated letters this must NOT reshuffle)
+    const scrambled = randomized.scrambled;
 
     const handleTapLetter = (letter: string) => {
       if (feedbackState !== 'idle' || isCompleted) return;
@@ -514,8 +553,7 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
   // AGE 5-6 (LÁ): MINI SENTENCE BUILDER (SUBSTEP 2)
   // -------------------------------------------------------------
   const renderLaSubStep2 = () => {
-    const distractors = getDistractorWords(2);
-    const options = [currentWord, ...distractors].sort(() => 0.5 - Math.random());
+    const options = randomized.options;
 
     const sentenceTemplate = currentWord.exampleSentence
       ? currentWord.exampleSentence.replace(new RegExp(currentWord.english, 'i'), '[ ... ]')
@@ -800,16 +838,42 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
 
                   {/* Child Echo Mic Button */}
                   <button
-                    onClick={handleMicSimulate}
+                    onClick={handleMicListen}
                     className={`w-full mt-3 py-2.5 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all ${
                       isRecording
-                        ? 'bg-rose-500 text-white animate-pulse'
+                        ? micStatus === 'success'
+                          ? 'bg-emerald-500 text-white ring-4 ring-emerald-200'
+                          : micStatus === 'retry'
+                          ? 'bg-amber-500 text-white ring-4 ring-amber-200'
+                          : 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-200'
                         : 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
                     }`}
                   >
                     <Mic className="w-4 h-4" />
-                    <span>{isRecording ? 'Bé đọc to lên nào... 🎤' : 'Bé đọc theo mẫu 🎤'}</span>
+                    <span>
+                      {isRecording
+                        ? micStatus === 'success'
+                          ? 'Bé đọc rất giỏi! 🎉'
+                          : micStatus === 'retry'
+                          ? 'Bé thử lại nhé! 💪'
+                          : `Đang nghe bé đọc: "${currentWord.english}" 🎙️`
+                        : 'Bé đọc mic 🎤'}
+                    </span>
                   </button>
+
+                  {micFeedback && (
+                    <div
+                      className={`mt-2 p-2 rounded-xl text-xs font-black text-center shadow-xs animate-pop-in ${
+                        micStatus === 'success'
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          : micStatus === 'retry'
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-rose-100 text-rose-900 border border-rose-300'
+                      }`}
+                    >
+                      {micFeedback}
+                    </div>
+                  )}
 
                   {/* Advance to Step 2 */}
                   <button

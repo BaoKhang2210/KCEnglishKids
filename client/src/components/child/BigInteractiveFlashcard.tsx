@@ -10,8 +10,11 @@ import {
 import type { Vocabulary } from '../../types';
 import { AudioButton } from './AudioButton';
 import { sfx, playWordAudio } from '../../utils/audio';
+import { childSpeechEngine } from '../../utils/speechRecognition';
 import { useAuth } from '../../context/AuthContext';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
+import { KokoMascot } from './KokoMascot';
+import type { MascotState } from './KokoMascot';
 
 interface BigInteractiveFlashcardProps {
   items: Vocabulary[];
@@ -47,17 +50,56 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   const [sessionReview, setSessionReview] = useState<string[]>([]);
   const [showEncouragement, setShowEncouragement] = useState(false);
 
-  const handleSpeakAlong = (word: string, audio?: string) => {
-    if (isSpeakingAlong) return;
+  // Track re-queues per word so the study deck stays finite (max 1 repeat per word)
+  const repeatCountRef = useRef<Record<string, number>>({});
+
+  // Real speech recognition states
+  const [speechStatus, setSpeechStatus] = useState<'idle' | 'listening' | 'success' | 'retry'>('idle');
+  const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
+
+  // Koko reacts to the child's answers (celebrating = remembered, encouraging = review)
+  const [kokoMood, setKokoMood] = useState<MascotState>('happy');
+
+  const handleSpeakAlong = async (word: string, _audio?: string) => {
+    if (isSpeakingAlong) {
+      childSpeechEngine.stop();
+      setIsSpeakingAlong(false);
+      setSpeechStatus('idle');
+      setSpeechFeedback(null);
+      return;
+    }
+
     sfx.playPop();
     setIsSpeakingAlong(true);
-    playWordAudio(word, audio);
-    setTimeout(() => {
-      sfx.playCorrect();
+    setSpeechStatus('listening');
+    setSpeechFeedback('Cô đang nghe bé đọc... 🎙️');
+
+    try {
+      const result = await childSpeechEngine.listenAndVerify(word, 5000);
+
+      if (result.isMatch) {
+        sfx.playCorrect();
+        setSpeechStatus('success');
+        setSpeechFeedback(result.message);
+      } else if (result.spokenText) {
+        sfx.playGentleWrong();
+        setSpeechStatus('retry');
+        setSpeechFeedback(result.message);
+      } else {
+        sfx.playGentleWrong();
+        setSpeechStatus('retry');
+        setSpeechFeedback(result.message || 'Cô chưa nghe rõ, bé đọc to lại nhé! 🐻');
+      }
+    } catch (err: any) {
+      setSpeechStatus('retry');
+      setSpeechFeedback('Bé hoặc bố mẹ nhớ cho phép dùng micro nhé! 🎙️');
+    } finally {
       setTimeout(() => {
         setIsSpeakingAlong(false);
-      }, 1000);
-    }, 2200);
+        setSpeechStatus('idle');
+        setSpeechFeedback(null);
+      }, 3000);
+    }
   };
 
   const startXRef = useRef(0);
@@ -71,6 +113,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
       setCurrentIndex(0);
       setIsFlipped(false);
       setExitDirection(null);
+      repeatCountRef.current = {};
     }
   }, [items]);
 
@@ -103,7 +146,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
           Bé đã hoàn thành lượt học! 🎉
         </h3>
         <p className="text-sm sm:text-base font-extrabold text-slate-500 mb-6">
-          Bé đã khám phá tất cả các từ vựng trong bài học này!
+          Bé đã khám phá tất cả các từ vựng trong Lesson này!
         </p>
 
         {/* Stats row */}
@@ -148,6 +191,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
               setIsFlipped(false);
               setSessionMastered([]);
               setSessionReview([]);
+              repeatCountRef.current = {};
             }}
             className="w-full sm:w-auto btn-3d-amber text-amber-950 font-black text-sm sm:text-base py-3 px-6 rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md"
           >
@@ -178,6 +222,10 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
     vocabMasteryService.markMastered(effectiveChildId, currentItem);
     setSessionMastered(prev => [...prev, currentItem._id]);
 
+    // Koko cheers with the child
+    setKokoMood('celebrating');
+    setTimeout(() => setKokoMood('happy'), 1600);
+
     setTimeout(() => {
       setExitDirection(null);
       setDragOffset(0);
@@ -202,8 +250,17 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
     vocabMasteryService.markReview(effectiveChildId, currentItem);
     setSessionReview(prev => [...prev, currentItem._id]);
 
-    // Re-queue this word to the end of study deck so child repeats it
-    setDeck(prev => [...prev, currentItem]);
+    // Koko cheers the child up
+    setKokoMood('encouraging');
+    setTimeout(() => setKokoMood('happy'), 2200);
+
+    // Re-queue this word to the end of study deck so child repeats it.
+    // Capped at 1 repeat per word so the deck always ends (no infinite loop).
+    const repeats = repeatCountRef.current[currentItem._id] || 0;
+    if (repeats < 1) {
+      repeatCountRef.current[currentItem._id] = repeats + 1;
+      setDeck(prev => [...prev, currentItem]);
+    }
 
     setTimeout(() => {
       setExitDirection(null);
@@ -409,7 +466,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
                 >
                   {currentItem.english}
                 </h3>
-                <div onPointerDown={e => e.stopPropagation()} className="inline-block mt-1">
+                <div onPointerDown={e => e.stopPropagation()} className="flex flex-col items-center mt-1">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -418,14 +475,41 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-xs sm:text-sm border-2 transition-all cursor-pointer shadow-xs active:scale-95 ${
                       isSpeakingAlong
-                        ? 'bg-rose-500 text-white border-rose-600 animate-pulse ring-4 ring-rose-200'
+                        ? speechStatus === 'success'
+                          ? 'bg-emerald-500 text-white border-emerald-600 ring-4 ring-emerald-200'
+                          : speechStatus === 'retry'
+                          ? 'bg-amber-500 text-white border-amber-600 ring-4 ring-amber-200'
+                          : 'bg-rose-500 text-white border-rose-600 animate-pulse ring-4 ring-rose-200'
                         : 'bg-white hover:bg-rose-50 text-rose-600 border-rose-200'
                     }`}
-                    title="Nghe mẫu phát âm rồi bé nói nhắc lại theo cô nhé!"
+                    title="Bấm mic rồi đọc to từ vựng tiếng Anh nhé!"
                   >
                     <Mic className={`w-4 h-4 ${isSpeakingAlong ? 'animate-bounce' : ''}`} />
-                    <span>{isSpeakingAlong ? `Bé đọc: "${currentItem.english}" 🗣️` : 'Bé đọc theo cô 🎤'}</span>
+                    <span>
+                      {isSpeakingAlong
+                        ? speechStatus === 'success'
+                          ? 'Bé đọc rất chuẩn! ⭐🎉'
+                          : speechStatus === 'retry'
+                          ? 'Bé thử lại nhé! 💪'
+                          : `Đang nghe bé đọc: "${currentItem.english}" 🎙️`
+                        : 'Bé đọc mic 🎤'}
+                    </span>
                   </button>
+
+                  {speechFeedback && (
+                    <div
+                      className={`mt-2 px-3.5 py-1.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm animate-pop-in max-w-xs text-center ${
+                        speechStatus === 'success'
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          : speechStatus === 'retry'
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-rose-100 text-rose-900 border border-rose-300'
+                      }`}
+                    >
+                      <span>{speechStatus === 'success' ? '⭐' : '🐻'}</span>
+                      <span>{speechFeedback}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -503,39 +587,58 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
         </div>
       </div>
 
-      {/* Big Tactile Action Buttons: Chưa nhớ (Trái) - Lật thẻ (Giữa) - Đã nhớ (Phải) */}
-      <div className="w-full max-w-lg sm:max-w-xl md:max-w-2xl grid grid-cols-3 gap-3 sm:gap-5 mt-6">
-        {/* Nút Chưa Nhớ (Trái) */}
-        <button
-          type="button"
-          onClick={handleReview}
-          className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3.5 sm:py-4 px-3 rounded-2xl bg-gradient-to-b from-amber-50 to-orange-100 hover:from-amber-100 hover:to-orange-200 border-b-6 border-orange-300 text-orange-950 font-black text-xs sm:text-base shadow-md active:translate-y-1 active:border-b-2 transition-all cursor-pointer select-none"
-        >
-          <span className="text-xl sm:text-2xl">🧡</span>
-          <span className="text-center font-display">Chưa nhớ</span>
-          <span className="text-[10px] text-orange-800 font-extrabold hidden md:inline">(Trái)</span>
-        </button>
+      {/* Koko reaction + Big tactile icon buttons: Chưa nhớ — Lật thẻ — Đã nhớ.
+          Icons are oversized so 3-year-olds can tap them without reading. */}
+      <div className="w-full max-w-2xl sm:max-w-3xl mt-5 flex items-end justify-center gap-3 sm:gap-5">
+        <div className="hidden sm:block flex-shrink-0 pb-1">
+          <KokoMascot
+            state={kokoMood}
+            size="sm"
+            interactive={false}
+            speechBubble={
+              kokoMood === 'celebrating'
+                ? 'Bé giỏi quá! 🎉'
+                : kokoMood === 'encouraging'
+                ? 'Cố lên nhé! 💪'
+                : undefined
+            }
+            bubblePosition="top"
+          />
+        </div>
 
-        {/* Nút Lật Thẻ (Giữa) */}
-        <button
-          type="button"
-          onClick={handleFlip}
-          className="btn-3d-amber text-amber-950 font-black text-xs sm:text-base py-3.5 sm:py-4 px-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none"
-        >
-          <RotateCw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-          <span className="font-display">{isFlipped ? 'Mặt Anh' : 'Lật nghĩa'}</span>
-        </button>
+        <div className="flex-1 max-w-lg sm:max-w-xl grid grid-cols-3 gap-3 sm:gap-4">
+          {/* Nút Chưa Nhớ (Trái) */}
+          <button
+            type="button"
+            onClick={handleReview}
+            className="flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-3xl bg-gradient-to-b from-amber-50 to-orange-200 hover:from-amber-100 border-b-8 border-orange-400 text-orange-900 shadow-lg active:translate-y-1.5 active:border-b-2 transition-all cursor-pointer select-none"
+          >
+            <span className="text-4xl sm:text-5xl leading-none" aria-hidden>🤔</span>
+            <span className="text-[11px] sm:text-sm font-black font-display">Chưa nhớ</span>
+          </button>
 
-        {/* Nút Đã Nhớ (Phải) */}
-        <button
-          type="button"
-          onClick={handleRemember}
-          className="btn-3d-emerald text-white font-black text-xs sm:text-base py-3.5 sm:py-4 px-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none"
-        >
-          <span className="text-xl sm:text-2xl">💚</span>
-          <span className="text-center font-display">Đã nhớ!</span>
-          <span className="text-[10px] text-emerald-100 font-extrabold hidden md:inline">(Phải)</span>
-        </button>
+          {/* Nút Lật Thẻ (Giữa) */}
+          <button
+            type="button"
+            onClick={handleFlip}
+            className="flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-3xl bg-gradient-to-b from-sky-50 to-sky-200 hover:from-sky-100 border-b-8 border-sky-400 text-sky-900 shadow-lg active:translate-y-1.5 active:border-b-2 transition-all cursor-pointer select-none"
+          >
+            <span className="text-4xl sm:text-5xl leading-none" aria-hidden>🔄</span>
+            <span className="text-[11px] sm:text-sm font-black font-display">
+              {isFlipped ? 'Mặt Anh' : 'Lật nghĩa'}
+            </span>
+          </button>
+
+          {/* Nút Đã Nhớ (Phải) */}
+          <button
+            type="button"
+            onClick={handleRemember}
+            className="flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-3xl bg-gradient-to-b from-emerald-50 to-emerald-300 hover:from-emerald-100 border-b-8 border-emerald-500 text-emerald-950 shadow-lg active:translate-y-1.5 active:border-b-2 transition-all cursor-pointer select-none"
+          >
+            <span className="text-4xl sm:text-5xl leading-none" aria-hidden>💚</span>
+            <span className="text-[11px] sm:text-sm font-black font-display">Đã nhớ!</span>
+          </button>
+        </div>
       </div>
 
       {/* Previous / Next Card Helper */}
@@ -576,7 +679,7 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
       {items.length > 1 && (
         <div className="w-full max-w-2xl sm:max-w-3xl mt-6 bg-white/70 border-3 border-amber-200/80 rounded-3xl p-4 shadow-xs">
           <p className="text-xs font-black uppercase text-amber-800 tracking-wider mb-3 px-2 flex items-center justify-between">
-            <span>Danh sách từ bài học ({items.length})</span>
+            <span>Danh sách từ Lesson ({items.length})</span>
             <span className="text-[10px] text-slate-500 font-bold">
               💚 Đã nhớ • 💡 Cần ôn
             </span>

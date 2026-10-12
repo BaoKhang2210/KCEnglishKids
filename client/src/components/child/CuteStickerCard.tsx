@@ -1,6 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import type { StickerItem } from '../../data/stickers';
+import { sfx } from '../../utils/audio';
+
+// §1.3.3 — playful onomatopoeia per sticker: tap an unlocked sticker to hear it
+const STICKER_CRIES: Record<string, { text: string; pitch: number; rate: number }> = {
+  '🦁': { text: 'Roar! Roar!', pitch: 0.3, rate: 0.65 },
+  '🐯': { text: 'Grrrow! Grrrow!', pitch: 0.3, rate: 0.6 },
+  '🐼': { text: 'Groowl, groowl...', pitch: 0.4, rate: 0.55 },
+  '🐬': { text: 'Eee! Eee! Eee!', pitch: 1.9, rate: 1.5 },
+  '🦄': { text: 'Neigh! Neigh!', pitch: 1.4, rate: 0.9 },
+  '🦖': { text: 'Rooooar!', pitch: 0.2, rate: 0.5 },
+  '⭐': { text: 'Twinkle, twinkle!', pitch: 1.8, rate: 1.1 },
+  '🍎': { text: 'Crunch, crunch!', pitch: 1.1, rate: 0.9 },
+  '🍓': { text: 'Yummy, yummy!', pitch: 1.6, rate: 1.1 },
+  '🎈': { text: 'Pop! Pop! Pop!', pitch: 1.7, rate: 1.3 },
+  '🚀': { text: 'Whoosh!', pitch: 0.9, rate: 1.2 },
+  '🏆': { text: 'Hooray! Hooray!', pitch: 1.3, rate: 1.0 },
+  '🌈': { text: 'Wow, so pretty!', pitch: 1.5, rate: 0.95 },
+  '🎨': { text: 'Swish, swish, paint!', pitch: 1.2, rate: 1.0 },
+  '👑': { text: 'Ta-da!', pitch: 1.3, rate: 0.9 }
+};
 
 interface CuteStickerCardProps {
   sticker: StickerItem;
@@ -65,9 +85,32 @@ export const CuteStickerCard: React.FC<CuteStickerCardProps> = ({
 
   const currentSize = sizeClasses[size];
 
+  // §1.3.3 — jelly wiggle + cry when the child taps an unlocked sticker
+  const [isJiggly, setIsJiggly] = useState(false);
+
+  const handleCardTap = () => {
+    if (isUnlocked) {
+      sfx.playPop();
+      setIsJiggly(true);
+      setTimeout(() => setIsJiggly(false), 900);
+      const cry = STICKER_CRIES[sticker.icon];
+      if (cry && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(cry.text);
+        utter.lang = 'en-US';
+        utter.pitch = cry.pitch;
+        utter.rate = cry.rate;
+        window.speechSynthesis.speak(utter);
+      }
+    } else {
+      sfx.playGentleWrong();
+    }
+    if (onClick) onClick();
+  };
+
   return (
     <div
-      onClick={onClick}
+      onClick={handleCardTap}
       className={`rounded-3xl p-3.5 sm:p-4 text-center flex flex-col items-center justify-between transition-all select-none cursor-pointer group relative ${
         isUnlocked
           ? 'bg-gradient-to-b from-white via-rose-50/30 to-amber-50/40 border-3 border-rose-200/90 hover:border-rose-400 hover:shadow-xl hover:-translate-y-1.5 active:scale-95'
@@ -79,7 +122,7 @@ export const CuteStickerCard: React.FC<CuteStickerCardProps> = ({
         <div
           className={`rounded-3xl flex items-center justify-center relative overflow-hidden transition-transform duration-300 group-hover:scale-110 ${
             currentSize.box
-          } ${
+          } ${isJiggly ? 'animate-jelly' : ''} ${
             isUnlocked
               ? sticker.rarity === 'legendary'
                 ? 'puffy-sticker holographic-foil'

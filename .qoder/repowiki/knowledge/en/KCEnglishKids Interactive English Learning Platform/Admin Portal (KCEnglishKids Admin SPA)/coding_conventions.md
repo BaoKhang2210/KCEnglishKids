@@ -1,0 +1,6 @@
+- API calls go through the centralized `api` client in `services/api.ts` (get/post/patch/delete) which auto-injects the Bearer token from `kc_admin_token` and throws on non-OK responses.
+- Domain endpoints are grouped into named clients (`authApi`, `adminApi`) that wrap the generic `api` methods rather than calling `fetch` directly from components.
+- Authentication state lives in a React Context (`AuthContext`) with `AuthProvider` wrapping the router, and consumers access it via the `useAuth()` hook that throws if used outside the provider.
+- Sensitive tokens and user data are persisted in `localStorage` under fixed keys (`kc_admin_token`, `kc_admin_user`) and cleared on logout or session verification failure.
+- Protected routes are implemented as a `ProtectedAdminRoute` wrapper component that checks `user.role === 'ADMIN'` and uses `Navigate` to redirect unauthenticated visitors.
+- UI styling is done inline with Tailwind utility classes using a consistent indigo/slate color palette, rounded-xl/rounded-2xl border radius, and uppercase tracking-wider labels.

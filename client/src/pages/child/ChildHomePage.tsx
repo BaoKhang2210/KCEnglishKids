@@ -6,23 +6,25 @@ import {
   Sparkles,
   Star,
   Trophy,
-  BookOpen,
   Compass,
   ArrowRight,
   Gift,
   X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useRewards } from '../../context/RewardContext';
 import { learningApi, topicsApi, lessonsApi, vocabularyApi } from '../../services/api';
-import type { ProgressSummary, Topic, Vocabulary } from '../../types';
+import type { ProgressSummary, Topic, Vocabulary, RewardChest } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
-import { SecretGiftModal } from '../../components/child/SecretGiftModal';
+import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
+import { ChestRevealModal } from '../../components/child/ChestRevealModal';
 import { ALL_BADGES } from '../../data/badges';
-import { ALL_STICKERS, stickerService } from '../../data/stickers';
+import { getReqUnitLabel, lessonsDoneLabel } from '../../data/labels';
+import { ALL_STICKERS } from '../../data/stickers';
 import { sfx } from '../../utils/audio';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import { BadgeShowcaseModal } from '../../components/child/BadgeShowcaseModal';
@@ -67,8 +69,6 @@ export const ChildHomePage: React.FC = () => {
   // Active Tab
   const activeTab = params.get('tab') || 'path';
   const ageCode = user?.ageGroupCode || '3-4';
-  const ageLevels: Record<string, number> = { '3-4': 1, '4-5': 2, '5-6': 3 };
-  const userLevel = ageLevels[ageCode] || 1;
 
   // Data States
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
@@ -77,13 +77,10 @@ export const ChildHomePage: React.FC = () => {
   const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Secret Gift Modal state
-  const [showSecretGift, setShowSecretGift] = useState(false);
-  const [secretGiftData, setSecretGiftData] = useState<{
-    unit: any;
-    unitIndex: number;
-    isCompleted: boolean;
-  } | null>(null);
+  // §1.2 — Reward chest flow (Màn 1: kệ rương, Màn 2: mở quà)
+  const { rewards, refresh: refreshRewards } = useRewards();
+  const [showChestShelf, setShowChestShelf] = useState(false);
+  const [revealingChest, setRevealingChest] = useState<RewardChest | null>(null);
 
   // Unit Journey Stepping Stones Modal State
   const [selectedUnitModal, setSelectedUnitModal] = useState<{
@@ -168,11 +165,33 @@ export const ChildHomePage: React.FC = () => {
     loadAll();
   }, [ageCode, navigate, user]);
 
-  const totalStars = progress?.totalStars || units.reduce((acc, u) => acc + (u.totalUnitStars || 0), 0) || 0;
-  const completedLessons =
-    progress?.completedLessonsCount || units.reduce((acc, u) => acc + (u.completedLessons || 0), 0) || 0;
+  // §1.2.11 — refresh reward state whenever the child returns to the home page
+  useEffect(() => {
+    refreshRewards();
+  }, [refreshRewards]);
+
+  // §1.2.18 — server-computed totals win (they include unit bonus stars);
+  // unit-derived values only serve as a first-paint fallback while loading.
+  const totalStars = rewards?.totalStars ?? (progress?.totalStars || units.reduce((acc, u) => acc + (u.totalUnitStars || 0), 0) || 0);
+  const completedLessons = rewards?.completedLessons ?? (progress?.completedLessonsCount || units.reduce((acc, u) => acc + (u.completedLessons || 0), 0) || 0);
   const totalUnits = units.length || 9;
-  const completedUnits = units.filter(u => u.isCompleted).length || 0;
+  const completedUnits = rewards?.completedUnits ?? (units.filter(u => u.isCompleted).length || 0);
+
+  // §1.2.16 — stickers are only granted by server chests (+ starter sticker)
+  const unlockedStickers = React.useMemo(
+    () => Array.from(new Set<string>(['st_star', ...(rewards?.grantedStickerIds || [])])),
+    [rewards]
+  );
+
+  // Màn 1 — shelf data: every unit becomes a chest
+  const shelfUnits: ShelfUnit[] = units.map(u => ({
+    _id: u._id,
+    unitNumber: u.unitNumber,
+    topicName: u.topicName,
+    completedLessons: u.lessons.filter(l => l.completed).length,
+    totalLessons: u.lessons.length,
+    isCompleted: u.isCompleted
+  }));
 
   const goTab = (tab: string) => {
     navigate(tab === 'path' ? '/' : `/?tab=${tab}`);
@@ -211,7 +230,7 @@ export const ChildHomePage: React.FC = () => {
               </div>
               <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
                 <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
-                <span>{completedLessons} Bài</span>
+                <span>{completedLessons} Lesson</span>
               </div>
             </div>
           </div>
@@ -370,7 +389,7 @@ export const ChildHomePage: React.FC = () => {
                               </div>
 
                               <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 mt-0.5 font-display tracking-tight group-hover:text-amber-700 transition-colors truncate">
-                                Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Bài học'}
+                                Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Lesson'}
                               </h3>
                               <p className="text-xs sm:text-sm font-extrabold text-slate-600 mt-0.5 truncate">
                                 {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
@@ -389,7 +408,7 @@ export const ChildHomePage: React.FC = () => {
                                 </span>
                               </div>
                               <span className="text-[11px] font-bold text-slate-500">
-                                {completedLessonCount} / {totalLessonCount} bài đã xong
+                                {lessonsDoneLabel(completedLessonCount, totalLessonCount)}
                               </span>
                             </div>
 
@@ -399,7 +418,7 @@ export const ChildHomePage: React.FC = () => {
                                 !isUnitUnlocked ? 'opacity-60 grayscale' : 'group-hover:scale-105'
                               }`}
                             >
-                              <span>{isUnitUnlocked ? 'Khám phá bài học' : 'Xem điều kiện'}</span>
+                              <span>{isUnitUnlocked ? 'Khám phá Lesson' : 'Xem điều kiện'}</span>
                               <ArrowRight className="w-4 h-4" />
                             </button>
                           </div>
@@ -467,7 +486,7 @@ export const ChildHomePage: React.FC = () => {
                             {ageCode} tuổi
                           </span>
                           <span className="text-xs font-black text-slate-500 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-full border border-slate-200/80 shadow-2xs">
-                            {topic.lessonCount || 0} bài học
+                            {topic.lessonCount || 0} Lesson
                           </span>
                         </div>
 
@@ -537,8 +556,6 @@ export const ChildHomePage: React.FC = () => {
                 : evaluatedBadges.filter(b => b.category === badgeCategory);
 
               const unlockedCount = evaluatedBadges.filter(b => b.unlocked).length;
-              const childId = (user as any)?.id || (user as any)?._id || 'child_guest';
-              const unlockedStickers = stickerService.getUnlockedStickers(childId);
 
               return (
                 <section className="space-y-6">
@@ -555,8 +572,8 @@ export const ChildHomePage: React.FC = () => {
                       </h2>
                       <p className="text-sm font-bold text-slate-500">
                         {rewardTab === 'badges'
-                          ? 'Thu thập đủ sao vàng và hoàn thành bài học để mở khóa 20 huy hiệu danh giá!'
-                          : 'Đạt từ 2–3 sao vàng trong các bài luyện tập và trò chơi để mở khóa sticker siêu xinh!'}
+                          ? 'Thu thập đủ sao vàng và hoàn thành Lesson để mở khóa 20 huy hiệu danh giá!'
+                          : 'Hoàn thành trọn vẹn cả Unit để mở Rương Báu và nhận Sticker siêu xinh!'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -568,6 +585,17 @@ export const ChildHomePage: React.FC = () => {
                         <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
                         <span className="text-base font-black text-amber-900">{totalStars} Sao vàng</span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sfx.playPop();
+                          setShowChestShelf(true);
+                        }}
+                        className="bg-gradient-to-r from-amber-300 to-yellow-200 border-2 border-amber-400 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                      >
+                        <span className="text-lg">🎁</span>
+                        <span className="text-base font-black text-amber-950">Kệ Rương Báu</span>
+                      </button>
                     </div>
                   </div>
 
@@ -685,7 +713,7 @@ export const ChildHomePage: React.FC = () => {
                                     />
                                   </div>
                                   <span className="text-[9px] font-extrabold text-slate-400 block">
-                                    {currentVal}/{badge.requirement} {badge.reqType === 'star' ? '⭐' : 'bài'}
+                                    {currentVal}/{badge.requirement} {getReqUnitLabel(badge.reqType)}
                                   </span>
                                 </div>
                               )}
@@ -749,22 +777,36 @@ export const ChildHomePage: React.FC = () => {
           </>
         )}
 
-        {/* Secret Gift Mystery Chest Modal */}
-        {secretGiftData && (
-          <SecretGiftModal
-            isOpen={showSecretGift}
-            onClose={() => setShowSecretGift(false)}
-            unit={secretGiftData.unit}
-            unitIndex={secretGiftData.unitIndex}
-            isCompleted={secretGiftData.isCompleted}
-            onContinue={() => setShowSecretGift(false)}
-          />
-        )}
+        {/* §1.2 — Màn 1: Kệ Rương Báu (3 trạng thái: khóa / có quà / đã mở) */}
+        <ChestShelfModal
+          isOpen={showChestShelf}
+          onClose={() => setShowChestShelf(false)}
+          units={shelfUnits}
+          rewards={rewards}
+          onOpenChest={(chest) => {
+            setShowChestShelf(false);
+            setRevealingChest(chest);
+          }}
+        />
+
+        {/* §1.2 — Màn 2: Mở rương (shake → bùng nổ → nhận thưởng) */}
+        <ChestRevealModal
+          chest={revealingChest}
+          onClose={() => {
+            setRevealingChest(null);
+            refreshRewards();
+          }}
+        />
 
         {/* Unit Journey Stepping Stones Popup Modal */}
         {selectedUnitModal && (() => {
           const { unit, unitIndex, theme, isUnitUnlocked } = selectedUnitModal;
           const firstIncompleteIdx = unit.lessons.findIndex(l => !l.completed);
+
+          // §1.2 — chest state for THIS unit (server truth)
+          const unitChest = rewards?.chests.find(c => String(c.unitId) === String(unit._id)) || null;
+          const chestGranted = !!unitChest && !unitChest.revealedAt;
+          const chestOpened = !!unitChest?.revealedAt;
 
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-pop-in">
@@ -789,7 +831,7 @@ export const ChildHomePage: React.FC = () => {
                         )}
                       </div>
                       <h3 className="font-black text-xl sm:text-2xl text-slate-800 font-display">
-                        Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Bài học'}
+                        Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Lesson'}
                       </h3>
                       <p className="text-xs sm:text-sm font-bold text-slate-600">
                         {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
@@ -842,7 +884,7 @@ export const ChildHomePage: React.FC = () => {
                               type="button"
                               onClick={() => {
                                 if (!isLessonUnlocked) {
-                                  handleLockedClick(`Bé hãy hoàn thành Bài ${idx} trước để mở khóa Bài ${lesson.lessonNumber || idx + 1} nhé! 🌟`);
+                                  handleLockedClick(`Bé hãy hoàn thành Lesson ${idx} trước để mở khóa Lesson ${lesson.lessonNumber || idx + 1} nhé! 🌟`);
                                   return;
                                 }
                                 sfx.playPop();
@@ -884,11 +926,12 @@ export const ChildHomePage: React.FC = () => {
                               <div className="min-w-0 pr-2 flex-1">
                                 <div className="flex items-center gap-1.5 mb-0.5">
                                   <span className="text-[10px] font-black uppercase text-slate-400">
-                                    Bài {lesson.lessonNumber || idx + 1}
+                                    Lesson {lesson.lessonNumber || idx + 1}
                                   </span>
                                   {lesson.completed ? (
                                     <span className="flex items-center text-amber-500 text-xs">
-                                      {[...Array(lesson.stars || 3)].map((_, i) => (
+                                      {/* §1.2.18 — never render fake stars (|| 3) */}
+                                      {[...Array(lesson.stars || 0)].map((_, i) => (
                                         <Star key={i} className="w-3.5 h-3.5 fill-current" />
                                       ))}
                                     </span>
@@ -915,25 +958,32 @@ export const ChildHomePage: React.FC = () => {
                         );
                       })}
 
-                      {/* End of Unit Treasure Dais */}
+                      {/* End of Unit Treasure Dais (§1.2 — chest flow) */}
                       <div className="flex flex-col items-center justify-center pt-2">
                         <button
                           type="button"
                           onClick={() => {
                             sfx.playPop();
+                            if (!isUnitUnlocked) {
+                              handleLockedClick(`Bé ơi, hãy hoàn thành Unit ${unitIndex} trước để mở khoá Unit ${unit.unitNumber} nhé! 🎒✨`);
+                              return;
+                            }
                             setSelectedUnitModal(null);
-                            setSecretGiftData({
-                              unit,
-                              unitIndex,
-                              isCompleted: !!unit.isCompleted
-                            });
-                            setShowSecretGift(true);
+                            if (chestGranted && unitChest) {
+                              // Quà đã có sẵn → mở luôn (Màn 2)
+                              setRevealingChest(unitChest);
+                            } else {
+                              // Chưa xong / đã mở → xem Kệ Rương (Màn 1)
+                              setShowChestShelf(true);
+                            }
                           }}
                           className={`w-full max-w-md p-4 rounded-[24px] border-3 flex items-center justify-between gap-3 shadow-md transition-all cursor-pointer group hover:scale-103 active:scale-95 ${
                             !isUnitUnlocked
                               ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60'
-                              : unit.isCompleted
+                              : chestGranted
                               ? 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 border-amber-400 text-amber-950 shadow-amber-300/40 animate-pulse'
+                              : chestOpened
+                              ? 'bg-gradient-to-r from-emerald-50 via-white to-teal-50 border-emerald-300 text-slate-700'
                               : 'bg-white hover:bg-amber-50/80 border-amber-300 text-slate-700'
                           }`}
                         >
@@ -942,33 +992,44 @@ export const ChildHomePage: React.FC = () => {
                               className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-xs transition-transform group-hover:rotate-12 ${
                                 !isUnitUnlocked
                                   ? 'bg-slate-200 text-slate-400'
-                                  : unit.isCompleted
+                                  : chestGranted
                                   ? 'bg-amber-400 text-amber-950'
+                                  : chestOpened
+                                  ? 'bg-emerald-100 text-emerald-700'
                                   : 'bg-amber-100 text-amber-700'
                               }`}
                             >
-                              🎁
+                              {chestOpened ? '🎉' : '🎁'}
                             </div>
                             <div className="text-left">
                               <div className="flex items-center gap-1 mb-0.5">
                                 <span className="text-[10px] font-black uppercase text-amber-800">
                                   Rương Báu Unit {unit.unitNumber}
                                 </span>
-                                {unit.isCompleted && (
-                                  <span className="bg-amber-400 text-amber-950 text-[9px] font-black px-1.5 py-0.5 rounded-full">
-                                    Đã Mở! ✨
+                                {chestGranted && (
+                                  <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                                    Quà mới! ✨
+                                  </span>
+                                )}
+                                {chestOpened && (
+                                  <span className="bg-emerald-400 text-emerald-950 text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                                    Đã nhận ✓
                                   </span>
                                 )}
                               </div>
                               <h4 className="font-black text-xs sm:text-sm text-slate-800">
-                                {unit.isCompleted ? 'Nhận Thưởng Rương Báu' : 'Hộp Quà Bí Mật Đang Chờ'}
+                                {chestGranted
+                                  ? 'Nhận Thưởng Rương Báu'
+                                  : chestOpened
+                                  ? 'Rương đã mở — xem Kệ Rương'
+                                  : 'Hộp Quà Bí Mật Đang Chờ'}
                               </h4>
                             </div>
                           </div>
 
                           <div className="text-right">
                             <span className="btn-3d-amber py-1.5 px-3 rounded-xl text-xs font-black text-amber-950 inline-flex items-center gap-1">
-                              <span>{unit.isCompleted ? 'Mở quà ➔' : 'Xem rương'}</span>
+                              <span>{chestGranted ? 'Mở quà ngay ➔' : 'Xem rương'}</span>
                             </span>
                           </div>
                         </button>
@@ -985,10 +1046,10 @@ export const ChildHomePage: React.FC = () => {
             badge={showcaseBadge}
             currentProgress={
               showcaseBadge.reqType === 'star'
-                ? progress?.totalStars || 0
+                ? totalStars
                 : showcaseBadge.reqType === 'unit'
-                ? (units || []).filter(u => u.isCompleted).length
-                : progress?.completedLessonsCount || 0
+                ? completedUnits
+                : completedLessons
             }
             onClose={() => setShowcaseBadge(null)}
           />

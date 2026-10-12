@@ -1,0 +1,1 @@
+Vite + React single-page admin portal for KCEnglishKids, providing teacher/child account management, curriculum overview, and audit-log viewing behind an ADMIN-only route.

@@ -36,7 +36,9 @@ const getCurriculumPath = async (req, res, next) => {
         }
       });
 
-      // Also query ActivityResult for any completed lessons
+      // Also query ActivityResult — used ONLY to merge display stars/scores.
+      // §4.11: "lesson completed" is owned by Progress.completed (set when ALL
+      // lesson activities are done) — never inferred from ar.stars > 0.
       const lessonIds = lessons.map(l => l._id);
       const activityResults = await ActivityResult.find({
         child: childId,
@@ -46,7 +48,7 @@ const getCurriculumPath = async (req, res, next) => {
         const lid = ar.lesson.toString();
         const existing = progressMap.get(lid);
         const currentStars = existing ? Math.max(existing.stars, ar.stars || 0) : (ar.stars || 0);
-        const isCompleted = (existing && existing.completed) || (ar.stars > 0);
+        const isCompleted = Boolean(existing && existing.completed);
         progressMap.set(lid, {
           completed: isCompleted,
           stars: currentStars,
@@ -117,7 +119,8 @@ const getLessonById = async (req, res, next) => {
     const lesson = await Lesson.findById(id)
       .populate('topic', 'englishName vietnameseName colorCode icon slug')
       .populate('curriculumUnits', 'unitNumber bigQuestion storyTitle')
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl exampleSentence exampleSentenceVietnamese');
+      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl exampleSentence exampleSentenceVietnamese')
+      .populate('languageContents', 'contentType english vietnamese pronunciation difficulty');
 
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Lesson not found.' });

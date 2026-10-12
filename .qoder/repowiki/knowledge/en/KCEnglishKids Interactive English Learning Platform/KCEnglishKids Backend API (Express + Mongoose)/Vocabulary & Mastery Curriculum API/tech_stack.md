@@ -1,0 +1,1 @@
+Node.js + Express router modules; Mongoose ODM with schema-level indexes, pre-save hooks, and `.populate()` for cross-collection references; MongoDB ObjectId foreign keys (User, AgeGroup, Topic, Lesson, Media, CurriculumUnit).

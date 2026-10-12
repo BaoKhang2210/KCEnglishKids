@@ -1,0 +1,1 @@
+Dev server runs on port 5173 and proxies `/api` requests to `http://localhost:5000` (the backend must be running there). Build pipeline is `tsc -b && vite build` (project references via `tsconfig.app.json`/`tsconfig.node.json`). Lint command is `oxlint`.

@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Star, RotateCcw, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
-import { useAuth } from '../../context/AuthContext';
-import { stickerService, type StickerItem } from '../../data/stickers';
 
 interface ResultModalProps {
   score: number;
@@ -17,6 +15,8 @@ interface ResultModalProps {
   nextActivityId?: string | null;
   nextActivityTitle?: string | null;
   onPlayNext?: () => void;
+  /** §1.2 — true when this submit completed the whole Unit (chest granted) */
+  unitCompleted?: boolean;
 }
 
 export const ResultModal: React.FC<ResultModalProps> = ({
@@ -29,12 +29,9 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   onFinish,
   nextActivityId,
   nextActivityTitle,
-  onPlayNext
+  onPlayNext,
+  unitCompleted = false
 }) => {
-  const { user } = useAuth();
-  const childId = user?._id || user?.id || 'child_guest';
-  const [awardedSticker, setAwardedSticker] = useState<StickerItem | null>(null);
-
   useEffect(() => {
     if (stars > 0) {
       sfx.playStarFanfare();
@@ -46,15 +43,10 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           colors: ['#F59E0B', '#10B981', '#38BDF8', '#EC4899', '#8B5CF6']
         });
       } catch (e) {}
-
-      if (stars >= 2) {
-        const sticker = stickerService.awardRandomSticker(childId);
-        if (sticker) {
-          setAwardedSticker(sticker);
-        }
-      }
     }
-  }, [stars, childId]);
+    // §1.2.16 — stickers are ONLY granted by the server on Unit completion
+    // (revealed through the chest). No more random client-side awards here.
+  }, [stars]);
 
   const getEncouragement = () => {
     if (stars === 3) {
@@ -156,21 +148,21 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           </div>
         </div>
 
-        {/* Unlocked Sticker Reward Banner */}
-        {awardedSticker && (
+        {/* Unit Completed Banner (§1.2 — chest granted, go open it!) */}
+        {unitCompleted && (
           <div className="mb-6 p-4 bg-gradient-to-r from-amber-100 via-yellow-50 to-orange-100 border-3 border-amber-300 rounded-3xl flex items-center gap-4 relative z-10 shadow-sm animate-pop-in">
-            <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr ${awardedSticker.bgGradient} flex items-center justify-center text-3xl sm:text-4xl shadow-md flex-shrink-0 animate-bounce`}>
-              {awardedSticker.icon}
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-3xl sm:text-4xl shadow-md flex-shrink-0 animate-bounce">
+              🎁
             </div>
             <div className="text-left min-w-0 flex-1">
               <span className="text-xs font-black uppercase tracking-wider text-amber-800 block">
-                🎁 Quà tặng Sticker mới!
+                🎉 Bé đã hoàn thành trọn vẹn Unit!
               </span>
-              <h4 className="text-sm sm:text-base font-black text-slate-800 truncate">
-                {awardedSticker.name}
+              <h4 className="text-sm sm:text-base font-black text-slate-800">
+                Một Rương Báu đang chờ bé mở đó!
               </h4>
-              <p className="text-xs font-bold text-slate-500 truncate">
-                {awardedSticker.desc}
+              <p className="text-xs font-bold text-slate-500">
+                Về trang chủ và mở rương để nhận Sao vàng + Sticker nhé!
               </p>
             </div>
           </div>
@@ -186,7 +178,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
               }}
               className="btn-3d-emerald w-full py-5 px-8 rounded-3xl text-white font-black text-xl sm:text-2xl flex items-center justify-center gap-3 cursor-pointer shadow-xl active:scale-95"
             >
-              <span>Chơi tiếp: {nextActivityTitle || 'Bài tiếp theo'}</span>
+              <span>Chơi tiếp: {nextActivityTitle || 'Trò chơi tiếp theo'}</span>
               <ArrowRight className="w-7 h-7 stroke-[3.5]" />
             </button>
           )}
@@ -214,7 +206,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                   : 'btn-3d-amber text-amber-950'
               }`}
             >
-              <span>{nextActivityId ? 'Về bài học' : 'Hoàn thành 🎉'}</span>
+              <span>{nextActivityId ? 'Về Lesson' : 'Hoàn thành 🎉'}</span>
               <ArrowRight className="w-6 h-6 stroke-[3]" />
             </button>
           </div>

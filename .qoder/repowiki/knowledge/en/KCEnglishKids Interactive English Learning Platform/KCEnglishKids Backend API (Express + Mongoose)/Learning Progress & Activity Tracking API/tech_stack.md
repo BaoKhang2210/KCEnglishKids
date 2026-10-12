@@ -1,0 +1,1 @@
+Express Router + Mongoose ODM; scoring uses a configurable star threshold system (`threeStarsMin`/`twoStarsMin`/`oneStarMin`) applied to percentage of max score derived from `activity.pointsPerQuestion`.

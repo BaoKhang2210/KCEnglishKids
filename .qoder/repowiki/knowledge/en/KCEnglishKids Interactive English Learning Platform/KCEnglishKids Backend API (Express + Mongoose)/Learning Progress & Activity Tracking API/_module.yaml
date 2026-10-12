@@ -1,0 +1,15 @@
+schema_version: 1
+module_path: backend_api/progress_tracking
+title: Learning Progress & Activity Tracking API
+scope:
+    - KCEnglishKids_BE/src/controllers/progressController.js
+    - KCEnglishKids_BE/src/controllers/learningController.js
+    - KCEnglishKids_BE/src/routes/progressRoutes.js
+    - KCEnglishKids_BE/src/routes/learningRoutes.js
+    - KCEnglishKids_BE/src/models/Progress.js
+    - KCEnglishKids_BE/src/models/ActivityResult.js
+    - KCEnglishKids_BE/src/services/learningService.js
+source_files: []
+depends_on: []
+related_to:
+    - path: child_client

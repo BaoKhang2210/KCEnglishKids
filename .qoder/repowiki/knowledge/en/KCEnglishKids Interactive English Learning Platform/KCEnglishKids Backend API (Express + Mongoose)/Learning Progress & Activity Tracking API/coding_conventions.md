@@ -1,0 +1,5 @@
+- Controllers wrap each handler in try/catch and forward errors via `next(error)` instead of returning error responses directly.
+- Effective child identity is resolved by preferring `req.user._id` when `req.user.role === 'CHILD'`, falling back to `req.body.childId` otherwise.
+- API responses follow a uniform `{ success, message?, data }` envelope with appropriate HTTP status codes (200/201/400/404).
+- Mongoose models declare reference fields as `ObjectId` with `ref` pointing to the owning collection and add compound indexes on frequently queried child-scoped dimensions.
+- Scoring across models caps `stars` at a 0–3 range using `min: 0, max: 3` schema constraints.

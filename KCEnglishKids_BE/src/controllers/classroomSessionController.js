@@ -73,8 +73,8 @@ exports.getSessions = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 exports.createSession = async (req, res, next) => {
   try {
-    const { classroomId, lessonId, title, activityIds, plannedDuration } =
-      req.body;
+    const classroomId = req.body.classroomId || req.body.classRoomId;
+    const { lessonId, title, activityIds, plannedDuration } = req.body;
 
     if (!validId(classroomId))
       return bad(res, 'Valid classroomId is required.');
