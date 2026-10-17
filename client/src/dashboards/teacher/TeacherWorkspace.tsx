@@ -1845,14 +1845,15 @@ export const TeacherStudents = () => {
     void load();
   }, []);
 
-  if (!items) return <Loader />;
-
   // Filter students by search
-  const filtered = items.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.username?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    if (!items) return [];
+    return items.filter(
+      (s) =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.username?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [items, search]);
 
   // Sorting function
   const sortStudents = (list: any[]) => {
@@ -1941,6 +1942,8 @@ export const TeacherStudents = () => {
       setSendingNote(false);
     }
   };
+
+  if (!items) return <Loader />;
 
   return (
     <>
