@@ -4,13 +4,12 @@ import {
   Sparkles,
   Check,
   ChevronLeft,
-  RefreshCw,
-  Mic
+  RefreshCw
 } from 'lucide-react';
 import type { Vocabulary } from '../../types';
 import { AudioButton } from './AudioButton';
 import { sfx, playWordAudio } from '../../utils/audio';
-import { childSpeechEngine } from '../../utils/speechRecognition';
+import { KokoSpeakingCoach } from './KokoSpeakingCoach';
 import { useAuth } from '../../context/AuthContext';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import { KokoMascot } from './KokoMascot';
@@ -38,7 +37,6 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   const [deck, setDeck] = useState<Vocabulary[]>(items || []);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [isSpeakingAlong, setIsSpeakingAlong] = useState(false);
 
   // Swipe & Drag states
   const [isDragging, setIsDragging] = useState(false);
@@ -53,54 +51,8 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
   // Track re-queues per word so the study deck stays finite (max 1 repeat per word)
   const repeatCountRef = useRef<Record<string, number>>({});
 
-  // Real speech recognition states
-  const [speechStatus, setSpeechStatus] = useState<'idle' | 'listening' | 'success' | 'retry'>('idle');
-  const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
-
   // Koko reacts to the child's answers (celebrating = remembered, encouraging = review)
   const [kokoMood, setKokoMood] = useState<MascotState>('happy');
-
-  const handleSpeakAlong = async (word: string, _audio?: string) => {
-    if (isSpeakingAlong) {
-      childSpeechEngine.stop();
-      setIsSpeakingAlong(false);
-      setSpeechStatus('idle');
-      setSpeechFeedback(null);
-      return;
-    }
-
-    sfx.playPop();
-    setIsSpeakingAlong(true);
-    setSpeechStatus('listening');
-    setSpeechFeedback('Cô đang nghe bé đọc... 🎙️');
-
-    try {
-      const result = await childSpeechEngine.listenAndVerify(word, 5000);
-
-      if (result.isMatch) {
-        sfx.playCorrect();
-        setSpeechStatus('success');
-        setSpeechFeedback(result.message);
-      } else if (result.spokenText) {
-        sfx.playGentleWrong();
-        setSpeechStatus('retry');
-        setSpeechFeedback(result.message);
-      } else {
-        sfx.playGentleWrong();
-        setSpeechStatus('retry');
-        setSpeechFeedback(result.message || 'Cô chưa nghe rõ, bé đọc to lại nhé! 🐻');
-      }
-    } catch (err: any) {
-      setSpeechStatus('retry');
-      setSpeechFeedback('Bé hoặc bố mẹ nhớ cho phép dùng micro nhé! 🎙️');
-    } finally {
-      setTimeout(() => {
-        setIsSpeakingAlong(false);
-        setSpeechStatus('idle');
-        setSpeechFeedback(null);
-      }, 3000);
-    }
-  };
 
   const startXRef = useRef(0);
   const currentXRef = useRef(0);
@@ -466,51 +418,6 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
                 >
                   {currentItem.english}
                 </h3>
-                <div onPointerDown={e => e.stopPropagation()} className="flex flex-col items-center mt-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSpeakAlong(currentItem.english, currentItem.audioUrl);
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-xs sm:text-sm border-2 transition-all cursor-pointer shadow-xs active:scale-95 ${
-                      isSpeakingAlong
-                        ? speechStatus === 'success'
-                          ? 'bg-emerald-500 text-white border-emerald-600 ring-4 ring-emerald-200'
-                          : speechStatus === 'retry'
-                          ? 'bg-amber-500 text-white border-amber-600 ring-4 ring-amber-200'
-                          : 'bg-rose-500 text-white border-rose-600 animate-pulse ring-4 ring-rose-200'
-                        : 'bg-white hover:bg-rose-50 text-rose-600 border-rose-200'
-                    }`}
-                    title="Bấm mic rồi đọc to từ vựng tiếng Anh nhé!"
-                  >
-                    <Mic className={`w-4 h-4 ${isSpeakingAlong ? 'animate-bounce' : ''}`} />
-                    <span>
-                      {isSpeakingAlong
-                        ? speechStatus === 'success'
-                          ? 'Bé đọc rất chuẩn! ⭐🎉'
-                          : speechStatus === 'retry'
-                          ? 'Bé thử lại nhé! 💪'
-                          : `Đang nghe bé đọc: "${currentItem.english}" 🎙️`
-                        : 'Bé đọc mic 🎤'}
-                    </span>
-                  </button>
-
-                  {speechFeedback && (
-                    <div
-                      className={`mt-2 px-3.5 py-1.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm animate-pop-in max-w-xs text-center ${
-                        speechStatus === 'success'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : speechStatus === 'retry'
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'bg-rose-100 text-rose-900 border border-rose-300'
-                      }`}
-                    >
-                      <span>{speechStatus === 'success' ? '⭐' : '🐻'}</span>
-                      <span>{speechFeedback}</span>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Flip hint */}
@@ -585,6 +492,11 @@ export const BigInteractiveFlashcard: React.FC<BigInteractiveFlashcardProps> = (
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 w-full max-w-2xl">
+        <KokoSpeakingCoach targetWord={currentItem.english} audioUrl={currentItem.audioUrl}
+          ageGroup={user?.ageGroupCode} contextKey={`flashcard:${effectiveChildId}:${currentIndex}:${isFlipped}`} />
       </div>
 
       {/* Koko reaction + Big tactile icon buttons: Chưa nhớ — Lật thẻ — Đã nhớ.

@@ -4,6 +4,7 @@ import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, 
 import { useAuth } from '../../context/AuthContext';
 import { teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
+import { ParentNoteSuggestions } from './ParentNoteSuggestions';
 
 const Loader = () => <div className="py-20 text-center text-slate-500"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />Đang tải không gian giảng dạy…</div>;
 const Empty = ({ children }: { children: React.ReactNode }) => <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">{children}</div>;
@@ -1732,6 +1733,9 @@ export const TeacherAssignmentDetail = () => {
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Lời nhận xét & dặn dò của cô:
                   </label>
+                  <ParentNoteSuggestions childId={selectedSub.student._id} assignmentId={a._id}
+                    resultId={selectedSub.submission._id} disabled={savingReview}
+                    onSelect={option => { setReviewNote(option.content); setBonusStars(option.suggestedStars); }} />
                   <textarea
                     rows={3}
                     value={reviewNote}
@@ -2306,6 +2310,8 @@ export const TeacherStudents = () => {
               <label className="text-xs font-bold text-slate-600 block mb-1">
                 Lời nhận xét của cô giáo
               </label>
+              <ParentNoteSuggestions childId={quickStudent._id} disabled={sendingNote}
+                onSelect={option => { setQuickNoteText(option.content); setQuickStars(option.suggestedStars); }} />
               <textarea
                 rows={4}
                 value={quickNoteText}
@@ -2636,6 +2642,8 @@ export const TeacherStudentDetail = () => {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Nội dung nhận xét & dặn dò phụ huynh:
               </label>
+              <ParentNoteSuggestions childId={studentId}
+                onSelect={option => { setParentNoteText(option.content); setParentStars(option.suggestedStars); }} />
               <textarea
                 value={parentNoteText}
                 onChange={e => setParentNoteText(e.target.value)}

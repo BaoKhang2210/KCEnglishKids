@@ -12,6 +12,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { teacherApi, parentNotificationApi } from '../../services/api';
+import { ParentNoteSuggestions } from './ParentNoteSuggestions';
 
 export const TeacherAnalyticsTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -418,6 +419,9 @@ export const TeacherAnalyticsTab: React.FC = () => {
                 <label className="block text-xs font-black text-slate-700 uppercase mb-1">
                   Nội dung nhận xét sư phạm gửi phụ huynh:
                 </label>
+                <ParentNoteSuggestions childId={selectedStudentForNote.student?._id || selectedStudentForNote._id}
+                  disabled={sendingNote}
+                  onSelect={option => { setQuickNoteText(option.content); setBonusStars(option.suggestedStars); }} />
                 <textarea
                   required
                   rows={3}

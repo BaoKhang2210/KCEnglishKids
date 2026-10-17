@@ -2,16 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   Star,
-  Mic,
   ArrowRight,
   ArrowLeft,
   RotateCcw,
   Gamepad2,
   Lightbulb
 } from 'lucide-react';
-import type { Vocabulary } from '../../types';
+import type { Vocabulary, AgeGroupCode } from '../../types';
 import { sfx, playWordAudio, stopWordAudio } from '../../utils/audio';
-import { childSpeechEngine } from '../../utils/speechRecognition';
+import { KokoSpeakingCoach } from './KokoSpeakingCoach';
 import { KokoMascot } from './KokoMascot';
 
 interface InteractivePracticeStudioProps {
@@ -46,7 +45,6 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [showEncouragement, setShowEncouragement] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   const [starsEarned, setStarsEarned] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
@@ -114,51 +112,6 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
 
   const handlePlayNormal = () => {
     playWordAudio(currentWord.english, currentWord.audioUrl);
-  };
-
-  const [micFeedback, setMicFeedback] = useState<string | null>(null);
-  const [micStatus, setMicStatus] = useState<'idle' | 'listening' | 'success' | 'retry'>('idle');
-
-  const handleMicListen = async () => {
-    if (isRecording) {
-      childSpeechEngine.stop();
-      setIsRecording(false);
-      setMicStatus('idle');
-      setMicFeedback(null);
-      return;
-    }
-
-    sfx.playPop();
-    setIsRecording(true);
-    setMicStatus('listening');
-    setMicFeedback(`Đang nghe bé đọc: "${currentWord.english}"... 🎙️`);
-
-    try {
-      const result = await childSpeechEngine.listenAndVerify(currentWord.english, 5000);
-      if (result.isMatch) {
-        sfx.playCorrect();
-        setMicStatus('success');
-        setMicFeedback(result.message);
-        setStarsEarned(prev => prev + 1);
-      } else if (result.spokenText) {
-        sfx.playGentleWrong();
-        setMicStatus('retry');
-        setMicFeedback(result.message);
-      } else {
-        sfx.playGentleWrong();
-        setMicStatus('retry');
-        setMicFeedback(result.message || 'Cô chưa nghe rõ, bé thử đọc lại nhé! 🐻');
-      }
-    } catch (e) {
-      setMicStatus('retry');
-      setMicFeedback('Bé kiểm tra quyền micro trên trình duyệt nhé! 🎙️');
-    } finally {
-      setTimeout(() => {
-        setIsRecording(false);
-        setMicStatus('idle');
-        setMicFeedback(null);
-      }, 3000);
-    }
   };
 
   // -------------------------------------------------------------
@@ -836,45 +789,6 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
                     </button>
                   </div>
 
-                  {/* Child Echo Mic Button */}
-                  <button
-                    onClick={handleMicListen}
-                    className={`w-full mt-3 py-2.5 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                      isRecording
-                        ? micStatus === 'success'
-                          ? 'bg-emerald-500 text-white ring-4 ring-emerald-200'
-                          : micStatus === 'retry'
-                          ? 'bg-amber-500 text-white ring-4 ring-amber-200'
-                          : 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-200'
-                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
-                    }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                    <span>
-                      {isRecording
-                        ? micStatus === 'success'
-                          ? 'Bé đọc rất giỏi! 🎉'
-                          : micStatus === 'retry'
-                          ? 'Bé thử lại nhé! 💪'
-                          : `Đang nghe bé đọc: "${currentWord.english}" 🎙️`
-                        : 'Bé đọc mic 🎤'}
-                    </span>
-                  </button>
-
-                  {micFeedback && (
-                    <div
-                      className={`mt-2 p-2 rounded-xl text-xs font-black text-center shadow-xs animate-pop-in ${
-                        micStatus === 'success'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                          : micStatus === 'retry'
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'bg-rose-100 text-rose-900 border border-rose-300'
-                      }`}
-                    >
-                      {micFeedback}
-                    </div>
-                  )}
-
                   {/* Advance to Step 2 */}
                   <button
                     onClick={() => {
@@ -912,6 +826,10 @@ export const InteractivePracticeStudio: React.FC<InteractivePracticeStudioProps>
           renderLaSubStep2()
         )
       )}
+
+      <KokoSpeakingCoach targetWord={currentWord.english} audioUrl={currentWord.audioUrl}
+        ageGroup={(['3-4', '4-5', '5-6'].includes(ageGroupCode) ? ageGroupCode : '3-4') as AgeGroupCode}
+        contextKey={`practice:${currentWord._id}:${currentWordIdx}:${subStep}`} />
 
       {/* Mascot Assistant & Back button */}
       <div className="flex items-center justify-between pt-4 border-t border-slate-100 flex-wrap gap-2">

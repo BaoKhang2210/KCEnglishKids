@@ -1,3 +1,5 @@
+import type { ParentNoteRequest, ParentNoteSuggestions, SpeakingRequest, SpeakingFeedback } from '../types';
+
 const BASE_URL = '/api';
 
 const getHeaders = () => {
@@ -18,10 +20,11 @@ export const api = {
     return data;
   },
 
-  async post(endpoint: string, body: any) {
+  async post(endpoint: string, body: any, signal?: AbortSignal) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: getHeaders(),
+      signal,
       body: JSON.stringify(body)
     });
     const data = await res.json();
@@ -58,6 +61,27 @@ export const api = {
     if (!res.ok) throw new Error(data.message || 'Request failed');
     return data;
   }
+};
+
+async function assistantPost<T>(endpoint: string, body: ParentNoteRequest | SpeakingRequest, signal?: AbortSignal): Promise<{ success: true; data: T }> {
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  if (signal?.aborted) cancel();
+  signal?.addEventListener('abort', cancel, { once: true });
+  const timer = setTimeout(cancel, 5000);
+  try {
+    return await api.post(endpoint, body, controller.signal);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', cancel);
+  }
+}
+
+export const aiApi = {
+  generateParentNote: (body: ParentNoteRequest, signal?: AbortSignal) =>
+    assistantPost<ParentNoteSuggestions>('/ai/generate-parent-note', body, signal),
+  evaluatePronunciation: (body: SpeakingRequest, signal?: AbortSignal) =>
+    assistantPost<SpeakingFeedback>('/ai/evaluate-pronunciation', body, signal)
 };
 
 // Auth API

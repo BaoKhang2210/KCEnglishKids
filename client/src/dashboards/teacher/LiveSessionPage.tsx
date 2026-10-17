@@ -32,7 +32,7 @@ import { classroomSessionApi, sentenceApi, teacherApi } from '../../services/api
 import type { ClassroomSession, StudentSessionScore, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { sfx, playWordAudio } from '../../utils/audio';
-import { childSpeechEngine, type SpeechRecognitionResult } from '../../utils/speechRecognition';
+import { KokoSpeakingCoach } from '../../components/child/KokoSpeakingCoach';
 import type { SentencePattern } from './SentenceTeachingPage';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
 
@@ -118,8 +118,6 @@ export const LiveSessionPage: React.FC = () => {
   const [currentPatternIndex, setCurrentPatternIndex] = useState(0);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
-  const [isListeningMic, setIsListeningMic] = useState(false);
-  const [speechResult, setSpeechResult] = useState<SpeechRecognitionResult | null>(null);
 
   // Bulk / Multi-select mode
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
@@ -155,39 +153,6 @@ export const LiveSessionPage: React.FC = () => {
       setLoadingPatterns(false);
     }
   }, []);
-
-  const handleStartMic = async (targetSentence: string) => {
-    if (isListeningMic) {
-      childSpeechEngine.stop();
-      setIsListeningMic(false);
-      return;
-    }
-
-    if (!childSpeechEngine.isAvailable()) {
-      showToast('⚠️ Trình duyệt chưa hỗ trợ micro nhận diện giọng nói. Cô hãy cho bé phát âm theo loa nhé!');
-      return;
-    }
-
-    sfx.playPop();
-    setIsListeningMic(true);
-    setSpeechResult(null);
-
-    try {
-      const result = await childSpeechEngine.listenAndVerify(targetSentence, 8000);
-      setIsListeningMic(false);
-      setSpeechResult(result);
-      if (result.isMatch) {
-        sfx.playStarFanfare();
-        showToast(`🎉 Bé phát âm rất tốt (${Math.round(result.confidence * 100)}%): "${result.spokenText}"`);
-      } else {
-        sfx.playGentleWrong();
-        showToast(`Bé nói: "${result.spokenText || '...'}" — Thử lại nhé!`);
-      }
-    } catch (error) {
-      setIsListeningMic(false);
-      console.warn('Speech error:', error);
-    }
-  };
 
   const playDialogue = async (qText: string, aText?: string) => {
     sfx.playPop();
@@ -916,17 +881,8 @@ export const LiveSessionPage: React.FC = () => {
 
                   {/* Speech mic check for child standing up */}
                   <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => handleStartMic(currentWarmupVocab.english)}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-lg active:scale-95 ${
-                        isListeningMic
-                          ? 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-400/50'
-                          : 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950'
-                      }`}
-                    >
-                      <Mic size={18} />
-                      <span>{isListeningMic ? 'Đang lắng nghe bé nói…' : 'Mời bé đọc vào Mic 🎤'}</span>
-                    </button>
+                    <KokoSpeakingCoach targetWord={currentWarmupVocab.english} audioUrl={currentWarmupVocab.audioUrl}
+                      ageGroup={session.ageGroup} contextKey={`${sessionId}:warmup-word:${currentWarmupIndex}`} />
                   </div>
                 </div>
               )}
@@ -989,17 +945,8 @@ export const LiveSessionPage: React.FC = () => {
 
                   {/* Practice speaking Sentence with Mic */}
                   <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => handleStartMic(currentWarmupPattern.english)}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-lg active:scale-95 ${
-                        isListeningMic
-                          ? 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-400/50'
-                          : 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950'
-                      }`}
-                    >
-                      <Mic size={18} />
-                      <span>{isListeningMic ? 'Đang lắng nghe bé nói câu này…' : 'Mời bé đọc mẫu câu vào Mic 🎤'}</span>
-                    </button>
+                    <KokoSpeakingCoach targetWord={currentWarmupPattern.english} audioUrl={currentWarmupPattern.audioUrl || undefined}
+                      ageGroup={session.ageGroup} contextKey={`${sessionId}:warmup-pattern:${currentWarmupPatternIndex}`} />
                   </div>
                 </div>
               )}
@@ -1270,6 +1217,11 @@ export const LiveSessionPage: React.FC = () => {
                 </div>
               </div>
 
+              <div className="my-4">
+                <KokoSpeakingCoach targetWord={currentVocab.english} audioUrl={currentVocab.audioUrl}
+                  ageGroup={session.ageGroup} contextKey={`${sessionId}:presentation:${currentVocabIndex}`} />
+              </div>
+
               {/* Vocabulary Carousel Strip at bottom */}
               <div className="w-full flex items-center gap-2 overflow-x-auto pt-4 border-t border-white/10 scrollbar-none">
                 {activeVocabList.map((v, idx) => (
@@ -1416,7 +1368,6 @@ export const LiveSessionPage: React.FC = () => {
                     onClick={() => {
                       sfx.playPop();
                       setIsAnswerRevealed(false);
-                      setSpeechResult(null);
                       setCurrentPatternIndex(i => (i > 0 ? i - 1 : patterns.length - 1));
                     }}
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all disabled:opacity-40"
@@ -1429,7 +1380,6 @@ export const LiveSessionPage: React.FC = () => {
                     onClick={() => {
                       sfx.playPop();
                       setIsAnswerRevealed(false);
-                      setSpeechResult(null);
                       setCurrentPatternIndex(i => (i < patterns.length - 1 ? i + 1 : 0));
                     }}
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all disabled:opacity-40"
@@ -1583,20 +1533,8 @@ export const LiveSessionPage: React.FC = () => {
                       {/* Interactive Speech & Classroom Actions */}
                       <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
                         {/* Live Mic Button */}
-                        <button
-                          onClick={() => {
-                            const targetText = primaryAnswer?.english || currentPattern.english;
-                            handleStartMic(targetText);
-                          }}
-                          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all cursor-pointer ${
-                            isListeningMic
-                              ? 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-400/50'
-                              : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white'
-                          }`}
-                        >
-                          <Mic size={18} className={isListeningMic ? 'animate-bounce' : ''} />
-                          <span>{isListeningMic ? 'Đang nghe bé nói...' : 'Mời bé đọc vào Mic 🎙️'}</span>
-                        </button>
+                        <KokoSpeakingCoach targetWord={primaryAnswer?.english || currentPattern.english}
+                          ageGroup={session.ageGroup} contextKey={`${sessionId}:sentence:${currentPatternIndex}:${isAnswerRevealed}`} />
 
                         {/* Whole class dialogue */}
                         <button
@@ -1619,35 +1557,6 @@ export const LiveSessionPage: React.FC = () => {
                         </button>
                       </div>
 
-                      {/* Speech Result Display */}
-                      {speechResult && (
-                        <div className={`mt-4 p-3 rounded-2xl border text-xs sm:text-sm font-black flex items-center justify-between gap-3 w-full animate-pop-in ${
-                          speechResult.isMatch
-                            ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200'
-                            : 'bg-amber-500/20 border-amber-400/50 text-amber-200'
-                        }`}>
-                          <span>
-                            {speechResult.isMatch ? '🎉 Phát âm chuẩn!' : '👉 Bé nói:'}{' '}
-                            "{speechResult.spokenText || '...'}" ({Math.round(speechResult.confidence * 100)}%)
-                          </span>
-                          <button
-                            onClick={() => {
-                              if (spotlightStudent) {
-                                const sid = typeof spotlightStudent.student === 'string' ? spotlightStudent.student : (spotlightStudent.student as User)._id;
-                                if (sid) {
-                                  void applyScore(sid, { stars: 1, points: 5 });
-                                  showToast(`⭐ Đã thưởng sao cho bé đọc xuất sắc!`);
-                                }
-                              } else {
-                                handleAwardWholeClass(1, 5);
-                              }
-                            }}
-                            className="px-3 py-1 rounded-xl bg-amber-400 text-amber-950 text-xs font-black shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                          >
-                            Thưởng bé +1 ⭐
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })()
@@ -1677,7 +1586,6 @@ export const LiveSessionPage: React.FC = () => {
                     onClick={() => {
                       sfx.playPop();
                       setIsAnswerRevealed(false);
-                      setSpeechResult(null);
                       setCurrentPatternIndex(idx);
                     }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 transition-all cursor-pointer ${

@@ -85,202 +85,111 @@ export function isKidPronunciationMatch(spokenText: string, targetWord: string):
   return false;
 }
 
+export interface SpeechCaptureResult {
+  success: boolean;
+  spokenText: string;
+  confidence: number;
+  error?: SpeechRecognitionResult['error'];
+  message: string;
+}
+
+interface BrowserRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: { results?: ArrayLike<ArrayLike<{ transcript: string; confidence?: number }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  abort: () => void;
+}
+
+type RecognitionConstructor = new () => BrowserRecognition;
+const recognitionConstructor = (): RecognitionConstructor | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  const browser = window as Window & { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
+  return browser.SpeechRecognition || browser.webkitSpeechRecognition;
+};
+
 export class ChildSpeechEngine {
-  private recognition: any = null;
-  private isListening: boolean = false;
-  private currentTimeout: any = null;
+  private cancelActive: (() => void) | null = null;
 
-  constructor() {
-    this.initRecognition();
-  }
-
-  private initRecognition() {
-    if (typeof window === 'undefined') return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      try {
-        this.recognition = new SpeechRecognition();
-        this.recognition.lang = 'en-US'; // English US
-        this.recognition.continuous = false; // Stop after utterance
-        this.recognition.interimResults = false;
-        this.recognition.maxAlternatives = 5; // Look at top 5 phonetic alternatives
-      } catch (e) {
-        this.recognition = null;
-      }
-    }
-  }
-
-  /**
-   * Check if speech recognition is available in current browser
-   */
   public isAvailable(): boolean {
-    return !!this.recognition;
+    return Boolean(recognitionConstructor());
   }
 
-  /**
-   * Stop active listening session
-   */
   public stop() {
-    if (this.currentTimeout) {
-      clearTimeout(this.currentTimeout);
-      this.currentTimeout = null;
-    }
-    if (this.recognition && this.isListening) {
-      try {
-        this.recognition.abort();
-      } catch (e) {}
-    }
-    this.isListening = false;
+    this.cancelActive?.();
   }
 
-  /**
-   * Listen to the child's microphone and verify against target word
-   */
-  public listenAndVerify(targetWord: string, timeoutMs: number = 5000): Promise<SpeechRecognitionResult> {
-    return new Promise((resolve) => {
-      if (!this.recognition) {
-        return resolve({
-          success: false,
-          isMatch: false,
-          spokenText: '',
-          targetWord,
-          confidence: 0,
-          error: 'unsupported',
-          message: 'Trình duyệt chưa hỗ trợ micro nhận diện giọng nói.'
-        });
-      }
-
-      this.stop(); // Stop any leftover sessions
-      this.isListening = true;
-
-      let resolved = false;
-
-      const finish = (result: SpeechRecognitionResult) => {
-        if (resolved) return;
-        resolved = true;
-        this.stop();
+  // Each attempt owns its recognizer, listeners, timeout, and promise resolution.
+  public listen(timeoutMs = 5000): Promise<SpeechCaptureResult> {
+    this.stop();
+    return new Promise(resolve => {
+      let recognition: BrowserRecognition | null = null;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let settled = false;
+      const finish = (result: SpeechCaptureResult) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.cancelActive = null;
+        if (recognition) {
+          recognition.onresult = null;
+          recognition.onerror = null;
+          recognition.onend = null;
+          try { recognition.abort(); } catch { /* Some browsers have already stopped. */ }
+        }
         resolve(result);
       };
-
-      // Safety timeout if user stays quiet
-      this.currentTimeout = setTimeout(() => {
-        finish({
-          success: false,
-          isMatch: false,
-          spokenText: '',
-          targetWord,
-          confidence: 0,
-          error: 'no-speech',
-          message: 'Cô chưa nghe rõ tiếng bé, bé thử đọc to lại nhé! 🐻'
-        });
-      }, timeoutMs);
-
-      this.recognition.onresult = (event: any) => {
-        if (resolved) return;
-
-        const results = event.results?.[0];
-        if (!results || results.length === 0) {
-          return finish({
-            success: false,
-            isMatch: false,
-            spokenText: '',
-            targetWord,
-            confidence: 0,
-            error: 'no-speech',
-            message: 'Cô chưa nghe rõ tiếng bé, bé thử lại nhé!'
-          });
-        }
-
-        let bestMatched = false;
-        let bestTranscript = results[0].transcript || '';
-        let highestConfidence = results[0].confidence || 0.9;
-
-        // Inspect all alternatives provided by SpeechRecognition
-        for (let i = 0; i < results.length; i++) {
-          const altText = results[i].transcript || '';
-          if (isKidPronunciationMatch(altText, targetWord)) {
-            bestMatched = true;
-            bestTranscript = altText;
-            highestConfidence = Math.max(highestConfidence, results[i].confidence || 0.95);
-            break;
-          }
-        }
-
-        if (bestMatched) {
-          finish({
-            success: true,
-            isMatch: true,
-            spokenText: bestTranscript,
-            targetWord,
-            confidence: highestConfidence,
-            message: `Bé đọc rất chuẩn: "${bestTranscript}" ⭐🎉`
-          });
-        } else {
-          finish({
-            success: true,
-            isMatch: false,
-            spokenText: bestTranscript,
-            targetWord,
-            confidence: highestConfidence,
-            message: `Bé vừa đọc là "${bestTranscript}". Bé thử lại to rõ hơn nhé! 💪`
-          });
-        }
-      };
-
-      this.recognition.onerror = (event: any) => {
-        if (resolved) return;
-        const errType = event.error;
-
-        if (errType === 'not-allowed' || errType === 'permission-denied') {
-          finish({
-            success: false,
-            isMatch: false,
-            spokenText: '',
-            targetWord,
-            confidence: 0,
-            error: 'not-allowed',
-            message: 'Bé hoặc bố mẹ cho phép ứng dụng sử dụng micro trên trình duyệt nhé! 🎙️'
-          });
-        } else if (errType === 'no-speech') {
-          finish({
-            success: false,
-            isMatch: false,
-            spokenText: '',
-            targetWord,
-            confidence: 0,
-            error: 'no-speech',
-            message: 'Cô chưa nghe rõ tiếng bé, bé bấm mic và đọc to lại nhé! 🐻'
-          });
-        } else {
-          finish({
-            success: false,
-            isMatch: false,
-            spokenText: '',
-            targetWord,
-            confidence: 0,
-            error: errType || 'unknown',
-            message: 'Có chút gián đoạn khi thu âm, bé thử lại nhé!'
-          });
-        }
-      };
-
+      const fail = (error: NonNullable<SpeechCaptureResult['error']>, message: string) =>
+        finish({ success: false, spokenText: '', confidence: 0, error, message });
+      const Constructor = recognitionConstructor();
+      if (!Constructor) return fail('unsupported', 'Speech recognition is unavailable. Listen and repeat with Koko instead.');
+      this.cancelActive = () => fail('aborted', 'Listening stopped.');
       try {
-        this.recognition.start();
-      } catch (err: any) {
-        finish({
-          success: false,
-          isMatch: false,
-          spokenText: '',
-          targetWord,
-          confidence: 0,
-          error: 'aborted',
-          message: 'Bé hãy bấm mic lại để cô nghe nhé!'
-        });
+        recognition = new Constructor();
+        recognition.lang = 'en-US';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = event => {
+          const top = event.results?.[0]?.[0];
+          const spokenText = top?.transcript?.trim() || '';
+          if (!spokenText) return fail('no-speech', 'No words were heard. Try again when you are ready.');
+          finish({ success: true, spokenText, confidence: top?.confidence ?? 0, message: 'Words captured.' });
+        };
+        recognition.onend = () => fail('no-speech', 'No words were heard. Try again when you are ready.');
+        recognition.onerror = event => {
+          if (['not-allowed', 'permission-denied', 'service-not-allowed'].includes(event.error)) {
+            fail('not-allowed', 'Ask an adult to check microphone permission, or listen and repeat instead.');
+          } else if (event.error === 'no-speech') {
+            fail('no-speech', 'No words were heard. Try again when you are ready.');
+          } else if (event.error === 'network') {
+            fail('network', 'Speech recognition lost its connection. You can still listen and repeat.');
+          } else if (event.error === 'aborted') {
+            fail('aborted', 'Listening stopped.');
+          } else {
+            fail('unknown', 'The microphone is unavailable. Try again or listen and repeat.');
+          }
+        };
+        timer = setTimeout(() => fail('no-speech', 'No words were heard. Try again when you are ready.'), Math.max(1000, Math.min(timeoutMs, 15000)));
+        recognition.start();
+      } catch {
+        fail('unknown', 'Could not start the microphone. Try again or listen and repeat.');
       }
     });
+  }
+
+  // Compatibility for existing callers; new coaching uses listen() and server feedback.
+  public async listenAndVerify(targetWord: string, timeoutMs = 5000): Promise<SpeechRecognitionResult> {
+    const result = await this.listen(timeoutMs);
+    const isMatch = result.success && isKidPronunciationMatch(result.spokenText, targetWord);
+    return {
+      ...result, targetWord, isMatch,
+      message: result.success ? (isMatch ? 'The recognized words match. Well done!' : 'Let’s listen and try again together.') : result.message
+    };
   }
 }
 

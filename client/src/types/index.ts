@@ -1,6 +1,56 @@
 export type Role = 'ADMIN' | 'TEACHER' | 'CHILD' | 'PARENT';
 export type AgeGroupCode = '3-4' | '4-5' | '5-6';
 
+export interface ParentNoteRequest {
+  childId: string;
+  assignmentId?: string;
+  resultId?: string;
+}
+
+export interface ParentNoteOption {
+  id: string;
+  type: 'praise' | 'encouragement' | 'practice_hint';
+  badge: string;
+  title: string;
+  content: string;
+  suggestedStars: number;
+}
+
+export interface ParentNoteSuggestions {
+  options: ParentNoteOption[];
+  source: 'template';
+  generative: false;
+  fallback: boolean;
+  metrics: {
+    scope: 'all_time' | 'assignment';
+    ageGroup: AgeGroupCode | null;
+    averageAccuracy: number | null;
+    completedLessons: number;
+    totalStars: number;
+    streak: number | null;
+    recentLesson: string | null;
+  };
+}
+
+export interface SpeakingRequest {
+  targetWord: string;
+  spokenTranscript: string;
+  ageGroup?: AgeGroupCode;
+}
+
+export interface SpeakingFeedback {
+  evaluationType: 'transcript_match';
+  source: 'rules';
+  evaluated: boolean;
+  score: number | null;
+  displayStars: number;
+  isAccepted: boolean;
+  mascotState: 'celebrating' | 'happy' | 'encouraging';
+  kokoSpeech: string;
+  kokoEnglishCheer: string;
+  practiceTip: string;
+}
+
 export interface User {
   id: string;
   _id?: string;
