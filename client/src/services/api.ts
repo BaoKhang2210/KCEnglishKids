@@ -213,7 +213,7 @@ export const teacherApi = {
   getStudentOverview: (studentId: string) => api.get(`/teacher/students/${studentId}/overview`),
   getStudentHistory: (studentId: string) => api.get(`/teacher/students/${studentId}/history`),
   getStudentNotes: (studentId: string) => api.get(`/teacher/students/${studentId}/notes`),
-  createTeacherNote: (data: { studentId: string; lessonId?: string; noteType: string; content: string }) =>
+  createTeacherNote: (data: { studentId: string; lessonId?: string; noteType: string; content: string; isHomeroomOnly?: boolean }) =>
     api.post('/teacher/notes', data),
   getAssignments: (classRoomId?: string, status?: string) => {
     const params = new URLSearchParams();
@@ -266,6 +266,8 @@ export const classroomSessionApi = {
     title?: string;
     activityIds?: string[];
     plannedDuration?: number;
+    sessionNumber?: number;
+    includeWarmup?: boolean;
   }) => api.post('/teacher/classroom-sessions', data),
   getSession: (id: string) => api.get(`/teacher/classroom-sessions/${id}`),
   startSession: (id: string) =>

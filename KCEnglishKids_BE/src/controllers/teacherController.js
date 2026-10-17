@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { ClassRoom, User, Progress, ActivityResult, LearningSession, Assignment, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity } = require('../models');
+const { ClassRoom, User, Progress, ActivityResult, LearningSession, Assignment, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion } = require('../models');
 
 const validId = id => mongoose.isValidObjectId(id);
 const invalid = (res, message) => res.status(400).json({ success: false, message });
@@ -10,15 +10,96 @@ const getStudent = async (req, id) => validId(id) ? User.findOne({ role: 'CHILD'
 const EMPTY_STATS = { averageScore: 0, stars: 0, totalStars: 0, attempts: 0, learningTime: 0, completedLessons: 0, lastActivity: null };
 // §1.1.2 — Vietnamese-aware name order (á/ă/â/đ/ê/ô/ơ/ư sort like their base letters)
 const byNameVi = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi', { sensitivity: 'base' });
-// §1.1.4 — per-child stats: activity aggregates + completedLessons from Progress (completed === true).
+// §1.1.4 — per-child stats: activity aggregates + progress + live classroom session stars + bonus stars.
 const statsFor = async ids => {
   if (!ids.length) return [];
-  const [resultStats, progressStats] = await Promise.all([
-    ActivityResult.aggregate([{ $match: { child: { $in: ids } } }, { $group: { _id: '$child', averageScore: { $avg: '$score' }, stars: { $sum: '$stars' }, totalStars: { $sum: '$stars' }, attempts: { $sum: '$attempts' }, learningTime: { $sum: '$duration' }, lastActivity: { $max: '$createdAt' } } }]),
-    Progress.aggregate([{ $match: { child: { $in: ids }, completed: true } }, { $group: { _id: '$child', completedLessons: { $sum: 1 } } }])
+  const [resultStats, progressStats, classroomStats, unitStats] = await Promise.all([
+    ActivityResult.aggregate([
+      { $match: { child: { $in: ids } } },
+      { $group: {
+          _id: '$child',
+          averageScore: { $avg: '$score' },
+          activityStars: { $sum: '$stars' },
+          attempts: { $sum: '$attempts' },
+          learningTime: { $sum: '$duration' },
+          lastActivity: { $max: '$createdAt' }
+      } }
+    ]),
+    Progress.aggregate([
+      { $match: { child: { $in: ids } } },
+      { $group: {
+          _id: '$child',
+          completedLessons: { $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] } },
+          progressStars: { $sum: '$stars' },
+          highestScoreAvg: { $avg: '$highestScore' },
+          progressAttempts: { $sum: '$attempts' },
+          lastProgressDate: { $max: '$lastActivityAt' }
+      } }
+    ]),
+    ClassroomSession.aggregate([
+      { $unwind: '$studentScores' },
+      { $match: { 'studentScores.student': { $in: ids } } },
+      { $group: {
+          _id: '$studentScores.student',
+          classroomStars: { $sum: '$studentScores.stars' },
+          classroomPoints: { $sum: '$studentScores.points' }
+      } }
+    ]),
+    UnitCompletion.aggregate([
+      { $match: { child: { $in: ids } } },
+      { $unwind: '$rewards' },
+      { $match: { 'rewards.type': 'STAR' } },
+      { $group: {
+          _id: '$child',
+          bonusStars: { $sum: '$rewards.amount' }
+      } }
+    ])
   ]);
-  const completedMap = new Map(progressStats.map(x => [String(x._id), x.completedLessons]));
-  return resultStats.map(x => ({ ...x, completedLessons: completedMap.get(String(x._id)) || 0 }));
+
+  const resultMap = new Map(resultStats.map(x => [String(x._id), x]));
+  const progressMap = new Map(progressStats.map(x => [String(x._id), x]));
+  const classroomMap = new Map(classroomStats.map(x => [String(x._id), x]));
+  const unitMap = new Map(unitStats.map(x => [String(x._id), x]));
+
+  return ids.map(id => {
+    const sid = String(id);
+    const r = resultMap.get(sid);
+    const p = progressMap.get(sid);
+    const c = classroomMap.get(sid);
+    const u = unitMap.get(sid);
+
+    const earnedStars = p ? (p.progressStars || 0) : (r ? (r.activityStars || 0) : 0);
+    const classroomStars = c ? (c.classroomStars || 0) : 0;
+    const bonusStars = u ? (u.bonusStars || 0) : 0;
+    const totalStars = earnedStars + classroomStars + bonusStars;
+
+    const avgScore = r?.averageScore !== undefined
+      ? Math.round(r.averageScore)
+      : (p?.highestScoreAvg !== undefined ? Math.round(p.highestScoreAvg) : 0);
+
+    const completedLessons = p?.completedLessons || 0;
+    const attempts = (r?.attempts || 0) + (p?.progressAttempts || 0);
+    const learningTime = r?.learningTime || 0;
+
+    let lastActivity = r?.lastActivity || p?.lastProgressDate || null;
+    if (r?.lastActivity && p?.lastProgressDate) {
+      lastActivity = new Date(r.lastActivity) > new Date(p.lastProgressDate) ? r.lastActivity : p.lastProgressDate;
+    }
+
+    return {
+      _id: id,
+      averageScore: avgScore,
+      stars: totalStars,
+      totalStars,
+      earnedStars,
+      classroomStars,
+      bonusStars,
+      completedLessons,
+      attempts,
+      learningTime,
+      lastActivity
+    };
+  });
 };
 const ownClassOr403 = async (req, res, id) => { if (!validId(id)) { invalid(res, 'Invalid classroom id.'); return null; } const item = await classFor(req, id); if (!item) res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); return item; };
 
@@ -68,9 +149,50 @@ exports.getStudents = async (req, res, next) => { try {
   const ids = await studentsFor(req); const q = { _id: { $in: ids }, role: 'CHILD' }; if (req.query.classRoomId) { if (!(await classFor(req, req.query.classRoomId))) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); q.assignedClass = req.query.classRoomId; } if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.$or = [{ name: { $regex: req.query.search, $options: 'i' } }, { username: { $regex: req.query.search, $options: 'i' } }]; const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 }); const statMap = new Map((await statsFor(data.map(x => x._id))).map(x => [String(x._id), x])); res.json({ success: true, data: data.map(x => ({ ...x.toObject(), stats: statMap.get(String(x._id)) || { ...EMPTY_STATS } })) });
 } catch (e) { next(e); } };
 
-exports.getStudentOverview = async (req, res, next) => { try {
-  const student = await getStudent(req, req.params.studentId); if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' }); const [progressList, recentActivities, sessions, notes, assignments] = await Promise.all([Progress.find({ child: student._id }).populate('lesson', 'title ageGroupCode').populate('topic', 'englishName vietnameseName').sort({ lastActivityAt: -1 }), ActivityResult.find({ child: student._id }).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }).limit(20), LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15), TeacherNote.find({ student: student._id, teacher: req.user._id }).populate('teacher', 'name').populate('lesson', 'title').sort({ createdAt: -1 }), Assignment.find({ teacher: req.user._id, $or: [{ student: student._id }, { classRoom: student.assignedClass }] }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 })]); const total = recentActivities.reduce((a, r) => ({ stars: a.stars + r.stars, score: a.score + r.score, attempts: a.attempts + r.attempts, seconds: a.seconds + r.duration }), { stars: 0, score: 0, attempts: 0, seconds: 0 }); res.json({ success: true, data: { student, stats: { totalStars: total.stars, completedLessons: progressList.filter(x => x.completed).length, totalActivitiesPlayed: recentActivities.length, averageScore: recentActivities.length ? Math.round(total.score / recentActivities.length) : 0, attempts: total.attempts, learningTime: total.seconds }, progressList, recentActivities, sessions, notes, assignments } });
-} catch (e) { next(e); } };
+exports.getStudentOverview = async (req, res, next) => {
+  try {
+    const student = await getStudent(req, req.params.studentId);
+    if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
+    const isHomeroom = student.assignedClass ? await ClassRoom.exists({ _id: student.assignedClass, teacher: req.user._id }) : false;
+    const notesQuery = { student: student._id };
+    if (!isHomeroom) {
+      notesQuery.$or = [{ isHomeroomOnly: { $ne: true } }, { teacher: req.user._id }];
+    }
+    const [progressList, recentActivities, sessions, notes, assignments, [overallStat]] = await Promise.all([
+      Progress.find({ child: student._id }).populate('lesson', 'title ageGroupCode').populate('topic', 'englishName vietnameseName').sort({ lastActivityAt: -1 }),
+      ActivityResult.find({ child: student._id }).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }).limit(20),
+      LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15),
+      TeacherNote.find(notesQuery).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 }),
+      Assignment.find({ teacher: req.user._id, $or: [{ student: student._id }, { classRoom: student.assignedClass }] }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
+      statsFor([student._id])
+    ]);
+    res.json({
+      success: true,
+      data: {
+        student,
+        isHomeroom,
+        stats: {
+          totalStars: overallStat?.totalStars || 0,
+          earnedStars: overallStat?.earnedStars || 0,
+          classroomStars: overallStat?.classroomStars || 0,
+          bonusStars: overallStat?.bonusStars || 0,
+          completedLessons: overallStat?.completedLessons || 0,
+          totalActivitiesPlayed: recentActivities.length,
+          averageScore: overallStat?.averageScore || 0,
+          attempts: overallStat?.attempts || 0,
+          learningTime: overallStat?.learningTime || 0
+        },
+        progressList,
+        recentActivities,
+        sessions,
+        notes,
+        assignments
+      }
+    });
+  } catch (e) {
+    next(e);
+  }
+};
 
 exports.getStudentHistory = async (req, res, next) => { try { const student = await getStudent(req, req.params.studentId); if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' }); const q = { child: student._id }; if (req.query.completed) q.completed = req.query.completed === 'true'; const data = await ActivityResult.find(q).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }); res.json({ success: true, data }); } catch (e) { next(e); } };
 
@@ -306,8 +428,39 @@ exports.updateAssignmentStatus = async (req, res, next) => {
   }
 };
 
-exports.createTeacherNote = async (req, res, next) => { try { const { studentId, lessonId, noteType = 'GENERAL', content } = req.body; if (!content || !String(content).trim() || !(await getStudent(req, studentId))) return invalid(res, 'A permitted child and note content are required.'); const data = await TeacherNote.create({ teacher: req.user._id, student: studentId, lesson: validId(lessonId) ? lessonId : null, noteType, content: String(content).trim() }); res.status(201).json({ success: true, data }); } catch (e) { next(e); } };
-exports.getStudentNotes = async (req, res, next) => { try { if (!(await getStudent(req, req.params.studentId))) return res.status(403).json({ success: false, message: 'You do not have access to this child.' }); const data = await TeacherNote.find({ student: req.params.studentId, teacher: req.user._id }).populate('teacher', 'name').populate('lesson', 'title').sort({ createdAt: -1 }); res.json({ success: true, data }); } catch (e) { next(e); } };
+exports.createTeacherNote = async (req, res, next) => {
+  try {
+    const { studentId, lessonId, noteType = 'GENERAL', content, isHomeroomOnly = false } = req.body;
+    if (!content || !String(content).trim() || !(await getStudent(req, studentId))) return invalid(res, 'A permitted child and note content are required.');
+    const data = await TeacherNote.create({
+      teacher: req.user._id,
+      student: studentId,
+      lesson: validId(lessonId) ? lessonId : null,
+      noteType,
+      content: String(content).trim(),
+      isHomeroomOnly: Boolean(isHomeroomOnly)
+    });
+    res.status(201).json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.getStudentNotes = async (req, res, next) => {
+  try {
+    const student = await getStudent(req, req.params.studentId);
+    if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
+    const isHomeroom = student.assignedClass ? await ClassRoom.exists({ _id: student.assignedClass, teacher: req.user._id }) : false;
+    const query = { student: req.params.studentId };
+    if (!isHomeroom) {
+      query.$or = [{ isHomeroomOnly: { $ne: true } }, { teacher: req.user._id }];
+    }
+    const data = await TeacherNote.find(query).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
 exports.updateNote = async (req, res, next) => { try { const data = await TeacherNote.findOneAndUpdate({ _id: req.params.id, teacher: req.user._id }, { content: req.body.content, noteType: req.body.noteType }, { new: true, runValidators: true }); if (!data) return res.status(403).json({ success: false, message: 'You can only edit your own note.' }); res.json({ success: true, data }); } catch (e) { next(e); } };
 exports.deleteNote = async (req, res, next) => { try { const data = await TeacherNote.findOneAndDelete({ _id: req.params.id, teacher: req.user._id }); if (!data) return res.status(403).json({ success: false, message: 'You can only delete your own note.' }); res.json({ success: true }); } catch (e) { next(e); } };
 exports.getCurriculumOptions = exports.getContent;

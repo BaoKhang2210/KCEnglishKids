@@ -25,10 +25,12 @@ import {
   MessageSquare,
   HelpCircle,
   EyeOff,
-  ExternalLink
+  ExternalLink,
+  Flame
 } from 'lucide-react';
-import { classroomSessionApi, sentenceApi } from '../../services/api';
+import { classroomSessionApi, sentenceApi, teacherApi } from '../../services/api';
 import type { ClassroomSession, StudentSessionScore, User } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { sfx, playWordAudio } from '../../utils/audio';
 import { childSpeechEngine, type SpeechRecognitionResult } from '../../utils/speechRecognition';
 import type { SentencePattern } from './SentenceTeachingPage';
@@ -49,7 +51,7 @@ const elapsedMin = (startedAt?: string) => {
 };
 
 type AnswerMap = Record<string, 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED'>;
-type ViewTab = 'presentation' | 'sentences' | 'grid' | 'games';
+type ViewTab = 'warmup' | 'presentation' | 'sentences' | 'grid' | 'games';
 
 
 const makeSvgUri = (emoji: string, bg: string, label: string) =>
@@ -82,6 +84,7 @@ const DEFAULT_PRESCHOOL_VOCAB = [
 export const LiveSessionPage: React.FC = () => {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [session, setSession] = useState<ClassroomSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,11 +96,22 @@ export const LiveSessionPage: React.FC = () => {
   const [elapsed, setElapsed] = useState(0);
   const [showWarn, setShowWarn] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasSetInitialTabRef = useRef(false);
 
   // Classroom teaching views
   const [activeTab, setActiveTab] = useState<ViewTab>('presentation');
   const [currentVocabIndex, setCurrentVocabIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Warm-up Phase state (Ôn tập từ vựng & mẫu câu của bài học ngay trước đó)
+  const [previousLesson, setPreviousLesson] = useState<any | null>(null);
+  const [warmupVocabList, setWarmupVocabList] = useState<any[]>(DEFAULT_PRESCHOOL_VOCAB);
+  const [currentWarmupIndex, setCurrentWarmupIndex] = useState(0);
+  const [isWarmupRevealed, setIsWarmupRevealed] = useState(false);
+  const [warmupPatterns, setWarmupPatterns] = useState<SentencePattern[]>([]);
+  const [currentWarmupPatternIndex, setCurrentWarmupPatternIndex] = useState(0);
+  const [isWarmupPatternRevealed, setIsWarmupPatternRevealed] = useState(false);
+  const [warmupSection, setWarmupSection] = useState<'vocab' | 'patterns'>('vocab');
 
   // Sentence Patterns teaching state
   const [patterns, setPatterns] = useState<SentencePattern[]>([]);
@@ -207,8 +221,109 @@ export const LiveSessionPage: React.FC = () => {
       const res = await classroomSessionApi.getSession(sessionId);
       const s: ClassroomSession = res.data;
       setSession(s);
+
+      // Auto-activate warm-up tab on initial start if configured
+      if (!hasSetInitialTabRef.current) {
+        hasSetInitialTabRef.current = true;
+        if (s.includeWarmup !== false) {
+          setActiveTab('warmup');
+        }
+      }
+
       const lessonId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
       void loadSentencePatterns(lessonId, s.ageGroup || s.classroom?.ageGroupCode);
+
+      // Fetch the immediately preceding lesson (bài học ngay trước đó) for Warm-up
+      try {
+        const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
+        let prevLessonDoc: any = null;
+
+        // 1. Check previous sessions of this class to get the lesson taught in the preceding session
+        if (cId) {
+          try {
+            const prevSessRes = await classroomSessionApi.getSessions({ classroomId: cId });
+            const list = (prevSessRes.data || []) as any[];
+            const validPastSessions = list
+              .filter((ps: any) => ps._id !== s._id && ps.lesson)
+              .sort((a: any, b: any) => (Number(b.sessionNumber) || 0) - (Number(a.sessionNumber) || 0));
+
+            const priorSession = validPastSessions.find((ps: any) =>
+              (Number(ps.sessionNumber) || 0) < (Number(s.sessionNumber) || 999)
+            ) || validPastSessions[0];
+
+            if (priorSession?.lesson) {
+              const pLId = typeof priorSession.lesson === 'object' ? priorSession.lesson._id : priorSession.lesson;
+              const detailRes = await teacherApi.getLesson(pLId);
+              if (detailRes.data) {
+                prevLessonDoc = detailRes.data;
+              }
+            }
+          } catch (err) {
+            console.warn('Could not load previous session lesson:', err);
+          }
+        }
+
+        // 2. Fallback to book order if no previous session found
+        if (!prevLessonDoc) {
+          const cntRes = await teacherApi.getContent();
+          if (cntRes.data?.lessons) {
+            const allL = cntRes.data.lessons;
+            const curId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
+            const curIdx = allL.findIndex((l: any) => String(l._id) === String(curId));
+            if (curIdx > 0) {
+              const detailRes = await teacherApi.getLesson(allL[curIdx - 1]._id);
+              if (detailRes.data) {
+                prevLessonDoc = detailRes.data;
+              } else {
+                prevLessonDoc = allL[curIdx - 1];
+              }
+            } else if (allL.length > 0) {
+              prevLessonDoc = allL[0];
+            }
+          }
+        }
+
+        if (prevLessonDoc) {
+          setPreviousLesson(prevLessonDoc);
+
+          // Populate Vocabulary of the immediately preceding lesson
+          if (prevLessonDoc.vocabularyItems?.length > 0) {
+            setWarmupVocabList(
+              prevLessonDoc.vocabularyItems.map((v: any) => ({
+                _id: v._id || v.word,
+                english: v.english || v.word || 'Word',
+                vietnamese: v.vietnamese || '',
+                pronunciation: v.pronunciation || '',
+                imageUrl: v.imageUrl || makeSvgUri('⭐', '#FED7AA', v.english || 'Word'),
+                audioUrl: v.audioUrl || ''
+              }))
+            );
+          }
+
+          // Populate Sentence Patterns of the immediately preceding lesson
+          try {
+            const patRes = await sentenceApi.getPatterns({
+              lessonId: prevLessonDoc._id,
+              ageGroupCode: s.ageGroup || s.classroom?.ageGroupCode
+            });
+            if (patRes.success && Array.isArray(patRes.data) && patRes.data.length > 0) {
+              setWarmupPatterns(patRes.data);
+            } else {
+              const fallbackPats = await sentenceApi.getPatterns({
+                ageGroupCode: s.ageGroup || s.classroom?.ageGroupCode || '3-4'
+              });
+              if (fallbackPats.success && Array.isArray(fallbackPats.data)) {
+                setWarmupPatterns(fallbackPats.data.slice(0, 3));
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load warmup patterns:', e);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load warmup previous lesson data:', err);
+      }
+
       // Initialise answer map for this question
       const initialAnswers: AnswerMap = {};
       (s.studentScores || []).forEach((sc) => {
@@ -260,7 +375,21 @@ export const LiveSessionPage: React.FC = () => {
   }, [session?.lesson]);
 
   const currentVocab = activeVocabList[currentVocabIndex] || activeVocabList[0];
+  const currentWarmupVocab = warmupVocabList[currentWarmupIndex] || warmupVocabList[0] || DEFAULT_PRESCHOOL_VOCAB[0];
+  const currentWarmupPattern = warmupPatterns[currentWarmupPatternIndex] || warmupPatterns[0];
   const currentLessonId = typeof session?.lesson === 'object' ? (session?.lesson as any)?._id : session?.lesson;
+
+  const unitInfo = useMemo(() => {
+    const l = session?.lesson as any;
+    if (!l) return null;
+    const u = Array.isArray(l.curriculumUnits) && l.curriculumUnits.length > 0 ? l.curriculumUnits[0] : null;
+    return {
+      bookNumber: u?.bookNumber || 1,
+      unitNumber: u?.unitNumber || 1,
+      unitTitle: u?.title || '',
+      topicName: l.topic?.englishName || l.topic?.vietnameseName || ''
+    };
+  }, [session?.lesson]);
 
   // ── Question result submission ─────────────────────────────────────────────
   const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '') => {
@@ -428,11 +557,22 @@ export const LiveSessionPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
               <p className="text-xs font-black text-emerald-400 tracking-wider uppercase">LỚP HỌC TRỰC TIẾP</p>
+              <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                BUỔI {session.sessionNumber || 1}
+              </span>
             </div>
-            <h1 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
-              {session.title}
+            <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex flex-wrap items-center gap-2">
+              <span>{session.lesson?.title || session.title}</span>
+              {unitInfo && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  Book {unitInfo.bookNumber} • Unit {unitInfo.unitNumber}{unitInfo.unitTitle ? `: ${unitInfo.unitTitle}` : ''}
+                </span>
+              )}
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-amber-300">
                 {session.classroom?.name || 'Mầm non'}
+              </span>
+              <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-200 border border-teal-500/30 flex items-center gap-1 shadow-xs">
+                👩‍🏫 Cô: {(typeof session.teacher === 'object' && (session.teacher as any)?.name) || (session.classroom as any)?.teacher?.name || user?.name || 'Giáo viên'}
               </span>
             </h1>
           </div>
@@ -440,6 +580,19 @@ export const LiveSessionPage: React.FC = () => {
 
         {/* View Mode Switcher Tabs (Desktop / Laptop) */}
         <div className="hidden lg:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setActiveTab('warmup')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeTab === 'warmup'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md scale-105 ring-2 ring-orange-300'
+                : 'text-amber-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Flame size={16} className="text-amber-300 fill-amber-300" />
+            <span>0. Ôn Cũ Học Mới</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('presentation')}
@@ -528,6 +681,14 @@ export const LiveSessionPage: React.FC = () => {
       {/* Mobile & Tablet Tab switcher bar */}
       <div className="flex lg:hidden items-center justify-start gap-1.5 bg-slate-900 border-b border-white/10 p-2 overflow-x-auto no-scrollbar">
         <button
+          onClick={() => setActiveTab('warmup')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
+            activeTab === 'warmup' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white' : 'text-amber-300 hover:bg-white/10'
+          }`}
+        >
+          <Flame size={14} className="fill-amber-300" /> Ôn Cũ
+        </button>
+        <button
           onClick={() => setActiveTab('presentation')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
             activeTab === 'presentation' ? 'bg-amber-400 text-amber-950' : 'text-slate-300 hover:bg-white/10'
@@ -571,6 +732,445 @@ export const LiveSessionPage: React.FC = () => {
 
       {/* ── MAIN CONTENT AREA BASED ON TAB ───────────────────────────────────── */}
       <div className="flex-1 flex flex-col p-3 sm:p-6 overflow-x-hidden">
+
+        {/* ========================================================================= */}
+        {/* TAB 0: WARM-UP & REVIEW PREVIOUS LESSONS (ÔN CŨ HỌC MỚI) (GV-03)        */}
+        {/* ========================================================================= */}
+        {/* TAB 0: WARM-UP & PREVIOUS LESSON REVIEW (ÔN CŨ HỌC MỚI: TỪ VỰNG & MẪU CÂU) */}
+        {/* ========================================================================= */}
+        {activeTab === 'warmup' && (
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
+            {/* Left 8 Cols: Giant Warm-up Review Flashcard & Projection */}
+            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-orange-950/20 to-slate-900 rounded-4xl border-3 border-orange-400/50 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+              {/* Header badge & controls */}
+              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5 shadow-md">
+                      <Flame size={16} className="fill-white" />
+                      Ôn Cũ Học Mới: Bài học ngay trước đó
+                    </span>
+                    {warmupSection === 'vocab' ? (
+                      <span className="text-xs text-amber-300 font-bold bg-white/10 px-2.5 py-1 rounded-lg">
+                        Từ {currentWarmupIndex + 1} / {warmupVocabList.length || 1}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-teal-300 font-bold bg-white/10 px-2.5 py-1 rounded-lg">
+                        Mẫu câu {currentWarmupPatternIndex + 1} / {warmupPatterns.length || 1}
+                      </span>
+                    )}
+                  </div>
+                  {previousLesson && (
+                    <p className="text-xs sm:text-sm font-bold text-amber-300/90 mt-1 flex items-center gap-1.5">
+                      <span>📖 Đang ôn bài trước:</span>
+                      <span className="text-white font-black underline">{previousLesson.title}</span>
+                      {previousLesson.vietnameseTitle && <span className="text-slate-300">({previousLesson.vietnameseTitle})</span>}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Switcher Vocab vs Patterns */}
+                  <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-white/15 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playPop();
+                        setWarmupSection('vocab');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                        warmupSection === 'vocab'
+                          ? 'bg-orange-500 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🔤 Từ vựng ({warmupVocabList.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playPop();
+                        setWarmupSection('patterns');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                        warmupSection === 'patterns'
+                          ? 'bg-teal-500 text-white shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      💬 Mẫu câu ({warmupPatterns.length})
+                    </button>
+                  </div>
+
+                  {/* Navigation arrows */}
+                  {warmupSection === 'vocab' ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsWarmupRevealed(false);
+                          setCurrentWarmupIndex((i) => (i > 0 ? i - 1 : warmupVocabList.length - 1));
+                        }}
+                        className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all"
+                        title="Từ ôn trước"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsWarmupRevealed(false);
+                          setCurrentWarmupIndex((i) => (i < warmupVocabList.length - 1 ? i + 1 : 0));
+                        }}
+                        className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all"
+                        title="Từ ôn tiếp theo"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsWarmupPatternRevealed(false);
+                          setCurrentWarmupPatternIndex((i) => (i > 0 ? i - 1 : warmupPatterns.length - 1));
+                        }}
+                        className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all"
+                        title="Mẫu câu trước"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsWarmupPatternRevealed(false);
+                          setCurrentWarmupPatternIndex((i) => (i < warmupPatterns.length - 1 ? i + 1 : 0));
+                        }}
+                        className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all"
+                        title="Mẫu câu tiếp theo"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Main Flashcard for Warm-up: Vocabulary vs Sentence Pattern */}
+              {warmupSection === 'vocab' && currentWarmupVocab && (
+                <div className="flex flex-col items-center text-center my-auto w-full">
+                  {/* Card Image */}
+                  <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-4xl bg-white p-4 shadow-2xl border-4 border-orange-400 mb-5 flex items-center justify-center relative group">
+                    <img
+                      src={currentWarmupVocab.imageUrl}
+                      alt={currentWarmupVocab.english}
+                      className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform"
+                    />
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        playWordAudio(currentWarmupVocab.english, currentWarmupVocab.audioUrl);
+                      }}
+                      className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 hover:from-orange-400 hover:to-amber-300 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-6 ring-orange-300/40"
+                      title="Phát âm từ này"
+                    >
+                      <Volume2 size={26} />
+                    </button>
+                  </div>
+
+                  {/* Word title */}
+                  <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-orange-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
+                    {currentWarmupVocab.english}
+                  </h2>
+
+                  {/* Vietnamese / Hint Reveal Toggle */}
+                  <div className="flex items-center justify-center gap-3 mb-5">
+                    {isWarmupRevealed ? (
+                      <div className="flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-2xl text-lg font-bold text-white border border-white/20 animate-fade-in">
+                        <span>{currentWarmupVocab.vietnamese}</span>
+                        {currentWarmupVocab.pronunciation && (
+                          <span className="text-orange-300 font-mono text-sm">
+                            {currentWarmupVocab.pronunciation}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setIsWarmupRevealed(false)}
+                          className="ml-2 text-xs text-slate-400 hover:text-white"
+                        >
+                          <EyeOff size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsWarmupRevealed(true);
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl bg-orange-500/20 text-orange-300 border border-orange-400/40 text-sm font-bold hover:bg-orange-500/30 cursor-pointer transition-all"
+                      >
+                        <Sparkles size={15} /> Đố bé nghĩa tiếng Việt là gì? (Bấm để xem)
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Speech mic check for child standing up */}
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleStartMic(currentWarmupVocab.english)}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-lg active:scale-95 ${
+                        isListeningMic
+                          ? 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-400/50'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950'
+                      }`}
+                    >
+                      <Mic size={18} />
+                      <span>{isListeningMic ? 'Đang lắng nghe bé nói…' : 'Mời bé đọc vào Mic 🎤'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Main Flashcard for Warm-up: Sentence Patterns */}
+              {warmupSection === 'patterns' && currentWarmupPattern && (
+                <div className="flex flex-col items-center text-center my-auto w-full">
+                  {/* Pattern Illustration Frame */}
+                  <div className="w-44 h-44 sm:w-56 sm:h-56 rounded-4xl bg-white/10 p-4 shadow-2xl border-4 border-amber-400/60 mb-5 flex items-center justify-center relative">
+                    <span className="text-7xl sm:text-8xl filter drop-shadow">
+                      {getSentenceIllustration(currentWarmupPattern.english)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        sfx.playPop();
+                        playWordAudio(currentWarmupPattern.english, currentWarmupPattern.audioUrl || undefined);
+                      }}
+                      className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 hover:from-amber-400 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-4 ring-amber-300/40"
+                      title="Nghe phát âm mẫu câu này"
+                    >
+                      <Volume2 size={24} />
+                    </button>
+                  </div>
+
+                  {/* Sentence English Text */}
+                  <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-amber-300 font-display tracking-wide uppercase drop-shadow-md mb-2 max-w-2xl">
+                    &ldquo;{currentWarmupPattern.english}&rdquo;
+                  </h2>
+
+                  {/* Pronunciation & Vietnamese Meaning */}
+                  <div className="flex flex-col items-center justify-center gap-2 mb-5">
+                    {currentWarmupPattern.pronunciation && (
+                      <span className="text-xs sm:text-sm text-slate-300 font-mono bg-white/10 px-3 py-1 rounded-full">
+                        {currentWarmupPattern.pronunciation}
+                      </span>
+                    )}
+
+                    {isWarmupPatternRevealed ? (
+                      <div className="flex items-center gap-2 bg-white/15 px-4 py-2 rounded-2xl text-base sm:text-lg font-bold text-white border border-white/20 animate-fade-in">
+                        <span>{currentWarmupPattern.vietnamese}</span>
+                        <button
+                          onClick={() => setIsWarmupPatternRevealed(false)}
+                          className="ml-2 text-xs text-slate-400 hover:text-white"
+                        >
+                          <EyeOff size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsWarmupPatternRevealed(true);
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 text-xs sm:text-sm font-bold hover:bg-amber-500/30 cursor-pointer transition-all"
+                      >
+                        <Sparkles size={14} /> Đố bé mẫu câu này nghĩa là gì? (Bấm để xem)
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Practice speaking Sentence with Mic */}
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleStartMic(currentWarmupPattern.english)}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-sm transition-all cursor-pointer shadow-lg active:scale-95 ${
+                        isListeningMic
+                          ? 'bg-rose-500 text-white animate-pulse ring-4 ring-rose-400/50'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950'
+                      }`}
+                    >
+                      <Mic size={18} />
+                      <span>{isListeningMic ? 'Đang lắng nghe bé nói câu này…' : 'Mời bé đọc mẫu câu vào Mic 🎤'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Big CTA: Complete Warm-up and Transition to Lesson */}
+              <div className="w-full mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span className="text-xs text-orange-200/80 font-medium">
+                  💡 Gợi ý: Cho cả lớp đồng thanh ôn lại 2-3 lần, gọi 2 bé đọc mẫu câu rồi bắt đầu bài mới!
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.playStarFanfare();
+                    setActiveTab('presentation');
+                    showToast('🚀 Ôn bài cũ hoàn tất! Bắt đầu Giảng dạy bài mới!');
+                  }}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-sm sm:text-base px-6 py-3 rounded-2xl shadow-xl active:scale-95 transition-all cursor-pointer"
+                >
+                  <span>Hoàn thành Ôn Bài Cũ ➔ Giảng Bài Mới</span>
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Right 4 Cols: Warm-up Rewards, Spotlight Student, Vocab/Pattern Quick Jump */}
+            <div className="lg:col-span-4 flex flex-col gap-4">
+              {/* Quick Whole-Class & Random Call Actions */}
+              <div className="bg-slate-900/90 rounded-3xl border border-white/10 p-5 shadow-xl">
+                <h3 className="text-xs font-black text-orange-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Flame size={15} /> Thưởng sao ôn bài cũ
+                </h3>
+
+                <div className="space-y-2.5">
+                  <button
+                    onClick={() => handleAwardWholeClass(1, 5)}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-sm py-3 px-4 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Star size={18} className="fill-white" />
+                    <span>Thưởng Sao Cả Lớp (+1 ⭐ / bé)</span>
+                  </button>
+
+                  <button
+                    onClick={pickRandomStudent}
+                    disabled={isPickingRandom}
+                    className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-sm py-2.5 px-4 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Shuffle size={16} />
+                    <span>{isPickingRandom ? 'Đang quay chọn…' : '🎲 Gọi 1 bé ngẫu nhiên lên ôn bài'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Spotlight student display if picked */}
+              {spotlightStudent && (
+                <div className="bg-gradient-to-br from-purple-950/70 to-slate-900 rounded-3xl border-2 border-purple-400 p-4 shadow-xl animate-fade-in">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-extrabold text-purple-300 uppercase">Bé được gọi</span>
+                    <button
+                      onClick={() => setSpotlightStudent(null)}
+                      className="text-xs text-slate-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-400 text-amber-950 font-black text-lg flex items-center justify-center">
+                      {(spotlightStudent.student as User)?.name?.[0] || '?'}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-white text-base">
+                        {(spotlightStudent.student as User)?.name || 'Học sinh'}
+                      </p>
+                      <p className="text-xs text-amber-300 font-bold">
+                        ⭐ {spotlightStudent.stars} sao · {spotlightStudent.points}đ
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const sid = typeof spotlightStudent.student === 'string' ? spotlightStudent.student : (spotlightStudent.student as User)._id;
+                        if (sid) {
+                          applyScore(sid, { stars: 1, points: 5, correctDelta: 1 });
+                          showToast(`⭐ Đã thưởng sao cho ${(spotlightStudent.student as User)?.name}!`);
+                        }
+                      }}
+                      className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-black px-3 py-2 rounded-xl text-xs flex items-center gap-1 shadow-md active:scale-90 transition-all cursor-pointer"
+                    >
+                      <Star size={14} className="fill-amber-950" /> +1 Sao
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Jump List: Vocab or Patterns of preceding lesson */}
+              <div className="bg-slate-900/90 rounded-3xl border border-white/10 p-4 shadow-xl flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-2 pb-1 border-b border-white/10">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    {warmupSection === 'vocab'
+                      ? `Từ vựng bài trước (${warmupVocabList.length})`
+                      : `Mẫu câu bài trước (${warmupPatterns.length})`}
+                  </h4>
+                  <span className="text-[10px] text-amber-300 font-bold truncate max-w-[120px]">
+                    {previousLesson?.title || 'Bài trước'}
+                  </span>
+                </div>
+
+                {warmupSection === 'vocab' ? (
+                  <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-64 pr-1">
+                    {warmupVocabList.map((item, idx) => {
+                      const isCur = idx === currentWarmupIndex;
+                      return (
+                        <button
+                          key={item._id || idx}
+                          onClick={() => {
+                            sfx.playPop();
+                            setCurrentWarmupIndex(idx);
+                            setIsWarmupRevealed(false);
+                          }}
+                          className={`flex items-center gap-2 p-2 rounded-xl text-left transition-all ${
+                            isCur
+                              ? 'bg-orange-500 text-white font-bold shadow-md ring-2 ring-orange-300'
+                              : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                          }`}
+                        >
+                          <span className="text-base">{item.imageUrl?.includes('data:') ? '📖' : '🔤'}</span>
+                          <div className="truncate">
+                            <p className="text-xs font-bold truncate">{item.english}</p>
+                            <p className="text-[10px] opacity-75 truncate">{item.vietnamese}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-2 overflow-y-auto max-h-64 pr-1">
+                    {warmupPatterns.length === 0 ? (
+                      <p className="text-center py-6 text-xs text-slate-400 italic">
+                        Bài trước chưa tạo mẫu câu riêng
+                      </p>
+                    ) : (
+                      warmupPatterns.map((pat, idx) => {
+                        const isCur = idx === currentWarmupPatternIndex;
+                        return (
+                          <button
+                            key={pat._id || idx}
+                            onClick={() => {
+                              sfx.playPop();
+                              setCurrentWarmupPatternIndex(idx);
+                              setIsWarmupPatternRevealed(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all ${
+                              isCur
+                                ? 'bg-teal-600 text-white font-bold shadow-md ring-2 ring-teal-300'
+                                : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                            }`}
+                          >
+                            <span className="text-lg shrink-0">{getSentenceIllustration(pat.english)}</span>
+                            <div className="truncate min-w-0 flex-1">
+                              <p className="text-xs font-bold truncate">{pat.english}</p>
+                              <p className="text-[10px] opacity-75 truncate">{pat.vietnamese}</p>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* TAB 1: PRESENTATION & VOCABULARY TEACHING (Màn hình Giảng dạy Từ vựng)   */}
@@ -805,10 +1405,10 @@ export const LiveSessionPage: React.FC = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-400/30 text-xs font-bold transition-all cursor-pointer"
-                      title="Mở màn hình chiếu mẫu câu độc lập ở tab mới"
+                      title="Mở màn hình học mẫu câu độc lập ở tab mới"
                     >
                       <ExternalLink size={13} />
-                      <span className="hidden sm:inline">Chiếu riêng ↗</span>
+                      <span className="hidden sm:inline">Học mẫu câu ↗</span>
                     </a>
                   )}
 

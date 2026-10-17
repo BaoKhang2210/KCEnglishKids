@@ -12,10 +12,16 @@ const auditLogSchema = new mongoose.Schema(
       enum: [
         'CREATE_USER',
         'UPDATE_USER',
+        'DELETE_USER',
         'LOCK_USER',
         'UNLOCK_USER',
+        'RESET_PIN',
+        'CREATE_CLASSROOM',
+        'UPDATE_CLASSROOM',
+        'DEACTIVATE_CLASSROOM',
         'TOGGLE_TOPIC',
         'TOGGLE_LESSON',
+        'UPDATE_SETTINGS',
         // §4.22 — reward system audit trail
         'GRANT_REWARD',
         'REVEAL_CHEST'
@@ -24,7 +30,7 @@ const auditLogSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['User', 'Topic', 'Lesson', 'System', 'Unit'],
+      enum: ['User', 'Topic', 'Lesson', 'System', 'Unit', 'ClassRoom', 'Settings'],
       default: 'User'
     },
     targetId: {

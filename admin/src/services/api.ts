@@ -29,6 +29,17 @@ export const api = {
     return data;
   },
 
+  async put(endpoint: string, body?: any) {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Request failed');
+    return data;
+  },
+
   async patch(endpoint: string, body?: any) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'PATCH',
@@ -67,7 +78,7 @@ export const adminApi = {
     const query = params.toString() ? `?${params.toString()}` : '';
     return api.get(`/admin/users${query}`);
   },
-  createTeacher: (data: { name: string; username: string; email: string; password: string; contact?: string; avatar?: string }) =>
+  createTeacher: (data: { name: string; username: string; email: string; password: string; contact?: string; avatar?: string; assignedClass?: string }) =>
     api.post('/admin/teachers', data),
   createChild: (data: {
     name: string;
@@ -75,6 +86,7 @@ export const adminApi = {
     dob?: string;
     avatar?: string;
     assignedClass?: string;
+    ageGroupCode?: string;
     email?: string;
     contact?: string;
     password?: string;
@@ -85,5 +97,32 @@ export const adminApi = {
   getAuditLogs: () =>
     api.get('/admin/audit-logs'),
   toggleTopicStatus: (id: string) =>
-    api.patch(`/admin/topics/${id}/status`)
+    api.patch(`/admin/topics/${id}/status`),
+  getClassrooms: () =>
+    api.get('/admin/classrooms'),
+  createClassroom: (data: { name: string; ageGroupCode: string; teacherId: string; academicYear?: string; description?: string }) =>
+    api.post('/admin/classrooms', data),
+  updateClassroom: (id: string, data: any) =>
+    api.put(`/admin/classrooms/${id}`, data),
+  deleteClassroom: (id: string) =>
+    api.delete(`/admin/classrooms/${id}`),
+  assignStudentsToClassroom: (id: string, studentIds: string[]) =>
+    api.post(`/admin/classrooms/${id}/assign-students`, { studentIds }),
+  updateUser: (id: string, data: any) =>
+    api.put(`/admin/users/${id}`, data),
+  resetChildPin: (id: string, pin: string) =>
+    api.post(`/admin/users/${id}/reset-pin`, { pin }),
+  deleteUser: (id: string) =>
+    api.delete(`/admin/users/${id}`),
+  getDeepCurriculum: () =>
+    api.get('/admin/curriculum/deep'),
+  toggleLessonStatus: (id: string) =>
+    api.patch(`/admin/lessons/${id}/status`),
+  getAdminAnalytics: () =>
+    api.get('/admin/analytics/overview'),
+  getSystemSettings: () =>
+    api.get('/admin/settings'),
+  updateSystemSettings: (data: any) =>
+    api.put('/admin/settings', data)
 };
+

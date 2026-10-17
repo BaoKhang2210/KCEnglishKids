@@ -8,12 +8,13 @@ import { TopicDetailPage } from './pages/child/TopicDetailPage';
 import { LessonDetailPage } from './pages/child/LessonDetailPage';
 import { ActivityPlayPage } from './pages/child/ActivityPlayPage';
 import { TeacherLoginPage } from './dashboards/teacher/TeacherLoginPage';
-import { TeacherLayout, TeacherDashboard, TeacherClasses, TeacherClassDetail, TeacherContent, TeacherAssignments, TeacherAssignmentDetail, TeacherStudents, TeacherStudentDetail } from './dashboards/teacher/TeacherWorkspace';
+import { TeacherLayout, TeacherDashboard, TeacherClasses, TeacherClassDetail, TeacherContent, TeacherAssignments, TeacherAssignmentDetail, TeacherStudents, TeacherStudentDetail, TeacherAnalytics } from './dashboards/teacher/TeacherWorkspace';
 import { ClassroomSessionSetup } from './dashboards/teacher/ClassroomSessionSetup';
 import { LiveSessionPage } from './dashboards/teacher/LiveSessionPage';
 import { SessionSummaryPage } from './dashboards/teacher/SessionSummaryPage';
 import { ClassroomSessionsList } from './dashboards/teacher/ClassroomSessionsList';
 import { SentenceTeachingPage } from './dashboards/teacher/SentenceTeachingPage';
+import { TeacherTeachingSchedule } from './dashboards/teacher/TeacherTeachingSchedule';
 import { ChangePinPage } from './pages/child/ChangePinPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -103,6 +104,7 @@ export function App() {
           <Route path="/teacher/login" element={<TeacherLoginPage />} />
           <Route path="/teacher" element={<ProtectedTeacherRoute><TeacherLayout /></ProtectedTeacherRoute>}>
             <Route path="dashboard" element={<TeacherDashboard />} />
+            <Route path="schedule" element={<TeacherTeachingSchedule />} />
             <Route path="classes" element={<TeacherClasses />} />
             <Route path="classes/:classId" element={<TeacherClassDetail />} />
             <Route path="content" element={<TeacherContent />} />
@@ -110,12 +112,17 @@ export function App() {
             <Route path="assignments/:assignmentId" element={<TeacherAssignmentDetail />} />
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
+            <Route path="analytics" element={<TeacherAnalytics />} />
             <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
             <Route path="sentences" element={<SentenceTeachingPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
           {/* Teacher Session Routes — full screen, outside TeacherLayout */}
+          <Route
+            path="/teacher/classroom-sessions/new"
+            element={<ProtectedTeacherRoute><ClassroomSessionSetup /></ProtectedTeacherRoute>}
+          />
           <Route
             path="/teacher/classes/:classId/sessions/new"
             element={<ProtectedTeacherRoute><ClassroomSessionSetup /></ProtectedTeacherRoute>}

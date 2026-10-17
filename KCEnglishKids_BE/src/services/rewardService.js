@@ -1,4 +1,4 @@
-const { UnitCompletion, Progress, Lesson, CurriculumUnit, AuditLog } = require('../models');
+const { UnitCompletion, Progress, Lesson, CurriculumUnit, AuditLog, ClassroomSession } = require('../models');
 
 /**
  * §1.2 — Server-side reward engine.
@@ -128,15 +128,22 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
  *   totalStars = Σ Progress.stars (earned) + Σ UnitCompletion STAR (bonus)
  */
 const computeRewards = async (childId) => {
-  const [progressDocs, completions] = await Promise.all([
+  const [progressDocs, completions, classroomSessions] = await Promise.all([
     Progress.find({ child: childId }).select('stars completed lesson'),
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
-      .sort({ completedAt: 1 })
+      .sort({ completedAt: 1 }),
+    ClassroomSession.find({ 'studentScores.student': childId }).select('studentScores')
   ]);
 
   const earnedStars = progressDocs.reduce((sum, p) => sum + (p.stars || 0), 0);
   const completedLessons = progressDocs.filter((p) => p.completed).length;
+
+  let classroomStars = 0;
+  for (const cs of classroomSessions) {
+    const row = (cs.studentScores || []).find((s) => String(s.student) === String(childId));
+    if (row && row.stars) classroomStars += row.stars;
+  }
 
   let bonusStars = 0;
   const grantedStickerIds = [];
@@ -165,9 +172,10 @@ const computeRewards = async (childId) => {
   }
 
   return {
-    totalStars: earnedStars + bonusStars,
+    totalStars: earnedStars + bonusStars + classroomStars,
     earnedStars,
     bonusStars,
+    classroomStars,
     completedUnits: completions.length,
     completedLessons,
     totalLessonsAttempted: progressDocs.length,

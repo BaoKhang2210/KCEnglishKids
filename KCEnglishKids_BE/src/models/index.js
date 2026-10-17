@@ -21,6 +21,7 @@ const VocabularyMastery = require('./VocabularyMastery');
 const ParentNotification = require('./ParentNotification');
 // §1.2 — reward system
 const UnitCompletion = require('./UnitCompletion');
+const SystemSetting = require('./SystemSetting');
 
 module.exports = {
   AgeGroup,
@@ -43,5 +44,6 @@ module.exports = {
   ClassroomSession,
   VocabularyMastery,
   ParentNotification,
-  UnitCompletion
+  UnitCompletion,
+  SystemSetting
 };

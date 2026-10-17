@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   X,
   Mail,
-  Send,
   Star,
   CheckCircle2,
   MessageCircle,
@@ -60,9 +59,6 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
-  const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
-  const [parentNameMap, setParentNameMap] = useState<Record<string, string>>({});
-  const [sendingReplyId, setSendingReplyId] = useState<string | null>(null);
 
   const loadNotifications = async () => {
     try {
@@ -94,25 +90,6 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
     void loadNotifications();
     void loadAssignments();
   }, [childId]);
-
-  const handleSendReply = async (notifId: string) => {
-    const text = (replyTextMap[notifId] || '').trim();
-    if (!text) return;
-
-    setSendingReplyId(notifId);
-    sfx.playPop();
-
-    try {
-      const parentName = (parentNameMap[notifId] || '').trim() || `Phụ huynh bé ${childName}`;
-      await parentNotificationApi.replyAsParent(childId, notifId, text, parentName);
-      setReplyTextMap((prev) => ({ ...prev, [notifId]: '' }));
-      await loadNotifications();
-    } catch (e) {
-      console.error('Failed to send reply:', e);
-    } finally {
-      setSendingReplyId(null);
-    }
-  };
 
   const handleStartAssignment = (assignment: any) => {
     sfx.playPop();
@@ -251,89 +228,13 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                       {item.teacherNote || item.content || 'Cô giáo gửi lời nhắn tới bé và gia đình.'}
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100">
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <MessageCircle size={13} />
-                        <span>Trao đổi với cô ({item.replies?.length || 0})</span>
-                      </h4>
-
-                      {item.replies && item.replies.length > 0 && (
-                        <div className="space-y-2 mb-3">
-                          {item.replies.map((reply, rIdx) => {
-                            const isTeacher = reply.senderRole === 'TEACHER';
-                            return (
-                              <div
-                                key={rIdx}
-                                className={`flex flex-col ${
-                                  isTeacher ? 'items-start' : 'items-end'
-                                }`}
-                              >
-                                <div
-                                  className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
-                                    isTeacher
-                                      ? 'bg-amber-100/80 text-amber-950 rounded-tl-xs border border-amber-200'
-                                      : 'bg-teal-600 text-white rounded-tr-xs shadow-xs'
-                                  }`}
-                                >
-                                  <div className="font-bold text-[10px] opacity-80 mb-0.5">
-                                    {isTeacher ? '👩‍🏫 Cô giáo' : `👨‍👩‍👧 ${reply.senderName || 'Phụ huynh'}`}
-                                  </div>
-                                  <div>{reply.message}</div>
-                                </div>
-                                <span className="text-[10px] text-slate-400 px-1 mt-0.5">
-                                  {new Date(reply.createdAt).toLocaleTimeString('vi-VN', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      <div className="bg-slate-100/70 p-2.5 rounded-xl space-y-2 border border-slate-200/60">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-slate-600">Bạn là:</span>
-                          <input
-                            type="text"
-                            value={parentNameMap[item._id] ?? ''}
-                            onChange={(e) =>
-                              setParentNameMap((prev) => ({ ...prev, [item._id]: e.target.value }))
-                            }
-                            placeholder={`VD: Mẹ bé ${childName}`}
-                            className="text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2 py-1 outline-none w-36 focus:border-amber-400"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={replyTextMap[item._id] ?? ''}
-                            onChange={(e) =>
-                              setReplyTextMap((prev) => ({ ...prev, [item._id]: e.target.value }))
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                void handleSendReply(item._id);
-                              }
-                            }}
-                            placeholder="Phụ huynh gửi lời nhắn / phản hồi lại với cô giáo…"
-                            className="flex-1 text-xs font-medium rounded-lg border border-slate-200 bg-white px-3 py-2 outline-none focus:border-amber-400"
-                          />
-                          <button
-                            onClick={() => handleSendReply(item._id)}
-                            disabled={
-                              sendingReplyId === item._id ||
-                              !(replyTextMap[item._id] || '').trim()
-                            }
-                            className="rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-3.5 py-2 text-xs font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs"
-                          >
-                            <Send size={13} />
-                            <span>Gửi</span>
-                          </button>
-                        </div>
-                      </div>
+                    <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        <CheckCircle2 size={13} /> Phiếu thông báo chính thức từ cô giáo
+                      </span>
+                      <span className="text-slate-400 font-medium">
+                        Đã lưu vào Sổ liên lạc điện tử của bé
+                      </span>
                     </div>
                   </div>
                 </div>

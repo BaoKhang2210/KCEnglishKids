@@ -25,6 +25,10 @@ const teacherNoteSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
+  },
+  isHomeroomOnly: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

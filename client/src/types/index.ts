@@ -207,6 +207,8 @@ export interface ClassroomSession {
   startedAt?: string;
   endedAt?: string;
   plannedDuration: number;
+  sessionNumber?: number;
+  includeWarmup?: boolean;
   activities: Activity[];
   currentActivityIndex: number;
   studentScores: StudentSessionScore[];

@@ -376,7 +376,7 @@ export const SentenceTeachingPage: React.FC = () => {
           disabled={!rows.length}
           className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-teal-600/25 hover:from-teal-500 hover:to-emerald-500 active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
         >
-          <Expand size={18} /> Chiếu trên lớp ({rows.length} câu)
+          <Play size={18} /> Bắt đầu học mẫu câu ({rows.length} câu)
         </button>
       </div>
 

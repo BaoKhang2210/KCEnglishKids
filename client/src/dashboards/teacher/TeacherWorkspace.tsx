@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, LogOut, Menu, MessageSquare, Play, PlayCircle, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award } from 'lucide-react';
+import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, LogOut, Menu, MessageSquare, Play, PlayCircle, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, School, BarChart3, ArrowUpDown, Send, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
@@ -19,12 +19,14 @@ export const TeacherLayout = () => {
 
   const links = [
     ['Bảng điều khiển', '/teacher/dashboard', LayoutDashboard],
-    ['Lớp học', '/teacher/classes', Users],
+    ['Lịch & Tiến độ dạy', '/teacher/schedule', Calendar],
+    ['Báo cáo & Phân tích', '/teacher/analytics', TrendingUp],
+    ['Quản lý lớp học', '/teacher/classes', School],
     ['Buổi dạy trên lớp', '/teacher/classroom-sessions', PlayCircle],
     ['Mẫu câu', '/teacher/sentences', MessageSquare],
     ['Nội dung học', '/teacher/content', BookOpen],
     ['Bài được giao', '/teacher/assignments', ClipboardList],
-    ['Học sinh', '/teacher/students', GraduationCap]
+    ['Học sinh theo lớp', '/teacher/students', GraduationCap]
   ];
 
   const isLinkActive = (to: string) => {
@@ -60,13 +62,29 @@ export const TeacherLayout = () => {
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white p-5 lg:flex lg:flex-col lg:justify-between z-20">
         <div>
-          <div className="mb-8 flex items-center gap-3">
+          <div className="mb-6 flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-teal-600 font-bold text-white shadow-sm">KC</div>
             <div>
               <b className="text-slate-900">KCEnglishKids</b>
               <p className="text-xs font-semibold text-teal-700">Không gian giảng dạy</p>
             </div>
           </div>
+
+          {/* Teacher Profile Card in Sidebar */}
+          <div className="mb-6 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 p-3.5 border border-teal-100/80 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-600 font-black text-white shadow-sm text-sm">
+                {initials(user?.name)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">Giáo viên phụ trách</span>
+                <p className="text-sm font-extrabold text-slate-900 truncate" title={user?.name}>
+                  Cô {user?.name}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {navContent}
         </div>
         <button
@@ -81,7 +99,10 @@ export const TeacherLayout = () => {
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2.5">
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-teal-600 font-bold text-white text-xs">KC</div>
-          <span className="font-bold text-sm text-slate-900">KCEnglishKids Sư phạm</span>
+          <div>
+            <span className="font-bold text-xs text-slate-900 block leading-tight">Cô {user?.name}</span>
+            <span className="text-[10px] text-teal-700 font-semibold">Giáo viên KCEnglishKids</span>
+          </div>
         </div>
         <button
           type="button"
@@ -105,8 +126,8 @@ export const TeacherLayout = () => {
                 <div className="flex items-center gap-2">
                   <div className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 font-bold text-white">KC</div>
                   <div>
-                    <b className="text-sm">KCEnglishKids</b>
-                    <p className="text-xs text-teal-700">Không gian giảng dạy</p>
+                    <b className="text-sm">Cô {user?.name}</b>
+                    <p className="text-xs text-teal-700 font-medium">Giáo viên mầm non</p>
                   </div>
                 </div>
                 <button onClick={() => setMobileOpen(false)} className="rounded-lg p-1 text-slate-400 hover:text-slate-600">
@@ -127,13 +148,36 @@ export const TeacherLayout = () => {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl p-5 lg:ml-64 lg:p-8">
-        <header className="mb-7 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500">Chào mừng trở lại</p>
-            <h1 className="text-2xl font-bold text-slate-900">{user?.name}</h1>
+        <header className="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-slate-200">
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-lg font-black text-white shadow-md shadow-teal-500/20">
+              {initials(user?.name)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-800">
+                  <Sparkles size={12} className="text-teal-600" /> Giáo viên Tiếng Anh Mầm Non
+                </span>
+                <span className="text-xs text-slate-400">• KCEnglishKids</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                Cô giáo: <span className="text-teal-700">{user?.name}</span>
+              </h1>
+            </div>
           </div>
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">
-            {initials(user?.name)}
+          <div className="flex items-center gap-2">
+            <Link
+              to="/teacher/schedule"
+              className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-bold text-teal-700 hover:bg-teal-100 transition-all shadow-sm"
+            >
+              <Calendar size={16} /> Lịch & Tiến độ dạy
+            </Link>
+            <Link
+              to="/teacher/classroom-sessions"
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition-all shadow-sm"
+            >
+              <PlayCircle size={16} /> Bắt đầu buổi dạy
+            </Link>
           </div>
         </header>
         <Outlet />
@@ -254,8 +298,21 @@ export const TeacherDashboard = () => {
 
 export const TeacherClasses = () => {
   const [classes, setClasses] = useState<any[]>();
+  const [students, setStudents] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const load = () => teacherApi.getClasses().then((x) => setClasses(x.data));
+
+  const load = async () => {
+    try {
+      const [cRes, sRes] = await Promise.all([
+        teacherApi.getClasses(),
+        teacherApi.getStudents().catch(() => ({ data: [] }))
+      ]);
+      setClasses(cRes.data || []);
+      setStudents(sRes.data || []);
+    } catch {
+      setClasses([]);
+    }
+  };
 
   useEffect(() => {
     void load();
@@ -268,39 +325,160 @@ export const TeacherClasses = () => {
 
   if (!classes) return <Loader />;
 
+  // Calculate totals across all teacher's classes
+  const totalAllStudents = students.length || classes.reduce((sum, c) => sum + (c.students?.length || 0), 0);
+  const totalAllStars = students.reduce((sum, s) => sum + (s.stats?.totalStars ?? s.stats?.stars ?? 0), 0);
+  const overallAvg = students.length
+    ? Math.round(students.reduce((sum, s) => sum + (s.stats?.averageScore || 0), 0) / students.length)
+    : 0;
+
   return (
     <>
-      <Header title="Lớp học của tôi" text="Các lớp học bạn đang phụ trách." />
-      <SearchBox value={search} onChange={setSearch} />
+      <Header
+        title="Quản Lý Lớp Học"
+        text="Trung tâm điều hành và sổ chủ nhiệm các lớp bạn đang phụ trách. Theo dõi sĩ số, thành tích và bắt đầu buổi dạy trực tiếp theo đúng giáo trình."
+      />
+
+      {/* KPI Overview of all classes */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Lớp phụ trách</span>
+            <School size={18} className="text-teal-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{classes.length} <span className="text-sm font-semibold text-slate-500">lớp</span></div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Tổng học sinh</span>
+            <Users size={18} className="text-sky-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{totalAllStudents} <span className="text-sm font-semibold text-slate-500">bé</span></div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Tổng sao tích lũy</span>
+            <Star size={18} className="fill-amber-400 text-amber-500" />
+          </div>
+          <div className="text-2xl font-black text-amber-600">{totalAllStars} <span className="text-sm font-semibold text-slate-500">⭐</span></div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Điểm TB toàn khối</span>
+            <BarChart3 size={18} className="text-emerald-600" />
+          </div>
+          <div className="text-2xl font-black text-emerald-700">{overallAvg}%</div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-5">
+        <SearchBox value={search} onChange={setSearch} />
+        <Link
+          to="/teacher/classroom-sessions/new"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-teal-700 transition-all cursor-pointer"
+        >
+          <PlayCircle size={18} /> Bắt đầu buổi dạy mới
+        </Link>
+      </div>
+
       {filtered?.length ? (
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((c) => (
-            <Link
-              key={c._id}
-              to={`/teacher/classes/${c._id}`}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-bold text-slate-900">{c.name}</h3>
-                  <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-700">
-                    {c.status}
-                  </span>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((c) => {
+            const classStudents = students.filter(
+              (s) => String(s.assignedClass?._id || s.assignedClass) === String(c._id)
+            );
+            const studentCount = c.students?.length || classStudents.length || 0;
+            const classStars = classStudents.reduce(
+              (sum, s) => sum + (s.stats?.totalStars ?? s.stats?.stars ?? 0),
+              0
+            );
+            const classAvg = classStudents.length
+              ? Math.round(
+                  classStudents.reduce((sum, s) => sum + (s.stats?.averageScore || 0), 0) /
+                    classStudents.length
+                )
+              : 0;
+
+            const bookLabel =
+              c.ageGroupCode === '3-4'
+                ? '📘 Sách Book 1 (3–4 tuổi)'
+                : c.ageGroupCode === '4-5'
+                ? '📗 Sách Book 2 (4–5 tuổi)'
+                : '📙 Sách Book 3 (5–6 tuổi)';
+
+            return (
+              <div
+                key={c._id}
+                className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  {/* Top Bar of Card */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-50 text-teal-700 font-black text-sm">
+                          🏫
+                        </span>
+                        <h3 className="font-black text-lg text-slate-900 leading-tight">{c.name}</h3>
+                      </div>
+                      <span className="inline-block mt-2 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-800 border border-teal-200/60">
+                        {bookLabel}
+                      </span>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 border border-emerald-200">
+                      {c.status === 'ACTIVE' ? 'Đang hoạt động' : c.status}
+                    </span>
+                  </div>
+
+                  {/* 3 Metric Pills */}
+                  <div className="mt-4 grid grid-cols-3 gap-2 bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                    <div className="text-center">
+                      <span className="block text-[11px] font-bold text-slate-400">Sĩ số</span>
+                      <b className="text-base text-slate-800">{studentCount} bé</b>
+                    </div>
+                    <div className="text-center border-x border-slate-200">
+                      <span className="block text-[11px] font-bold text-slate-400">Điểm TB</span>
+                      <b className="text-base text-teal-700">{classAvg}%</b>
+                    </div>
+                    <div className="text-center">
+                      <span className="block text-[11px] font-bold text-slate-400">Tổng sao</span>
+                      <b className="text-base text-amber-600 flex items-center justify-center gap-0.5">
+                        <Star size={13} className="fill-amber-400 text-amber-500" />
+                        {classStars}
+                      </b>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-sm text-slate-500">
-                  Độ tuổi {c.ageGroupCode || '—'} · Niên khóa {c.academicYear || '—'}
-                </p>
+
+                {/* Quick Action Buttons */}
+                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
+                  <Link
+                    to={`/teacher/classroom-sessions/new?classroomId=${c._id}`}
+                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                    title="Bắt đầu buổi dạy trực tiếp cho lớp này"
+                  >
+                    <Play size={13} className="fill-white" /> Dạy ngay
+                  </Link>
+
+                  <Link
+                    to={`/teacher/schedule`}
+                    className="py-2 px-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                    title="Xem lịch và tiến độ giảng dạy"
+                  >
+                    <Calendar size={13} /> Lịch
+                  </Link>
+
+                  <Link
+                    to={`/teacher/classes/${c._id}`}
+                    className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                    title="Xem sổ lớp và hồ sơ học sinh"
+                  >
+                    <Users size={13} /> Sổ lớp
+                  </Link>
+                </div>
               </div>
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5 text-slate-600 font-semibold">
-                  <Users size={16} className="text-teal-600" /> {c.students?.length || 0} học sinh
-                </span>
-                <span className="text-xs font-bold text-teal-700 flex items-center gap-1">
-                  Vào lớp <ChevronRight size={14} />
-                </span>
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Empty>Bạn chưa được phân công lớp nào.</Empty>
@@ -675,7 +853,7 @@ export const TeacherContent = () => {
               to="/teacher/sentences"
               className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs transition-all"
             >
-              Mở công cụ chiếu mẫu câu <ChevronRight size={13} />
+              Bắt đầu học mẫu câu <ChevronRight size={13} />
             </Link>
           </div>
         </section>
@@ -775,8 +953,7 @@ export const TeacherAssignments = () => {
     try {
       await teacherApi.createAssignment({
         classRoomId: form.classRoomId,
-        assignedToType: form.assignedToType,
-        studentId: form.assignedToType === 'STUDENT' ? form.studentId : undefined,
+        assignedToType: 'CLASS',
         lessonId: form.lessonId,
         activityId: form.activityId || undefined,
         dueDate: form.dueDate || undefined,
@@ -912,16 +1089,10 @@ export const TeacherAssignments = () => {
                       {a.classRoom?.name || '—'}
                     </td>
                     <td className="p-4">
-                      {a.assignedToType === 'STUDENT' ? (
-                        <span className="inline-flex items-center gap-1.5 font-medium text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full text-xs">
-                          <Avatar name={a.student?.name} />
-                          {a.student?.name || '1 bé'}
-                        </span>
-                      ) : (
-                        <span className="font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full text-xs">
-                          Cả lớp ({a.classRoom?.students?.length || 0} bé)
-                        </span>
-                      )}
+                      <span className="inline-flex items-center gap-1.5 font-medium text-teal-800 bg-teal-50 border border-teal-200/80 px-2.5 py-1 rounded-full text-xs">
+                        <Users size={13} className="text-teal-600" />
+                        Cả lớp ({a.classRoom?.students?.length || 0} bé)
+                      </span>
                     </td>
                     <td className="p-4">
                       {a.dueDate ? (
@@ -984,42 +1155,15 @@ export const TeacherAssignments = () => {
             />
 
             {form.classRoomId && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Đối tượng nhận bài</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, assignedToType: 'CLASS', studentId: '' })}
-                    className={`p-2.5 rounded-xl border text-sm font-bold transition-all ${
-                      form.assignedToType === 'CLASS'
-                        ? 'border-teal-600 bg-teal-50 text-teal-800'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    👥 Cả lớp
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, assignedToType: 'STUDENT' })}
-                    className={`p-2.5 rounded-xl border text-sm font-bold transition-all ${
-                      form.assignedToType === 'STUDENT'
-                        ? 'border-teal-600 bg-teal-50 text-teal-800'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    👤 Một học sinh cụ thể
-                  </button>
-                </div>
+              <div className="rounded-xl border border-teal-200 bg-teal-50/80 p-3 text-xs text-teal-900 flex items-center justify-between">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <Users size={16} className="text-teal-700" />
+                  Đối tượng nhận bài: <b>Toàn bộ học sinh trong lớp ({classStudents.length} bé)</b>
+                </span>
+                <span className="bg-teal-200/80 text-teal-800 font-bold px-2 py-0.5 rounded-full">
+                  Áp dụng cả lớp
+                </span>
               </div>
-            )}
-
-            {form.assignedToType === 'STUDENT' && form.classRoomId && (
-              <Select
-                label="Chọn bé nhận bài"
-                value={form.studentId}
-                onChange={(v: string) => setForm({ ...form, studentId: v })}
-                options={classStudents.map(s => ({ value: s._id, label: s.name }))}
-              />
             )}
 
             <Select
@@ -1177,10 +1321,13 @@ export const TeacherAssignmentDetail = () => {
   };
 
   const quickReviewChips = [
-    'Bé làm bài rất tốt và phát âm to rõ ràng! 🌟',
-    'Hoàn thành bài tập xuất sắc, rất đáng khen ngợi! 👏',
-    'Bé cần chú ý ôn tập thêm các từ vựng này ở nhà nhé! 📚',
-    'Con phản xạ rất nhanh, tiếp tục phát huy nhé! 🚀'
+    { label: '🌟 Xuất sắc & Điểm tối đa', text: 'Bé hoàn thành bài tập xuất sắc, đạt điểm tuyệt đối và ghi nhớ bài rất nhanh! 🌟' },
+    { label: '🗣️ Phát âm to rõ', text: 'Bé phát âm rất to, rõ ràng và chuẩn xác từng từ vựng! 🗣️' },
+    { label: '🚀 Phản xạ nhanh', text: 'Bé có phản xạ nghe và chọn đáp án rất nhanh nhạy, đáng khen ngợi! 🚀' },
+    { label: '✨ Tiến bộ rõ rệt', text: 'Bé có nhiều tiến bộ tích cực so với các buổi học trước, cô khen ngợi bé! ✨' },
+    { label: '👏 Chăm chỉ hoàn thành', text: 'Bé rất chăm chỉ, tự giác hoàn thành bài tập đúng hạn! 👏' },
+    { label: '📖 Cần ôn thêm từ vựng', text: 'Bé làm tốt, gia đình cho bé nghe lại từ vựng thêm 10 phút ở nhà để nhớ lâu hơn nhé! 📖' },
+    { label: '💡 Cần rèn phản xạ nghe', text: 'Bé cần chú ý lắng nghe kỹ hơn ở các câu hỏi nghe chọn hình ảnh nhé! 💡' }
   ];
 
   // Filtering students
@@ -1595,17 +1742,24 @@ export const TeacherAssignmentDetail = () => {
                   />
 
                   {/* Quick Chips */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {quickReviewChips.map((chip, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setReviewNote(chip)}
-                        className="text-[11px] bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                      >
-                        {chip}
-                      </button>
-                    ))}
+                  <div className="mt-2.5 space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                      <Sparkles size={12} className="text-amber-500" />
+                      <span>Chọn nhanh mẫu câu nhận xét:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {quickReviewChips.map((chip, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setReviewNote(prev => prev ? `${prev} ${chip.text}` : chip.text)}
+                          className="text-[11px] font-medium bg-slate-100 hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer text-left"
+                          title={chip.text}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -1654,55 +1808,544 @@ export const TeacherAssignmentDetail = () => {
 
 export const TeacherStudents = () => {
   const [items, setItems] = useState<any[]>();
+  const [classes, setClasses] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState<string>('all');
+  const [sortKey, setSortKey] = useState<'name' | 'score' | 'stars' | 'lessons'>('name');
+
+  // Quick parent note modal state
+  const [quickStudent, setQuickStudent] = useState<any>(null);
+  const [quickNoteText, setQuickNoteText] = useState('');
+  const [quickStars, setQuickStars] = useState(5);
+  const [quickSubject, setQuickSubject] = useState('Nhận xét học tập');
+  const [sendingNote, setSendingNote] = useState(false);
+
+  const quickReviewChips = [
+    '🌟 Bé học rất chăm chỉ và hăng hái phát biểu.',
+    '👏 Bé phát âm rất to, rõ ràng và chuẩn ngữ điệu.',
+    '⚡ Phản xạ nghe chọn và trả lời câu hỏi rất nhanh.',
+    '✨ Bé có sự tiến bộ vượt bậc so với tuần trước.',
+    '📖 Bé cần ôn lại các từ vựng bài trước ở nhà nhé.'
+  ];
+
+  const load = async () => {
+    try {
+      const [sRes, cRes] = await Promise.all([
+        teacherApi.getStudents(),
+        teacherApi.getClasses().catch(() => ({ data: [] }))
+      ]);
+      setItems(sRes.data || []);
+      setClasses(cRes.data || []);
+    } catch {
+      setItems([]);
+    }
+  };
 
   useEffect(() => {
-    teacherApi.getStudents().then((x) => setItems(x.data));
+    void load();
   }, []);
 
   if (!items) return <Loader />;
 
+  // Filter students by search
   const filtered = items.filter(
     (s) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.username?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Sorting function
+  const sortStudents = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      if (sortKey === 'score') {
+        return (b.stats?.averageScore || 0) - (a.stats?.averageScore || 0);
+      }
+      if (sortKey === 'stars') {
+        return (
+          (b.stats?.totalStars ?? b.stats?.stars ?? 0) -
+          (a.stats?.totalStars ?? a.stats?.stars ?? 0)
+        );
+      }
+      if (sortKey === 'lessons') {
+        return (b.stats?.completedLessons || 0) - (a.stats?.completedLessons || 0);
+      }
+      return sortByNameVi([a, b])[0] === a ? -1 : 1;
+    });
+  };
+
+  // Group filtered students by assignedClass
+  const classGroups = useMemo(() => {
+    const map = new Map<string, { classInfo: any; students: any[] }>();
+
+    // Initialize with all teacher's classes
+    classes.forEach((c) => {
+      map.set(String(c._id), { classInfo: c, students: [] });
+    });
+
+    const unassigned: any[] = [];
+
+    filtered.forEach((s) => {
+      const cid = s.assignedClass?._id || s.assignedClass;
+      if (cid && map.has(String(cid))) {
+        map.get(String(cid))!.students.push(s);
+      } else if (cid) {
+        if (!map.has(String(cid))) {
+          map.set(String(cid), { classInfo: s.assignedClass || { _id: cid, name: 'Lớp khác' }, students: [] });
+        }
+        map.get(String(cid))!.students.push(s);
+      } else {
+        unassigned.push(s);
+      }
+    });
+
+    return {
+      classes: Array.from(map.values()),
+      unassigned
+    };
+  }, [classes, filtered]);
+
+  // Determine what to display based on selectedClassId
+  const displayGroups = useMemo(() => {
+    if (selectedClassId === 'all') {
+      return classGroups.classes;
+    }
+    if (selectedClassId === 'unassigned') {
+      return [];
+    }
+    return classGroups.classes.filter(
+      (g) => String(g.classInfo?._id) === String(selectedClassId)
+    );
+  }, [classGroups, selectedClassId]);
+
+  const showUnassigned =
+    (selectedClassId === 'all' || selectedClassId === 'unassigned') &&
+    classGroups.unassigned.length > 0;
+
+  const handleSendQuickNote = async () => {
+    if (!quickStudent || !quickNoteText.trim()) return;
+    try {
+      setSendingNote(true);
+      await parentNotificationApi.sendNotification({
+        childId: quickStudent._id,
+        subject: quickSubject,
+        teacherNote: quickNoteText,
+        stars: quickStars,
+        templateType: 'PROGRESS_UPDATE'
+      });
+      alert(`Đã gửi nhận xét đến phụ huynh của bé ${quickStudent.name}!`);
+      setQuickStudent(null);
+      setQuickNoteText('');
+    } catch (e: any) {
+      alert(e?.message || 'Không thể gửi nhận xét.');
+    } finally {
+      setSendingNote(false);
+    }
+  };
+
   return (
     <>
-      <Header title="Học sinh" text="Học sinh trong các lớp bạn phụ trách." />
-      <SearchBox value={search} onChange={setSearch} />
-      {filtered.length ? (
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((s) => (
-            <Link
-              key={s._id}
-              to={`/teacher/students/${s._id}`}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+      <Header
+        title="Quản Lý Học Sinh Theo Lớp"
+        text="Danh sách toàn bộ học sinh được nhóm khoa học theo từng lớp học để cô dễ dàng tìm kiếm, chấm điểm và theo dõi tiến độ."
+      />
+
+      {/* Class Selection Tabs Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4 scrollbar-thin">
+        <button
+          onClick={() => setSelectedClassId('all')}
+          className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+            selectedClassId === 'all'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          <span>🏫 Tất cả lớp</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+              selectedClassId === 'all'
+                ? 'bg-teal-700 text-teal-100'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {items.length}
+          </span>
+        </button>
+
+        {classes.map((c) => {
+          const count = items.filter(
+            (s) => String(s.assignedClass?._id || s.assignedClass) === String(c._id)
+          ).length;
+          const active = selectedClassId === String(c._id);
+          return (
+            <button
+              key={c._id}
+              onClick={() => setSelectedClassId(String(c._id))}
+              className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                active
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <Avatar name={s.name} />
-                <div className="min-w-0">
-                  <b className="block truncate text-slate-900">{s.name}</b>
-                  <p className="text-xs text-slate-500 truncate">
-                    {s.assignedClass?.name || 'Chưa phân lớp'} · Độ tuổi {s.ageGroupCode || '—'}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
-                <span className="text-teal-700 font-bold">
-                  {Math.round(s.stats?.averageScore || 0)}% trung bình
-                </span>
-                <span className="text-amber-600 font-bold flex items-center gap-1">
-                  <Star size={13} className="fill-amber-400 text-amber-400" />
-                  {s.stats?.stars || 0} sao
-                </span>
-              </div>
-            </Link>
-          ))}
+              <span>{c.name}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                  active ? 'bg-teal-700 text-teal-100' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {count} bé
+              </span>
+            </button>
+          );
+        })}
+
+        {classGroups.unassigned.length > 0 && (
+          <button
+            onClick={() => setSelectedClassId('unassigned')}
+            className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+              selectedClassId === 'unassigned'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-white border border-amber-200 text-amber-800 hover:bg-amber-50'
+            }`}
+          >
+            <span>⚠️ Chưa phân lớp</span>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">
+              {classGroups.unassigned.length}
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* Search & Sort Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6">
+        <SearchBox value={search} onChange={setSearch} />
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs font-bold text-slate-400 shrink-0 flex items-center gap-1">
+            <ArrowUpDown size={13} /> Sắp xếp:
+          </span>
+          <select
+            value={sortKey}
+            onChange={(e: any) => setSortKey(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none shadow-xs cursor-pointer"
+          >
+            <option value="name">Tên A–Z (Tiếng Việt)</option>
+            <option value="score">Điểm trung bình cao nhất</option>
+            <option value="stars">Nhiều sao nhất ⭐</option>
+            <option value="lessons">Hoàn thành nhiều bài nhất</option>
+          </select>
         </div>
+      </div>
+
+      {/* Grouped Class Sections */}
+      {displayGroups.length === 0 && !showUnassigned ? (
+        <Empty>Không tìm thấy học sinh nào phù hợp tìm kiếm.</Empty>
       ) : (
-        <Empty>Không tìm thấy học sinh nào.</Empty>
+        <div className="space-y-8">
+          {displayGroups.map(({ classInfo, students: groupStudents }) => {
+            const sortedStudents = sortStudents(groupStudents);
+            const classStars = sortedStudents.reduce(
+              (sum, s) => sum + (s.stats?.totalStars ?? s.stats?.stars ?? 0),
+              0
+            );
+            const classAvg = sortedStudents.length
+              ? Math.round(
+                  sortedStudents.reduce((sum, s) => sum + (s.stats?.averageScore || 0), 0) /
+                    sortedStudents.length
+                )
+              : 0;
+
+            const bookLabel =
+              classInfo.ageGroupCode === '3-4'
+                ? '📘 Sách Book 1 (3–4 tuổi)'
+                : classInfo.ageGroupCode === '4-5'
+                ? '📗 Sách Book 2 (4–5 tuổi)'
+                : '📙 Sách Book 3 (5–6 tuổi)';
+
+            return (
+              <section
+                key={classInfo._id}
+                className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-5"
+              >
+                {/* Group Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-teal-700 font-black text-xl shadow-xs">
+                      🏫
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-black text-slate-900">{classInfo.name}</h3>
+                        <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-800 border border-teal-200/60">
+                          {bookLabel}
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-slate-400 mt-0.5">
+                        Sĩ số: {sortedStudents.length} bé · Niên khóa {classInfo.academicYear || '2025–2026'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-100 text-xs font-bold text-slate-600">
+                      <span>Điểm TB: <b className="text-teal-700">{classAvg}%</b></span>
+                      <span>·</span>
+                      <span className="flex items-center gap-1 text-amber-600">
+                        <Star size={13} className="fill-amber-400 text-amber-500" />
+                        <b>{classStars} sao</b>
+                      </span>
+                    </div>
+
+                    <Link
+                      to={`/teacher/classroom-sessions/new?classroomId=${classInfo._id}`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 shadow-xs transition-all"
+                    >
+                      <Play size={12} className="fill-white" /> Dạy lớp này
+                    </Link>
+
+                    <Link
+                      to={`/teacher/classes/${classInfo._id}`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-all"
+                    >
+                      <Users size={13} /> Sổ lớp
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Student Cards in this class */}
+                {sortedStudents.length === 0 ? (
+                  <p className="text-sm text-slate-400 italic py-4 text-center">
+                    Không có học sinh nào trong lớp khớp với bộ lọc tìm kiếm.
+                  </p>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {sortedStudents.map((s) => {
+                      const avg = Math.round(s.stats?.averageScore || 0);
+                      const stars = s.stats?.totalStars ?? s.stats?.stars ?? 0;
+                      const lessons = s.stats?.completedLessons ?? 0;
+
+                      const rankBadge =
+                        avg >= 85
+                          ? { label: '🌟 Xuất sắc', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
+                          : avg >= 70
+                          ? { label: '👍 Khá giỏi', color: 'bg-teal-50 text-teal-800 border-teal-200' }
+                          : { label: '📖 Cần rèn thêm', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+
+                      return (
+                        <div
+                          key={s._id}
+                          className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+                        >
+                          <div>
+                            {/* Card Top: Avatar & Name */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Avatar name={s.name} />
+                                <div className="min-w-0">
+                                  <Link
+                                    to={`/teacher/students/${s._id}`}
+                                    className="block font-black text-slate-900 truncate hover:text-teal-700 text-sm"
+                                    title={s.name}
+                                  >
+                                    {s.name}
+                                  </Link>
+                                  <span className="text-[11px] font-bold text-slate-400 block truncate">
+                                    @{s.username || 'hocsinh'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Rank Badge */}
+                            <div className="mt-3">
+                              <span
+                                className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black border ${rankBadge.color}`}
+                              >
+                                {rankBadge.label}
+                              </span>
+                            </div>
+
+                            {/* 3 Metrics */}
+                            <div className="mt-3 grid grid-cols-3 gap-1 bg-slate-50 p-2.5 rounded-xl text-center text-xs">
+                              <div>
+                                <span className="block text-[10px] font-bold text-slate-400">Điểm</span>
+                                <b className="text-teal-700 font-black">{avg}%</b>
+                              </div>
+                              <div className="border-x border-slate-200">
+                                <span className="block text-[10px] font-bold text-slate-400">Sao</span>
+                                <b className="text-amber-600 font-black flex items-center justify-center gap-0.5">
+                                  <Star size={11} className="fill-amber-400 text-amber-500" />
+                                  {stars}
+                                </b>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] font-bold text-slate-400">Bài xong</span>
+                                <b className="text-slate-700 font-black">{lessons}</b>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                            <Link
+                              to={`/teacher/students/${s._id}`}
+                              className="text-xs font-bold text-teal-700 hover:text-teal-900 flex items-center gap-0.5"
+                            >
+                              Hồ sơ <ChevronRight size={13} />
+                            </Link>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickStudent(s);
+                                setQuickNoteText(
+                                  `Bé ${s.name} đã hoàn thành ${lessons} bài học, điểm trung bình đạt ${avg}% và tích lũy được ${stars} sao!`
+                                );
+                              }}
+                              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 flex items-center gap-1 cursor-pointer bg-slate-50 hover:bg-indigo-50 px-2 py-1 rounded-lg"
+                              title="Gửi nhận xét phụ huynh"
+                            >
+                              <Send size={11} /> Nhận xét
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+
+          {/* Unassigned Students Group if any */}
+          {showUnassigned && (
+            <section className="rounded-3xl border border-amber-200 bg-amber-50/30 p-5 sm:p-6 shadow-xs space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-amber-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">⚠️</span>
+                  <div>
+                    <h3 className="text-lg font-black text-amber-900">Học sinh chưa phân vào lớp</h3>
+                    <p className="text-xs font-bold text-amber-700">
+                      Các bé này chưa được Admin gán vào lớp học nào.
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-black text-amber-900">
+                  {classGroups.unassigned.length} bé
+                </span>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {sortStudents(classGroups.unassigned).map((s) => (
+                  <div
+                    key={s._id}
+                    className="rounded-2xl border border-amber-200 bg-white p-4 shadow-xs flex flex-col justify-between"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={s.name} />
+                      <div className="min-w-0">
+                        <Link
+                          to={`/teacher/students/${s._id}`}
+                          className="block font-black text-slate-900 truncate hover:text-amber-700 text-sm"
+                        >
+                          {s.name}
+                        </Link>
+                        <span className="text-[11px] font-bold text-slate-400 block truncate">
+                          Độ tuổi {s.ageGroupCode || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Modal: Gửi nhanh nhận xét phụ huynh */}
+      {quickStudent && (
+        <Modal
+          title={`Gửi nhận xét đến phụ huynh bé ${quickStudent.name}`}
+          close={() => setQuickStudent(null)}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1">Tiêu đề thông báo</label>
+              <input
+                type="text"
+                value={quickSubject}
+                onChange={(e) => setQuickSubject(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1.5">
+                Mẫu nhận xét chọn nhanh
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {quickReviewChips.map((chip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() =>
+                      setQuickNoteText((prev) => (prev ? `${prev} ${chip}` : chip))
+                    }
+                    className="rounded-lg bg-teal-50 border border-teal-100 px-2 py-1 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors cursor-pointer text-left"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1">
+                Lời nhận xét của cô giáo
+              </label>
+              <textarea
+                rows={4}
+                value={quickNoteText}
+                onChange={(e) => setQuickNoteText(e.target.value)}
+                placeholder="Nhập nhận xét chi tiết..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1.5">
+                Tặng sao khen thưởng
+              </label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setQuickStars(st)}
+                    className={`h-9 w-9 rounded-xl font-black text-sm flex items-center justify-center transition-all cursor-pointer ${
+                      quickStars >= st
+                        ? 'bg-amber-400 text-amber-950 shadow-xs'
+                        : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    ⭐
+                  </button>
+                ))}
+                <span className="text-xs font-bold text-amber-700 ml-2">
+                  {quickStars} sao vàng
+                </span>
+              </div>
+            </div>
+
+            <button
+              disabled={sendingNote || !quickNoteText.trim()}
+              onClick={handleSendQuickNote}
+              className="mt-2 w-full rounded-xl bg-teal-600 px-4 py-3 text-sm font-black text-white hover:bg-teal-700 disabled:opacity-50 cursor-pointer shadow-sm transition-all"
+            >
+              {sendingNote ? 'Đang gửi thông báo...' : 'Gửi phiếu nhận xét phụ huynh 📨'}
+            </button>
+          </div>
+        </Modal>
       )}
     </>
   );
@@ -1712,13 +2355,21 @@ export const TeacherStudentDetail = () => {
   const { studentId = '' } = useParams();
   const [data, setData] = useState<any>();
   const [note, setNote] = useState('');
+  const [isHomeroomOnly, setIsHomeroomOnly] = useState(false);
   const [parentNotifs, setParentNotifs] = useState<any[]>([]);
   const [showSendModal, setShowSendModal] = useState(false);
   const [parentSubject, setParentSubject] = useState('Nhận xét học tập');
   const [parentNoteText, setParentNoteText] = useState('');
   const [parentStars, setParentStars] = useState(5);
-  const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
-  const [sendingReplyId, setSendingReplyId] = useState<string | null>(null);
+
+  const studentNoteTemplates = [
+    { label: '🌟 Phát âm to rõ', text: 'Bé phát âm rất to, rõ ràng và tự tin trước lớp.' },
+    { label: '👏 Hăng hái tương tác', text: 'Bé rất hăng hái giơ tay phát biểu và tương tác sôi nổi.' },
+    { label: '📖 Cần rèn luyện thêm', text: 'Bé cần ôn lại từ vựng và luyện tập thêm khả năng tập trung.' },
+    { label: '🎯 Nhớ từ vựng tốt', text: 'Bé ghi nhớ từ vựng rất nhanh, trả lời chính xác các câu hỏi.' },
+    { label: '✨ Tiến bộ rõ rệt', text: 'Bé có sự tiến bộ vượt bậc so với tuần trước.' },
+    { label: '🔒 Lưu ý GVCN', text: 'Ghi chú riêng GVCN: Cần theo dõi thêm về sự tập trung và phản xạ của bé trong giờ học.' }
+  ];
 
   const load = () => {
     teacherApi.getStudentOverview(studentId).then(x => setData(x.data));
@@ -1733,8 +2384,9 @@ export const TeacherStudentDetail = () => {
   const add = async (e: any) => {
     e.preventDefault();
     if (note.trim()) {
-      await teacherApi.createTeacherNote({ studentId, noteType: 'GENERAL', content: note });
+      await teacherApi.createTeacherNote({ studentId, noteType: 'GENERAL', content: note.trim(), isHomeroomOnly });
       setNote('');
+      setIsHomeroomOnly(false);
       void load();
     }
   };
@@ -1753,19 +2405,6 @@ export const TeacherStudentDetail = () => {
     setParentNoteText('');
     setShowSendModal(false);
     void load();
-  };
-
-  const handleTeacherReply = async (notifId: string) => {
-    const text = (replyTextMap[notifId] || '').trim();
-    if (!text) return;
-    setSendingReplyId(notifId);
-    try {
-      await parentNotificationApi.replyAsTeacher(notifId, text);
-      setReplyTextMap(prev => ({ ...prev, [notifId]: '' }));
-      void load();
-    } finally {
-      setSendingReplyId(null);
-    }
   };
 
   return (
@@ -1810,164 +2449,228 @@ export const TeacherStudentDetail = () => {
           )}
         </section>
 
-        <section className="rounded-2xl border bg-white p-6">
-          <h3 className="mb-3 font-bold">Ghi chú nội bộ giáo viên</h3>
-          <form onSubmit={add} className="mb-4">
+        <section className="rounded-2xl border bg-white p-6 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-slate-900 text-base">Ghi chú nội bộ giáo viên</h3>
+            <span className="text-xs text-slate-400 font-medium">Lưu trữ sư phạm</span>
+          </div>
+
+          <form onSubmit={add} className="mb-4 space-y-3">
             <textarea
               value={note}
               onChange={e => setNote(e.target.value)}
-              placeholder="Thêm ghi chú riêng về bé (chỉ giáo viên thấy)…"
-              className="w-full rounded-lg border p-2 text-sm"
+              placeholder="Thêm ghi chú riêng về bé (tiến độ, tâm lý, điểm cần lưu ý)…"
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-teal-500"
+              rows={3}
             />
-            <button className="mt-2 rounded-lg bg-teal-600 px-3 py-2 text-sm text-white">
+
+            {/* Quick chips for teacher note */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-slate-500">Mẫu ghi chú nhanh:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {studentNoteTemplates.map((t, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setNote(prev => prev ? `${prev} ${t.text}` : t.text)}
+                    className="text-[11px] font-medium bg-slate-100 hover:bg-teal-50 hover:text-teal-800 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Homeroom Only Checkbox (GV-06) */}
+            <label className="flex items-center gap-2 text-xs font-bold text-indigo-950 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-xl cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isHomeroomOnly}
+                onChange={e => setIsHomeroomOnly(e.target.checked)}
+                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>🔒 Ghi chú riêng cho Giáo viên chủ nhiệm (Chỉ GVCN lớp được xem)</span>
+            </label>
+
+            <button
+              type="submit"
+              disabled={!note.trim()}
+              className="rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+            >
               Lưu ghi chú nội bộ
             </button>
           </form>
+
           {data.notes.length ? (
-            data.notes.map((n: any) => (
-              <div key={n._id} className="border-t py-3 text-sm">
-                <b>{n.noteType}</b>
-                <p>{n.content}</p>
-                <small className="text-slate-500">{date(n.createdAt)}</small>
-              </div>
-            ))
+            <div className="space-y-3">
+              {data.notes.map((n: any) => (
+                <div key={n._id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-sm">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700">{n.teacher?.name || 'Giáo viên'}</span>
+                      {n.isHomeroomOnly ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-800 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-full">
+                          🔒 Chỉ GVCN xem
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-full">
+                          👥 Nội bộ lớp
+                        </span>
+                      )}
+                    </div>
+                    <small className="text-slate-400 text-xs">{date(n.createdAt)}</small>
+                  </div>
+                  <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                </div>
+              ))}
+            </div>
           ) : (
-            <p className="text-sm text-slate-500">Chưa có ghi chú riêng nào.</p>
+            <p className="text-xs text-slate-400 py-3 text-center">Chưa có ghi chú nội bộ nào cho bé.</p>
           )}
         </section>
       </div>
 
-      {/* Sổ liên lạc & Trao đổi với Phụ huynh */}
-      <section className="mt-6 rounded-2xl border bg-white p-6">
+      {/* Sổ liên lạc & Thông báo học tập tới Phụ huynh (GV-07: Hiển thị dạng thẻ thông báo, không phải dạng chat) */}
+      <section className="mt-6 rounded-2xl border bg-white p-6 shadow-xs">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900">
               <Mail className="text-amber-500" size={20} />
-              Sổ Liên Lạc & Trao Đổi Với Phụ Huynh ({parentNotifs.length})
+              Sổ Liên Lạc & Thông Báo Tới Phụ Huynh ({parentNotifs.length})
             </h3>
             <p className="text-xs text-slate-500">
-              Nhận xét đã gửi về cho gia đình và tin nhắn phản hồi 2 chiều của phụ huynh.
+              Các phiếu thông báo nhận xét học tập đã gửi về Sổ liên lạc của gia đình bé.
             </p>
           </div>
           <button
             onClick={() => setShowSendModal(true)}
-            className="rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer transition-colors"
           >
-            + Gửi nhận xét mới
+            + Gửi thông báo nhận xét mới
           </button>
         </div>
 
         {parentNotifs.length ? (
           <div className="space-y-4">
             {parentNotifs.map((item: any) => (
-              <div key={item._id} className="rounded-xl border border-amber-200/80 bg-amber-50/30 p-4">
-                <div className="flex items-center justify-between border-b border-amber-100 pb-2">
-                  <span className="font-bold text-sm text-slate-800">{item.subject}</span>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 font-bold text-amber-800">
-                      ⭐ {item.stars || 0} sao
+              <div key={item._id} className="rounded-2xl border-2 border-amber-200/80 bg-white p-5 shadow-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700 text-lg">
+                      📢
                     </span>
-                    <span className="text-slate-400">{date(item.sentAt || item.createdAt)}</span>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900">{item.subject || 'Phiếu nhận xét học tập'}</h4>
+                      <span className="text-[11px] text-slate-400">
+                        Gửi ngày {new Date(item.sentAt || item.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {item.stars > 0 && (
+                      <span className="rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5 text-xs font-bold flex items-center gap-1 border border-amber-300">
+                        ⭐ {item.stars} sao khen thưởng
+                      </span>
+                    )}
+                    <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold">
+                      ✓ Đã gửi tới phụ huynh
+                    </span>
                   </div>
                 </div>
 
-                <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{item.teacherNote || item.content}</p>
-
-                {/* Replies Thread */}
-                {item.replies && item.replies.length > 0 && (
-                  <div className="mt-3 space-y-2 border-t border-amber-100 pt-2">
-                    <p className="text-xs font-bold text-slate-500">Trao đổi 2 chiều:</p>
-                    {item.replies.map((r: any, rIdx: number) => (
-                      <div
-                        key={rIdx}
-                        className={`rounded-lg p-2 text-xs ${
-                          r.senderRole === 'PARENT'
-                            ? 'bg-white border border-amber-200 text-amber-950 ml-3'
-                            : 'bg-teal-50 border border-teal-200 text-teal-950 mr-3'
-                        }`}
-                      >
-                        <b>{r.senderRole === 'PARENT' ? '👨‍👩‍👧 ' : '👩‍🏫 '}{r.senderName}: </b>
-                        <span>{r.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Reply Form */}
-                <div className="mt-3 flex gap-2">
-                  <input
-                    type="text"
-                    value={replyTextMap[item._id] || ''}
-                    onChange={e => setReplyTextMap(prev => ({ ...prev, [item._id]: e.target.value }))}
-                    placeholder="Nhắn tin phản hồi lại phụ huynh…"
-                    className="flex-1 rounded-lg border bg-white px-3 py-1.5 text-xs outline-none focus:border-amber-400"
-                  />
-                  <button
-                    onClick={() => handleTeacherReply(item._id)}
-                    disabled={sendingReplyId === item._id || !(replyTextMap[item._id] || '').trim()}
-                    className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-40"
-                  >
-                    Gửi phản hồi
-                  </button>
+                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-100 text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                  {item.teacherNote || item.content}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500 py-4 text-center">
-            Chưa gửi nhận xét nào về cho phụ huynh bé {student.name}.
+          <p className="text-sm text-slate-400 py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            Chưa có thông báo nào được gửi tới Sổ liên lạc của phụ huynh bé {student.name}.
           </p>
         )}
       </section>
 
       {/* Modal gửi nhận xét tới Phụ huynh */}
       {showSendModal && (
-        <Modal title={`Gửi nhận xét tới Phụ huynh bé ${student.name}`} close={() => setShowSendModal(false)}>
-          <form onSubmit={sendToParent} className="space-y-3">
-            <label className="block text-sm font-medium">
-              Chủ đề nhận xét
+        <Modal title={`Gửi thông báo tới Sổ liên lạc bé ${student.name}`} close={() => setShowSendModal(false)}>
+          <form onSubmit={sendToParent} className="space-y-4">
+            <label className="block text-sm font-medium text-slate-700">
+              Tiêu đề thông báo
               <input
                 type="text"
                 value={parentSubject}
                 onChange={e => setParentSubject(e.target.value)}
-                placeholder="VD: Tiến bộ học tập, Khen ngợi bé..."
-                className="mt-1 w-full rounded-lg border p-2 text-sm"
+                placeholder="VD: Nhận xét học tập tuần này, Khen ngợi bé..."
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm outline-none focus:border-amber-400"
                 required
               />
             </label>
 
-            <label className="block text-sm font-medium">
-              Tặng sao khen thưởng cho bé
-              <div className="mt-1 flex gap-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Tặng sao khen thưởng cho bé:
+              </label>
+              <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(s => (
                   <button
                     type="button"
                     key={s}
                     onClick={() => setParentStars(s)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
-                      parentStars === s ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300' : 'bg-slate-100 text-slate-600'
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      parentStars === s
+                        ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
                     ⭐ {s} sao
                   </button>
                 ))}
               </div>
-            </label>
+            </div>
 
-            <label className="block text-sm font-medium">
-              Nội dung nhận xét & dặn dò phụ huynh
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Nội dung nhận xét & dặn dò phụ huynh:
+              </label>
               <textarea
                 value={parentNoteText}
                 onChange={e => setParentNoteText(e.target.value)}
                 rows={4}
                 placeholder="Nhập lời nhận xét chi tiết gửi về cho phụ huynh bé (khen ngợi phát âm, mức độ tập trung, từ vựng cần ôn luyện thêm)..."
-                className="mt-1 w-full rounded-lg border p-2 text-sm"
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-amber-400"
                 required
               />
-            </label>
 
-            <button className="mt-3 w-full rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 font-bold text-white">
-              Gửi nhận xét tới Phụ huynh
+              {/* Quick templates for parent note */}
+              <div className="mt-2 space-y-1">
+                <span className="text-[11px] font-bold text-slate-500">Mẫu nhận xét nhanh:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Bé phát âm rất to, rõ ràng và có nhiều tiến bộ hôm nay! 🌟',
+                    'Bé tích cực tương tác, hoàn thành rất tốt các bài tập trên lớp! 👏',
+                    'Gia đình cho bé ôn thêm từ vựng bài này 10 phút mỗi ngày nhé! 📖',
+                    'Bé nhớ bài nhanh, phản xạ nghe và chọn tranh rất chính xác! 🎯'
+                  ].map((tpl, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setParentNoteText(prev => prev ? `${prev} ${tpl}` : tpl)}
+                      className="text-[11px] font-medium bg-slate-100 hover:bg-amber-50 hover:text-amber-800 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                    >
+                      {tpl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!parentNoteText.trim()}
+              className="mt-2 w-full rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 py-2.5 font-bold text-white shadow-xs transition-colors cursor-pointer"
+            >
+              Xác nhận gửi thông báo tới Sổ liên lạc
             </button>
           </form>
         </Modal>
@@ -1975,3 +2678,6 @@ export const TeacherStudentDetail = () => {
     </>
   );
 };
+
+export { TeacherAnalyticsTab as TeacherAnalytics } from './TeacherAnalyticsTab';
+

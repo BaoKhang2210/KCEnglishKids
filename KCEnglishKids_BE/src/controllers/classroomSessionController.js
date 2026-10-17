@@ -43,10 +43,14 @@ exports.getSessions = async (req, res, next) => {
   try {
     // Auto cleanup stale/inactive sessions (SCHEDULED or LIVE older than 24 hours)
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    await ClassroomSession.deleteMany({
+    const deleteFilter = {
       status: { $in: ['SCHEDULED', 'LIVE'] },
       updatedAt: { $lt: twentyFourHoursAgo }
-    });
+    };
+    if (req.user.role !== 'ADMIN') {
+      deleteFilter.teacher = req.user._id;
+    }
+    await ClassroomSession.deleteMany(deleteFilter);
 
     const q =
       req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
@@ -54,11 +58,18 @@ exports.getSessions = async (req, res, next) => {
     if (req.query.classroomId) q.classroom = req.query.classroomId;
 
     const sessions = await ClassroomSession.find(q)
-      .populate('classroom', 'name ageGroupCode')
+      .populate('classroom', 'name ageGroupCode teacher')
       .populate('teacher', 'name avatar avatarUrl')
-      .populate('lesson', 'title')
+      .populate({
+        path: 'lesson',
+        select: 'title vietnameseTitle displayOrder curriculumUnits',
+        populate: {
+          path: 'curriculumUnits',
+          select: 'bookNumber unitNumber title vietnameseTitle theme'
+        }
+      })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(100);
 
     res.json({ success: true, count: sessions.length, data: sessions });
   } catch (e) {
@@ -74,7 +85,7 @@ exports.getSessions = async (req, res, next) => {
 exports.createSession = async (req, res, next) => {
   try {
     const classroomId = req.body.classroomId || req.body.classRoomId;
-    const { lessonId, title, activityIds, plannedDuration } = req.body;
+    const { lessonId, title, activityIds, plannedDuration, sessionNumber, includeWarmup } = req.body;
 
     if (!validId(classroomId))
       return bad(res, 'Valid classroomId is required.');
@@ -121,6 +132,8 @@ exports.createSession = async (req, res, next) => {
       ageGroup: classroom.ageGroupCode || '5-6',
       status: 'SCHEDULED',
       plannedDuration: plannedDuration || 45,
+      sessionNumber: Number(sessionNumber) || 1,
+      includeWarmup: includeWarmup !== false,
       activities: resolvedActivities,
       currentActivityIndex: 0,
       studentScores
@@ -147,11 +160,21 @@ exports.getSession = async (req, res, next) => {
     await session.populate('teacher', 'name avatar avatarUrl');
     await session.populate({
       path: 'lesson',
-      select: 'title vietnameseTitle description vocabularyItems',
-      populate: {
-        path: 'vocabularyItems',
-        select: 'word english vietnamese pronunciation audioUrl imageUrl category'
-      }
+      select: 'title vietnameseTitle description vocabularyItems topic curriculumUnits',
+      populate: [
+        {
+          path: 'vocabularyItems',
+          select: 'word english vietnamese pronunciation audioUrl imageUrl category'
+        },
+        {
+          path: 'curriculumUnits',
+          select: 'unitNumber bookNumber bigQuestion title'
+        },
+        {
+          path: 'topic',
+          select: 'englishName vietnameseName'
+        }
+      ]
     });
     await session.populate('activities', 'title activityType questionCount questions');
     await session.populate('studentScores.student', 'name avatar avatarUrl ageGroupCode');

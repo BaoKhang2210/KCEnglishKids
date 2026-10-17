@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, Mail } from 'lucide-react';
+import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
@@ -241,18 +241,26 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 </button>
               )}
 
-              {/* Sổ liên lạc Phụ huynh */}
+              {/* Avatar Sổ liên lạc của bé (GV-04) */}
               <button
                 onClick={() => {
                   sfx.playPop();
                   setShowParentModal(true);
                 }}
-                title="Sổ liên lạc & Lời nhắn từ cô giáo"
-                aria-label="Sổ liên lạc phụ huynh"
-                className="relative p-2 sm:p-3.5 rounded-[18px] bg-amber-50 hover:bg-amber-100 text-amber-700 hover:text-amber-800 border-[3px] border-amber-300 hover:border-amber-400 shadow-sm transition-all cursor-pointer flex-shrink-0"
+                title="Mở Sổ liên lạc của bé & Lời nhắn từ cô giáo"
+                aria-label="Sổ liên lạc của bé"
+                className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-[20px] bg-gradient-to-r from-amber-100 via-orange-50 to-amber-100 hover:from-amber-200 hover:to-orange-100 text-amber-900 border-[3px] border-amber-300 hover:border-amber-400 shadow-sm transition-all active:scale-95 cursor-pointer flex-shrink-0"
               >
-                <Mail className="w-5 h-5 sm:w-6 sm:h-6" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-white" />
+                <span className="text-xl sm:text-2xl animate-bounce-gentle" role="img" aria-label="Sổ liên lạc">
+                  📒
+                </span>
+                <span 
+                  className="hidden sm:inline font-black text-[13px] sm:text-[14px] text-amber-950 whitespace-nowrap"
+                  style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+                >
+                  Sổ liên lạc
+                </span>
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
               </button>
 
               {/* Change Password */}

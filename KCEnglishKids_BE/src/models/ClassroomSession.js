@@ -83,6 +83,14 @@ const classroomSessionSchema = new mongoose.Schema(
       type: Number,
       default: 45 // minutes
     },
+    sessionNumber: {
+      type: Number,
+      default: 1
+    },
+    includeWarmup: {
+      type: Boolean,
+      default: true
+    },
     // Activities chosen for this session
     activities: [
       {
