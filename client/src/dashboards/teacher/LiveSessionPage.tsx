@@ -739,7 +739,7 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 0: WARM-UP & PREVIOUS LESSON REVIEW (ÔN CŨ HỌC MỚI: TỪ VỰNG & MẪU CÂU) */}
         {/* ========================================================================= */}
         {activeTab === 'warmup' && (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Left 8 Cols: Giant Warm-up Review Flashcard & Projection */}
             <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-orange-950/20 to-slate-900 rounded-4xl border-3 border-orange-400/50 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
               {/* Header badge & controls */}
@@ -1176,7 +1176,7 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 1: PRESENTATION & VOCABULARY TEACHING (Màn hình Giảng dạy Từ vựng)   */}
         {/* ========================================================================= */}
         {activeTab === 'presentation' && (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Left Col (8 cols): Giant Presentation Flashcard for classroom display */}
             <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 to-slate-800 rounded-4xl border-3 border-amber-400/40 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
               <div className="w-full flex items-center justify-between mb-4">
@@ -1388,7 +1388,7 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 2: SENTENCES & DIALOGUE TEACHING (Màn hình Giảng dạy Mẫu câu của bài) */}
         {/* ========================================================================= */}
         {activeTab === 'sentences' && (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Left Col (8 cols): Giant Presentation for Sentence Patterns */}
             <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-indigo-950/40 to-slate-900 rounded-4xl border-3 border-teal-400/40 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
               {/* Top bar in sentence presentation */}
@@ -1789,7 +1789,7 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 2: CLASSROOM INTERACTIVE GAMES (Trò chơi lớp học)                     */}
         {/* ========================================================================= */}
         {activeTab === 'games' && (
-          <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full bg-slate-900/90 rounded-4xl border-3 border-purple-500/40 p-6 sm:p-8 shadow-2xl">
+          <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-purple-500/40 p-6 sm:p-8 shadow-2xl">
             {/* Game Header & Mode selection */}
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6">
               <div className="flex items-center gap-3">
@@ -2017,7 +2017,7 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 3: FULL CLASSROOM GRID & BULK GRADING (Lưới Quản Lý & Chấm Điểm)       */}
         {/* ========================================================================= */}
         {activeTab === 'grid' && (
-          <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full">
+          <div className="flex-1 flex flex-col w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Top Toolbar: Bulk Grading & Multi-Select Controls */}
             <div className="bg-slate-900/90 rounded-3xl border border-white/15 p-4 sm:p-5 shadow-xl mb-6">
               <div className="flex flex-wrap items-center justify-between gap-4">

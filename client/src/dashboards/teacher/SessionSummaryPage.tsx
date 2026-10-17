@@ -99,7 +99,7 @@ export const SessionSummaryPage: React.FC = () => {
         </p>
       </div>
 
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mx-auto w-full max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 py-8">
         {/* ── Metrics ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
           <MetricCard

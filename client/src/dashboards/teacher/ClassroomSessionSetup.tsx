@@ -250,7 +250,7 @@ export const ClassroomSessionSetup: React.FC = () => {
   );
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto w-full max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 py-8">
       {/* Back button */}
       <button
         onClick={() => navigate(activeClassId ? `/teacher/classes/${activeClassId}` : '/teacher/classes')}

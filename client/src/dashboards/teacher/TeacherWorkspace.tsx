@@ -147,7 +147,7 @@ export const TeacherLayout = () => {
       )}
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl p-5 lg:ml-64 lg:p-8">
+      <main className="min-h-screen lg:ml-64 p-4 sm:p-6 lg:p-8 w-auto">
         <header className="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
             <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-lg font-black text-white shadow-md shadow-teal-500/20">
@@ -382,7 +382,7 @@ export const TeacherClasses = () => {
       </div>
 
       {filtered?.length ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5">
           {filtered.map((c) => {
             const classStudents = students.filter(
               (s) => String(s.assignedClass?._id || s.assignedClass) === String(c._id)
@@ -2120,7 +2120,7 @@ export const TeacherStudents = () => {
                     Không có học sinh nào trong lớp khớp với bộ lọc tìm kiếm.
                   </p>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6">
                     {sortedStudents.map((s) => {
                       const avg = Math.round(s.stats?.averageScore || 0);
                       const stars = s.stats?.totalStars ?? s.stats?.stars ?? 0;
@@ -2237,7 +2237,7 @@ export const TeacherStudents = () => {
                 </span>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6">
                 {sortStudents(classGroups.unassigned).map((s) => (
                   <div
                     key={s._id}

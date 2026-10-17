@@ -798,7 +798,7 @@ export const SentenceTeachingPage: React.FC = () => {
           {/* Stage Area */}
           <main
             ref={stageRef}
-            className="flex flex-1 flex-col items-center justify-between overflow-y-auto px-6 py-6 md:py-10 max-w-6xl mx-auto w-full text-center"
+            className="flex flex-1 flex-col items-center justify-between overflow-y-auto px-6 py-6 md:py-10 w-full max-w-6xl 2xl:max-w-7xl 3xl:max-w-[2000px] mx-auto text-center"
           >
             {/* Top Category Badge */}
             <div className="flex items-center gap-2 mb-2">

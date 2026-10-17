@@ -209,7 +209,7 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* Main Tab Navigation Bar */}
       <div className="bg-white border-b border-slate-200 px-6 sticky top-[65px] z-20 shadow-2xs">
-        <div className="max-w-7xl w-full mx-auto flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
+        <div className="w-full max-w-[2200px] 2xl:max-w-none mx-auto flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
           {navTabs.map((t) => {
             const Icon = t.icon;
             const active = activeTab === t.key;
@@ -233,7 +233,7 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* Action Notification Toast Banner */}
       {actionMessage && (
-        <div className="max-w-7xl w-full mx-auto px-6 pt-4 animate-pop-in">
+        <div className="w-full max-w-[2200px] 2xl:max-w-none mx-auto px-6 pt-4 animate-pop-in">
           <div className="bg-emerald-50 border-2 border-emerald-300 text-emerald-800 px-4 py-3 rounded-2xl font-bold text-xs flex items-center gap-2 shadow-xs">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{actionMessage}</span>
@@ -242,7 +242,7 @@ export const AdminDashboardPage: React.FC = () => {
       )}
 
       {/* Tab Content Body */}
-      <main className="max-w-7xl w-full mx-auto p-6 flex-1">
+      <main className="w-full max-w-[2200px] 2xl:max-w-none mx-auto p-6 flex-1">
         {activeTab === 'overview' && (
           <OverviewTab
             stats={stats}

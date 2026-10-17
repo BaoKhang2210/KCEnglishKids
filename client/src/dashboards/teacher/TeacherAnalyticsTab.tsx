@@ -209,7 +209,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
       </section>
 
       {/* Main Content Grid: Leaderboard & At-Risk List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         {/* Top 5 Leaderboard (Inspired by Duolingo for Schools) */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs lg:col-span-1 flex flex-col">
           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -277,7 +277,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
         </div>
 
         {/* Detailed Class Student Progress Table */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs lg:col-span-2">
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs lg:col-span-2 2xl:col-span-3">
           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
             <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-teal-600" />
