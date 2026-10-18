@@ -21,10 +21,7 @@ import type { Vocabulary, AgeGroupCode } from '../../../types';
 import { sfx, playWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
 import { useVocabStats } from '../../../hooks/useVocabStats';
-import {
-  buildPracticePlan,
-  type PracticeQuestion,
-} from './buildPracticePlan';
+import { buildPracticePlan } from './buildPracticePlan';
 import { KokoMascot, type MascotState } from '../KokoMascot';
 
 // ── Constants & Reward Config ──────────────────────────────────────────────────
@@ -112,7 +109,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     [vocabulary, effectiveAgeGroup],
   );
 
-  const [questions, setQuestions] = useState<PracticeQuestion[]>(plan.questions);
+  const questions = plan.questions;
   const [currentIdx, setCurrentIdx] = useState(0);
 
   // Per-question state
@@ -130,9 +127,11 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const [kokoMood, setKokoMood] = useState<MascotState>('happy');
   const [kokoBubble, setKokoBubble] = useState<string | undefined>('Lang nghe Koko nhe! 👂');
 
-  // Scoring
+  // Scoring & Accuracy tracking
   const [starsEarned, setStarsEarned] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [totalWrongAttempts, setTotalWrongAttempts] = useState(0);
 
   const currentQ = questions[currentIdx];
   const totalQ = questions.length;
@@ -183,6 +182,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setKokoBubble(`${randomPraise()} ${currentQ.targetVocab.english}! 🎉`);
 
     const firstTry = wrongCount === 0;
+    setCorrectCount((p) => p + 1);
     recordAttempt(currentQ.wordId, {
       type: currentQ.type,
       ok: true,
@@ -219,6 +219,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
 
     const newCount = wrongCount + 1;
     setWrongCount(newCount);
+    setTotalWrongAttempts((p) => p + 1);
 
     const chosenId = chosen ? (chosen._id ?? (chosen as any).id ?? chosen.english) : undefined;
     recordAttempt(currentQ.wordId, {
@@ -248,21 +249,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       setBounceCorrect(true);
       setTimeout(playPrompt, 300);
     }
-
-    if (newCount === 1) {
-      const requeue: PracticeQuestion = {
-        ...currentQ,
-        id: `retry_${currentQ.id}_${Date.now()}`,
-        turn: 'bonus',
-        type: currentQ.type === 'LT' ? 'GK' : 'LT',
-      };
-      setQuestions((prev) => {
-        const list = [...prev];
-        list.splice(Math.min(list.length, currentIdx + 3), 0, requeue);
-        return list;
-      });
-    }
-  }, [currentQ, wrongCount, currentIdx, playPrompt, recordAttempt]);
+  }, [currentQ, wrongCount, playPrompt, recordAttempt]);
 
   const handleCardClick = (vocab: Vocabulary) => {
     if (showCheck) return;
@@ -321,9 +308,33 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
               <span key={s} className="text-[clamp(2rem,6vh,3.5rem)] animate-soft-bounce">⭐</span>
             ))}
           </div>
+
+          {/* Popup thống kê kết quả luyện tập */}
+          <div className="w-full bg-slate-800/80 backdrop-blur-md rounded-2xl p-3 border border-white/15 max-w-sm shadow-xl">
+            <p className="text-xs font-black text-amber-200 text-center uppercase tracking-wider mb-2.5">
+              📊 Kết quả luyện tập của bé
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2.5 bg-emerald-500/20 border border-emerald-400/30 rounded-xl px-3 py-2">
+                <span className="text-2xl">🎯</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-bold text-emerald-200">Đúng ngay</span>
+                  <span className="text-lg font-black text-emerald-300 leading-tight">{correctCount} câu</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 bg-amber-500/20 border border-amber-400/30 rounded-xl px-3 py-2">
+                <span className="text-2xl">💡</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-bold text-amber-200">Thử lại</span>
+                  <span className="text-lg font-black text-amber-300 leading-tight">{totalWrongAttempts} lần</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {knownWords.length > 0 && (
             <div className="w-full bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-amber-300/40 max-w-sm">
-              <p className="text-xs font-black text-amber-200 text-center mb-2">🌟 Tu be nho sieu dinh:</p>
+              <p className="text-xs font-black text-amber-200 text-center mb-2">🌟 Từ bé nhớ siêu đỉnh:</p>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 {knownWords.slice(0, 6).map((w) => (
                   <div key={w._id ?? w.english} className="flex flex-col items-center bg-white/15 rounded-xl px-3 py-2 border border-white/20">
@@ -371,19 +382,16 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         </button>
 
         <div className="flex items-center gap-2 flex-1 mx-3 max-w-xs">
-          <span className="text-base">⭐</span>
-          <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden border border-white/10">
+          <span className="text-base select-none">⭐</span>
+          <div className="flex-1 h-3.5 bg-white/15 rounded-full overflow-hidden border border-white/10 p-0.5">
             <div
-              className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all duration-500"
-              style={{ width: `${progressRatio}%` }}
+              className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${Math.max(6, progressRatio)}%` }}
             />
           </div>
-          <div className="flex items-center gap-1.5 shrink-0 text-xs font-bold text-slate-300 tabular-nums">
-            <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-amber-300">
-              {currentQ.turn === 'bonus' ? 'Ôn tập' : `Vòng ${currentQ.turn}/3`}
-            </span>
-            <span>Câu {Math.min(currentIdx + 1, totalQ)}/{totalQ}</span>
-          </div>
+          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-amber-300 shrink-0">
+            {currentQ.turn === 'bonus' ? 'Ôn tập' : `Vòng ${currentQ.turn}/3`}
+          </span>
         </div>
 
         <button

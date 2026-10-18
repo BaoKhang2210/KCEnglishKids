@@ -55,7 +55,6 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
           maxPerPage={8}
           renderItem={(vocab: Vocabulary) => {
             const id = vocab._id || (vocab as any).id || vocab.english;
-            const isTapped = tappedIds.has(id);
             const isBouncing = bouncingId === id;
 
             return (
@@ -63,32 +62,15 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
                 onClick={() => handleTapItem(vocab)}
                 aria-label={`Nghe từ: ${vocab.english}`}
                 className={`
-                  w-full h-full min-h-0 flex flex-col rounded-2xl border-4 overflow-hidden
-                  cursor-pointer transition-all duration-200 relative group
-                  ${isTapped
-                    ? 'border-emerald-400 bg-white shadow-lg ring-4 ring-emerald-300/50'
-                    : 'border-amber-200 bg-white/90 hover:border-amber-400 shadow-md hover:shadow-lg'
-                  }
-                  ${isBouncing ? 'scale-95' : 'scale-100'}
+                  w-full h-full min-h-0 flex flex-col rounded-2xl border-4 border-amber-200 bg-white/95
+                  hover:border-amber-400 shadow-md hover:shadow-lg overflow-hidden
+                  cursor-pointer transition-all duration-150 relative group active:scale-95
+                  ${isBouncing ? 'scale-95 ring-4 ring-amber-300/60' : 'scale-100'}
                 `}
                 style={{ minHeight: 64, minWidth: 64 }}
               >
-                {/* ✓ badge — large, visible at a glance */}
-                {isTapped && (
-                  <div className="absolute top-2 right-2 z-10 w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg animate-pop-in">
-                    <span className="text-white font-black leading-none" style={{ fontSize: '1.25rem' }}>✓</span>
-                  </div>
-                )}
-
                 {/* Image area: ≥65% of card height via flex-1 */}
-                <div className={`
-                  flex-1 min-h-0 w-full flex items-center justify-center p-2
-                  ${isTapped
-                    ? 'bg-emerald-50/50'
-                    : 'bg-gradient-to-b from-amber-50/60 to-transparent group-hover:from-amber-100/60'
-                  }
-                  transition-colors
-                `}>
+                <div className="flex-1 min-h-0 w-full flex items-center justify-center p-2 bg-gradient-to-b from-amber-50/60 to-transparent group-hover:from-amber-100/60 transition-colors">
                   {vocab.imageUrl ? (
                     <img
                       src={vocab.imageUrl}
@@ -104,15 +86,9 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
                 </div>
 
                 {/* English word — big, single line, high contrast */}
-                <div className={`
-                  shrink-0 w-full px-2 pb-2.5 pt-1.5 text-center
-                  ${isTapped ? 'bg-emerald-500' : 'bg-white'}
-                  transition-colors
-                `}>
+                <div className="shrink-0 w-full px-2 pb-2.5 pt-1.5 text-center bg-white border-t border-amber-100 transition-colors">
                   <span
-                    className={`font-black leading-tight block truncate ${
-                      isTapped ? 'text-white' : 'text-slate-800'
-                    }`}
+                    className="font-black leading-tight block truncate text-slate-800 group-hover:text-amber-700"
                     style={{ fontSize: 'clamp(1.1rem, 3vh, 1.6rem)' }}
                   >
                     {vocab.english}
@@ -136,26 +112,8 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
         )}
       </div>
 
-      {/* Bottom action bar — 1 row: stars + listen + CTA */}
-      <div className="shrink-0 flex items-center gap-3 px-1">
-
-        {/* Star progress (filled = tapped words, empty = remaining) */}
-        <div className="flex items-center gap-1.5 shrink-0" aria-label={`${tappedIds.size} trong ${minRequiredTaps} từ đã chạm`}>
-          {Array.from({ length: minRequiredTaps }).map((_, i) => (
-            <span
-              key={i}
-              className="transition-all duration-300"
-              style={{
-                fontSize: '1.625rem',
-                opacity: i < tappedIds.size ? 1 : 0.25,
-                transform: i < tappedIds.size ? 'scale(1.1)' : 'scale(1)',
-                filter: i < tappedIds.size ? 'none' : 'grayscale(1)',
-              }}
-            >
-              ⭐
-            </span>
-          ))}
-        </div>
+      {/* Bottom action bar — 1 row: listen question + CTA */}
+      <div className="shrink-0 flex items-center justify-between gap-3 px-1">
 
         {/* Spacer */}
         <div className="flex-1" />

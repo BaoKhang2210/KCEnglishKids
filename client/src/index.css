@@ -531,6 +531,12 @@ html {
   50% { transform: translateY(-8px) rotate(-8deg); }
 }
 
+@keyframes stage3-celebration-dance {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  25% { transform: rotate(-7deg) translateY(-5px); }
+  75% { transform: rotate(7deg) translateY(-5px); }
+}
+
 .stage3-next-card {
   animation: stage3-next-pulse 2.2s ease-in-out infinite;
 }
@@ -543,10 +549,15 @@ html {
   animation: stage3-hand-nudge 900ms ease-in-out infinite;
 }
 
+.stage3-celebration-dance {
+  animation: stage3-celebration-dance 800ms ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .stage3-next-card,
   .stage3-card-tap,
-  .stage3-hand {
+  .stage3-hand,
+  .stage3-celebration-dance {
     animation: none !important;
   }
 }

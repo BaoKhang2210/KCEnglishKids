@@ -102,14 +102,16 @@ export const LessonDetailPage: React.FC = () => {
     const type = String(activity.activityType || '').toUpperCase();
     const titleAndType = `${activity.title || ''} ${activity.vietnameseTitle || ''}`.toLowerCase();
     const isTextOnlyGame =
-      ['DRAG_DROP_WORD', 'SPELL_PUZZLE'].includes(type) ||
       titleAndType.includes('match the words') ||
       titleAndType.includes('spelling') ||
       (type === 'DRAG_DROP' && /\b(word|spell|chữ|từ)\b/.test(titleAndType));
 
+    // These text-only types do not exist in the current Activity enum/game runtime.
+    if (['DRAG_DROP_WORD', 'SPELL_PUZZLE'].includes(type)) return false;
     if ((ageGroupCode === '3-4' || ageGroupCode === '4-5') && isTextOnlyGame) return false;
     if (type === 'IMAGE_WORD_MATCH' && ageGroupCode !== '5-6') return false;
     if (type === 'IMAGE_WORD_MATCH' && ageGroupCode === '5-6' && !hasVisualVocabulary) return false;
+    if (type === 'DRAG_DROP' && ageGroupCode === '5-6' && !hasVisualVocabulary) return false;
     return true;
   }).sort(
     (a: any, b: any) =>
@@ -260,7 +262,7 @@ export const LessonDetailPage: React.FC = () => {
         </h1>
       </div>
 
-      {/* 4-dot stage stepper */}
+      {/* 4 stage tabs with clear stage number and badge */}
       <div className="flex items-center gap-1.5 shrink-0">
         {[1, 2, 3, 4].map((stage) => {
           const done = stageCompletedMap[stage - 1];
@@ -274,19 +276,29 @@ export const LessonDetailPage: React.FC = () => {
               aria-label={`Chặng ${stage}${done ? ' — Đã xong' : locked ? ' — Đang khóa' : isActive ? ' — Đang học' : ''}`}
               title={`Chặng ${stage}`}
               className={`
-                w-11 h-11 rounded-full flex items-center justify-center text-base font-black
-                cursor-pointer transition-all active:scale-90 border-2
-                ${done
-                  ? 'bg-emerald-500 border-emerald-400 text-white shadow-sm'
-                  : isActive
-                  ? `${colors.active} border-transparent text-white shadow-md ring-4 animate-soft-bounce`
+                h-10 px-2.5 sm:px-3 rounded-xl flex items-center justify-center gap-1.5
+                cursor-pointer transition-all active:scale-95 border-2 relative
+                ${isActive
+                  ? `${colors.active} border-white/60 text-white shadow-md ring-3 animate-soft-bounce z-10`
+                  : done
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 shadow-2xs'
                   : locked
-                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-75'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                 }
               `}
             >
-              {done ? '✓' : locked ? '🔒' : colors.icon}
+              <span className="text-sm leading-none">{locked ? '🔒' : colors.icon}</span>
+              <span className={`text-xs font-black tracking-tight ${isActive ? 'text-white' : ''}`}>
+                C{stage}
+              </span>
+
+              {/* Small check badge when completed */}
+              {done && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white text-white flex items-center justify-center text-[9px] font-black shadow-xs">
+                  ✓
+                </span>
+              )}
             </button>
           );
         })}
@@ -294,7 +306,7 @@ export const LessonDetailPage: React.FC = () => {
 
       {/* Lock notice toast — inline after dots */}
       {lockNotice && (
-        <div className="hidden sm:flex items-center gap-1.5 bg-amber-400 text-amber-950 text-xs font-black px-3 py-1.5 rounded-xl shadow-xs shrink-0 max-w-[180px]">
+        <div className="hidden sm:flex items-center gap-1.5 bg-amber-400 text-amber-950 text-sm font-black px-3 py-1.5 rounded-xl shadow-xs shrink-0 max-w-[180px]">
           <Lock className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{lockNotice}</span>
         </div>
@@ -314,7 +326,7 @@ export const LessonDetailPage: React.FC = () => {
 
   // Lock notice toast for mobile (below title bar)
   const lockToastMobile = lockNotice ? (
-    <div className="sm:hidden shrink-0 flex items-center gap-1.5 bg-amber-400 text-amber-950 text-xs font-black px-3 py-1.5 rounded-xl shadow-xs mx-1">
+    <div className="sm:hidden shrink-0 flex items-center gap-1.5 bg-amber-400 text-amber-950 text-sm font-black px-3 py-1.5 rounded-xl shadow-xs mx-1">
       <Lock className="w-3.5 h-3.5 shrink-0" />
       <span>{lockNotice}</span>
     </div>
@@ -329,7 +341,7 @@ export const LessonDetailPage: React.FC = () => {
       {loading ? (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3">
           <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-bold text-slate-500">Đang chuẩn bị phòng học...</p>
+          <p className="text-sm font-bold text-slate-600">Đang chuẩn bị phòng học...</p>
         </div>
       ) : !lesson ? (
         <div className="w-full h-full flex items-center justify-center">

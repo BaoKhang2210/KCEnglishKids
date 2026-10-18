@@ -183,6 +183,10 @@ const enrichActivity = (activity, vocabularyItems) => {
   if (existing.length >= MIN_QUESTIONS) return { questions: [], reason: 'Đã đủ số câu tối thiểu.' };
   if (UNSUPPORTED_TYPE_REASONS[type]) return { questions: [], reason: UNSUPPORTED_TYPE_REASONS[type] };
   if (!SUPPORTED_TYPES.has(type)) return { questions: [], reason: `Chưa có bộ sinh câu an toàn cho ${type || 'loại game chưa rõ'}.` };
+  if (type === 'COUNT_OBJECTS') {
+    const quantity = Number(existing.find(question => question.metadata?.quantity)?.metadata?.quantity || 1);
+    if (quantity > 10) return { questions: [], reason: 'Engine hiện chỉ hiển thị tối đa 10 hình đếm nên không thể tạo thêm câu đếm chính xác.' };
+  }
 
   const words = [...new Map((vocabularyItems || [])
     .filter(item => item?._id && item?.english && item?.imageUrl)

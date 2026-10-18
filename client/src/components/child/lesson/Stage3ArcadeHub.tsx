@@ -87,12 +87,14 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
     }
   }, [isCompleted, celebrated, reducedMotion]);
 
+  // Keep the arcade overview scannable on phones without letting a third row
+  // get clipped by the fixed child header and bottom navigation.
   const perPage = compact ? 4 : 6;
   const pageCount = Math.max(1, Math.ceil(games.length / perPage));
   const currentPage = Math.min(page, pageCount - 1);
   const visibleGames = games.slice(currentPage * perPage, (currentPage + 1) * perPage);
   const columns = compact
-    ? visibleGames.length <= 3 ? Math.max(1, visibleGames.length) : 2
+    ? Math.min(2, Math.max(1, visibleGames.length))
     :
     visibleGames.length <= 3 ? Math.max(1, visibleGames.length) : visibleGames.length === 4 ? 2 : 3;
   const rows = Math.ceil(visibleGames.length / columns);
@@ -102,7 +104,7 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
   );
   const progressStars = games.length > 0
     ? Math.ceil((completedCount / games.length) * 3)
-    : 3;
+    : 0;
 
   const stickerIds = new Set(['st_star', ...(rewards?.grantedStickerIds || [])]);
   const celebrationSticker = ALL_STICKERS.find(sticker => stickerIds.has(sticker.id)) || ALL_STICKERS[0];
@@ -118,9 +120,14 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
   return (
     <section className="stage3-hub flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden" aria-label="Khu vui chơi">
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-3xl border border-indigo-400/50 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-2 sm:p-3">
-        {isCompleted ? (
+        {games.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 px-5 text-center text-white">
+            <KokoMascot state="thinking" size="lg" interactive={false} />
+            <p className="text-[clamp(20px,2.5dvh,24px)] font-black">Chưa có trò chơi phù hợp</p>
+          </div>
+        ) : isCompleted ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center text-white">
-            <KokoMascot state="celebrating" size="lg" interactive={false} className="stage3-koko" />
+            <KokoMascot state="celebrating" size="lg" interactive={false} className="stage3-koko stage3-celebration-dance" />
             {celebrationSticker && (
               <div className={`puffy-sticker flex h-[9dvh] min-h-16 w-[9dvh] min-w-16 items-center justify-center rounded-3xl border-2 border-white bg-gradient-to-tr ${celebrationSticker.bgGradient} text-[clamp(32px,6dvh,52px)] shadow-xl`} aria-label={`Sticker đã mở: ${celebrationSticker.name}`}>
                 {celebrationSticker.icon}
@@ -129,19 +136,17 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
             <h2 className="text-[clamp(28px,4dvh,36px)] font-black">Bé chơi hết rồi! 🎉</h2>
             <p className="text-[clamp(20px,2.5dvh,24px)] font-bold text-indigo-100">Giỏi quá! 🏆</p>
           </div>
-        ) : games.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-5 text-center text-white">
-            <KokoMascot state="thinking" size="lg" interactive={false} />
-            <p className="text-[clamp(20px,2.5dvh,24px)] font-black">Chưa có trò chơi phù hợp</p>
-          </div>
         ) : (
           <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2">
             <div
-              className="stage3-game-grid grid min-h-0 w-full flex-1 content-center justify-center gap-x-2 gap-y-[2dvh] sm:gap-x-4"
+              className="stage3-game-grid grid min-h-0 w-full flex-1 content-center justify-center gap-x-2 gap-y-2 sm:gap-x-4 sm:gap-y-3"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${rows}, minmax(25dvh, ${rows === 1 ? '34dvh' : '27dvh'}))`,
-                maxWidth: compact ? '96vw' : columns === 3 ? 'min(74rem, 66vw)' : columns === 2 ? 'min(54rem, 44vw)' : 'min(25rem, 22vw)'
+                // Fit rows to the actual remaining panel height. Fixed dVH
+                // tracks overflow on short screens because the footer and
+                // bottom navigation also consume viewport height.
+                gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+                maxWidth: compact ? columns === 1 ? 'min(96vw, 35dvh)' : '96vw' : columns === 3 ? 'min(74rem, 66vw)' : columns === 2 ? 'min(54rem, 44vw)' : 'min(25rem, 22vw)'
               }}
             >
               {visibleGames.map((game) => {
@@ -157,13 +162,13 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
                     type="button"
                     onClick={() => handleGameStart(game)}
                     aria-label={`${label}${game.completed ? ', đã hoàn thành' : isNext ? ', chơi tiếp' : ''}. ${stars} trên 3 sao`}
-                    className={`stage3-game-card relative flex h-full min-h-[25dvh] w-full min-w-0 flex-col items-center justify-between overflow-visible rounded-[2rem] border-4 p-2 text-center text-white shadow-xl transition-transform focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-amber-300 ${visuals.card} ${isNext ? 'stage3-next-card z-10 border-amber-200 ring-4 ring-amber-300/60' : 'border-white/75'} ${game.completed ? 'opacity-80' : ''} ${animatingId === game._id ? 'stage3-card-tap' : ''} ${reducedMotion ? 'motion-reduce:transform-none motion-reduce:animate-none' : ''}`}
+                    className={`stage3-game-card relative flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-between overflow-visible rounded-[1.5rem] border-4 p-1.5 text-center text-white shadow-xl transition-transform focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:rounded-[2rem] sm:p-2 ${visuals.card} ${isNext ? 'stage3-next-card z-10 border-amber-200 ring-4 ring-amber-300/60' : 'border-white/75'} ${game.completed ? 'opacity-80' : ''} ${animatingId === game._id ? 'stage3-card-tap' : ''} ${reducedMotion ? 'motion-reduce:transform-none motion-reduce:animate-none' : ''}`}
                   >
                     {showHand && <span aria-hidden className="stage3-hand absolute -right-3 -top-4 z-20 text-[clamp(36px,6dvh,52px)]">👆</span>}
-                    <span className={`flex w-full flex-1 items-center justify-center rounded-3xl ${visuals.art} text-[clamp(56px,12dvh,112px)] leading-none drop-shadow-lg`} aria-hidden>
+                    <span className={`flex w-full min-h-0 flex-1 items-center justify-center rounded-3xl ${visuals.art} text-[clamp(36px,8dvh,96px)] leading-none drop-shadow-lg`} aria-hidden>
                       {visuals.icon}
                     </span>
-                    <span className="mt-1 w-full break-words text-[28px] font-black leading-tight drop-shadow-sm">{label}</span>
+                    <span className="mt-1 w-full break-words text-[clamp(16px,3.5dvh,28px)] font-black leading-tight drop-shadow-sm">{label}</span>
                     <span className="flex min-h-[4dvh] items-center justify-center gap-1" aria-label={`${stars} trên 3 sao`}>
                       {[0, 1, 2].map(index => (
                         <Star key={index} className={`h-[4dvh] min-h-7 w-[4dvh] min-w-7 ${index < stars ? 'fill-amber-300 text-amber-300' : 'fill-white/10 text-white/55'}`} />
@@ -179,9 +184,9 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
 
             {pageCount > 1 && (
               <div className="flex shrink-0 items-center justify-center gap-3" aria-label="Trang trò chơi">
-                <button type="button" onClick={() => setPage(value => Math.max(0, value - 1))} disabled={currentPage === 0} aria-label="Trang trước" className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white/60 bg-slate-800 text-3xl text-white disabled:opacity-40">◀</button>
-                <span className="min-w-16 text-center text-lg font-black text-white">{currentPage + 1} / {pageCount}</span>
-                <button type="button" onClick={() => setPage(value => Math.min(pageCount - 1, value + 1))} disabled={currentPage >= pageCount - 1} aria-label="Trang sau" className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white/60 bg-slate-800 text-3xl text-white disabled:opacity-40">▶</button>
+                <button type="button" onClick={() => setPage(value => Math.max(0, value - 1))} disabled={currentPage === 0} aria-label="Trang trước" className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-white/60 bg-slate-800 text-2xl text-white disabled:opacity-40 sm:h-16 sm:w-16 sm:text-3xl">◀</button>
+                <span className="min-w-16 text-center text-[20px] font-black text-white">{currentPage + 1} / {pageCount}</span>
+                <button type="button" onClick={() => setPage(value => Math.min(pageCount - 1, value + 1))} disabled={currentPage >= pageCount - 1} aria-label="Trang sau" className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-white/60 bg-slate-800 text-2xl text-white disabled:opacity-40 sm:h-16 sm:w-16 sm:text-3xl">▶</button>
               </div>
             )}
           </div>

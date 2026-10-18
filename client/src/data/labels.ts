@@ -39,7 +39,7 @@ export const unitTitleLabel = (unitNumber: number, title?: string): string =>
 
 /** Short, picture-led labels used by the Stage 3 arcade hub. */
 export const GAME_LABELS: Record<string, string> = {
-  LISTEN_CHOOSE: 'Nghe & chọn',
+  LISTEN_CHOOSE: 'Nghe chọn',
   COLOR_RECOGNITION: 'Tìm màu',
   TAP_PICTURE: 'Chạm hình',
   BUBBLE_POP: 'Bong bóng',
@@ -49,12 +49,12 @@ export const GAME_LABELS: Record<string, string> = {
   MISSING_OBJECT: 'Tìm đồ',
   MEMORY_CARD: 'Lật thẻ',
   STAR_CATCHER: 'Hứng sao',
-  FEED_ANIMAL: 'Cho thú ăn',
-  TRUE_FALSE: 'Đúng / sai',
+  FEED_ANIMAL: 'Cho ăn',
+  TRUE_FALSE: 'Đúng sai',
   DRAG_DROP: 'Kéo thả',
   FIND_OBJECT: 'Tìm đồ',
   CLASSIFICATION: 'Phân loại',
-  LISTEN_REPEAT: 'Nghe & nói',
+  LISTEN_REPEAT: 'Nghe chọn',
   MATCHING: 'Ghép cặp',
   MEMORY: 'Ghi nhớ'
 };
