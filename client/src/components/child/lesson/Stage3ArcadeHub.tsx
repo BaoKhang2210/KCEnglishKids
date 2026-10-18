@@ -141,7 +141,7 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 gridTemplateRows: `repeat(${rows}, minmax(25dvh, ${rows === 1 ? '34dvh' : '27dvh'}))`,
-                maxWidth: columns === 3 ? 'min(74rem, 66vw)' : columns === 2 ? 'min(54rem, 44vw)' : 'min(25rem, 22vw)'
+                maxWidth: compact ? '96vw' : columns === 3 ? 'min(74rem, 66vw)' : columns === 2 ? 'min(54rem, 44vw)' : 'min(25rem, 22vw)'
               }}
             >
               {visibleGames.map((game) => {
@@ -163,7 +163,7 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
                     <span className={`flex w-full flex-1 items-center justify-center rounded-3xl ${visuals.art} text-[clamp(56px,12dvh,112px)] leading-none drop-shadow-lg`} aria-hidden>
                       {visuals.icon}
                     </span>
-                    <span className="mt-1 w-full break-words text-[clamp(20px,3.6dvh,28px)] font-black leading-tight drop-shadow-sm">{label}</span>
+                    <span className="mt-1 w-full break-words text-[28px] font-black leading-tight drop-shadow-sm">{label}</span>
                     <span className="flex min-h-[4dvh] items-center justify-center gap-1" aria-label={`${stars} trên 3 sao`}>
                       {[0, 1, 2].map(index => (
                         <Star key={index} className={`h-[4dvh] min-h-7 w-[4dvh] min-w-7 ${index < stars ? 'fill-amber-300 text-amber-300' : 'fill-white/10 text-white/55'}`} />

@@ -101,7 +101,8 @@ const buildQuestion = (activity, target, vocabulary, index) => {
   } else if (type === 'COUNT_OBJECTS') {
     const quantity = Number(activity.questions?.find(q => q.metadata?.quantity)?.metadata?.quantity || 1);
     if (quantity > 10) return null;
-    const numberOptions = [...new Set([quantity, Math.max(1, quantity - 1), quantity + 1])].slice(0, 3);
+    const thirdNumber = quantity > 1 ? quantity - 1 : quantity + 2;
+    const numberOptions = [quantity, quantity + 1, thirdNumber].slice(0, 3);
     question.promptText = `How many ${target.english}s can you see?`;
     question.promptImageUrl = image;
     question.correctAnswer = String(quantity);
@@ -121,7 +122,7 @@ const buildQuestion = (activity, target, vocabulary, index) => {
   } else if (type === 'MISSING_OBJECT') {
     const visibleObjects = vocabulary
       .filter(item => getWordKey(item) !== getWordKey(target))
-      .slice(0, 3)
+      .slice(0, 2)
       .map(item => item.english);
     question.promptText = 'Which object is missing?';
     question.metadata = {
