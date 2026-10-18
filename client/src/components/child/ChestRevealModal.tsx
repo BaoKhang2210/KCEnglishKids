@@ -8,7 +8,7 @@ import { useRewards } from '../../context/RewardContext';
 
 /**
  * Màn 2 (§1.2.14) — Mở rương: shake animation → burst →
- * reveal the sticker + bonus stars.
+ * reveal the sticker and show the Unit bonus stars already credited.
  * The reveal API call is COSMETIC: the animation ALWAYS plays,
  * even when the network call fails (rewards were granted server-side).
  */
@@ -94,7 +94,7 @@ export const ChestRevealModal: React.FC<ChestRevealModalProps> = ({ chest, onClo
               🎉 Bé nhận được quà!
             </h2>
             <p className="text-sm font-bold text-slate-500 mb-6">
-              Phần thưởng đã được lưu vào góc phần thưởng của bé
+              Sticker được cấp khi hoàn thành Unit; sao thưởng đã cộng vào tổng sao lúc đó.
             </p>
 
             {/* Sticker reward */}
@@ -119,8 +119,9 @@ export const ChestRevealModal: React.FC<ChestRevealModalProps> = ({ chest, onClo
             {/* Bonus stars pill */}
             <div className="inline-flex items-center gap-2 bg-white border-3 border-amber-300 rounded-3xl px-6 py-3 shadow-md mb-7">
               <Star className="w-7 h-7 text-amber-500 fill-amber-500 animate-star-celebrate" />
-              <span className="text-2xl sm:text-3xl font-black text-amber-700">
-                +{stars} Sao vàng
+              <span className="text-left">
+                <span className="block text-xl sm:text-2xl font-black text-amber-700">+{stars} Sao vàng</span>
+                <span className="block text-[10px] sm:text-xs font-bold text-slate-500">đã cộng khi hoàn thành Unit</span>
               </span>
             </div>
 

@@ -52,7 +52,7 @@ export const KokoMascot: React.FC<KokoMascotProps> = ({
       {/* Speech Bubble */}
       {speechBubble && (
         <div
-          className={`absolute z-20 px-4 py-2 rounded-2xl bg-white border-3 border-amber-300 shadow-lg text-slate-800 font-black text-xs sm:text-sm animate-pop-in whitespace-nowrap pointer-events-none ${
+          className={`absolute z-20 px-4 py-2 rounded-2xl bg-white border-3 border-amber-300 shadow-lg text-slate-800 font-black text-sm animate-pop-in whitespace-nowrap pointer-events-none ${
             bubblePosition === 'top'
               ? '-top-12 left-1/2 -translate-x-1/2 after:content-[""] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-8 after:border-transparent after:border-t-white'
               : bubblePosition === 'right'

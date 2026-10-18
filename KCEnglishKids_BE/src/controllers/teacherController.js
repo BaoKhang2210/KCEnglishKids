@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { ClassRoom, User, Progress, ActivityResult, LearningSession, Assignment, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion } = require('../models');
+const { calculateLessonStars } = require('../services/starService');
 
 const validId = id => mongoose.isValidObjectId(id);
 const invalid = (res, message) => res.status(400).json({ success: false, message });
@@ -13,7 +14,7 @@ const byNameVi = (a, b) => String(a.name || '').localeCompare(String(b.name || '
 // §1.1.4 — per-child stats: activity aggregates + progress + live classroom session stars + bonus stars.
 const statsFor = async ids => {
   if (!ids.length) return [];
-  const [resultStats, progressStats, classroomStats, unitStats] = await Promise.all([
+  const [resultStats, progressStats, classroomStats, unitStats, completedProgress] = await Promise.all([
     ActivityResult.aggregate([
       { $match: { child: { $in: ids } } },
       { $group: {
@@ -30,7 +31,7 @@ const statsFor = async ids => {
       { $group: {
           _id: '$child',
           completedLessons: { $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] } },
-          progressStars: { $sum: '$stars' },
+          progressStars: { $sum: { $cond: [{ $eq: ['$completed', true] }, '$stars', 0] } },
           highestScoreAvg: { $avg: '$highestScore' },
           progressAttempts: { $sum: '$attempts' },
           lastProgressDate: { $max: '$lastActivityAt' }
@@ -53,8 +54,44 @@ const statsFor = async ids => {
           _id: '$child',
           bonusStars: { $sum: '$rewards.amount' }
       } }
-    ])
+    ]),
+    Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars').lean()
   ]);
+
+  const lessonIds = [...new Set(completedProgress.map((item) => item.lesson ? String(item.lesson) : null).filter(Boolean))];
+  const [lessonActivities, lessonResults] = lessonIds.length
+    ? await Promise.all([
+      Activity.find({ lesson: { $in: lessonIds }, status: 'ACTIVE' })
+        .select('_id lesson questions questionCount pointsPerQuestion')
+        .lean(),
+      ActivityResult.find({ child: { $in: ids }, lesson: { $in: lessonIds }, completed: true })
+        .select('child lesson activity score')
+        .lean()
+    ])
+    : [[], []];
+  const activitiesByLesson = new Map();
+  const resultsByChildLesson = new Map();
+  for (const activity of lessonActivities) {
+    const lessonId = String(activity.lesson);
+    if (!activitiesByLesson.has(lessonId)) activitiesByLesson.set(lessonId, []);
+    activitiesByLesson.get(lessonId).push(activity);
+  }
+  for (const result of lessonResults) {
+    const key = `${result.child}:${result.lesson}`;
+    if (!resultsByChildLesson.has(key)) resultsByChildLesson.set(key, []);
+    resultsByChildLesson.get(key).push(result);
+  }
+  const earnedStarsByChild = new Map();
+  for (const progress of completedProgress) {
+    const childId = String(progress.child);
+    const lessonId = String(progress.lesson);
+    const rating = calculateLessonStars(
+      activitiesByLesson.get(lessonId) || [],
+      resultsByChildLesson.get(`${childId}:${lessonId}`) || []
+    );
+    const stars = rating.completed ? rating.stars : (progress.stars || 0);
+    earnedStarsByChild.set(childId, (earnedStarsByChild.get(childId) || 0) + stars);
+  }
 
   const resultMap = new Map(resultStats.map(x => [String(x._id), x]));
   const progressMap = new Map(progressStats.map(x => [String(x._id), x]));
@@ -68,7 +105,8 @@ const statsFor = async ids => {
     const c = classroomMap.get(sid);
     const u = unitMap.get(sid);
 
-    const earnedStars = p ? (p.progressStars || 0) : (r ? (r.activityStars || 0) : 0);
+    // ActivityResult.stars are per-game feedback, not banked Lesson stars.
+    const earnedStars = earnedStarsByChild.get(sid) ?? 0;
     const classroomStars = c ? (c.classroomStars || 0) : 0;
     const bonusStars = u ? (u.bonusStars || 0) : 0;
     const totalStars = earnedStars + classroomStars + bonusStars;

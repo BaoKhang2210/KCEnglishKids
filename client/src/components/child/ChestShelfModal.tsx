@@ -9,7 +9,7 @@ import { ALL_STICKERS } from '../../data/stickers';
  * Màn 1 (§1.2.13) — Kệ rương: every unit is a chest with 3 visual states:
  *  - LOCKED:  unit not completed yet → gray chest + lesson progress
  *  - GRANTED: unit completed, chest NOT opened → golden chest + blinking dot
- *  - OPENED:  chest revealed → opened chest showing its sticker + stars
+ *  - OPENED:  chest revealed → opened chest showing its sticker and credited stars
  */
 
 export interface ShelfUnit {
@@ -92,8 +92,8 @@ export const ChestShelfModal: React.FC<ChestShelfModalProps> = ({
           </h3>
           <p className="text-xs sm:text-sm font-bold text-slate-500 mt-1">
             {grantableCount > 0
-              ? `Bé có ${grantableCount} rương quà đang chờ mở đó! ✨`
-              : 'Hoàn thành trọn vẹn các Lesson của một Unit để mở rương quà nhé!'}
+              ? `Bé có ${grantableCount} Sticker đang chờ khám phá! Sao thưởng đã được cộng khi hoàn thành Unit. ✨`
+              : 'Hoàn thành mọi Lesson trong Unit để nhận rương và Sticker. Sao thưởng được cộng ngay khi Unit hoàn tất.'}
           </p>
         </div>
 
@@ -179,12 +179,12 @@ export const ChestShelfModal: React.FC<ChestShelfModalProps> = ({
                     <div className="mt-1">
                       <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                         <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                        +{chest?.rewards.stars || 0} sao • Đã mở
+                        +{chest?.rewards.stars || 0} sao đã cộng • Đã mở
                       </span>
                     </div>
                   ) : isGranted ? (
                     <span className="mt-1 text-[11px] sm:text-xs font-black text-amber-900 bg-amber-300 px-2.5 py-0.5 rounded-full animate-pulse">
-                      Mở quà ngay! ✨
+                      Xem Sticker! ✨
                     </span>
                   ) : (
                     <div className="w-full mt-1 space-y-1">

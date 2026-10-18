@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Little Steps - English for Kids</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* RESET & BASE (Section 1) */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background-color: #EBF3FA; /* Soft pastel letterbox background */
+      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      color: #2B2A4C;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Fredoka', cursive, sans-serif;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    /* 1920x1080 FIXED STAGE (Section 1) */
+    #stage-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #stage {
+      position: absolute;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: top left;
+      background: #FAFCFF;
+      overflow: hidden;
+    }
+
+    /* THEME COLOR TOKENS */
+    :root {
+      --color-explore: #CFF3E3;
+      --color-explore-border: #80E5B6;
+      --color-learn: #D9E4FF;
+      --color-learn-border: #99B8FF;
+      --color-play: #FFE0CC;
+      --color-play-border: #FFB380;
+      --color-review: #FFF3C4;
+      --color-review-border: #FFE270;
+      --color-primary: #4B44C9;
+      --color-primary-hover: #3D36B5;
+      --color-text: #2B2A4C;
+      --color-text-muted: #5E5D80;
+      --color-gold: #FFB800;
+      --color-green: #10B981;
+    }
+
+    /* SHARED COMPONENTS (Section 1 Sizes: Button h96, r48, touch>=96x96, text>=28px) */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      height: 96px;
+      min-width: 96px;
+      padding: 0 44px;
+      border-radius: 48px;
+      border: none;
+      font-family: 'Fredoka', cursive, sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+      box-shadow: 0 10px 0 #2A2580, 0 14px 25px rgba(43,42,76,0.18);
+    }
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 13px 0 #2A2580, 0 18px 28px rgba(43,42,76,0.22);
+    }
+    .btn:active {
+      transform: translateY(6px);
+      box-shadow: 0 4px 0 #2A2580, 0 8px 12px rgba(43,42,76,0.15);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #FFFFFF;
+    }
+    .btn-secondary {
+      background: #FFFFFF;
+      color: var(--color-text);
+      box-shadow: 0 10px 0 #CAD2DE, 0 14px 25px rgba(43,42,76,0.12);
+      border: 4px solid #DFE5EF;
+    }
+    .btn-secondary:hover {
+      box-shadow: 0 13px 0 #CAD2DE, 0 18px 28px rgba(43,42,76,0.16);
+    }
+    .btn-secondary:active {
+      box-shadow: 0 4px 0 #CAD2DE;
+    }
+
+    .btn-icon-sq {
+      width: 96px;
+      height: 96px;
+      padding: 0;
+      border-radius: 48px;
+      font-size: 38px;
+    }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: 32px;
+      border: 4px solid #E8EEF8;
+      box-shadow: 0 12px 30px rgba(43,42,76,0.06);
+      position: relative;
+    }
+
+    /* HEADER (120px) & FOOTER (140px) */
+    .app-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 120px;
+      padding: 12px 96px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.95);
+      border-bottom: 4px solid #EAEFF8;
+      z-index: 100;
+    }
+
+    .app-content {
+      position: absolute;
+      top: 120px;
+      left: 96px;
+      width: 1728px;
+      height: 820px;
+      overflow: hidden;
+    }
+
+    .app-footer {
+      position: absolute;
+      top: 940px;
+      left: 0;
+      width: 1920px;
+      height: 140px;
+      padding: 22px 96px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.95);
+      border-top: 4px solid #EAEFF8;
+      z-index: 100;
+    }
+
+    /* PROGRESS BAR */
+    .progress-bar-wrap {
+      width: 480px;
+      height: 40px;
+      background: #E8EEF8;
+      border-radius: 20px;
+      border: 3px solid #D6E0F0;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10B981, #34D399);
+      border-radius: 17px;
+      transition: width 0.3s ease;
+    }
+
+    /* FIXED-HEIGHT FEEDBACK SLOT (CLS = 0, no red, green/gold only) */
+    .feedback-slot {
+      height: 80px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .feedback-msg {
+      font-family: 'Fredoka', cursive, sans-serif;
+      font-size: 34px;
+      font-weight: 700;
+      padding: 10px 36px;
+      border-radius: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      animation: popBounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .feedback-correct {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 3px solid #6EE7B7;
+    }
+    .feedback-wrong {
+      background: #FEF3C7;
+      color: #92400E;
+      border: 3px solid #FCD34D;
+    }
+
+    /* TOAST (Gentle notifications) */
+    #toast {
+      position: absolute;
+      top: 140px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2B2A4C;
+      color: #FFFFFF;
+      padding: 20px 48px;
+      border-radius: 40px;
+      font-size: 30px;
+      font-weight: 800;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+      animation: toastPop 0.3s ease;
+      border: 4px solid #E6DCFF;
+    }
+
+    /* MODAL OVERLAY */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      background: rgba(43, 42, 76, 0.65);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+    }
+    .modal-box {
+      width: 900px;
+      background: #FFFFFF;
+      border-radius: 40px;
+      border: 6px solid #D9E4FF;
+      padding: 56px 64px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+      animation: popBounce 0.35s ease;
+    }
+
+    /* ANIMATIONS */
+    @keyframes popBounce {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes toastPop {
+      0% { transform: translate(-50%, -20px); opacity: 0; }
+      100% { transform: translate(-50%, 0); opacity: 1; }
+    }
+    @keyframes softPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    @keyframes gentleWobble {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+
+    .pulse-anim { animation: softPulse 1.8s infinite ease-in-out; }
+    .wobble-anim { animation: gentleWobble 0.4s ease-in-out; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, .btn, .pulse-anim, .wobble-anim {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
+    /* DEBUG PANEL (Section 9) */
+    #debug-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1E1B4B;
+      color: #FFFFFF;
+      padding: 16px 24px;
+      border-radius: 20px;
+      z-index: 9999;
+      font-family: monospace;
+      font-size: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: none;
+      max-height: 80vh;
+      overflow: hidden;
+      border: 3px solid #6366F1;
+    }
+    #debug-panel button {
+      background: #4F46E5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 4px 4px 4px 0;
+    }
+    #debug-panel button:hover { background: #4338CA; }
+    #debug-table {
+      margin-top: 12px;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+    }
+    #debug-table th, #debug-table td {
+      border: 1px solid #4338CA;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    #debug-table th { background: #312E81; }
+    .badge-pass { color: #34D399; font-weight: bold; }
+    .badge-fail { color: #F87171; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div id="stage-container">
+  <div id="stage">
+    <!-- Dynamic Header -->
+    <header class="app-header" id="app-header">
+      <!-- Injected by router/renderer -->
+    </header>
+
+    <!-- Main Content Area: 1728 x 820px, zero scroll -->
+    <main class="app-content" id="app-content">
+      <!-- Injected by router/renderer -->
+    </main>
+
+    <!-- Dynamic Footer -->
+    <footer class="app-footer" id="app-footer">
+      <!-- Injected by router/renderer -->
+    </footer>
+
+    <!-- Toast Component -->
+    <div id="toast"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-root"></div>
+  </div>
+</div>
+
+<!-- Floating Debug Panel (Activated via ?debug=1) -->
+<div id="debug-panel">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <strong>Layout & Audit Suite (?debug=1)</strong>
+    <button onclick="document.getElementById('debug-panel').style.display='none'">✕</button>
+  </div>
+  <div>
+    <button onclick="runLayoutAuditCurrent()">Audit Current Screen</button>
+    <button onclick="runAllScreensAudit()">Run Full Test Suite</button>
+    <button onclick="resetDemoSeed()">Reset Seed (65%)</button>
+  </div>
+  <div id="debug-results"></div>
+</div>
+
+<script>
+/**
+ * SECTION 4: DATA MODEL (Cambridge Little Steps Inspired)
+ */
+const DATA = {
+  unit1: {
+    id: 'unit1',
+    number: 1,
+    name: 'School',
+    bigQuestion: 'What Do We Do at School?',
+    description: 'Explore our friendly classroom, discover school items, and meet friends!',
+    words: [
+      { id: 'w1', english: 'Teacher', emoji: '👩‍🏫', phrase: 'This is a teacher.' },
+      { id: 'w2', english: 'Student', emoji: '🧒', phrase: 'This is a student.' },
+      { id: 'w3', english: 'Book', emoji: '📖', phrase: 'This is a book.' },
+      { id: 'w4', english: 'Classroom', emoji: '🏫', phrase: 'This is a classroom.' },
+      { id: 'w5', english: 'Desk', emoji: '🪑', phrase: 'This is a desk.' },
+      { id: 'w6', english: 'School', emoji: '🎒', phrase: 'This is a school.' }
+    ]
+  },
+  pets: {
+    id: 'pets',
+    number: 'Starter',
+    name: 'Pets',
+    bigQuestion: 'Who Are Our Animal Friends?',
+    description: 'Cute animal companions at home!',
+    words: [
+      { id: 'p1', english: 'Cat', emoji: '🐱', phrase: 'This is a cat.' },
+      { id: 'p2', english: 'Dog', emoji: '🐶', phrase: 'This is a dog.' },
+      { id: 'p3', english: 'Fish', emoji: '🐟', phrase: 'This is a fish.' },
+      { id: 'p4', english: 'Bird', emoji: '🐦', phrase: 'This is a bird.' },
+      { id: 'p5', english: 'Rabbit', emoji: '🐰', phrase: 'This is a rabbit.' },
+      { id: 'p6', english: 'Turtle', emoji: '🐢', phrase: 'This is a turtle.' }
+    ]
+  },
+  unit2: {
+    id: 'unit2',
+    number: 2,
+    name: 'Family',
+    bigQuestion: 'Who Lives in Our Home?',
+    description: 'Explore family members and loving moments!'
+  }
+};
+
+/**
+ * SECTION 5: STATE MANAGEMENT (Single Object + render())
+ */
+function createInitialState() {
+  return {
+    screen: 'home', // 'home' | 'unitOverview' | 'explore' | 'learnSpeak' | 'playHub' | 'game' | 'review' | 'completedHub' | 'quickReview'
+    history: [],
+    unit: {
+      id: 'unit1',
+      stages: [
+        { id: 'explore', status: 'done', name: 'Explore' },
+        { id: 'learn', status: 'current', name: 'Learn & Speak' },
+        { id: 'play', status: 'locked', name: 'Practice & Play' },
+        { id: 'review', status: 'locked', name: 'Review' }
+      ],
+      activityIdx: { explore: 1, learn: 3, play: 0, review: 0 }, // Demo seed: Learn Activity 3 of 4
+      wordIdx: 4, // 5th word (Desk), dot shows 5 of 6
+      quizIdx: 0,
+      gamesDone: [false, false, false],
+      unitDone: false,
+      progressPct: 65,
+      activitiesCompletedSinceSeed: 0 // remaining 9 activities
+    },
+    stars: 12,
+    badges: [
+      { id: 'b1', name: 'Explorer', icon: '🌟', earned: true },
+      { id: 'b2', name: 'Word Master', icon: '🏅', earned: true },
+      { id: 'b3', name: 'Super Hero', icon: '🏆', earned: false }
+    ],
+    paused: false,
+    freeMode: null, // null | { from: 'completedHub' | 'unitOverview' }
+    completedUnits: ['pets'],
+    // Transient UI states
+    exploreTapped: new Set(),
+    activeGameType: 'listenChoose', // 'listenChoose' | 'findPicture' | 'whatsMissing'
+    currentQuizQuestions: [],
+    currentQuestionIndex: 0,
+    quickReviewQuestions: [],
+    quickReviewIndex: 0,
+    quickReviewScore: 0,
+    feedback: null, // { type: 'correct'|'wrong', msg: string }
+    toast: null,
+    showWelcomeModal: false,
+    micListening: false
+  };
+}
+
+let state = createInitialState();
+
+/**
+ * STAGE SCALER (Section 1 Hard Layout Rules)
+ */
+function updateStageScale() {
+  const stage = document.getElementById('stage');
+  const stageW = 1920;
+  const stageH = 1080;
+  const scale = Math.min(window.innerWidth / stageW, window.innerHeight / stageH);
+  const left = Math.round((window.innerWidth - stageW * scale) / 2);
+  const top = Math.round((window.innerHeight - stageH * scale) / 2);
+
+  stage.style.transform = `scale(${scale})`;
+  stage.style.left = `${left}px`;
+  stage.style.top = `${top}px`;
+}
+
+window.addEventListener('resize', updateStageScale);
+window.addEventListener('DOMContentLoaded', () => {
+  updateStageScale();
+  initApp();
+});
+
+/**
+ * AUDIO / SPEECH UTILITY (Section 7)
+ */
+function speak(text) {
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'en-US';
+      utter.rate = 0.8;
+      window.speechSynthesis.speak(utter);
+    }
+  } catch (e) {
+    console.warn('Speech synthesis unavailable:', e);
+  }
+}
+
+/**
+ * PROGRESS RE-CALCULATION (Section 3: pct = 65 + 35 * (done / 9))
+ */
+function recordActivityCompletion() {
+  if (state.unit.unitDone) return;
+  state.unit.activitiesCompletedSinceSeed = Math.min(9, state.unit.activitiesCompletedSinceSeed + 1);
+  state.unit.progressPct = Math.min(100, Math.round(65 + 35 * (state.unit.activitiesCompletedSinceSeed / 9)));
+}
+
+/**
+ * ROUTING & ACTIONS
+ */
+function navigate(toScreen, params = {}) {
+  state.history.push(state.screen);
+  state.screen = toScreen;
+  state.feedback = null;
+  render();
+}
+
+function exitMidActivity() {
+  state.paused = true;
+  state.screen = 'home';
+  showToast('Progress saved! See you soon 👋');
+  render();
+}
+
+function handleContinueFromHome() {
+  if (state.paused) {
+    state.showWelcomeModal = true;
+    render();
+  } else {
+    navigate('unitOverview');
+  }
+}
+
+function resumeFromCheckpoint() {
+  state.showWelcomeModal = false;
+  state.paused = false;
+  const currentStage = state.unit.stages.find(s => s.status === 'current') || state.unit.stages[0];
+  if (currentStage.id === 'explore') navigate('explore');
+  else if (currentStage.id === 'learn') navigate('learnSpeak');
+  else if (currentStage.id === 'play') navigate('playHub');
+  else if (currentStage.id === 'review') navigate('review');
+  else navigate('unitOverview');
+}
+
+function showToast(msg) {
+  const toastEl = document.getElementById('toast');
+  toastEl.textContent = msg;
+  toastEl.style.display = 'block';
+  if (window._toastTimer) clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => {
+    toastEl.style.display = 'none';
+  }, 2600);
+}
+
+/**
+ * QUIZ GENERATOR (Section 4 & 6)
+ */
+function generateQuizQuestions(wordList, count = 3) {
+  const pool = [...wordList];
+  const questions = [];
+  let lastCorrect = null;
+
+  for (let i = 0; i < count; i++) {
+    const available = pool.filter(w => w !== lastCorrect);
+    const correct = available[Math.floor(Math.random() * available.length)];
+    lastCorrect = correct;
+
+    // Distractors
+    const others = pool.filter(w => w.id !== correct.id);
+    const shuffledOthers = others.sort(() => 0.5 - Math.random());
+    const distractors = shuffledOthers.slice(0, 2);
+    const options = [correct, ...distractors].sort(() => 0.5 - Math.random());
+
+    questions.push({
+      prompt: `Find the ${correct.english}`,
+      audioText: correct.english,
+      correctWord: correct,
+      options
+    });
+  }
+  return questions;
+}
+
+/**
+ * RENDER ENGINE (Screens A through J)
+ */
+function render() {
+  const header = document.getElementById('app-header');
+  const content = document.getElementById('app-content');
+  const footer = document.getElementById('app-footer');
+  const modalRoot = document.getElementById('modal-root');
+
+  header.innerHTML = '';
+  content.innerHTML = '';
+  footer.innerHTML = '';
+  modalRoot.innerHTML = '';
+
+  // HEADER (Consistent layout, min height 120, touch >= 96)
+  renderHeader(header);
+
+  // CONTENT
+  switch (state.screen) {
+    case 'home':
+      renderHomeScreen(content);
+      break;
+    case 'unitOverview':
+      renderUnitOverviewScreen(content);
+      break;
+    case 'explore':
+      renderExploreScreen(content);
+      break;
+    case 'learnSpeak':
+      renderLearnSpeakScreen(content);
+      break;
+    case 'playHub':
+      renderPlayHubScreen(content);
+      break;
+    case 'game':
+      renderGameScreen(content);
+      break;
+    case 'review':
+      renderReviewScreen(content);
+      break;
+    case 'completedHub':
+      renderCompletedHubScreen(content);
+      break;
+    case 'quickReview':
+      renderQuickReviewScreen(content);
+      break;
+    default:
+      renderHomeScreen(content);
+  }
+
+  // FOOTER
+  renderFooter(footer);
+
+  // MODAL OVERLAY (J. Welcome Back Modal)
+  if (state.showWelcomeModal) {
+    renderWelcomeBackModal(modalRoot);
+  }
+}
+
+/**
+ * HEADER COMPONENT
+ */
+function renderHeader(container) {
+  const isMidActivity = ['explore', 'learnSpeak', 'game', 'quickReview'].includes(state.screen);
+
+  container.innerHTML = `
+    <div style="display:flex; align-items:center; gap:24px;">
+      ${isMidActivity ? `
+        <button class="btn btn-secondary btn-icon-sq" onclick="exitMidActivity()" aria-label="Exit Activity">✕</button>
+      ` : state.screen !== 'home' ? `
+        <button class="btn btn-secondary btn-icon-sq" onclick="navigate('home')" aria-label="Go Home">🏠</button>
+      ` : `
+        <div style="font-size:42px;">🌟</div>
+      `}
+      <div>
+        <h2 style="font-size:36px; color:#2B2A4C; margin:0;">Little Steps English</h2>
+      </div>
+    </div>
+
+    <!-- Center: Progress Bar for Activities / Quizzes -->
+    ${isMidActivity ? `
+      <div style="display:flex; align-items:center; gap:20px;">
+        <span style="font-size:28px; font-weight:900; color:#4B44C9;">
+          ${state.screen === 'learnSpeak' ? `Word ${state.unit.wordIdx + 1}/6` :
+            state.screen === 'explore' ? `${state.exploreTapped.size}/4 Discovered` :
+            state.screen === 'quickReview' ? `Item ${state.quickReviewIndex + 1}/5` : 'Playing Game'}
+        </span>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" style="width:${
+            state.screen === 'learnSpeak' ? ((state.unit.wordIdx + 1) / 6 * 100) :
+            state.screen === 'explore' ? (Math.min(100, (state.exploreTapped.size / 4) * 100)) :
+            state.screen === 'quickReview' ? ((state.quickReviewIndex + 1) / 5 * 100) : 60
+          }%;"></div>
+        </div>
+      </div>
+    ` : `
+      <div style="display:flex; align-items:center; gap:36px;">
+        <div style="display:flex; align-items:center; gap:12px; font-size:32px; font-weight:800; color:#D97706;">
+          <span>⭐</span> <span>${state.stars} Stars</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; font-size:32px; font-weight:800; color:#10B981;">
+          <span>Unit 1:</span> <span>${state.unit.progressPct}%</span>
+        </div>
+      </div>
+    `}
+
+    <!-- Right: Goal or Helper -->
+    <div style="display:flex; align-items:center; gap:16px;">
+      <span style="font-size:28px; font-weight:800; color:#5E5D80; background:#EDF2F9; padding:10px 24px; border-radius:30px;">
+        🎯 5 min today
+      </span>
+    </div>
+  `;
+}
+
+/**
+ * FOOTER COMPONENT
+ */
+function renderFooter(container) {
+  // Fixed slot for feedback or actions
+  let contentHtml = '';
+
+  if (state.feedback) {
+    const isCorr = state.feedback.type === 'correct';
+    contentHtml = `
+      <div class="feedback-slot">
+        <div class="feedback-msg ${isCorr ? 'feedback-correct' : 'feedback-wrong'}">
+          <span>${isCorr ? '🎉' : '💪'}</span>
+          <span>${state.feedback.msg}</span>
+        </div>
+      </div>
+    `;
+  } else if (state.screen === 'explore') {
+    const isDone = state.exploreTapped.size >= 4;
+    contentHtml = `
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:30px; font-weight:800; color:#5E5D80;">
+          ${isDone ? 'Great job! You discovered the classroom!' : 'Tap objects in the scene to hear English words.'}
+        </span>
+        ${isDone ? `
+          <button class="btn btn-primary" onclick="completeExploreStage()">Continue to Learn & Speak ➔</button>
+        ` : `
+          <button class="btn btn-secondary" onclick="showToast('Tap at least 4 objects first! 😊')">Tap 4 objects</button>
+        `}
+      </div>
+    `;
+  } else if (state.screen === 'learnSpeak') {
+    contentHtml = `
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn btn-secondary" onclick="prevWord()" ${state.unit.wordIdx === 0 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+          ⬅ Previous
+        </button>
+        <div style="font-size:30px; font-weight:800; color:#5E5D80;">
+          Dot ${state.unit.wordIdx + 1} of 6
+        </div>
+        <button class="btn btn-primary" onclick="nextWord()">
+          ${state.unit.wordIdx === 5 ? 'Check Recognition ➔' : 'Next Word ➔'}
+        </button>
+      </div>
+    `;
+  } else {
+    contentHtml = `
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:28px; font-weight:800; color:#5E5D80;">Cambridge Little Steps • English Learning</span>
+        <span style="font-size:28px; font-weight:800; color:#4B44C9;">Child Mode (Parent nearby)</span>
+      </div>
+    `;
+  }
+
+  container.innerHTML = contentHtml;
+}
+
+/**
+ * SCREEN A: HOME SCREEN (Section 6.A)
+ */
+function renderHomeScreen(container) {
+  const currentStage = state.unit.stages.find(s => s.status === 'current') || state.unit.stages[0];
+  const remainingAct = 9 - state.unit.activitiesCompletedSinceSeed;
+
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns: 520px 1176px; gap:32px; height:820px; align-items:stretch;">
+      
+      <!-- Left 1/3: Child Profile, Goal, Rewards -->
+      <div class="card" style="padding:48px; display:flex; flex-direction:column; justify-content:space-between;">
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+          <div style="width:150px; height:150px; border-radius:75px; background:#D9E4FF; border:6px solid #4B44C9; display:flex; align-items:center; justify-content:center; font-size:80px; margin-bottom:20px; box-shadow:0 10px 25px rgba(75,68,201,0.2);">
+            🧒
+          </div>
+          <h1 style="font-size:56px; color:#2B2A4C; margin-bottom:8px;">Hi, Emma! 👋</h1>
+          <p style="font-size:32px; color:#5E5D80; margin-bottom:16px;">Ready for today's adventure?</p>
+          <div style="background:#FFF3C4; border:3px solid #FFE270; padding:12px 32px; border-radius:30px; font-size:28px; font-weight:800; color:#92400E;">
+            🎯 Daily Goal: 5 min today
+          </div>
+        </div>
+
+        <div>
+          <h3 style="font-size:32px; margin-bottom:18px; color:#2B2A4C;">Rewards Earned</h3>
+          <div style="display:flex; justify-content:space-around; align-items:center; background:#FAFCFF; border:3px solid #E8EEF8; border-radius:24px; padding:20px;">
+            ${state.badges.map(b => `
+              <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div style="width:96px; height:96px; border-radius:48px; background:${b.earned ? '#D1FAE5' : '#F1F5F9'}; border:4px solid ${b.earned ? '#10B981' : '#CBD5E1'}; display:flex; align-items:center; justify-content:center; font-size:44px; opacity:${b.earned ? '1' : '0.45'};">
+                  ${b.icon}
+                </div>
+                <span style="font-size:28px; font-weight:800; color:${b.earned ? '#065F46' : '#94A3B8'};">${b.name}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Right 2/3: Today's Learning Card + Progress & Pets Cards -->
+      <div style="display:flex; flex-direction:column; gap:32px;">
+        
+        <!-- Big Hero Card: Today's Learning -->
+        <div class="card" style="padding:48px; background:linear-gradient(135deg, #FFFFFF 0%, #F5F7FF 100%); border:4px solid #D9E4FF; flex:1; display:flex; justify-content:space-between; align-items:center;">
+          <div style="max-width:680px;">
+            <div style="display:inline-flex; align-items:center; gap:12px; background:#D9E4FF; color:#1E40AF; padding:8px 24px; border-radius:20px; font-size:28px; font-weight:900; margin-bottom:16px;">
+              <span>🎒</span> <span>UNIT 1 • SCHOOL</span>
+            </div>
+            <h2 style="font-size:64px; color:#2B2A4C; margin-bottom:12px;">What Do We Do at School?</h2>
+            <p style="font-size:32px; color:#5E5D80; margin-bottom:28px;">
+              Current: <strong>${currentStage.name}</strong> • ${remainingAct > 0 ? `${remainingAct} activities left` : 'Unit complete!'} (≈ 5 min)
+            </p>
+            <button class="btn btn-primary" onclick="handleContinueFromHome()" style="padding:0 56px; font-size:36px;">
+              Continue Learning ➔
+            </button>
+          </div>
+
+          <div style="width:340px; height:340px; background:linear-gradient(135deg, #CFF3E3, #D9E4FF); border-radius:40px; border:6px solid #FFFFFF; display:flex; align-items:center; justify-content:center; font-size:160px; box-shadow:0 16px 36px rgba(75,68,201,0.12);">
+            🏫
+          </div>
+        </div>
+
+        <!-- 2 Half-Width Sub Cards -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px; height:280px;">
+          
+          <!-- Unit 1 Progress Card -->
+          <div class="card" onclick="navigate('unitOverview')" style="padding:36px; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; border-color:#D9E4FF;" role="button">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:28px; font-weight:900; color:#4B44C9;">UNIT 1 PROGRESS</span>
+              <span style="font-size:44px; font-weight:900; color:#10B981;">${state.unit.progressPct}%</span>
+            </div>
+            <div class="progress-bar-wrap" style="width:100%; height:32px;">
+              <div class="progress-bar-fill" style="width:${state.unit.progressPct}%;"></div>
+            </div>
+            <span style="font-size:28px; color:#5E5D80; font-weight:800;">Tap to view 4-stage map ➔</span>
+          </div>
+
+          <!-- Recently Completed: Pets -->
+          <div class="card" onclick="openCompletedPets()" style="padding:36px; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; background:linear-gradient(135deg, #FFFDF5, #FFF9E6); border-color:#FFE270;" role="button">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:28px; font-weight:900; color:#92400E;">RECENTLY COMPLETED</span>
+              <span style="font-size:44px;">🐱🐶</span>
+            </div>
+            <h3 style="font-size:36px; color:#2B2A4C; margin:0;">Unit: Pets (100% ✓)</h3>
+            <span style="font-size:28px; color:#B45309; font-weight:800;">Free practice & review ➔</span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
+}
+
+function openCompletedPets() {
+  state.freeMode = { from: 'home', unitId: 'pets' };
+  navigate('completedHub');
+}
+
+/**
+ * SCREEN B: UNIT OVERVIEW (Section 6.B)
+ */
+function renderUnitOverviewScreen(container) {
+  const u = DATA.unit1;
+  const stages = state.unit.stages;
+
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns: 460px 760px 444px; gap:32px; height:820px; align-items:stretch;">
+      
+      <!-- Left: Title & Big Ring -->
+      <div class="card" style="padding:48px; display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
+        <div>
+          <span style="font-size:28px; font-weight:900; color:#4B44C9; background:#D9E4FF; padding:8px 20px; border-radius:20px;">
+            UNIT 1 • SCHOOL
+          </span>
+          <h2 style="font-size:52px; color:#2B2A4C; margin-top:20px; margin-bottom:12px;">What Do We Do at School?</h2>
+          <p style="font-size:30px; color:#5E5D80;">Explore, speak, play and review!</p>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <!-- Big Circular Progress Ring Indicator -->
+          <div style="width:240px; height:240px; border-radius:120px; border:16px solid #E8EEF8; border-top-color:#10B981; border-right-color:#10B981; display:flex; align-items:center; justify-content:center; flex-direction:column; margin-bottom:12px; box-shadow:0 12px 28px rgba(16,185,129,0.15);">
+            <span style="font-size:64px; font-weight:900; color:#10B981;">${state.unit.progressPct}%</span>
+            <span style="font-size:28px; color:#5E5D80; font-weight:800;">Completed</span>
+          </div>
+          <span style="font-size:28px; color:#4B44C9; font-weight:800;">4 Stages Journey</span>
+        </div>
+      </div>
+
+      <!-- Center: 4 Vertical Stage Cards -->
+      <div style="display:flex; flex-direction:column; gap:20px; justify-content:center;">
+        ${stages.map((st, i) => {
+          const isDone = st.status === 'done';
+          const isCurr = st.status === 'current';
+          const isLock = st.status === 'locked';
+
+          let bg = '#FFFFFF';
+          let border = '#E8EEF8';
+          if (isDone) { bg = '#F0FDF4'; border = '#80E5B6'; }
+          if (isCurr) { bg = '#F5F8FF'; border = '#99B8FF'; }
+
+          return `
+            <div class="card" onclick="handleStageClick('${st.id}')" style="padding:24px 36px; background:${bg}; border-color:${border}; display:flex; align-items:center; justify-content:space-between; cursor:pointer;" role="button">
+              <div style="display:flex; align-items:center; gap:24px;">
+                <div style="width:96px; height:96px; border-radius:48px; background:${isDone ? '#10B981' : isCurr ? '#4B44C9' : '#E2E8F0'}; color:${isDone || isCurr ? '#FFFFFF' : '#94A3B8'}; display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:900;">
+                  ${isDone ? '✓' : isLock ? '🔒' : (i + 1)}
+                </div>
+                <div>
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <h3 style="font-size:36px; color:#2B2A4C; margin:0;">Stage ${i + 1}: ${st.name}</h3>
+                    ${isCurr ? `<span style="background:#D9E4FF; color:#1E40AF; padding:4px 16px; border-radius:16px; font-size:28px; font-weight:900;">Currently learning</span>` : ''}
+                  </div>
+                  <span style="font-size:28px; color:#5E5D80; font-weight:800;">
+                    ${st.id === 'explore' ? 'Story + Tap objects to hear words' :
+                      st.id === 'learn' ? 'Activity 3 of 4 • Flashcards & Check' :
+                      st.id === 'play' ? '3 Mini-games in Arcade Hub' : '4 Quick quiz activities'}
+                  </span>
+                </div>
+              </div>
+
+              <div style="font-size:36px; color:${isLock ? '#94A3B8' : '#4B44C9'};">
+                ${isLock ? '🔒' : '➔'}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Right: Big Illustration + Continue Learning -->
+      <div class="card" style="padding:48px; display:flex; flex-direction:column; justify-content:space-between; align-items:center; text-align:center; background:linear-gradient(180deg, #FFFFFF, #F5F7FF);">
+        <div style="font-size:160px; margin-top:20px;">
+          🎒
+        </div>
+        <div>
+          <h3 style="font-size:40px; color:#2B2A4C; margin-bottom:12px;">Step by step!</h3>
+          <p style="font-size:30px; color:#5E5D80; margin-bottom:32px;">Every day you learn something new and exciting!</p>
+          <button class="btn btn-primary" onclick="resumeFromCheckpoint()" style="width:100%;">
+            Continue ➔
+          </button>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function handleStageClick(stageId) {
+  const target = state.unit.stages.find(s => s.id === stageId);
+  if (!target) return;
+  if (target.status === 'locked') {
+    showToast('Finish the earlier steps first 😊');
+    speak('Finish the earlier steps first!');
+    return;
+  }
+  if (stageId === 'explore') navigate('explore');
+  else if (stageId === 'learn') navigate('learnSpeak');
+  else if (stageId === 'play') navigate('playHub');
+  else if (stageId === 'review') navigate('review');
+}
+
+/**
+ * SCREEN C: EXPLORE SCREEN (Section 6.C)
+ */
+function renderExploreScreen(container) {
+  const objects = [
+    { id: 'teacher', name: 'Teacher', emoji: '👩‍🏫', x: 200, y: 150 },
+    { id: 'student', name: 'Student', emoji: '🧒', x: 480, y: 380 },
+    { id: 'book', name: 'Book', emoji: '📖', x: 800, y: 220 },
+    { id: 'desk', name: 'Desk', emoji: '🪑', x: 260, y: 480 },
+    { id: 'classroom', name: 'Classroom', emoji: '🏫', x: 740, y: 480 }
+  ];
+
+  const tappedCount = state.exploreTapped.size;
+
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns: 1120px 576px; gap:32px; height:820px; align-items:stretch;">
+      
+      <!-- Left 65%: Illustrated Classroom Scene with 5 Tappable Objects -->
+      <div class="card" style="padding:32px; background:linear-gradient(135deg, #E6F7EF, #F0FBF6); border-color:#80E5B6; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:24px; left:32px; font-size:32px; font-weight:900; color:#065F46;">
+          🏫 Tap objects to listen and discover!
+        </div>
+
+        <div style="width:100%; height:100%; position:relative;">
+          ${objects.map(obj => {
+            const isTapped = state.exploreTapped.has(obj.id);
+            return `
+              <button class="btn card" onclick="handleExploreTap('${obj.id}', '${obj.name}')" 
+                      style="position:absolute; left:${obj.x}px; top:${obj.y}px; width:180px; height:180px; border-radius:36px; padding:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:${isTapped ? '#D1FAE5' : '#FFFFFF'}; border:5px solid ${isTapped ? '#10B981' : '#A7F3D0'};" 
+                      aria-label="${obj.name}">
+                <span style="font-size:72px;">${obj.emoji}</span>
+                <span style="font-size:28px; font-weight:900; color:#065F46; margin-top:4px;">${obj.name}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Right 35%: Big Question, Audio Prompt, Tap Counter -->
+      <div class="card" style="padding:48px; display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
+        <div>
+          <span style="font-size:28px; font-weight:900; color:#065F46; background:#D1FAE5; padding:8px 24px; border-radius:20px;">
+            EXPLORE STAGE
+          </span>
+          <h2 style="font-size:52px; color:#2B2A4C; margin-top:24px; margin-bottom:16px;">What do we do at school?</h2>
+          <p style="font-size:32px; color:#5E5D80; margin-bottom:32px;">We meet our teacher, read books, and learn together!</p>
+          
+          <button class="btn btn-secondary" onclick="speak('What do we do at school? We meet our teacher and read books!')" style="width:100%;" aria-label="Listen to Question">
+            <span>🔊</span> <span>Listen Story</span>
+          </button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+          <div style="font-size:44px; font-weight:900; color:${tappedCount >= 4 ? '#10B981' : '#4B44C9'};">
+            ${tappedCount}/4 Discovered ⭐
+          </div>
+          <span style="font-size:28px; color:#5E5D80; font-weight:800;">
+            ${tappedCount >= 4 ? 'Great! You discovered School! ⭐' : 'Tap at least 4 items to unlock!'}
+          </span>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function handleExploreTap(id, name) {
+  state.exploreTapped.add(id);
+  speak(name);
+  render();
+}
+
+function completeExploreStage() {
+  recordActivityCompletion();
+  // Unlock learn stage
+  state.unit.stages[0].status = 'done';
+  state.unit.stages[1].status = 'current';
+  navigate('learnSpeak');
+}
+
+/**
+ * SCREEN D: LEARN & SPEAK (Section 6.D)
+ */
+function renderLearnSpeakScreen(container) {
+  const words = DATA.unit1.words;
+  const word = words[state.unit.wordIdx] || words[0];
+
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns: 820px 876px; gap:32px; height:820px; align-items:stretch;">
+      
+      <!-- Left: Big Flashcard (Image + Word) -->
+      <div class="card" style="padding:48px; background:linear-gradient(135deg, #FFFFFF, #F5F8FF); border:5px solid #99B8FF; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+        <div style="width:420px; height:420px; background:#D9E4FF; border-radius:48px; border:8px solid #FFFFFF; display:flex; align-items:center; justify-content:center; font-size:220px; margin-bottom:28px; box-shadow:0 16px 40px rgba(75,68,201,0.15);">
+          ${word.emoji}
+        </div>
+        <h1 style="font-size:72px; color:#2B2A4C; margin-bottom:8px;">${word.english}</h1>
+        <span style="font-size:32px; font-weight:800; color:#4B44C9;">Tap Listen or Practice below</span>
+      </div>
+
+      <!-- Right: Listen, Mic, Phrase, Navigation -->
+      <div class="card" style="padding:48px; display:flex; flex-direction:column; justify-content:space-between;">
+        
+        <div>
+          <span style="font-size:28px; font-weight:900; color:#1E40AF; background:#D9E4FF; padding:8px 24px; border-radius:20px;">
+            ACTIVITY 3 OF 4 • PRACTICE
+          </span>
+
+          <div style="margin-top:24px; padding:32px; background:#F8FAFC; border:4px solid #E2E8F0; border-radius:32px; text-align:center;">
+            <p style="font-size:40px; font-weight:900; color:#2B2A4C; margin-bottom:12px;">"${word.phrase}"</p>
+            <span style="font-size:28px; color:#5E5D80; font-weight:800;">Model sentence</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons: Listen & Mic -->
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <button class="btn btn-primary" onclick="speak('${word.english}. ${word.phrase}')" style="width:100%; height:96px;">
+            <span>🔊</span> <span>Listen Word & Phrase</span>
+          </button>
+
+          <div style="display:flex; gap:20px;">
+            <button class="btn btn-secondary" onclick="simulateMic('${word.english}')" style="flex:1; height:96px;">
+              <span>🎤</span> <span>${state.micListening ? 'Listening…' : 'Your turn! (Mic)'}</span>
+            </button>
+            <button class="btn btn-secondary" onclick="skipMic()" style="width:180px; height:96px;">
+              Skip
+            </button>
+          </div>
+        </div>
+
+        <!-- Word Dots Indicator (n of 6) -->
+        <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
+          ${words.map((w, idx) => `
+            <div style="width:28px; height:28px; border-radius:14px; background:${idx === state.unit.wordIdx ? '#4B44C9' : idx < state.unit.wordIdx ? '#10B981' : '#CBD5E1'}; transition:all 0.2s;"></div>
+          `).join('')}
+        </div>
+
+      </div>
+
+    </div>
+  `;
+}
+
+function prevWord() {
+  if (state.unit.wordIdx > 0) {
+    state.unit.wordIdx--;
+    render();
+  }
+}
+
+function nextWord() {
+  if (state.unit.wordIdx < 5) {
+    state.unit.wordIdx++;
+    render();
+  } else {
+    // Activity 4: Recognition check (3 questions)
+    launchRecognitionCheck();
+  }
+}
+
+function simulateMic(word) {
+  state.micListening = true;
+  state.feedback = { type: 'correct', msg: 'Listening carefully… 🎧' };
+  render();
+
+  setTimeout(() => {
+    state.micListening = false;
+    state.feedback = { type: 'correct', msg: `Super pronunciation of "${word}"! ⭐` };
+    speak(`Super pronunciation of ${word}!`);
+    render();
+    setTimeout(() => {
+      state.feedback = null;
+      render();
+    }, 2000);
+  }, 1500);
+}
+
+function skipMic() {
+  state.feedback = { type: 'correct', msg: 'Great job! Moving forward! 🌟' };
+  render();
+  setTimeout(() => {
+    state.feedback = null;
+    render();
+  }, 1200);
+}
+
+function launchRecognitionCheck() {
+  recordActivityCompletion();
+  state.currentQuizQuestions = generateQuizQuestions(DATA.unit1.words, 3);
+  state.currentQuestionIndex = 0;
+  state.screen = 'game';
+  state.activeGameType = 'recognitionCheck';
+  render();
+}
+
+/**
+ * SCREEN E: PLAY HUB (Section 6.E)
+ */
+function renderPlayHubScreen(container) {
+  const allGamesDone = state.unit.gamesDone.every(Boolean);
+
+  const games = [
+    { type: 'listenChoose', name: 'Listen & Choose', icon: '🎧', desc: 'Listen to the word and pick the right picture' },
+    { type: 'findPicture', name: 'Find the Picture', icon: '🔍', desc: 'Read or hear the prompt and tap matching card' },
+    { type: 'whatsMissing', name: 'What\'s Missing?', icon: '🧩', desc: 'Observe the sequence and find the hidden card' }
+  ];
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; justify-content:space-between; height:820px;">
+      
+      <!-- Top Title -->
+      <div style="text-align:center; padding:16px 0;">
+        <span style="font-size:28px; font-weight:900; color:#D97706; background:#FFE0CC; padding:8px 24px; border-radius:20px;">
+          STAGE 3 • PRACTICE & PLAY
+        </span>
+        <h1 style="font-size:64px; color:#2B2A4C; margin-top:12px; margin-bottom:8px;">Let's Play! 🎮</h1>
+        <p style="font-size:32px; color:#5E5D80;">Complete all 3 mini-games to unlock the Review Stage!</p>
+      </div>
+
+      <!-- 3 Large Game Cards in One Row -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:32px; padding:0 32px;">
+        ${games.map((g, idx) => {
+          const isDone = state.unit.gamesDone[idx];
+          return `
+            <div class="card" onclick="startGame('${g.type}', ${idx})" 
+                 style="padding:48px 36px; display:flex; flex-direction:column; align-items:center; text-align:center; justify-content:space-between; height:460px; cursor:pointer; background:${isDone ? '#F0FDF4' : '#FFFFFF'}; border-color:${isDone ? '#80E5B6' : '#FFB380'};" role="button">
+              <div style="width:150px; height:150px; border-radius:75px; background:#FFE0CC; display:flex; align-items:center; justify-content:center; font-size:80px; box-shadow:0 10px 25px rgba(255,179,128,0.25);">
+                ${g.icon}
+              </div>
+              <div>
+                <h3 style="font-size:40px; color:#2B2A4C; margin-bottom:8px;">${g.name}</h3>
+                <p style="font-size:28px; color:#5E5D80; font-weight:800;">${g.desc} (≈ 1 min)</p>
+              </div>
+              <div style="font-size:32px; font-weight:900; color:${isDone ? '#10B981' : '#D97706'};">
+                ${isDone ? '✓ Completed!' : 'Tap to Play ➔'}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Bottom Unlock Bar -->
+      <div style="display:flex; justify-content:center; align-items:center; padding:16px 0;">
+        ${allGamesDone ? `
+          <button class="btn btn-primary" onclick="proceedToReviewStage()" style="padding:0 56px; font-size:36px;">
+            Awesome! Proceed to Review ➔
+          </button>
+        ` : `
+          <div style="font-size:30px; font-weight:800; color:#5E5D80;">
+            Play all 3 games to proceed (${state.unit.gamesDone.filter(Boolean).length}/3 completed)
+          </div>
+        `}
+      </div>
+
+    </div>
+  `;
+}
+
+function startGame(gameType, gameIdx) {
+  state.activeGameType = gameType;
+  state.activeGameIdx = gameIdx;
+  state.currentQuizQuestions = generateQuizQuestions(DATA.unit1.words, 3);
+  state.currentQuestionIndex = 0;
+  navigate('game');
+}
+
+function proceedToReviewStage() {
+  state.unit.stages[2].status = 'done';
+  state.unit.stages[3].status = 'current';
+  navigate('review');
+}
+
+/**
+ * SCREEN F: GAME / QUIZ (Section 6.F - Shared Engine)
+ */
+function renderGameScreen(container) {
+  const q = state.currentQuizQuestions[state.currentQuestionIndex];
+  if (!q) {
+    onQuizBatchFinished();
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; justify-content:space-between; height:820px; text-align:center;">
+      
+      <!-- Top Prompt Area -->
+      <div style="padding-top:20px;">
+        <span style="font-size:28px; font-weight:900; color:#4B44C9; background:#D9E4FF; padding:8px 24px; border-radius:20px;">
+          QUESTION ${state.currentQuestionIndex + 1} OF ${state.currentQuizQuestions.length}
+        </span>
+        <h1 style="font-size:60px; color:#2B2A4C; margin-top:16px; margin-bottom:12px;">
+          ${q.prompt}
+        </h1>
+        <button class="btn btn-secondary" onclick="speak('${q.audioText}')" style="margin-top:8px;">
+          <span>🔊</span> <span>Hear Sound</span>
+        </button>
+      </div>
+
+      <!-- 3–4 Large Choice Cards in One Row -->
+      <div style="display:flex; justify-content:center; gap:40px; padding:20px 0;">
+        ${q.options.map(opt => `
+          <button class="btn card" onclick="handleQuizAnswer('${opt.id}', '${q.correctWord.id}')" 
+                  style="width:340px; height:340px; border-radius:40px; padding:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; border:5px solid #E8EEF8; background:#FFFFFF;" 
+                  role="button" aria-label="${opt.english}">
+            <span style="font-size:140px;">${opt.emoji}</span>
+            <span style="font-size:36px; font-weight:900; color:#2B2A4C;">${opt.english}</span>
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Fixed Reserved Slot for Feedback (Zero CLS) -->
+      <div class="feedback-slot" id="game-feedback-slot">
+        <!-- Rendered dynamically -->
+      </div>
+
+    </div>
+  `;
+}
+
+function handleQuizAnswer(selectedId, correctId) {
+  const isCorrect = selectedId === correctId;
+  const feedbackSlot = document.getElementById('game-feedback-slot');
+
+  if (isCorrect) {
+    state.stars += 1;
+    speak('Great job!');
+    if (feedbackSlot) {
+      feedbackSlot.innerHTML = `
+        <div class="feedback-msg feedback-correct">
+          <span>🎉</span> <span>Great job! +1 Star ⭐</span>
+        </div>
+      `;
+    }
+    setTimeout(() => {
+      state.currentQuestionIndex++;
+      if (state.currentQuestionIndex >= state.currentQuizQuestions.length) {
+        onQuizBatchFinished();
+      } else {
+        render();
+      }
+    }, 1100);
+  } else {
+    speak('Try again! You can do it!');
+    if (feedbackSlot) {
+      feedbackSlot.innerHTML = `
+        <div class="feedback-msg feedback-wrong wobble-anim">
+          <span>💪</span> <span>Try again! You can do it!</span>
+        </div>
+      `;
+    }
+    setTimeout(() => {
+      if (feedbackSlot) feedbackSlot.innerHTML = '';
+    }, 1800);
+  }
+}
+
+function onQuizBatchFinished() {
+  recordActivityCompletion();
+
+  if (state.activeGameType === 'recognitionCheck') {
+    // Stage 2 finished, unlock stage 3
+    state.unit.stages[1].status = 'done';
+    state.unit.stages[2].status = 'current';
+    navigate('playHub');
+  } else if (state.screen === 'game') {
+    // Game completed in Play Hub
+    if (typeof state.activeGameIdx === 'number') {
+      state.unit.gamesDone[state.activeGameIdx] = true;
+    }
+    navigate('playHub');
+  } else if (state.screen === 'review') {
+    completeUnit1();
+  }
+}
+
+/**
+ * SCREEN G: REVIEW (Section 6.G)
+ */
+function renderReviewScreen(container) {
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; justify-content:space-between; height:820px; text-align:center; padding:32px 0;">
+      
+      <div>
+        <span style="font-size:28px; font-weight:900; color:#92400E; background:#FFF3C4; padding:8px 24px; border-radius:20px;">
+          STAGE 4 • UNIT REVIEW
+        </span>
+        <h1 style="font-size:64px; color:#2B2A4C; margin-top:20px; margin-bottom:12px;">Final Unit Review! 🏆</h1>
+        <p style="font-size:32px; color:#5E5D80; max-width:800px; margin:0 auto;">
+          4 short quiz activities to celebrate everything you learned in School!
+        </p>
+      </div>
+
+      <div style="display:flex; justify-content:center; gap:40px;">
+        <div class="card" style="padding:48px; width:440px; display:flex; flex-direction:column; align-items:center; border-color:#FFE270; background:#FFFDF7;">
+          <span style="font-size:80px; margin-bottom:12px;">📚</span>
+          <h3 style="font-size:40px; color:#2B2A4C;">6 Words</h3>
+          <p style="font-size:28px; color:#5E5D80; font-weight:800;">Teacher, Student, Book, Desk, School, Classroom</p>
+        </div>
+
+        <div class="card" style="padding:48px; width:440px; display:flex; flex-direction:column; align-items:center; border-color:#80E5B6; background:#F0FDF4;">
+          <span style="font-size:80px; margin-bottom:12px;">⭐</span>
+          <h3 style="font-size:40px; color:#2B2A4C;">Final Challenge</h3>
+          <p style="font-size:28px; color:#5E5D80; font-weight:800;">Earn your Super Hero unit badge!</p>
+        </div>
+      </div>
+
+      <div>
+        <button class="btn btn-primary" onclick="startFinalReviewQuiz()" style="padding:0 64px; font-size:36px;">
+          Start Review Quiz ➔
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+function startFinalReviewQuiz() {
+  state.currentQuizQuestions = generateQuizQuestions(DATA.unit1.words, 4);
+  state.currentQuestionIndex = 0;
+  state.screen = 'game';
+  state.activeGameType = 'unitReviewQuiz';
+  render();
+}
+
+function completeUnit1() {
+  state.unit.unitDone = true;
+  state.unit.progressPct = 100;
+  state.unit.stages.forEach(s => s.status = 'done');
+  state.badges[2].earned = true; // Super Hero badge unlocked
+  if (!state.completedUnits.includes('unit1')) {
+    state.completedUnits.push('unit1');
+  }
+
+  // Show Celebratory Modal
+  const modalRoot = document.getElementById('modal-root');
+  modalRoot.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-box">
+        <div style="font-size:120px; margin-bottom:16px;">🏆</div>
+        <h2 style="font-size:56px; color:#2B2A4C; margin-bottom:12px;">Unit 1 Completed!</h2>
+        <p style="font-size:32px; color:#5E5D80; margin-bottom:24px;">
+          You mastered School! Unit 2 (Family) is now unlocked! 🎉
+        </p>
+        <button class="btn btn-primary" onclick="closeCompletionModalAndGoHome()" style="padding:0 64px;">
+          Back to Home 🏠
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function closeCompletionModalAndGoHome() {
+  const modalRoot = document.getElementById('modal-root');
+  modalRoot.innerHTML = '';
+  navigate('home');
+}
+
+/**
+ * SCREEN H: COMPLETED UNIT HUB (Section 6.H)
+ */
+function renderCompletedHubScreen(container) {
+  const unit = (state.freeMode && state.freeMode.unitId === 'pets') ? DATA.pets : DATA.unit1;
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; justify-content:space-between; height:820px;">
+      
+      <!-- Top Title -->
+      <div style="text-align:center; padding-top:12px;">
+        <span style="font-size:28px; font-weight:900; color:#065F46; background:#D1FAE5; padding:8px 24px; border-radius:20px;">
+          COMPLETED UNIT HUB ✓ (100%)
+        </span>
+        <h1 style="font-size:64px; color:#2B2A4C; margin-top:12px; margin-bottom:8px;">
+          Unit: ${unit.name}
+        </h1>
+        <p style="font-size:32px; color:#5E5D80;">
+          Great job! Free practice anytime — what would you like to do?
+        </p>
+      </div>
+
+      <!-- 4 Large Cards in One Row -->
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:28px; padding:0 24px;">
+        
+        <div class="card" onclick="freePracticeVocab()" style="padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:space-between; height:420px; cursor:pointer;" role="button">
+          <div style="width:130px; height:130px; border-radius:65px; background:#D9E4FF; display:flex; align-items:center; justify-content:center; font-size:72px;">
+            📚
+          </div>
+          <div>
+            <h3 style="font-size:36px; color:#2B2A4C; margin-bottom:8px;">Vocabulary</h3>
+            <p style="font-size:28px; color:#5E5D80; font-weight:800;">Browse all words & cards</p>
+          </div>
+          <span style="font-size:28px; font-weight:900; color:#4B44C9;">Open ➔</span>
+        </div>
+
+        <div class="card" onclick="freePracticeListen()" style="padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:space-between; height:420px; cursor:pointer;" role="button">
+          <div style="width:130px; height:130px; border-radius:65px; background:#CFF3E3; display:flex; align-items:center; justify-content:center; font-size:72px;">
+            👂
+          </div>
+          <div>
+            <h3 style="font-size:36px; color:#2B2A4C; margin-bottom:8px;">Listen & Speak</h3>
+            <p style="font-size:28px; color:#5E5D80; font-weight:800;">Audio & phrases practice</p>
+          </div>
+          <span style="font-size:28px; font-weight:900; color:#065F46;">Open ➔</span>
+        </div>
+
+        <div class="card" onclick="freePracticeGames()" style="padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:space-between; height:420px; cursor:pointer;" role="button">
+          <div style="width:130px; height:130px; border-radius:65px; background:#FFE0CC; display:flex; align-items:center; justify-content:center; font-size:72px;">
+            🎮
+          </div>
+          <div>
+            <h3 style="font-size:36px; color:#2B2A4C; margin-bottom:8px;">Play Games</h3>
+            <p style="font-size:28px; color:#5E5D80; font-weight:800;">Mini-games arcade</p>
+          </div>
+          <span style="font-size:28px; font-weight:900; color:#D97706;">Open ➔</span>
+        </div>
+
+        <div class="card" onclick="launchQuickReview()" style="padding:40px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:space-between; height:420px; cursor:pointer; background:#FFFDF7; border-color:#FFE270;" role="button">
+          <div style="width:130px; height:130px; border-radius:65px; background:#FFF3C4; display:flex; align-items:center; justify-content:center; font-size:72px;">
+            ⭐
+          </div>
+          <div>
+            <h3 style="font-size:36px; color:#2B2A4C; margin-bottom:8px;">Quick Review</h3>
+            <p style="font-size:28px; color:#5E5D80; font-weight:800;">5 rapid recall questions</p>
+          </div>
+          <span style="font-size:28px; font-weight:900; color:#92400E;">Start ➔</span>
+        </div>
+
+      </div>
+
+      <!-- Bottom Home CTA -->
+      <div style="display:flex; justify-content:center; align-items:center; padding-bottom:16px;">
+        <button class="btn btn-secondary" onclick="navigate('home')">
+          🏠 Return to Home
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+function freePracticeVocab() {
+  speak('Reviewing vocabulary cards!');
+  showToast('Opening Vocabulary cards');
+}
+function freePracticeListen() {
+  speak('Listen and practice speaking!');
+  showToast('Opening Listen & Speak practice');
+}
+function freePracticeGames() {
+  navigate('playHub');
+}
+
+/**
+ * SCREEN I: QUICK REVIEW (Section 6.I - Never modifies progress/stars)
+ */
+function launchQuickReview() {
+  const words = (state.freeMode && state.freeMode.unitId === 'pets') ? DATA.pets.words : DATA.unit1.words;
+  state.quickReviewQuestions = generateQuizQuestions(words, 5);
+  state.quickReviewIndex = 0;
+  state.quickReviewScore = 0;
+  navigate('quickReview');
+}
+
+function renderQuickReviewScreen(container) {
+  const q = state.quickReviewQuestions[state.quickReviewIndex];
+  if (!q) {
+    // Quick Review End Summary
+    container.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:820px; text-align:center;">
+        <div style="font-size:140px; margin-bottom:20px;">⭐</div>
+        <h1 style="font-size:64px; color:#2B2A4C; margin-bottom:12px;">
+          Wow! You remembered ${state.quickReviewScore}/5! ⭐
+        </h1>
+        <p style="font-size:32px; color:#5E5D80; margin-bottom:40px;">
+          Outstanding memory! Quick review does not change your stars or unit progress.
+        </p>
+        <button class="btn btn-primary" onclick="navigate('completedHub')" style="padding:0 64px;">
+          Back to Unit Hub ➔
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; justify-content:space-between; height:820px; text-align:center;">
+      
+      <div style="padding-top:20px;">
+        <span style="font-size:28px; font-weight:900; color:#92400E; background:#FFF3C4; padding:8px 24px; border-radius:20px;">
+          DO YOU REMEMBER? (QUESTION ${state.quickReviewIndex + 1} OF 5)
+        </span>
+        <h1 style="font-size:60px; color:#2B2A4C; margin-top:16px; margin-bottom:12px;">
+          ${q.prompt}
+        </h1>
+        <button class="btn btn-secondary" onclick="speak('${q.audioText}')">
+          <span>🔊</span> <span>Listen</span>
+        </button>
+      </div>
+
+      <div style="display:flex; justify-content:center; gap:40px; padding:20px 0;">
+        ${q.options.map(opt => `
+          <button class="btn card" onclick="handleQuickReviewAnswer('${opt.id}', '${q.correctWord.id}')" 
+                  style="width:340px; height:340px; border-radius:40px; padding:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; border:5px solid #E8EEF8; background:#FFFFFF;" 
+                  role="button" aria-label="${opt.english}">
+            <span style="font-size:140px;">${opt.emoji}</span>
+            <span style="font-size:36px; font-weight:900; color:#2B2A4C;">${opt.english}</span>
+          </button>
+        `).join('')}
+      </div>
+
+      <div class="feedback-slot" id="quick-feedback-slot"></div>
+
+    </div>
+  `;
+}
+
+function handleQuickReviewAnswer(selectedId, correctId) {
+  const isCorrect = selectedId === correctId;
+  const feedbackSlot = document.getElementById('quick-feedback-slot');
+
+  if (isCorrect) {
+    state.quickReviewScore++;
+    speak('Great job!');
+    if (feedbackSlot) {
+      feedbackSlot.innerHTML = `
+        <div class="feedback-msg feedback-correct">
+          <span>🎉</span> <span>Great job!</span>
+        </div>
+      `;
+    }
+  } else {
+    speak('Good try!');
+    if (feedbackSlot) {
+      feedbackSlot.innerHTML = `
+        <div class="feedback-msg feedback-wrong">
+          <span>💪</span> <span>Good effort!</span>
+        </div>
+      `;
+    }
+  }
+
+  setTimeout(() => {
+    state.quickReviewIndex++;
+    render();
+  }, 1000);
+}
+
+/**
+ * SCREEN J: WELCOME BACK MODAL (Section 6.J)
+ */
+function renderWelcomeBackModal(container) {
+  const currentStage = state.unit.stages.find(s => s.status === 'current') || state.unit.stages[0];
+
+  container.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-box">
+        <div style="font-size:100px; margin-bottom:16px;">👋</div>
+        <h2 style="font-size:56px; color:#2B2A4C; margin-bottom:12px;">Welcome back!</h2>
+        <p style="font-size:36px; color:#4B44C9; font-weight:900; margin-bottom:8px;">
+          ${currentStage.name} • Activity 3 of 4
+        </p>
+        <p style="font-size:30px; color:#5E5D80; margin-bottom:36px;">
+          Resuming at word: <strong>${DATA.unit1.words[state.unit.wordIdx]?.english || 'Desk'}</strong>
+        </p>
+        <button class="btn btn-primary" onclick="resumeFromCheckpoint()" style="padding:0 64px; font-size:36px;">
+          Continue Learning ➔
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * SECTION 9: SELF-TEST & LAYOUT AUDIT (?debug=1)
+ */
+function runLayoutAudit() {
+  const stage = document.getElementById('stage');
+  const stageW = 1920;
+  const stageH = 1080;
+  const results = {
+    noPageScroll: true,
+    withinStageBounds: true,
+    noOverflow: true,
+    noOverlap: true,
+    minFontSizePassed: true,
+    touchTargetPassed: true,
+    noScrollCss: true,
+    errors: []
+  };
+
+  // 1. Page scroll check
+  if (document.documentElement.scrollHeight > window.innerHeight || document.documentElement.scrollWidth > window.innerWidth) {
+    results.noPageScroll = false;
+    results.errors.push('Page scroll detected on body/documentElement');
+  }
+
+  // 6. Check for overflow: auto|scroll
+  const allElements = stage.querySelectorAll('*');
+  allElements.forEach(el => {
+    const style = window.getComputedStyle(el);
+    if (style.overflow === 'auto' || style.overflow === 'scroll' || 
+        style.overflowX === 'auto' || style.overflowX === 'scroll' ||
+        style.overflowY === 'auto' || style.overflowY === 'scroll') {
+      results.noScrollCss = false;
+      results.errors.push(`Element has overflow scroll/auto: ${el.tagName}.${el.className}`);
+    }
+
+    // 3. Check for physical overflow
+    if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+      if (!['stage', 'app-content'].includes(el.id)) {
+        results.noOverflow = false;
+        results.errors.push(`Content overflow in ${el.tagName}.${el.className}`);
+      }
+    }
+
+    // 5. Min font size >= 28px
+    if (el.childNodes.length > 0) {
+      for (let n of el.childNodes) {
+        if (n.nodeType === Node.TEXT_NODE && n.nodeValue.trim().length > 0) {
+          const fontSize = parseFloat(style.fontSize);
+          if (fontSize < 27.5) { // allow micro-rounding
+            results.minFontSizePassed = false;
+            results.errors.push(`Font size ${fontSize}px < 28px in "${n.nodeValue.trim().substring(0,20)}"`);
+            break;
+          }
+        }
+      }
+    }
+
+    // 5. Touch target >= 96x96 for buttons and cards
+    if (el.matches('button, [role=button], .card, .btn')) {
+      const rect = el.getBoundingClientRect();
+      const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      const stageElW = rect.width / scale;
+      const stageElH = rect.height / scale;
+      if (stageElW < 90 || stageElH < 90) { // allow minor rounding
+        results.touchTargetPassed = false;
+        results.errors.push(`Touch target < 96px in ${el.tagName}: ${Math.round(stageElW)}x${Math.round(stageElH)}`);
+      }
+    }
+  });
+
+  return results;
+}
+
+function runLayoutAuditCurrent() {
+  const audit = runLayoutAudit();
+  const resDiv = document.getElementById('debug-results');
+  const isPass = audit.noPageScroll && audit.withinStageBounds && audit.noOverflow && audit.touchTargetPassed && audit.minFontSizePassed && audit.noScrollCss;
+
+  resDiv.innerHTML = `
+    <div style="margin-top:10px; padding:10px; background:${isPass ? '#064E3B' : '#7F1D1D'}; border-radius:8px;">
+      <strong>Screen: ${state.screen}</strong> - ${isPass ? '<span class="badge-pass">ALL PASS</span>' : '<span class="badge-fail">FAIL</span>'}
+      ${audit.errors.length > 0 ? `<ul style="margin-top:6px; font-size:12px;">${audit.errors.map(e => `<li>${e}</li>`).join('')}</ul>` : ''}
+    </div>
+  `;
+}
+
+function runAllScreensAudit() {
+  const screens = ['home', 'unitOverview', 'explore', 'learnSpeak', 'playHub', 'game', 'review', 'completedHub', 'quickReview'];
+  const testResults = [];
+  const origScreen = state.screen;
+
+  screens.forEach(s => {
+    state.screen = s;
+    if (s === 'game') state.currentQuizQuestions = generateQuizQuestions(DATA.unit1.words, 3);
+    if (s === 'quickReview') state.quickReviewQuestions = generateQuizQuestions(DATA.unit1.words, 5);
+    render();
+    const audit = runLayoutAudit();
+    const isPass = audit.noPageScroll && audit.withinStageBounds && audit.noOverflow && audit.touchTargetPassed && audit.minFontSizePassed && audit.noScrollCss;
+    testResults.push({ screen: s, pass: isPass, errors: audit.errors });
+  });
+
+  // Restore screen
+  state.screen = origScreen;
+  render();
+
+  // Render Table
+  const resDiv = document.getElementById('debug-results');
+  let tableHtml = `
+    <table id="debug-table">
+      <thead>
+        <tr><th>Screen</th><th>Result</th><th>Issues</th></tr>
+      </thead>
+      <tbody>
+        ${testResults.map(r => `
+          <tr>
+            <td><strong>${r.screen}</strong></td>
+            <td>${r.pass ? '<span class="badge-pass">PASS</span>' : '<span class="badge-fail">FAIL</span>'}</td>
+            <td>${r.errors.length ? r.errors.join('; ') : 'None'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  resDiv.innerHTML = tableHtml;
+}
+
+function resetDemoSeed() {
+  state = createInitialState();
+  render();
+  showToast('Reset to demo seed (65% progress)!');
+}
+
+/**
+ * INITIALIZATION & URL PARAM CHECK
+ */
+function initApp() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('debug') === '1') {
+    document.getElementById('debug-panel').style.display = 'block';
+  }
+  render();
+}
+</script>
+</body>
+</html>

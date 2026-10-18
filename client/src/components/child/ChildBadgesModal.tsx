@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Star, Sparkles, Award, Gift } from 'lucide-react';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
-import { ALL_BADGES, type BadgeItem } from '../../data/badges';
+import { ALL_BADGES, evaluateBadge, getBadgeProgress, type BadgeItem } from '../../data/badges';
 import { getReqUnitLabel } from '../../data/labels';
 import { ALL_STICKERS } from '../../data/stickers';
 import { useRewards } from '../../context/RewardContext';
@@ -31,6 +31,8 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   // §1.2.17 — RewardContext is the single source of truth; props still win
   // when explicitly provided (backwards compatible).
   const { rewards } = useRewards();
+  const effectiveTotalStars = rewards?.totalStars ?? totalStars;
+  const effectiveCompletedLessons = rewards?.completedLessons ?? completedCount;
   const effectiveCompletedUnits = completedUnits ?? rewards?.completedUnits ?? 0;
 
   const [activeTab, setActiveTab] = useState<'badges' | 'stickers'>('badges');
@@ -46,20 +48,14 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
 
   if (!isOpen) return null;
 
-  const badges = ALL_BADGES.map(badge => {
-    let unlocked = false;
-    if (badge.reqType === 'star') {
-      unlocked = totalStars >= badge.requirement;
-    } else if (badge.reqType === 'unit') {
-      unlocked = effectiveCompletedUnits >= badge.requirement;
-    } else {
-      unlocked = completedCount >= badge.requirement;
-    }
-    return {
-      ...badge,
-      unlocked
-    };
-  });
+  const badgeProgress = {
+    totalStars: effectiveTotalStars,
+    completedLessons: effectiveCompletedLessons,
+    completedUnits: effectiveCompletedUnits,
+    perfectLessons: rewards?.perfectLessons ?? 0,
+    openedChests: rewards?.openedChests ?? 0
+  };
+  const badges = ALL_BADGES.map(badge => evaluateBadge(badge, badgeProgress));
 
   const filteredBadges = selectedCat === 'all' ? badges : badges.filter(b => b.category === selectedCat);
   const unlockedBadgesCount = badges.filter(b => b.unlocked).length;
@@ -153,16 +149,21 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                 Tổng số sao vàng
               </span>
               <span className="text-xl sm:text-2xl font-black">
-                {totalStars} Ngôi sao ⭐
+                {effectiveTotalStars} Ngôi sao ⭐
               </span>
             </div>
           </div>
 
           <div className="text-right">
             <span className="text-[10px] sm:text-xs font-black text-amber-100 block">Lesson hoàn thành</span>
-            <span className="text-lg sm:text-xl font-black">{completedCount} Lesson</span>
+            <span className="text-lg sm:text-xl font-black">{effectiveCompletedLessons} Lesson</span>
           </div>
         </div>
+        {rewards && (
+          <p className="-mt-2 mb-4 text-[11px] font-bold text-slate-500 relative z-10">
+            Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}. Sao Lesson lấy điểm tốt nhất ở mọi trò chơi; mốc 50/70/90% lần lượt là 1/2/3 sao. Mỗi Unit cộng 5 sao một lần.
+          </p>
+        )}
 
         {/* BADGES TAB */}
         {activeTab === 'badges' && (
@@ -196,7 +197,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
             <div className="overflow-y-auto pr-1 flex-1 space-y-3 relative z-10">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {filteredBadges.map(badge => {
-                  const currentVal = badge.reqType === 'star' ? totalStars : badge.reqType === 'unit' ? effectiveCompletedUnits : completedCount;
+                  const currentVal = getBadgeProgress(badge, badgeProgress);
                   const percent = Math.min(100, Math.round((currentVal / badge.requirement) * 100));
 
                   return (
@@ -298,11 +299,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         <BadgeShowcaseModal
           badge={showcaseBadge}
           currentProgress={
-            showcaseBadge.reqType === 'star'
-              ? totalStars
-              : showcaseBadge.reqType === 'unit'
-              ? effectiveCompletedUnits
-              : completedCount
+            getBadgeProgress(showcaseBadge, badgeProgress)
           }
           onClose={() => setShowcaseBadge(null)}
         />

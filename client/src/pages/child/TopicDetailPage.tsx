@@ -4,12 +4,10 @@ import { ArrowLeft, Sparkles, Gamepad2, Compass } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { topicsApi, vocabularyApi } from '../../services/api';
 import type { Topic, Vocabulary } from '../../types';
-import { ChildHeader } from '../../components/child/ChildHeader';
-import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { BigInteractiveFlashcard } from '../../components/child/BigInteractiveFlashcard';
-import { KokoMascot } from '../../components/child/KokoMascot';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import { sfx } from '../../utils/audio';
+import { ScreenShell } from '../../components/layout/ScreenShell';
 
 export const TopicDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -84,163 +82,88 @@ export const TopicDetailPage: React.FC = () => {
 
   // Compute stats for this topic's vocabularies
   const masteredCount = topicVocabs.filter(v => vocabMasteryService.isMastered(childId, v._id)).length;
-  const reviewCount = topicVocabs.filter(v => vocabMasteryService.isReview(childId, v._id)).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-amber-50/40 to-yellow-50 flex flex-col pb-24 md:pb-12">
-      <ChildHeader />
+    <ScreenShell
+      titleBar={
+        <div className="w-full flex items-center justify-between gap-2 bg-white/90 backdrop-blur-xs px-3 sm:px-4 py-1.5 rounded-2xl border-2 border-amber-200/80 shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              onClick={() => {
+                sfx.playPop();
+                navigate('/?tab=topics');
+              }}
+              aria-label="Quay lại danh sách chủ đề"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 hover:bg-amber-100 border-2 border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+            </button>
+            <span className="text-xl sm:text-2xl shrink-0">{topic?.icon || '🌈'}</span>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-black text-slate-800 truncate leading-tight">
+                {topic?.englishName || 'Chủ đề từ vựng'}
+              </h1>
+              <p className="text-[11px] font-extrabold text-amber-700 truncate leading-tight">
+                {topic?.vietnameseName} • {getBookTitle(user?.ageGroupCode)}
+              </p>
+            </div>
+          </div>
 
-      <main className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 xl:px-12 py-8 flex-1">
-        {/* Top Nav: Back to topics tab */}
-        <div className="flex items-center gap-5 mb-8">
+          <div className="flex items-center gap-2 bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-300 text-xs font-black text-amber-900 shrink-0">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>{topicVocabs.length} từ vựng</span>
+            {masteredCount > 0 && <span className="text-emerald-700 ml-1">({masteredCount} ⭐)</span>}
+          </div>
+        </div>
+      }
+      actionBar={
+        <div className="w-full flex items-center justify-between gap-2">
           <button
             onClick={() => {
               sfx.playPop();
               navigate('/?tab=topics');
             }}
-            aria-label="Quay lại danh sách chủ đề"
-            className="w-14 h-14 rounded-2xl bg-white border-3 border-slate-200 hover:bg-amber-50 flex items-center justify-center text-slate-700 cursor-pointer shadow-sm active:scale-95 transition-all"
+            className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 border-2 border-amber-200 text-slate-700 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
           >
-            <ArrowLeft className="w-8 h-8 stroke-[2.5]" />
+            <Compass className="w-4 h-4 text-amber-500" />
+            <span>Đổi chủ đề</span>
           </button>
 
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl sm:text-5xl">{topic?.icon || '🌈'}</span>
-              <h1 className="text-3xl sm:text-5xl font-black text-slate-800 tracking-tight">
-                {topic?.englishName || 'Chủ đề từ vựng'}
-              </h1>
-            </div>
-            <p className="text-base sm:text-lg font-extrabold text-amber-700 mt-1">
-              {topic?.vietnameseName} • {getBookTitle(user?.ageGroupCode)}
-            </p>
-          </div>
+          <button
+            onClick={() => {
+              sfx.playPop();
+              navigate('/?tab=games');
+            }}
+            className="btn-3d-amber text-amber-950 font-black text-xs py-1.5 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <Gamepad2 className="w-4 h-4" />
+            <span>Chơi game ôn tập ➔</span>
+          </button>
         </div>
-
-        {/* Hero Banner: Decoupled Flashcard Exploration space */}
-        <section className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 rounded-3xl p-8 sm:p-10 text-white shadow-xl mb-8 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
-            <div className="flex items-center gap-5 text-center sm:text-left flex-col sm:flex-row pt-2 sm:pt-0">
-              <div className="flex-shrink-0 pt-2">
-                <KokoMascot
-                  state="happy"
-                  size="md"
-                  speechBubble="Quẹt thẻ cùng Koko nào! 🐾"
-                />
-              </div>
-              <div>
-                <div className="inline-flex items-center gap-2 bg-white/25 backdrop-blur-md px-4 py-1.5 rounded-full text-xs sm:text-sm font-black mb-2 shadow-xs">
-                  <Sparkles className="w-4 h-4 text-yellow-200" />
-                  Chủ đề mở rộng • Thẻ thông minh Flashcard
-                </div>
-                <h2 className="text-3xl sm:text-4xl font-black mb-2">
-                  Khám phá từ vựng {topic?.englishName || ''}
-                </h2>
-                <p className="text-amber-50 font-bold text-sm sm:text-base max-w-lg">
-                  Quẹt phải để lưu từ <span className="text-emerald-200 underline font-black">Đã nhớ 💚</span>, quẹt trái để đánh dấu <span className="text-yellow-200 underline font-black">Chưa nhớ 🧡</span> nhé bé!
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Topic Mastery Stats */}
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-4 py-2.5 rounded-2xl">
-              <div className="text-center">
-                <span className="text-xs font-bold text-amber-100 block">Tổng số từ</span>
-                <span className="text-xl font-black text-white">{topicVocabs.length}</span>
-              </div>
-              <div className="w-px h-8 bg-white/30" />
-              <div className="text-center">
-                <span className="text-xs font-bold text-emerald-200 block">Đã nhớ</span>
-                <span className="text-xl font-black text-emerald-300">
-                  {masteredCount}
-                </span>
-              </div>
-              <div className="w-px h-8 bg-white/30" />
-              <div className="text-center">
-                <span className="text-xs font-bold text-yellow-200 block">Cần ôn</span>
-                <span className="text-xl font-black text-yellow-300">
-                  {reviewCount}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
-            <p className="font-black text-amber-800 text-sm">Đang tải bộ thẻ từ vựng...</p>
-          </div>
-        ) : topicVocabs.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border-3 border-dashed border-amber-200">
-            <p className="font-black text-slate-600 text-lg mb-2">Chưa có từ vựng cho chủ đề này.</p>
+      }
+    >
+      {loading ? (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <p className="font-black text-amber-800 text-xs">Đang tải bộ thẻ từ vựng...</p>
+        </div>
+      ) : topicVocabs.length === 0 ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="bg-white rounded-3xl p-8 text-center border-3 border-dashed border-amber-200 max-w-sm">
+            <p className="font-black text-slate-600 text-sm mb-3">Chưa có từ vựng cho chủ đề này.</p>
             <button
               onClick={() => navigate('/?tab=topics')}
-              className="btn-3d-amber text-amber-950 font-black text-sm px-6 py-2.5 rounded-2xl mt-3"
+              className="btn-3d-amber text-amber-950 font-black text-xs px-5 py-2 rounded-xl"
             >
               Chọn chủ đề khác
             </button>
           </div>
-        ) : (
-          <div className="space-y-8">
-            {/* Interactive Flashcard Component */}
-            <section className="bg-white/80 rounded-3xl border-3 border-amber-200/90 p-6 sm:p-8 shadow-sm">
-              <BigInteractiveFlashcard items={topicVocabs} childId={childId} />
-            </section>
-
-            {/* Quick Action Navigation Buttons */}
-            <div className="grid sm:grid-cols-2 gap-4">
-              {/* Button: Play mini games with words */}
-              <div
-                onClick={() => {
-                  sfx.playPop();
-                  navigate('/?tab=games');
-                }}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-3xl p-5 flex items-center justify-between gap-4 cursor-pointer shadow-md hover:scale-103 active:scale-98 transition-all border-3 border-emerald-600"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shadow-inner">
-                    🎮
-                  </div>
-                  <div>
-                    <h3 className="font-black text-lg">Chơi trò chơi từ vựng</h3>
-                    <p className="text-xs font-bold text-emerald-100">
-                      Luyện phản xạ với các từ bé đã thuộc!
-                    </p>
-                  </div>
-                </div>
-                <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
-              </div>
-
-              {/* Button: Return to all topics */}
-              <div
-                onClick={() => {
-                  sfx.playPop();
-                  navigate('/?tab=topics');
-                }}
-                className="bg-white hover:bg-amber-50 border-3 border-amber-300 text-slate-700 rounded-3xl p-5 flex items-center justify-between gap-4 cursor-pointer shadow-md hover:scale-103 active:scale-98 transition-all"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-2xl shadow-inner">
-                    🌈
-                  </div>
-                  <div>
-                    <h3 className="font-black text-lg text-slate-800">Khám phá chủ đề khác</h3>
-                    <p className="text-xs font-bold text-slate-500">
-                      Rất nhiều chủ đề từ vựng phong phú!
-                    </p>
-                  </div>
-                </div>
-                <Compass className="w-6 h-6 text-amber-500 stroke-[2.5]" />
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      <ChildBottomNav />
-    </div>
+        </div>
+      ) : (
+        <div className="w-full h-full min-h-0 flex flex-col overflow-hidden bg-white/80 rounded-2xl border-2 border-amber-200/90 p-2 sm:p-4">
+          <BigInteractiveFlashcard items={topicVocabs} childId={childId} />
+        </div>
+      )}
+    </ScreenShell>
   );
 };

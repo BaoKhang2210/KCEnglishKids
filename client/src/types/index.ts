@@ -86,6 +86,7 @@ export interface Vocabulary {
   audioUrl?: string;
   exampleSentence?: string;
   exampleSentenceVietnamese?: string;
+  category?: string;
 }
 
 export interface ActivityOption {
@@ -190,8 +191,11 @@ export interface RewardSummary {
   totalStars: number;
   earnedStars: number;
   bonusStars: number;
+  classroomStars: number;
   completedUnits: number;
   completedLessons: number;
+  perfectLessons: number;
+  openedChests: number;
   totalLessonsAttempted: number;
   grantedStickerIds: string[];
   chests: RewardChest[];

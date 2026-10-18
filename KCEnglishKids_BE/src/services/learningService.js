@@ -1,18 +1,6 @@
 const { LearningSession, ActivityResult, Activity, Lesson, Progress } = require('../models');
 const { checkAndGrantUnitCompletion } = require('./rewardService');
-
-/**
- * Calculates star rating based on score percentage
- */
-const calculateStars = (score, maxScore = 100, starConfig = { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 }) => {
-  if (maxScore <= 0) return 0;
-  const percentage = Math.round((score / maxScore) * 100);
-
-  if (percentage >= (starConfig.threeStarsMin || 90)) return 3;
-  if (percentage >= (starConfig.twoStarsMin || 70)) return 2;
-  if (percentage >= (starConfig.oneStarMin || 50)) return 1;
-  return 0;
-};
+const { calculateStars, calculateLessonStars } = require('./starService');
 
 const normalizeText = (value) => (value == null ? '' : value.toString().trim().toLowerCase());
 
@@ -146,12 +134,13 @@ const processActivityResult = async ({
     else incorrectCount++;
   }
 
-  const totalQuestions = activity.questions.length || gradedAnswers.length || 1;
+  const totalQuestions = activity.questions.length || Number(activity.questionCount) || gradedAnswers.length || 1;
   // §4.16 — single source of truth for points (model default is 10)
   const pointsPerQuestion = activity.pointsPerQuestion || 10;
   const maxScore = totalQuestions * pointsPerQuestion;
   const totalScore = correctCount * pointsPerQuestion;
-  const starsEarned = calculateStars(totalScore, maxScore, activity.starConfig);
+  // Per-game result uses the same fixed 50/70/90% scale as the final Lesson.
+  const starsEarned = calculateStars(totalScore, maxScore);
 
   // 1. Create ActivityResult
   const activityResult = await ActivityResult.create({
@@ -181,12 +170,23 @@ const processActivityResult = async ({
   session.totalScore = (session.totalScore || 0) + totalScore;
   session.stars = Math.max(session.stars || 0, starsEarned);
 
-  // Check if all activities of this lesson are completed
-  const totalLessonActivities = await Activity.countDocuments({ lesson: lessonId, status: 'ACTIVE' });
-  if (session.completedActivities.length >= totalLessonActivities && totalLessonActivities > 0) {
+  // A Lesson's stars are based on its best result for every active activity.
+  // Replays may improve an activity score, but cannot lower the Lesson score.
+  const lessonActivities = await Activity.find({ lesson: lessonId, status: 'ACTIVE' })
+    .select('_id questions questionCount pointsPerQuestion')
+    .lean();
+  const lessonActivityResults = lessonActivities.length
+    ? await ActivityResult.find({ child: childId, lesson: lessonId, activity: { $in: lessonActivities.map((item) => item._id) } })
+      .select('activity score')
+      .lean()
+    : [];
+  const lessonRating = calculateLessonStars(lessonActivities, lessonActivityResults);
+
+  if (lessonRating.completed) {
     session.status = 'COMPLETED';
     session.completedAt = new Date();
   }
+  session.stars = lessonRating.completed ? lessonRating.stars : 0;
   await session.save();
 
   // 3. Update or create Progress (§1.2.20 — upsert, no E11000 race)
@@ -194,13 +194,14 @@ const processActivityResult = async ({
   const topicId = lesson ? lesson.topic : null;
 
   let unitCompletionsGranted = [];
+  let lessonCompleted = false;
 
   if (topicId) {
     const progress = await Progress.findOneAndUpdate(
       { child: childId, lesson: lessonId },
       {
         $setOnInsert: { topic: topicId, completed: false, weakVocabulary: [] },
-        $max: { stars: starsEarned, highestScore: totalScore },
+        $max: { highestScore: totalScore },
         $inc: { attempts: 1 },
         $set: { lastActivityAt: new Date() }
       },
@@ -209,8 +210,13 @@ const processActivityResult = async ({
 
     // "Lesson complete" is owned by Progress.completed (§4.11) — set once ALL
     // activities of the lesson are done (session.status === 'COMPLETED').
-    if (session.status === 'COMPLETED' && !progress.completed) {
+    if (lessonRating.completed && !progress.completed) {
       progress.completed = true;
+    }
+    if (lessonRating.completed) {
+      progress.stars = lessonRating.stars;
+    } else if (!progress.completed) {
+      progress.stars = 0;
     }
 
     // §4.10 — weakVocabulary must be able to shrink: correct answers accumulate
@@ -248,6 +254,7 @@ const processActivityResult = async ({
     progress.weakVocabulary = progress.weakVocabulary.filter((entry) => (entry.mistakeCount || 0) > 0);
 
     await progress.save();
+    lessonCompleted = Boolean(progress.completed);
 
     // §1.2.9 — unit completion hook (idempotent)
     if (progress.completed) {
@@ -268,11 +275,15 @@ const processActivityResult = async ({
     score: totalScore,
     maxScore,
     stars: starsEarned,
+    lessonStars: lessonRating.completed ? lessonRating.stars : null,
+    lessonScore: lessonRating.completed
+      ? { score: lessonRating.score, maxScore: lessonRating.maxScore, percentage: Math.round(lessonRating.percentage) }
+      : null,
     correctCount,
     incorrectCount,
     gradedAnswers,
     isPassed: starsEarned > 0,
-    lessonCompleted: session.status === 'COMPLETED',
+    lessonCompleted,
     nextActivityId: nextAct ? nextAct._id : null,
     nextActivityTitle: nextAct ? nextAct.title : null,
     unitCompletionsGranted: unitCompletionsGranted.map((doc) => ({
@@ -285,6 +296,7 @@ const processActivityResult = async ({
 
 module.exports = {
   calculateStars,
+  calculateLessonStars,
   gradeActivityAnswers,
   getOrCreateSession,
   processActivityResult

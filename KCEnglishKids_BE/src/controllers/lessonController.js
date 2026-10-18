@@ -1,4 +1,5 @@
 const { Lesson, Activity, Vocabulary, ActivityResult, CurriculumUnit, Progress } = require('../models');
+const { calculateLessonStars } = require('../services/starService');
 
 // @desc    Get structured Curriculum Path (Units & Lessons for child's age group)
 // @route   GET /api/lessons/curriculum-path
@@ -30,30 +31,61 @@ const getCurriculumPath = async (req, res, next) => {
         if (p.lesson) {
           progressMap.set(p.lesson.toString(), {
             completed: p.completed,
-            stars: p.stars || 0,
+            stars: p.completed ? (p.stars || 0) : 0,
             highestScore: p.highestScore || 0
           });
         }
       });
 
-      // Also query ActivityResult — used ONLY to merge display stars/scores.
+      // ActivityResult scores help show the best game score, but never provide
+      // Lesson stars: those are calculated once across every active activity
+      // and persisted in Progress by learningService.
       // §4.11: "lesson completed" is owned by Progress.completed (set when ALL
       // lesson activities are done) — never inferred from ar.stars > 0.
       const lessonIds = lessons.map(l => l._id);
-      const activityResults = await ActivityResult.find({
+      const [activeActivities, activityResults] = await Promise.all([
+        Activity.find({ lesson: { $in: lessonIds }, status: 'ACTIVE' })
+          .select('_id lesson questions questionCount pointsPerQuestion')
+          .lean(),
+        ActivityResult.find({
         child: childId,
-        lesson: { $in: lessonIds }
+        lesson: { $in: lessonIds },
+        completed: true
+        }).select('lesson activity score').lean()
+      ]);
+      const activitiesByLesson = new Map();
+      const resultsByLesson = new Map();
+      activeActivities.forEach(activity => {
+        const key = activity.lesson.toString();
+        if (!activitiesByLesson.has(key)) activitiesByLesson.set(key, []);
+        activitiesByLesson.get(key).push(activity);
+      });
+      activityResults.forEach(result => {
+        const key = result.lesson.toString();
+        if (!resultsByLesson.has(key)) resultsByLesson.set(key, []);
+        resultsByLesson.get(key).push(result);
       });
       activityResults.forEach(ar => {
         const lid = ar.lesson.toString();
         const existing = progressMap.get(lid);
-        const currentStars = existing ? Math.max(existing.stars, ar.stars || 0) : (ar.stars || 0);
+        const currentStars = existing ? existing.stars : 0;
         const isCompleted = Boolean(existing && existing.completed);
         progressMap.set(lid, {
           completed: isCompleted,
           stars: currentStars,
           highestScore: existing ? Math.max(existing.highestScore, ar.score || 0) : (ar.score || 0)
         });
+      });
+
+      // Existing Progress records may contain the old best-single-activity
+      // rating. Derive completed Lesson stars from activity results instead.
+      progressMap.forEach((progress, lessonId) => {
+        if (!progress.completed) return;
+        const rating = calculateLessonStars(
+          activitiesByLesson.get(lessonId) || [],
+          resultsByLesson.get(lessonId) || []
+        );
+        if (rating.completed) progress.stars = rating.stars;
       });
     }
 

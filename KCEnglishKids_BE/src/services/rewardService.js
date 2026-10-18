@@ -1,4 +1,5 @@
-const { UnitCompletion, Progress, Lesson, CurriculumUnit, AuditLog, ClassroomSession } = require('../models');
+const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession } = require('../models');
+const { calculateLessonStars } = require('./starService');
 
 /**
  * §1.2 — Server-side reward engine.
@@ -125,7 +126,9 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
 
 /**
  * Aggregate reward state for a child. Single source of truth for the UI:
- *   totalStars = Σ Progress.stars (earned) + Σ UnitCompletion STAR (bonus)
+ *   totalStars = best stars per Lesson + Unit completion bonus + classroom awards.
+ *   A Unit bonus is credited when the Unit completes; opening its chest only
+ *   reveals the already-granted sticker.
  */
 const computeRewards = async (childId) => {
   const [progressDocs, completions, classroomSessions] = await Promise.all([
@@ -136,7 +139,40 @@ const computeRewards = async (childId) => {
     ClassroomSession.find({ 'studentScores.student': childId }).select('studentScores')
   ]);
 
-  const earnedStars = progressDocs.reduce((sum, p) => sum + (p.stars || 0), 0);
+  const completedLessonIds = progressDocs.filter((p) => p.completed).map((p) => p.lesson).filter(Boolean);
+  const [activities, activityResults] = completedLessonIds.length
+    ? await Promise.all([
+      Activity.find({ lesson: { $in: completedLessonIds }, status: 'ACTIVE' })
+        .select('_id lesson questions questionCount pointsPerQuestion')
+        .lean(),
+      ActivityResult.find({ child: childId, lesson: { $in: completedLessonIds }, completed: true })
+        .select('lesson activity score')
+        .lean()
+    ])
+    : [[], []];
+
+  const activitiesByLesson = new Map();
+  for (const activity of activities) {
+    const key = String(activity.lesson);
+    if (!activitiesByLesson.has(key)) activitiesByLesson.set(key, []);
+    activitiesByLesson.get(key).push(activity);
+  }
+  const resultsByLesson = new Map();
+  for (const result of activityResults) {
+    const key = String(result.lesson);
+    if (!resultsByLesson.has(key)) resultsByLesson.set(key, []);
+    resultsByLesson.get(key).push(result);
+  }
+
+  const lessonStarsById = new Map();
+  const earnedStars = progressDocs.reduce((sum, progress) => {
+    if (!progress.completed || !progress.lesson) return sum;
+    const key = String(progress.lesson);
+    const rating = calculateLessonStars(activitiesByLesson.get(key) || [], resultsByLesson.get(key) || []);
+    const stars = rating.completed ? rating.stars : (progress.stars || 0);
+    lessonStarsById.set(key, stars);
+    return sum + stars;
+  }, 0);
   const completedLessons = progressDocs.filter((p) => p.completed).length;
 
   let classroomStars = 0;
@@ -148,12 +184,14 @@ const computeRewards = async (childId) => {
   let bonusStars = 0;
   const grantedStickerIds = [];
   const chests = [];
+  let openedChests = 0;
 
   for (const c of completions) {
     const starReward = (c.rewards || []).find((r) => r.type === 'STAR');
     const stickerReward = (c.rewards || []).find((r) => r.type === 'STICKER');
     bonusStars += starReward ? starReward.amount || 0 : 0;
     if (stickerReward && stickerReward.refId) grantedStickerIds.push(stickerReward.refId);
+    if (c.revealedAt) openedChests += 1;
 
     chests.push({
       id: c._id,
@@ -178,7 +216,9 @@ const computeRewards = async (childId) => {
     classroomStars,
     completedUnits: completions.length,
     completedLessons,
+    perfectLessons: progressDocs.filter((p) => p.completed && lessonStarsById.get(String(p.lesson)) >= 3).length,
     totalLessonsAttempted: progressDocs.length,
+    openedChests,
     grantedStickerIds,
     chests
   };

@@ -24,8 +24,8 @@ import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShe
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
 import { DailyStreakBanner } from '../../components/child/DailyStreakBanner';
 import { DailyStreakModal } from '../../components/child/DailyStreakModal';
-import { ALL_BADGES } from '../../data/badges';
-import { getReqUnitLabel, lessonsDoneLabel } from '../../data/labels';
+import { ALL_BADGES, evaluateBadge, getBadgeProgress } from '../../data/badges';
+import { getReqUnitLabel } from '../../data/labels';
 import { ALL_STICKERS } from '../../data/stickers';
 import { sfx } from '../../utils/audio';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
@@ -402,48 +402,52 @@ export const ChildHomePage: React.FC = () => {
                               {unit.topicIcon || theme.accentEmoji}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className={`text-[11px] sm:text-xs font-black uppercase px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border shadow-2xs ${
-                                  !isUnitUnlocked ? 'bg-slate-200 text-slate-600 border-slate-300' : theme.headerBadge
-                                }`}>
-                                  Unit {unit.unitNumber} • {theme.tag}
-                                </span>
+                              {/* Dòng 1: Status Badge & Big Question Tag (Đã bỏ tag Unit bị trùng lặp) */}
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                 {!isUnitUnlocked ? (
-                                  <span className="bg-slate-200 text-slate-600 text-[11px] sm:text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-slate-300">
-                                    <LockKeyhole className="w-3 h-3" /> Chưa mở khóa
+                                  <span className="bg-slate-200 text-slate-600 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-300">
+                                    <LockKeyhole className="w-3.5 h-3.5" /> Locked
                                   </span>
                                 ) : unit.isCompleted ? (
-                                  <span className="bg-emerald-100 text-emerald-800 text-[11px] sm:text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-300">
-                                    <Check className="w-3 h-3 stroke-[3]" /> Hoàn thành trọn vẹn
+                                  <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1.5 border border-emerald-300">
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" /> Completed
                                   </span>
                                 ) : (
-                                  <span className="bg-amber-100 text-amber-900 text-[11px] sm:text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-300 animate-pulse">
-                                    <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" /> Đang khám phá
+                                  <span className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1.5 border border-amber-300 animate-pulse">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-500" /> Exploring
+                                  </span>
+                                )}
+
+                                {unit.bigQuestion && (
+                                  <span className="bg-purple-100 text-purple-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-purple-200">
+                                    Big Question
                                   </span>
                                 )}
                               </div>
 
-                              <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 mt-0.5 font-display tracking-tight group-hover:text-amber-700 transition-colors truncate">
-                                Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Lesson'}
+                              {/* Dòng 2: Tiêu đề Unit duy nhất (Chữ to, rõ ràng chuẩn Cambridge) */}
+                              <h3 className="text-xl sm:text-2xl font-black text-slate-800 font-display tracking-tight group-hover:text-amber-700 transition-colors truncate">
+                                Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'School'}
                               </h3>
-                              <p className="text-xs sm:text-sm font-extrabold text-slate-600 mt-0.5 truncate">
-                                {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
-                                {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.storyTitle || ''}
+
+                              {/* Dòng 3: Big Question / Subtitle đặc trưng giáo trình */}
+                              <p className="text-xs sm:text-sm font-bold text-slate-600 mt-1 truncate">
+                                {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.topicVietnameseName ? `${unit.topicVietnameseName}` : unit.storyTitle || ''}
                               </p>
                             </div>
                           </div>
 
                           {/* Right: Stars, Progress & Action button */}
-                          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+                          <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
                             <div className="text-right hidden sm:block">
-                              <div className="flex items-center gap-1 justify-end">
+                              <div className="flex items-center gap-1.5 justify-end">
                                 <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                                 <span className="text-xs sm:text-sm font-black text-amber-950">
-                                  {unit.totalUnitStars} sao vàng
+                                  {unit.totalUnitStars || 0} Stars
                                 </span>
                               </div>
-                              <span className="text-[11px] font-bold text-slate-500">
-                                {lessonsDoneLabel(completedLessonCount, totalLessonCount)}
+                              <span className="text-xs font-bold text-slate-500 mt-0.5 block">
+                                {completedLessonCount} / {totalLessonCount} Lessons Done
                               </span>
                             </div>
 
@@ -453,7 +457,7 @@ export const ChildHomePage: React.FC = () => {
                                 !isUnitUnlocked ? 'opacity-60 grayscale' : 'group-hover:scale-105'
                               }`}
                             >
-                              <span>{isUnitUnlocked ? 'Khám phá Lesson' : 'Xem điều kiện'}</span>
+                              <span>{isUnitUnlocked ? 'Explore Unit' : 'Locked'}</span>
                               <ArrowRight className="w-4 h-4" />
                             </button>
                           </div>
@@ -574,17 +578,14 @@ export const ChildHomePage: React.FC = () => {
 
             {/* ==================== TAB 4: HUY HIỆU CỦA BÉ ==================== */}
             {activeTab === 'badges' && (() => {
-              const evaluatedBadges = ALL_BADGES.map(badge => {
-                let unlocked = false;
-                if (badge.reqType === 'star') {
-                  unlocked = totalStars >= badge.requirement;
-                } else if (badge.reqType === 'unit') {
-                  unlocked = completedUnits >= badge.requirement;
-                } else {
-                  unlocked = completedLessons >= badge.requirement;
-                }
-                return { ...badge, unlocked };
-              });
+              const badgeProgress = {
+                totalStars,
+                completedLessons,
+                completedUnits,
+                perfectLessons: rewards?.perfectLessons ?? 0,
+                openedChests: rewards?.openedChests ?? 0
+              };
+              const evaluatedBadges = ALL_BADGES.map(badge => evaluateBadge(badge, badgeProgress));
 
               const filteredBadges = badgeCategory === 'all'
                 ? evaluatedBadges
@@ -607,9 +608,15 @@ export const ChildHomePage: React.FC = () => {
                       </h2>
                       <p className="text-sm font-bold text-slate-500">
                         {rewardTab === 'badges'
-                          ? 'Thu thập đủ sao vàng và hoàn thành Lesson để mở khóa 20 huy hiệu danh giá!'
-                          : 'Hoàn thành trọn vẹn cả Unit để mở Rương Báu và nhận Sticker siêu xinh!'}
+                          ? 'Mỗi huy hiệu có một mốc rõ ràng: sao, Lesson hoàn thành, Lesson 3 sao hoặc rương đã mở.'
+                          : 'Hoàn thành mọi Lesson trong Unit để nhận rương và sticker. Sao thưởng được cộng ngay khi Unit hoàn tất.'}
                       </p>
+                      {rewards && (
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}.
+                          Sao Lesson tính trên tổng điểm tốt nhất của từng trò chơi trong Lesson: dưới 50% = 0, từ 50% = 1, từ 70% = 2, từ 90% = 3 sao. Mỗi Unit hoàn thành cộng 5 sao một lần.
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="bg-purple-100 border-2 border-purple-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
@@ -674,9 +681,9 @@ export const ChildHomePage: React.FC = () => {
                       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                         {[
                           { id: 'all', label: `Tất cả (${evaluatedBadges.length})` },
-                          { id: 'journey', label: '🐾 Hành trình (10)' },
-                          { id: 'stars', label: '⭐ Ngôi sao (5)' },
-                          { id: 'skills', label: '🎯 Kỹ năng (5)' }
+                          { id: 'journey', label: `🐾 Hành trình (${ALL_BADGES.filter(b => b.category === 'journey').length})` },
+                          { id: 'stars', label: `⭐ Ngôi sao (${ALL_BADGES.filter(b => b.category === 'stars').length})` },
+                          { id: 'skills', label: `🎯 Kỹ năng (${ALL_BADGES.filter(b => b.category === 'skills').length})` }
                         ].map(cat => (
                           <button
                             key={cat.id}
@@ -698,7 +705,7 @@ export const ChildHomePage: React.FC = () => {
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
                         {filteredBadges.map((badge) => {
-                          const currentVal = badge.reqType === 'star' ? totalStars : badge.reqType === 'unit' ? completedUnits : completedLessons;
+                          const currentVal = getBadgeProgress(badge, badgeProgress);
                           const percent = Math.min(100, Math.round((currentVal / badge.requirement) * 100));
 
                           return (
@@ -1079,13 +1086,13 @@ export const ChildHomePage: React.FC = () => {
         {showcaseBadge && (
           <BadgeShowcaseModal
             badge={showcaseBadge}
-            currentProgress={
-              showcaseBadge.reqType === 'star'
-                ? totalStars
-                : showcaseBadge.reqType === 'unit'
-                ? completedUnits
-                : completedLessons
-            }
+            currentProgress={getBadgeProgress(showcaseBadge, {
+              totalStars,
+              completedLessons,
+              completedUnits,
+              perfectLessons: rewards?.perfectLessons ?? 0,
+              openedChests: rewards?.openedChests ?? 0
+            })}
             onClose={() => setShowcaseBadge(null)}
           />
         )}

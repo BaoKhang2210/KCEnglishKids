@@ -1,0 +1,1 @@
+export const PRACTICE_ROUNDS_PER_LESSON = 3;

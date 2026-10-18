@@ -17,6 +17,9 @@ interface ResultModalProps {
   onPlayNext?: () => void;
   /** §1.2 — true when this submit completed the whole Unit (chest granted) */
   unitCompleted?: boolean;
+  lessonStars?: number | null;
+  lessonScore?: { score: number; maxScore: number; percentage: number } | null;
+  starContext?: 'lesson-activity' | 'practice-game';
 }
 
 export const ResultModal: React.FC<ResultModalProps> = ({
@@ -30,7 +33,10 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   nextActivityId,
   nextActivityTitle,
   onPlayNext,
-  unitCompleted = false
+  unitCompleted = false,
+  lessonStars = null,
+  lessonScore = null,
+  starContext = 'lesson-activity'
 }) => {
   useEffect(() => {
     if (stars > 0) {
@@ -126,6 +132,13 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             );
           })}
         </div>
+        <p className="text-xs font-bold text-slate-500 -mt-4 mb-5 relative z-10">
+          {starContext === 'practice-game'
+            ? 'Sao này chỉ ghi nhận kết quả trò chơi luyện tập, không cộng vào tổng sao.'
+            : lessonStars !== null && lessonScore
+              ? `Lesson đạt ${lessonScore.percentage}% — ${lessonStars} sao. Tính từ kết quả tốt nhất của mọi trò chơi trong Lesson.`
+              : 'Sao trên đây là của lượt chơi. Sao Lesson sẽ tính từ điểm tốt nhất ở mọi trò chơi khi bé hoàn thành tất cả hoạt động.'}
+        </p>
 
         {/* Score & Correct Answer Stats Pill */}
         <div className="bg-amber-50/90 border-3 border-amber-200 rounded-3xl p-5 sm:p-6 mb-6 flex justify-around relative z-10 shadow-xs">
@@ -162,7 +175,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 Một Rương Báu đang chờ bé mở đó!
               </h4>
               <p className="text-xs font-bold text-slate-500">
-                Về trang chủ và mở rương để nhận Sao vàng + Sticker nhé!
+                +5 sao đã được cộng ngay. Về trang chủ mở rương để xem Sticker nhé!
               </p>
             </div>
           </div>

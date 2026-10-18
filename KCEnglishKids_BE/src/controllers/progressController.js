@@ -25,7 +25,7 @@ const getChildProgress = async (req, res, next) => {
     const weakWordsMap = {};
 
     progressList.forEach(item => {
-      totalStars += item.stars || 0;
+      if (item.completed) totalStars += item.stars || 0;
       if (item.completed) completedLessonsCount++;
 
       if (item.weakVocabulary && item.weakVocabulary.length > 0) {

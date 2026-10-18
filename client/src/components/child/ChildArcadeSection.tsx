@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Star,
-  ArrowLeft,
   Play,
   Filter,
   LockKeyhole
@@ -11,6 +10,7 @@ import { sfx, playWordAudio } from '../../utils/audio';
 import { useAuth } from '../../context/AuthContext';
 import { vocabMasteryService, type WordMasteryDetail } from '../../services/vocabMasteryService';
 import { ResultModal } from './ResultModal';
+import { calculateStars } from '../../data/stars';
 
 // Dedicated Game Engines
 import { FeedAnimalEngine } from './games/FeedAnimalEngine';
@@ -25,6 +25,7 @@ import { MissingObjectEngine } from './games/MissingObjectEngine';
 import { MemoryCardEngine } from './games/MemoryCardEngine';
 import { ImageWordMatchEngine } from './games/ImageWordMatchEngine';
 import { ListenChooseEngine } from './games/ListenChooseEngine';
+import { GameFullscreenShell } from './games/GameFullscreenShell';
 
 interface ChildArcadeSectionProps {
   vocabularyList?: Vocabulary[];
@@ -188,7 +189,7 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
   // Handle game finished
   const handleGameFinished = (gameScore: number, correctAnswers: number, totalQ: number = 5) => {
     sfx.playStarFanfare();
-    const stars = correctAnswers >= 4 ? 3 : correctAnswers >= 2 ? 2 : 1;
+    const stars = calculateStars(correctAnswers, totalQ);
     setResultStats({
       score: gameScore,
       maxScore: totalQ * 10,
@@ -448,7 +449,7 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
         difficulty: 1,
         questionCount: pool.length,
         pointsPerQuestion: 10,
-        starConfig: { threeStarsMin: 30, twoStarsMin: 20, oneStarMin: 10 },
+        starConfig: { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
         questions: pool.map((v, i) => ({
           id: `q_mem_${i}`,
           promptText: v.english,
@@ -642,44 +643,40 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
           <button
             type="button"
             onClick={() => setAgeFilter('all')}
-            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
-              ageFilter === 'all'
+            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${ageFilter === 'all'
                 ? 'bg-amber-400 text-amber-950 shadow-md ring-2 ring-amber-300 scale-105'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-            }`}
+              }`}
           >
             ⭐ Tất cả (12 Trò chơi)
           </button>
           <button
             type="button"
             onClick={() => setAgeFilter('3-4')}
-            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
-              ageFilter === '3-4'
+            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${ageFilter === '3-4'
                 ? 'bg-sky-500 text-white shadow-md ring-2 ring-sky-300 scale-105'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-            }`}
+              }`}
           >
             🐣 Lớp Mầm (3–4 tuổi)
           </button>
           <button
             type="button"
             onClick={() => setAgeFilter('4-5')}
-            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
-              ageFilter === '4-5'
+            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${ageFilter === '4-5'
                 ? 'bg-emerald-500 text-white shadow-md ring-2 ring-emerald-300 scale-105'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-            }`}
+              }`}
           >
             🌿 Lớp Chồi (4–5 tuổi)
           </button>
           <button
             type="button"
             onClick={() => setAgeFilter('5-6')}
-            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
-              ageFilter === '5-6'
+            className={`px-4 py-2 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${ageFilter === '5-6'
                 ? 'bg-purple-500 text-white shadow-md ring-2 ring-purple-300 scale-105'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-            }`}
+              }`}
           >
             🚀 Lớp Lá (5–6 tuổi)
           </button>
@@ -720,20 +717,17 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
                   }
                   startGame(game.id);
                 }}
-                className={`bg-white rounded-3xl border-4 ${
-                  unlocked ? game.color : 'border-slate-200 opacity-80'
-                } p-6 shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden ${
-                  unlocked ? 'hover:-translate-y-1' : 'hover:border-slate-300'
-                }`}
+                className={`bg-white rounded-3xl border-4 ${unlocked ? game.color : 'border-slate-200 opacity-80'
+                  } p-6 shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden ${unlocked ? 'hover:-translate-y-1' : 'hover:border-slate-300'
+                  }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <div
-                      className={`w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-4xl transition-transform ${
-                        unlocked
+                      className={`w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-4xl transition-transform ${unlocked
                           ? 'bg-amber-50 border-amber-200 group-hover:scale-110'
                           : 'bg-slate-100 border-slate-200 text-slate-400 grayscale'
-                      }`}
+                        }`}
                     >
                       {game.icon}
                     </div>
@@ -751,9 +745,8 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
                   </div>
 
                   <h3
-                    className={`text-xl sm:text-2xl font-black mb-2 transition-colors ${
-                      unlocked ? 'text-slate-800 group-hover:text-amber-600' : 'text-slate-600'
-                    }`}
+                    className={`text-xl sm:text-2xl font-black mb-2 transition-colors ${unlocked ? 'text-slate-800 group-hover:text-amber-600' : 'text-slate-600'
+                      }`}
                   >
                     {game.title}
                   </h3>
@@ -784,117 +777,95 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
         </div>
       )}
 
-      {/* ==================== 2. ACTIVE GAME ENGINE RUNNER ==================== */}
+      {/* ==================== 2. ACTIVE GAME ENGINE RUNNER (ISOLATED FULLSCREEN SHELL) ==================== */}
       {activeGame !== 'menu' && (
-        <div className="bg-white rounded-4xl border-4 border-amber-300 p-6 sm:p-8 shadow-xl animate-fade-in">
-          {/* Header bar with Back button and Round Progress */}
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-3 pb-4 border-b-2 border-slate-100">
-            <button
-              onClick={() => {
-                sfx.playPop();
-                setActiveGame('menu');
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-slate-200 hover:bg-amber-50 text-slate-700 text-sm font-black cursor-pointer shadow-xs active:scale-95 transition-all"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Trở lại danh sách trò chơi
-            </button>
-
-            <div className="flex items-center gap-3">
-              <span className="text-xs sm:text-sm font-black text-amber-900 bg-amber-100 px-4 py-1.5 rounded-full border border-amber-300">
-                Vòng {currentRound + 1} / {TOTAL_ROUNDS}
-              </span>
-              <div className="flex items-center gap-1.5 bg-amber-100 px-4 py-1.5 rounded-full border border-amber-300">
-                <Star className="w-4 h-4 text-amber-600 fill-amber-500" />
-                <span className="text-xs sm:text-sm font-black text-amber-900">{engineCorrectCount * 10} điểm</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Render Active Engine */}
-          <div className="py-2">
-            {activeGame === 'memory-card' && memoryActivity ? (
-              <MemoryCardEngine
-                activity={memoryActivity}
-                onComplete={() => handleGameFinished(50, 5, 5)}
-              />
-            ) : currentEngineQuestion && (
-              <>
-                {activeGame === 'feed-animal' ? (
-                  <FeedAnimalEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'bubble-pop' ? (
-                  <BubblePopEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'tap-picture' ? (
-                  <TapPictureEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'animal-sound' ? (
-                  <AnimalSoundEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'color-recognition' ? (
-                  <ColorRecognitionEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'count-objects' ? (
-                  <CountObjectsEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'true-false' ? (
-                  <TrueFalseEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'missing-object' ? (
-                  <MissingObjectEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'image-word-match' ? (
-                  <ImageWordMatchEngine
-                    question={currentEngineQuestion}
-                    onAnswer={handleEngineAnswer}
-                    disabled={engineFeedback !== 'idle'}
-                  />
-                ) : activeGame === 'star-catcher' ? (
-                  <StarCatcherEngine
-                    question={currentEngineQuestion}
-                    selectedOptionId={engineSelectedId}
-                    feedbackState={engineFeedback}
-                    onSelectOption={(opt) => handleEngineAnswer(true, opt.id)}
-                    onPlayPrompt={() => playWordAudio(currentEngineQuestion.promptText, currentEngineQuestion.promptAudioUrl)}
-                  />
-                ) : (
-                  <ListenChooseEngine
-                    question={currentEngineQuestion}
-                    selectedOptionId={engineSelectedId}
-                    feedbackState={engineFeedback}
-                    onSelectOption={(opt) => handleEngineAnswer(opt.isCorrect, opt.id)}
-                    onPlayPrompt={() => playWordAudio(currentEngineQuestion.promptText, currentEngineQuestion.promptAudioUrl)}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        </div>
+        <GameFullscreenShell
+          currentRound={currentRound}
+          totalRounds={TOTAL_ROUNDS}
+          score={engineCorrectCount * 10}
+          onBack={() => setActiveGame('menu')}
+        >
+          {activeGame === 'memory-card' && memoryActivity ? (
+            <MemoryCardEngine
+              activity={memoryActivity}
+              onComplete={() => handleGameFinished(50, 5, 5)}
+            />
+          ) : currentEngineQuestion && (
+            <>
+              {activeGame === 'feed-animal' ? (
+                <FeedAnimalEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'bubble-pop' ? (
+                <BubblePopEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'tap-picture' ? (
+                <TapPictureEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'animal-sound' ? (
+                <AnimalSoundEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'color-recognition' ? (
+                <ColorRecognitionEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'count-objects' ? (
+                <CountObjectsEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'true-false' ? (
+                <TrueFalseEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'missing-object' ? (
+                <MissingObjectEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'image-word-match' ? (
+                <ImageWordMatchEngine
+                  question={currentEngineQuestion}
+                  onAnswer={handleEngineAnswer}
+                  disabled={engineFeedback !== 'idle'}
+                />
+              ) : activeGame === 'star-catcher' ? (
+                <StarCatcherEngine
+                  question={currentEngineQuestion}
+                  selectedOptionId={engineSelectedId}
+                  feedbackState={engineFeedback}
+                  onSelectOption={(opt) => handleEngineAnswer(true, opt.id)}
+                  onPlayPrompt={() => playWordAudio(currentEngineQuestion.promptText, currentEngineQuestion.promptAudioUrl)}
+                />
+              ) : (
+                <ListenChooseEngine
+                  question={currentEngineQuestion}
+                  selectedOptionId={engineSelectedId}
+                  feedbackState={engineFeedback}
+                  onSelectOption={(opt) => handleEngineAnswer(opt.isCorrect, opt.id)}
+                  onPlayPrompt={() => playWordAudio(currentEngineQuestion.promptText, currentEngineQuestion.promptAudioUrl)}
+                />
+              )}
+            </>
+          )}
+        </GameFullscreenShell>
       )}
 
       {/* Celebratory Result Modal */}
@@ -905,6 +876,7 @@ export const ChildArcadeSection: React.FC<ChildArcadeSectionProps> = ({
           stars={resultStats.stars}
           correctCount={resultStats.correct}
           totalQuestions={resultStats.total}
+          starContext="practice-game"
           onRetry={() => {
             setShowResultModal(false);
             if (activeGame !== 'menu') {

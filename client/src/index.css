@@ -11,33 +11,25 @@
   --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
 }
 
-/* Standard Responsive Root Scaling for web screens */
-:root {
-  font-size: 15px; /* Mobile touch baseline */
+/* Fit-to-Viewport root scaling (Section A1) */
+html, body, #root {
+  height: 100dvh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
-@media (min-width: 640px) {
-  :root {
-    font-size: 15.5px; /* Tablets */
-  }
-}
-
-@media (min-width: 1024px) {
-  :root {
-    font-size: 16px; /* Laptops & Desktops */
-  }
-}
-
-@media (min-width: 1536px) {
-  :root {
-    font-size: 16.5px; /* Large Screens & Interactive Classroom Whiteboards */
-  }
+html {
+  /* 15px tại 720px cao; co/giãn theo cả chiều cao VÀ chiều rộng */
+  font-size: clamp(10px, min(calc(100dvh / 45), calc(100vw / 80)), 18px);
 }
 
 @layer base {
   body {
     font-family: 'Nunito', 'Quicksand', system-ui, -apple-system, sans-serif;
-    @apply bg-amber-50 text-slate-800 selection:bg-amber-200 min-h-screen;
+    @apply bg-amber-50 text-slate-800 selection:bg-amber-200 h-dvh overflow-hidden;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
@@ -193,6 +185,15 @@
 
 .animate-fade-in {
   animation: fade-in-soft 0.25s ease-out forwards;
+}
+
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-from-right 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 @keyframes chest-shake-kf {
@@ -511,4 +512,41 @@
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Stage 3 arcade hub: a gentle focus pulse and a short tactile card bounce. */
+@keyframes stage3-next-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+
+@keyframes stage3-card-tap {
+  0% { transform: scale(1); }
+  45% { transform: scale(0.94) rotate(-1deg); }
+  100% { transform: scale(1.04); }
+}
+
+@keyframes stage3-hand-nudge {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-8px) rotate(-8deg); }
+}
+
+.stage3-next-card {
+  animation: stage3-next-pulse 2.2s ease-in-out infinite;
+}
+
+.stage3-card-tap {
+  animation: stage3-card-tap 300ms ease-out both;
+}
+
+.stage3-hand {
+  animation: stage3-hand-nudge 900ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage3-next-card,
+  .stage3-card-tap,
+  .stage3-hand {
+    animation: none !important;
+  }
 }

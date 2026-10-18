@@ -6,13 +6,36 @@ export interface BadgeItem {
   category: 'journey' | 'stars' | 'skills';
   categoryName: string;
   requirement: number;
-  reqType: 'lesson' | 'unit' | 'star';
+  reqType: 'lesson' | 'unit' | 'star' | 'perfectLesson' | 'openedChest';
   color: string;
   badgeBg: string;
   tier: 'bronze' | 'silver' | 'gold' | 'diamond';
   tierName: string;
   ribbonColor: string;
 }
+
+export interface BadgeProgress {
+  totalStars: number;
+  completedLessons: number;
+  completedUnits: number;
+  perfectLessons: number;
+  openedChests: number;
+}
+
+export const getBadgeProgress = (badge: BadgeItem, progress: BadgeProgress): number => {
+  switch (badge.reqType) {
+    case 'star': return progress.totalStars;
+    case 'unit': return progress.completedUnits;
+    case 'perfectLesson': return progress.perfectLessons;
+    case 'openedChest': return progress.openedChests;
+    default: return progress.completedLessons;
+  }
+};
+
+export const evaluateBadge = (badge: BadgeItem, progress: BadgeProgress) => ({
+  ...badge,
+  unlocked: getBadgeProgress(badge, progress) >= badge.requirement
+});
 
 export const ALL_BADGES: BadgeItem[] = [
   // Nhóm 1: Hành trình khám phá (10 huy hiệu)
@@ -35,7 +58,7 @@ export const ALL_BADGES: BadgeItem[] = [
     id: 'b_unit_1',
     icon: '🎒',
     name: 'Bé Đến Lớp',
-    desc: 'Hoàn thành trọn vẹn Unit 1',
+    desc: 'Hoàn thành trọn vẹn 1 Unit',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 1,
@@ -49,8 +72,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_animals',
     icon: '🐶',
-    name: 'Bạn Của Thú Cưng',
-    desc: 'Khám phá từ vựng động vật đáng yêu',
+    name: 'Bạn Học Chăm Chỉ',
+    desc: 'Hoàn thành 2 Lesson',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 2,
@@ -64,8 +87,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_food',
     icon: '🍎',
-    name: 'Thực Thần Tí Hon',
-    desc: 'Khám phá từ vựng đồ ăn & hoa quả',
+    name: 'Nhà Khám Phá Nhí',
+    desc: 'Hoàn thành 3 Lesson',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 3,
@@ -79,8 +102,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_toys',
     icon: '🧸',
-    name: 'Thế Giới Đồ Chơi',
-    desc: 'Chinh phục chủ đề đồ chơi yêu thích',
+    name: 'Chăm Học Mỗi Ngày',
+    desc: 'Hoàn thành 4 Lesson',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 4,
@@ -94,8 +117,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_nature',
     icon: '🌳',
-    name: 'Bạn Của Thiên Nhiên',
-    desc: 'Khám phá cỏ cây & thế giới tự nhiên',
+    name: 'Bước Tiến Vững Vàng',
+    desc: 'Hoàn thành 5 Lesson',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 5,
@@ -109,8 +132,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_home',
     icon: '🏡',
-    name: 'Tổ Ấm Hạnh Phúc',
-    desc: 'Học từ vựng ngôi nhà & gia đình',
+    name: 'Người Bạn Của Sách',
+    desc: 'Hoàn thành 6 Lesson',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 6,
@@ -125,7 +148,7 @@ export const ALL_BADGES: BadgeItem[] = [
     id: 'b_unit_3',
     icon: '🧭',
     name: 'Nhà Thám Hiểm Nhí',
-    desc: 'Hoàn thành xuất sắc 3 Unit học',
+    desc: 'Hoàn thành 3 Unit',
     category: 'journey',
     categoryName: 'Hành trình',
     requirement: 3,
@@ -231,8 +254,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_streak',
     icon: '🐝',
-    name: 'Ong Vàng Chăm Chỉ',
-    desc: 'Học bài và đạt từ 8 sao vàng',
+    name: 'Ong Vàng Tích Sao',
+    desc: 'Tích lũy 8 sao vàng',
     category: 'stars',
     categoryName: 'Ngôi sao',
     requirement: 8,
@@ -249,11 +272,11 @@ export const ALL_BADGES: BadgeItem[] = [
     id: 'b_quiz_master',
     icon: '🎯',
     name: 'Thiện Xạ Nhí',
-    desc: 'Đúng 100% câu hỏi trong bài tập',
+    desc: 'Hoàn thành 2 Lesson với 3 sao',
     category: 'skills',
     categoryName: 'Kỹ năng',
     requirement: 2,
-    reqType: 'lesson',
+    reqType: 'perfectLesson',
     color: 'from-teal-400 to-emerald-500',
     badgeBg: 'bg-teal-100 text-teal-900 border-teal-300',
     tier: 'silver',
@@ -263,8 +286,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_memory',
     icon: '🧠',
-    name: 'Siêu Trí Nhớ',
-    desc: 'Chiến thắng trò chơi tìm cặp bài trùng',
+    name: 'Bạn Nhỏ Kiên Trì',
+    desc: 'Hoàn thành 4 Lesson',
     category: 'skills',
     categoryName: 'Kỹ năng',
     requirement: 4,
@@ -278,8 +301,8 @@ export const ALL_BADGES: BadgeItem[] = [
   {
     id: 'b_pronounce',
     icon: '🔊',
-    name: 'Đôi Tai Vàng',
-    desc: 'Lắng nghe & phát âm chuẩn nhiều từ vựng',
+    name: 'Chinh Phục 6 Lesson',
+    desc: 'Hoàn thành 6 Lesson',
     category: 'skills',
     categoryName: 'Kỹ năng',
     requirement: 6,
@@ -294,11 +317,11 @@ export const ALL_BADGES: BadgeItem[] = [
     id: 'b_chest',
     icon: '💎',
     name: 'Bàn Tay Vàng',
-    desc: 'Mở khóa 2 hộp quà bí mật của Unit',
+    desc: 'Mở 2 rương quà của Unit',
     category: 'skills',
     categoryName: 'Kỹ năng',
     requirement: 2,
-    reqType: 'unit',
+    reqType: 'openedChest',
     color: 'from-fuchsia-400 to-pink-500',
     badgeBg: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300',
     tier: 'gold',
@@ -309,7 +332,7 @@ export const ALL_BADGES: BadgeItem[] = [
     id: 'b_master',
     icon: '🏆',
     name: 'Đại Sứ Anh Ngữ Nhí',
-    desc: 'Tích lũy 30 sao & hoàn thành bài học xuất sắc',
+    desc: 'Tích lũy 30 sao vàng',
     category: 'skills',
     categoryName: 'Kỹ năng',
     requirement: 30,

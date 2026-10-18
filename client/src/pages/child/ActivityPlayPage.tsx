@@ -258,10 +258,10 @@ export const ActivityPlayPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-100 via-amber-50/60 to-orange-50/50 flex flex-col justify-between p-4 sm:p-6 select-none relative overflow-x-hidden">
-      {/* Top Header with Back Button & Glowing Progress Bar */}
-      <header className="max-w-[1600px] w-full mx-auto px-2 sm:px-6">
-        <div className="flex items-center justify-between gap-4 mb-4">
+    <div className="h-dvh w-full bg-gradient-to-b from-sky-100 via-amber-50/60 to-orange-50/50 flex flex-col justify-between p-2 sm:p-4 select-none relative overflow-hidden">
+      {/* Top Header with Back Button & Glowing Progress Bar (shrink-0) */}
+      <header className="max-w-[1600px] w-full mx-auto px-2 shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-2">
           <button
             onClick={() => {
               sfx.playPop();
@@ -446,6 +446,9 @@ export const ActivityPlayPage: React.FC = () => {
           onFinish={handleFinish}
           nextActivityId={resultData.nextActivityId}
           nextActivityTitle={resultData.nextActivityTitle}
+          lessonStars={resultData.lessonStars}
+          lessonScore={resultData.lessonScore}
+          starContext="lesson-activity"
           unitCompleted={Array.isArray(resultData.unitCompletionsGranted) && resultData.unitCompletionsGranted.length > 0}
           onPlayNext={() => {
             if (resultData.nextActivityId) {

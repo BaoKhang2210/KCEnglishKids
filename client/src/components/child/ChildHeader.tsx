@@ -89,9 +89,9 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
   return (
     <>
-      {/* Thêm overflow-x-auto và hide-scrollbar để cho phép lướt ngang mượt mà trên màn hình nhỏ mà không bị vỡ layout */}
-      <header className="bg-white/95 backdrop-blur-md border-b-4 border-amber-200 px-3 sm:px-6 py-2 sm:py-3 sticky top-0 z-30 shadow-sm min-h-[90px] flex items-center overflow-x-auto no-scrollbar">
-        <div className="max-w-[1700px] min-w-max w-full mx-auto flex items-center justify-between gap-4">
+      {/* Compact ChildHeader: fixed slim height so 100dvh screens never overflow */}
+      <header className="bg-white/95 backdrop-blur-md border-b-2 sm:border-b-4 border-amber-200 px-3 sm:px-6 h-14 sm:h-16 sticky top-0 z-30 shadow-xs flex items-center overflow-x-auto no-scrollbar shrink-0">
+        <div className="max-w-[1700px] min-w-max w-full mx-auto flex items-center justify-between gap-3 sm:gap-4">
           
           {/* Brand Logo & Mascot Mini */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -99,12 +99,12 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
               onClick={() => handleNav('path')}
               className="flex items-center gap-2 sm:gap-3 group cursor-pointer focus:outline-none"
             >
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-400 p-1 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-amber-400 p-0.5 shadow-sm group-hover:scale-105 transition-transform flex items-center justify-center flex-shrink-0">
                 <KokoMascot state="happy" size="sm" interactive={false} />
               </div>
               <div className="text-left hidden md:block whitespace-nowrap">
                 <span 
-                  className="font-black text-xl lg:text-3xl bg-gradient-to-r from-amber-600 via-orange-500 to-pink-600 bg-clip-text text-transparent block"
+                  className="font-black text-lg lg:text-2xl bg-gradient-to-r from-amber-600 via-orange-500 to-pink-600 bg-clip-text text-transparent block leading-tight"
                   style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
                 >
                   KCEnglishKids
@@ -180,7 +180,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Award className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isBadgesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Huy hiệu</span>
+                <span className="text-[14px] 2xl:text-[16px] leading-none">Bộ sưu tập</span>
               </button>
             </div>
           </div>
