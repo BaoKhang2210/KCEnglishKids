@@ -14,7 +14,8 @@ const {
   ClassroomSession,
   SystemSetting,
   LanguageContent,
-  Schedule
+  Schedule,
+  UnitCompletion
 } = require('../models');
 const XLSX = require('xlsx');
 
@@ -1210,49 +1211,98 @@ const getAdminAnalytics = async (req, res, next) => {
       classrooms,
       actResults,
       clsSessions,
+      unitCompletions,
       recentUsers
     ] = await Promise.all([
       User.countDocuments({ role: 'CHILD', status: 'ACTIVE' }),
       ClassRoom.find().populate('teacher', 'name email').populate('students', 'name avatar ageGroupCode').lean(),
       ActivityResult.find().select('score stars child createdAt').lean(),
-      ClassroomSession.find().select('sessionNumber classroom studentScores starsAwarded createdAt').lean(),
+      ClassroomSession.find().select('sessionNumber classroom studentScores summary status createdAt').lean(),
+      UnitCompletion.find().select('child rewards').lean(),
       User.find({ role: 'CHILD' }).select('name avatar ageGroupCode assignedClass streak createdAt').sort({ createdAt: -1 }).limit(10).lean()
     ]);
 
-    // Compute star distribution
-    let totalHomeStars = 0;
-    const studentStarMap = {};
+    // 1. Compute Home Stars (from ActivityResult + UnitCompletion bonus stars)
+    let totalHomeActivityStars = 0;
+    const studentHomeStarMap = {};
     for (const resItem of actResults) {
-      const s = resItem.stars || 0;
-      totalHomeStars += s;
+      const s = Number(resItem.stars) || 0;
+      totalHomeActivityStars += s;
       if (resItem.child) {
         const cid = resItem.child.toString();
-        studentStarMap[cid] = (studentStarMap[cid] || 0) + s;
+        studentHomeStarMap[cid] = (studentHomeStarMap[cid] || 0) + s;
       }
     }
 
+    let totalBonusStars = 0;
+    for (const comp of (unitCompletions || [])) {
+      const starReward = (comp.rewards || []).find(r => r.type === 'STAR');
+      const amt = starReward ? (Number(starReward.amount) || 0) : 0;
+      totalBonusStars += amt;
+      if (comp.child) {
+        const cid = comp.child.toString();
+        studentHomeStarMap[cid] = (studentHomeStarMap[cid] || 0) + amt;
+      }
+    }
+
+    const totalHomeStars = totalHomeActivityStars + totalBonusStars;
+
+    // 2. Compute Classroom Stars (from ClassroomSession.studentScores and session.summary)
     let totalClassStars = 0;
+    const studentClassStarMap = {};
     for (const session of clsSessions) {
-      totalClassStars += session.starsAwarded || 0;
-      if (session.studentScores) {
-        const entries = session.studentScores instanceof Map
-          ? Array.from(session.studentScores.entries())
-          : Object.entries(session.studentScores);
-        for (const [stId, scoreObj] of entries) {
-          const stars = typeof scoreObj === 'object' ? (scoreObj?.stars || 0) : 0;
-          studentStarMap[stId] = (studentStarMap[stId] || 0) + stars;
+      let sessionStars = 0;
+      if (Array.isArray(session.studentScores)) {
+        for (const scoreObj of session.studentScores) {
+          const stars = Number(scoreObj.stars) || 0;
+          sessionStars += stars;
+          const stId = (scoreObj.student?._id || scoreObj.student)?.toString();
+          if (stId) {
+            studentClassStarMap[stId] = (studentClassStarMap[stId] || 0) + stars;
+          }
         }
       }
+      // If studentScores didn't yield stars, fallback to summary.totalStars
+      if (sessionStars === 0 && session.summary && session.summary.totalStars) {
+        sessionStars = Number(session.summary.totalStars) || 0;
+      }
+      totalClassStars += sessionStars;
     }
 
-    // Classroom performance summary
+    // 3. Combined total stars map per student
+    const studentTotalStarMap = {};
+    const allStudentIds = new Set([...Object.keys(studentHomeStarMap), ...Object.keys(studentClassStarMap)]);
+    for (const id of allStudentIds) {
+      studentTotalStarMap[id] = (studentHomeStarMap[id] || 0) + (studentClassStarMap[id] || 0);
+    }
+
+    // 4. Classroom performance summary
     const classroomStats = classrooms.map(c => {
       const sCount = Array.isArray(c.students) ? c.students.length : 0;
       const cSessions = clsSessions.filter(cs => cs.classroom && cs.classroom.toString() === c._id.toString());
-      let classStars = 0;
-      for (const st of (c.students || [])) {
-        classStars += studentStarMap[st._id.toString()] || 0;
+
+      let classSessionStars = 0;
+      for (const cs of cSessions) {
+        let sStars = 0;
+        if (Array.isArray(cs.studentScores)) {
+          sStars = cs.studentScores.reduce((acc, sc) => acc + (Number(sc.stars) || 0), 0);
+        }
+        if (sStars === 0 && cs.summary?.totalStars) {
+          sStars = Number(cs.summary.totalStars) || 0;
+        }
+        classSessionStars += sStars;
       }
+
+      let totalStudentStars = 0;
+      let totalStudentHomeStars = 0;
+      let totalStudentClassStars = 0;
+      for (const st of (c.students || [])) {
+        const sid = st._id.toString();
+        totalStudentStars += studentTotalStarMap[sid] || 0;
+        totalStudentHomeStars += studentHomeStarMap[sid] || 0;
+        totalStudentClassStars += studentClassStarMap[sid] || 0;
+      }
+
       return {
         _id: c._id,
         name: c.name,
@@ -1260,21 +1310,36 @@ const getAdminAnalytics = async (req, res, next) => {
         teacherName: c.teacher?.name || 'Chưa phân công',
         studentCount: sCount,
         sessionCount: cSessions.length,
-        totalStars: classStars,
-        avgStarsPerStudent: sCount > 0 ? Math.round(classStars / sCount) : 0
+        totalStars: totalStudentStars,
+        classSessionStars,
+        classStars: totalStudentClassStars,
+        homeStars: totalStudentHomeStars,
+        avgStarsPerStudent: sCount > 0 ? Math.round(totalStudentStars / sCount) : 0
       };
     });
 
-    // Top 5 students
-    const studentDocs = await User.find({ role: 'CHILD', status: 'ACTIVE' }).select('name avatar ageGroupCode assignedClass').populate('assignedClass', 'name').lean();
-    const rankedStudents = studentDocs.map(st => ({
-      _id: st._id,
-      name: st.name,
-      avatar: st.avatar || 'lion',
-      ageGroupCode: st.ageGroupCode,
-      className: st.assignedClass?.name || 'Chưa vào lớp',
-      totalStars: studentStarMap[st._id.toString()] || 0
-    })).sort((a, b) => b.totalStars - a.totalStars).slice(0, 5);
+    // 5. Top 5 students
+    const studentDocs = await User.find({ role: 'CHILD', status: 'ACTIVE' })
+      .select('name avatar ageGroupCode assignedClass')
+      .populate('assignedClass', 'name')
+      .lean();
+
+    const rankedStudents = studentDocs.map(st => {
+      const cid = st._id.toString();
+      const home = studentHomeStarMap[cid] || 0;
+      const classStars = studentClassStarMap[cid] || 0;
+      const total = (studentTotalStarMap[cid] || (home + classStars)) || 0;
+      return {
+        _id: st._id,
+        name: st.name,
+        avatar: st.avatar || 'lion',
+        ageGroupCode: st.ageGroupCode,
+        className: st.assignedClass?.name || 'Chưa vào lớp',
+        homeStars: home,
+        classStars,
+        totalStars: total
+      };
+    }).sort((a, b) => b.totalStars - a.totalStars).slice(0, 5);
 
     res.status(200).json({
       success: true,
