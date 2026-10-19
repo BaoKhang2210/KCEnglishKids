@@ -11,30 +11,46 @@
   --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
 }
 
-/* Fit-to-Viewport root scaling (Section A1) */
-html, body, #root {
-  height: 100dvh;
-  width: 100vw;
+/* Root scaling & Scroll behavior */
+html, body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
+  min-height: 100%;
+}
+
+#root {
+  min-height: 100dvh;
+  width: 100%;
 }
 
 html {
   /* 15px tại 720px cao; co/giãn theo cả chiều cao VÀ chiều rộng */
-  font-size: clamp(10px, min(calc(100dvh / 45), calc(100vw / 80)), 18px);
+  font-size: clamp(14px, min(calc(100dvh / 45), calc(100vw / 80)), 18px);
 }
 
 @layer base {
   body {
     font-family: 'Nunito', 'Quicksand', system-ui, -apple-system, sans-serif;
-    @apply bg-amber-50 text-slate-800 selection:bg-amber-200 h-dvh overflow-hidden;
-    user-select: none;
+    @apply bg-amber-50 text-slate-800 selection:bg-amber-200 min-h-screen;
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Allow text selection in inputs, tables, admin and teacher dashboards */
+  .teacher-dark,
+  .admin-dark,
+  input,
+  textarea,
+  table {
+    user-select: text !important;
+  }
+
+  /* Lock viewport scroll only when isolated fullscreen game is active */
+  body:has(#game-fullscreen-shell) {
+    overflow: hidden !important;
+    height: 100dvh !important;
   }
 
   /* Đảm bảo toàn bộ element kế thừa font Nunito */
