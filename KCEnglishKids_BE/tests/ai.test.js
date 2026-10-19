@@ -102,3 +102,58 @@ test('generateParentNote: returns exactly three bounded template options', async
   assert.deepEqual(response.options.map(o => o.suggestedStars), [5, 4, 3]);
   assert.ok(response.options[0].content.includes('Leo'));
 });
+
+test('generateLessonPlan: generates 4-phase structured lesson plan with TPR activities', () => {
+  const { generateLessonPlan } = require('../src/services/aiService');
+  const plan = generateLessonPlan({
+    ageGroup: '3-4',
+    lessonTitle: 'Colors & Shapes',
+    targetTopic: 'Colors',
+    durationMinutes: 25,
+    vocabularyList: [
+      { english: 'Red', vietnamese: 'Màu đỏ' },
+      { english: 'Blue', vietnamese: 'Màu xanh dương' },
+      { english: 'Yellow', vietnamese: 'Màu vàng' }
+    ],
+    teachingStyle: 'active_tpr'
+  });
+
+  assert.equal(plan.meta.ageGroup, '3-4');
+  assert.equal(plan.meta.durationMinutes, 25);
+  assert.equal(plan.meta.bookLevel, 'Book 1 (Mầm 3–4 tuổi)');
+  assert.equal(plan.phases.length, 4);
+
+  const phaseIds = plan.phases.map(p => p.phaseId);
+  assert.deepEqual(phaseIds, ['warmup', 'presentation', 'practice', 'wrapup']);
+
+  const totalMin = plan.phases.reduce((sum, p) => sum + p.durationMin, 0);
+  assert.equal(totalMin, 25);
+
+  assert.ok(plan.targetVocabulary.length === 3);
+  assert.ok(plan.objectives.knowledge.length >= 2);
+  assert.ok(plan.materialsNeeded.length >= 3);
+  assert.ok(plan.phases[1].activities.some(a => a.type === 'tpr_action'));
+});
+
+test('generateLessonPlan: scales time budget accurately for 15min and 35min sessions', () => {
+  const { generateLessonPlan } = require('../src/services/aiService');
+  const plan15 = generateLessonPlan({ durationMinutes: 15 });
+  assert.equal(plan15.phases.reduce((sum, p) => sum + p.durationMin, 0), 15);
+
+  const plan35 = generateLessonPlan({ durationMinutes: 35 });
+  assert.equal(plan35.phases.reduce((sum, p) => sum + p.durationMin, 0), 35);
+});
+
+test('generateLessonPlan: customizes for age 5-6 with story_song style', () => {
+  const { generateLessonPlan } = require('../src/services/aiService');
+  const plan = generateLessonPlan({
+    ageGroup: '5-6',
+    lessonTitle: 'Wild Animals',
+    targetTopic: 'Animals',
+    teachingStyle: 'story_song'
+  });
+
+  assert.equal(plan.meta.bookLevel, 'Book 3 (Lá 5–6 tuổi)');
+  assert.equal(plan.meta.teachingStyle, 'story_song');
+  assert.ok(plan.phases[0].activities.some(a => a.type === 'story'));
+});

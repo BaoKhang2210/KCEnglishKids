@@ -26,15 +26,19 @@ import {
   HelpCircle,
   EyeOff,
   ExternalLink,
-  Flame
+  Flame,
+  Play,
+  RotateCcw,
+  Gift
 } from 'lucide-react';
-import { classroomSessionApi, sentenceApi, teacherApi } from '../../services/api';
-import type { ClassroomSession, StudentSessionScore, User } from '../../types';
+import { classroomSessionApi, sentenceApi, teacherApi, aiApi } from '../../services/api';
+import type { ClassroomSession, StudentSessionScore, User, LessonPlan } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { sfx, playWordAudio } from '../../utils/audio';
 import { KokoSpeakingCoach } from '../../components/child/KokoSpeakingCoach';
 import type { SentencePattern } from './SentenceTeachingPage';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
+import { LiveSessionCopilotDrawer } from './LiveSessionCopilotDrawer';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const initials = (name?: string) =>
@@ -51,7 +55,7 @@ const elapsedMin = (startedAt?: string) => {
 };
 
 type AnswerMap = Record<string, 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED'>;
-type ViewTab = 'warmup' | 'presentation' | 'sentences' | 'grid' | 'games';
+type ViewTab = 'warmup' | 'presentation' | 'sentences' | 'games' | 'wrapup' | 'grid';
 
 
 const makeSvgUri = (emoji: string, bg: string, label: string) =>
@@ -81,6 +85,41 @@ const DEFAULT_PRESCHOOL_VOCAB = [
   { _id: 'v_bear', english: 'Bear', vietnamese: 'Con gấu', pronunciation: '/beər/', imageUrl: makeSvgUri('🐻', '#E2E8F0', 'Bear'), audioUrl: '' }
 ];
 
+const DEFAULT_PRESCHOOL_PATTERNS: SentencePattern[] = [
+  {
+    _id: 'warmup-pat-1',
+    english: 'Hello! How are you?',
+    vietnamese: 'Xin chào! Bạn khỏe không?',
+    pronunciation: '/həˈloʊ haʊ ɑːr juː/',
+    ageGroupCode: '3-4'
+  } as any,
+  {
+    _id: 'warmup-pat-2',
+    english: 'I am happy and ready!',
+    vietnamese: 'Mình đang rất vui và sẵn sàng học!',
+    pronunciation: '/aɪ æm ˈhæpi ænd ˈrɛdi/',
+    ageGroupCode: '3-4'
+  } as any,
+  {
+    _id: 'warmup-pat-3',
+    english: 'What is this? - It is a cat.',
+    vietnamese: 'Đây là cái gì? - Đây là bạn mèo.',
+    pronunciation: '/wʌt ɪz ðɪs/',
+    ageGroupCode: '3-4'
+  } as any
+];
+
+const ANIMAL_ROSTER = [
+  { id: 'dog', name: 'Dog', vi: 'Con Chó', soundText: 'Woof woof! 🐶 Bark bark!', emoji: '🐶', callText: 'Gâu gâu! (Woof woof!)' },
+  { id: 'cat', name: 'Cat', vi: 'Con Mèo', soundText: 'Meow meow! 🐱 Purr purr!', emoji: '🐱', callText: 'Meo meo! (Meow meow!)' },
+  { id: 'cow', name: 'Cow', vi: 'Con Bò', soundText: 'Moo moo! 🐮 Moo moo!', emoji: '🐮', callText: 'Ùm bò bò! (Moo moo!)' },
+  { id: 'duck', name: 'Duck', vi: 'Con Vịt', soundText: 'Quack quack! 🦆 Quack quack!', emoji: '🦆', callText: 'Cạp cạp! (Quack quack!)' },
+  { id: 'monkey', name: 'Monkey', vi: 'Con Khỉ', soundText: 'Ooh ooh aah aah! 🐒 Monkey!', emoji: '🐒', callText: 'Khẹc khẹc! (Ooh ooh aah aah!)' },
+  { id: 'bird', name: 'Bird', vi: 'Con Chim', soundText: 'Tweet tweet! 🐦 Tweet tweet!', emoji: '🐦', callText: 'Líu lo! (Tweet tweet!)' },
+  { id: 'lion', name: 'Lion', vi: 'Sư Tử', soundText: 'Roar roar! 🦁 Roar roar!', emoji: '🦁', callText: 'Gầm gừ! (Roar!)' },
+  { id: 'sheep', name: 'Sheep', vi: 'Con Cừu', soundText: 'Baa baa! 🐑 Baa baa!', emoji: '🐑', callText: 'Bê bê! (Baa baa!)' }
+];
+
 export const LiveSessionPage: React.FC = () => {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -98,12 +137,46 @@ export const LiveSessionPage: React.FC = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasSetInitialTabRef = useRef(false);
 
+  // Joyous visual celebration state for scoring individual & whole-class
+  const [celebrationEffect, setCelebrationEffect] = useState<{
+    show: boolean;
+    type: 'stars' | 'points' | 'correct' | 'all';
+    message: string;
+    studentName?: string;
+    count?: number;
+  } | null>(null);
+
+  // Auto-end Overtime Logic (Prevent sessions from running indefinitely)
+  const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
+  const [overtimeCountdown, setOvertimeCountdown] = useState<number>(45);
+  const [overtimeSnoozeUntil, setOvertimeSnoozeUntil] = useState<number>(0);
+
   // Classroom teaching views
   const [activeTab, setActiveTab] = useState<ViewTab>('presentation');
   const [currentVocabIndex, setCurrentVocabIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Warm-up Phase state (Ôn tập từ vựng & mẫu câu của bài học ngay trước đó)
+  // AI Teacher Copilot Drawer state
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+
+  // Keyboard shortcut: Alt+K to toggle copilot drawer, Esc to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setCopilotOpen((prev) => !prev);
+      }
+      if (e.key === 'Escape' && copilotOpen) {
+        setCopilotOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [copilotOpen]);
+
+  // Warm-up Phase state (Ôn tập từ vựng, mẫu câu hoặc Nhảy Koko Freeze Dance)
   const [previousLesson, setPreviousLesson] = useState<any | null>(null);
   const [warmupVocabList, setWarmupVocabList] = useState<any[]>(DEFAULT_PRESCHOOL_VOCAB);
   const [currentWarmupIndex, setCurrentWarmupIndex] = useState(0);
@@ -111,7 +184,32 @@ export const LiveSessionPage: React.FC = () => {
   const [warmupPatterns, setWarmupPatterns] = useState<SentencePattern[]>([]);
   const [currentWarmupPatternIndex, setCurrentWarmupPatternIndex] = useState(0);
   const [isWarmupPatternRevealed, setIsWarmupPatternRevealed] = useState(false);
-  const [warmupSection, setWarmupSection] = useState<'vocab' | 'patterns'>('vocab');
+  const [warmupSection, setWarmupSection] = useState<'vocab' | 'patterns' | 'freeze-dance'>('vocab');
+  const [freezeState, setFreezeState] = useState<'idle' | 'dancing' | 'frozen'>('idle');
+  const [freezeCountdown, setFreezeCountdown] = useState<number>(5);
+
+  // Freeze Dance countdown timer
+  useEffect(() => {
+    if (freezeState !== 'dancing') return;
+    const interval = setInterval(() => {
+      setFreezeCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setFreezeState('frozen');
+          sfx.playFreezeSound();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [freezeState]);
+
+  const handleStartFreezeDance = () => {
+    sfx.playDanceMelody();
+    setFreezeCountdown(5);
+    setFreezeState('dancing');
+  };
 
   // Sentence Patterns teaching state
   const [patterns, setPatterns] = useState<SentencePattern[]>([]);
@@ -123,9 +221,25 @@ export const LiveSessionPage: React.FC = () => {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
-  // Mini-game in classroom state
-  const [classroomGameMode, setClassroomGameMode] = useState<'listen-choose' | 'true-false' | 'animal-sound'>('listen-choose');
+  // Mini-game in classroom state (Chiếc Hộp Bí Mật, Nghe & Chọn, Đúng/Sai, Tiếng Kêu Con Vật)
+  const [classroomGameMode, setClassroomGameMode] = useState<'mystery-box' | 'listen-choose' | 'true-false' | 'animal-sound'>('mystery-box');
   const [gameQuestionIdx, setGameQuestionIdx] = useState(0);
+  const [isMysteryBoxOpen, setIsMysteryBoxOpen] = useState(false);
+  const [isMysteryShaking, setIsMysteryShaking] = useState(false);
+  const [mysteryVocabIndex, setMysteryVocabIndex] = useState(0);
+
+  // Game 2: Nghe & Chọn interactive states
+  const [listenPickSelectedId, setListenPickSelectedId] = useState<string | null>(null);
+  const [listenPickStatus, setListenPickStatus] = useState<'correct' | 'wrong' | null>(null);
+
+  // Game 3: Đúng hay Sai interactive states
+  const [tfMatchRatio, setTfMatchRatio] = useState<boolean>(true);
+  const [tfSelectedResult, setTfSelectedResult] = useState<'correct' | 'wrong' | null>(null);
+
+  // Game 4: Tiếng kêu con vật interactive states
+  const [animalGameIndex, setAnimalGameIndex] = useState(0);
+  const [animalSelectedChoiceId, setAnimalSelectedChoiceId] = useState<string | null>(null);
+  const [animalResultStatus, setAnimalResultStatus] = useState<'correct' | 'wrong' | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -166,12 +280,16 @@ export const LiveSessionPage: React.FC = () => {
 
   const pickRandomStudent = () => {
     if (!session?.studentScores || session.studentScores.length === 0) return;
+    const eligibleStudents = session.studentScores.filter(
+      (sc) => sc.attendance !== 'ABSENT' && sc.attendance !== 'EXCUSED'
+    );
+    const pool = eligibleStudents.length > 0 ? eligibleStudents : session.studentScores;
     sfx.playPop();
     setIsPickingRandom(true);
     let count = 0;
     const interval = setInterval(() => {
-      const randIdx = Math.floor(Math.random() * session.studentScores.length);
-      setSpotlightStudent(session.studentScores[randIdx]);
+      const randIdx = Math.floor(Math.random() * pool.length);
+      setSpotlightStudent(pool[randIdx]);
       count++;
       if (count >= 10) {
         clearInterval(interval);
@@ -197,6 +315,24 @@ export const LiveSessionPage: React.FC = () => {
 
       const lessonId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
       void loadSentencePatterns(lessonId, s.ageGroup || s.classroom?.ageGroupCode);
+
+      // Load AI Lesson Plan for Live Teacher Copilot & Classroom Execution
+      const curClassId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
+      if (s.lessonPlan) {
+        setLessonPlan(s.lessonPlan);
+      } else if (lessonId) {
+        setCopilotLoading(true);
+        aiApi.generateLessonPlan({
+          lessonId: String(lessonId),
+          classroomId: curClassId ? String(curClassId) : undefined,
+          durationMinutes: (s.plannedDuration === 15 ? 15 : s.plannedDuration === 35 ? 35 : 25) as any
+        })
+          .then((res) => {
+            if (res.data) setLessonPlan(res.data);
+          })
+          .catch((err) => console.warn('Could not load AI lesson plan for copilot:', err))
+          .finally(() => setCopilotLoading(false));
+      }
 
       // Fetch the immediately preceding lesson (bài học ngay trước đó) for Warm-up
       try {
@@ -316,12 +452,35 @@ export const LiveSessionPage: React.FC = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [session?.startedAt]);
 
-  // Soft warning after planned duration
+  // Overtime countdown timer (auto ends when countdown reaches 0)
   useEffect(() => {
-    if (session && elapsed >= (session.plannedDuration || 45) && !showWarn) {
+    if (!isOvertimeModalOpen) return;
+    const interval = setInterval(() => {
+      setOvertimeCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          void handleAutoEnd();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isOvertimeModalOpen]);
+
+  // Check if session has exceeded planned duration
+  useEffect(() => {
+    if (!session || session.status === 'COMPLETED' || isOvertimeModalOpen) return;
+    const planned = session.plannedDuration || 35;
+    if (elapsed >= planned && !showWarn) {
       setShowWarn(true);
     }
-  }, [elapsed, session, showWarn]);
+    // If running over planned + 15 mins and not snoozed, trigger auto-end prompt modal
+    if (elapsed >= planned + 15 && Date.now() > overtimeSnoozeUntil) {
+      setIsOvertimeModalOpen(true);
+      setOvertimeCountdown(45);
+    }
+  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen]);
 
   // Safe vocabulary pool from lesson or built-in preschool dataset
   const activeVocabList = useMemo(() => {
@@ -341,7 +500,8 @@ export const LiveSessionPage: React.FC = () => {
 
   const currentVocab = activeVocabList[currentVocabIndex] || activeVocabList[0];
   const currentWarmupVocab = warmupVocabList[currentWarmupIndex] || warmupVocabList[0] || DEFAULT_PRESCHOOL_VOCAB[0];
-  const currentWarmupPattern = warmupPatterns[currentWarmupPatternIndex] || warmupPatterns[0];
+  const activeWarmupPatterns = warmupPatterns.length > 0 ? warmupPatterns : DEFAULT_PRESCHOOL_PATTERNS;
+  const currentWarmupPattern = activeWarmupPatterns[currentWarmupPatternIndex % activeWarmupPatterns.length] || activeWarmupPatterns[0];
   const currentLessonId = typeof session?.lesson === 'object' ? (session?.lesson as any)?._id : session?.lesson;
 
   const unitInfo = useMemo(() => {
@@ -355,6 +515,41 @@ export const LiveSessionPage: React.FC = () => {
       topicName: l.topic?.englishName || l.topic?.vietnameseName || ''
     };
   }, [session?.lesson]);
+
+  // Current Vocabulary TPR Physical Mime Action from Lesson Plan
+  const currentTprGesture = useMemo(() => {
+    if (!currentVocab) return '';
+    const match = lessonPlan?.targetVocabulary?.find(
+      (w) => w.english.toLowerCase() === currentVocab.english.toLowerCase()
+    );
+    return match?.tprGesture || '';
+  }, [currentVocab, lessonPlan]);
+
+  // Magic Mystery Box Vocabulary & TPR
+  const currentMysteryVocab = activeVocabList[mysteryVocabIndex] || activeVocabList[0];
+  const currentMysteryTpr = useMemo(() => {
+    if (!currentMysteryVocab) return '';
+    const match = lessonPlan?.targetVocabulary?.find(
+      (w) => w.english.toLowerCase() === currentMysteryVocab.english.toLowerCase()
+    );
+    return match?.tprGesture || '';
+  }, [currentMysteryVocab, lessonPlan]);
+
+  const handleOpenMysteryBox = () => {
+    if (isMysteryBoxOpen) {
+      setIsMysteryBoxOpen(false);
+      setMysteryVocabIndex((prev) => (prev + 1) % activeVocabList.length);
+      return;
+    }
+    setIsMysteryShaking(true);
+    sfx.playMysteryDrumroll();
+    setTimeout(() => {
+      setIsMysteryShaking(false);
+      setIsMysteryBoxOpen(true);
+      sfx.playStarFanfare();
+      playWordAudio(currentMysteryVocab.english, currentMysteryVocab.audioUrl);
+    }, 800);
+  };
 
   // ── Question result submission ─────────────────────────────────────────────
   const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '') => {
@@ -381,18 +576,134 @@ export const LiveSessionPage: React.FC = () => {
     void load();
   };
 
-  // ── Per-student scoring ────────────────────────────────────────────────────
+  // ── Per-student scoring with Joyous Celebration & Instant Real-time Feedback ──────
   const applyScore = async (
     studentId: string,
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number }
+    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
+    customMessage?: string
   ) => {
-    sfx.playPop();
-    await classroomSessionApi.scoreStudent(sessionId, { studentId, ...opts });
-    setScoringStudent(null);
-    void load();
+    // 1. Optimistic update to session scores list
+    setSession((prev) => {
+      if (!prev || !prev.studentScores) return prev;
+      const updated = prev.studentScores.map((sc) => {
+        const sid = typeof sc.student === 'string' ? sc.student : (sc.student as User)?._id;
+        if (sid !== studentId) return sc;
+        return {
+          ...sc,
+          stars: (sc.stars || 0) + (opts.stars || 0),
+          points: (sc.points || 0) + (opts.points || 0),
+          correctCount: (sc.correctCount || 0) + (opts.correctDelta || 0),
+          incorrectCount: (sc.incorrectCount || 0) + (opts.incorrectDelta || 0)
+        };
+      });
+      return { ...prev, studentScores: updated };
+    });
+
+    // 2. Optimistic update to spotlightStudent (so modal counters change live)
+    setSpotlightStudent((prev) => {
+      if (!prev) return null;
+      const sid = typeof prev.student === 'string' ? prev.student : (prev.student as User)?._id;
+      if (sid !== studentId) return prev;
+      return {
+        ...prev,
+        stars: (prev.stars || 0) + (opts.stars || 0),
+        points: (prev.points || 0) + (opts.points || 0),
+        correctCount: (prev.correctCount || 0) + (opts.correctDelta || 0),
+        incorrectCount: (prev.incorrectCount || 0) + (opts.incorrectDelta || 0)
+      };
+    });
+
+    // 3. Optimistic update to scoringStudent if active
+    setScoringStudent((prev) => {
+      if (!prev) return null;
+      const sid = typeof prev.student === 'string' ? prev.student : (prev.student as User)?._id;
+      if (sid !== studentId) return prev;
+      return {
+        ...prev,
+        stars: (prev.stars || 0) + (opts.stars || 0),
+        points: (prev.points || 0) + (opts.points || 0),
+        correctCount: (prev.correctCount || 0) + (opts.correctDelta || 0),
+        incorrectCount: (prev.incorrectCount || 0) + (opts.incorrectDelta || 0)
+      };
+    });
+
+    const sc = session?.studentScores?.find((item) => {
+      const sid = typeof item.student === 'string' ? item.student : (item.student as User)._id || '';
+      return sid === studentId;
+    });
+    const sName = sc ? ((sc.student as User)?.name || 'Bé yêu') : 'Bé yêu';
+
+    // 4. Trigger fun sound effects & festive celebration banners
+    if (actionType === 'applause') {
+      sfx.playApplause();
+      setCelebrationEffect({
+        show: true,
+        type: 'points',
+        message: customMessage || `👏 Cả lớp vỗ tay hoan hô ${sName}! +${opts.points || 5} điểm!`,
+        studentName: sName,
+        count: opts.points || 5
+      });
+    } else if (actionType === 'loud_clear') {
+      sfx.playSpeakingBravo();
+      setCelebrationEffect({
+        show: true,
+        type: 'stars',
+        message: customMessage || `🗣️ ${sName} nói to, rõ ràng và rất tự tin! +${opts.stars || 1} ⭐ (+${opts.points || 10}đ)`,
+        studentName: sName,
+        count: opts.stars || 1
+      });
+    } else if (actionType === 'excellent_pronunciation') {
+      sfx.playCheerFanfare();
+      setCelebrationEffect({
+        show: true,
+        type: 'stars',
+        message: customMessage || `🌟 Xuất sắc! ${sName} phát âm cực kỳ chuẩn! +${opts.stars || 3} ⭐ (+${opts.points || 15}đ)`,
+        studentName: sName,
+        count: opts.stars || 3
+      });
+    } else if (actionType === 'correct' || (opts.correctDelta && opts.correctDelta > 0)) {
+      sfx.playCorrect();
+      setCelebrationEffect({
+        show: true,
+        type: 'correct',
+        message: customMessage || `🎯 Trả lời chính xác! Hoan hô ${sName}! 🎉`,
+        studentName: sName
+      });
+    } else if (opts.stars && opts.stars > 0) {
+      sfx.playStarFanfare();
+      setCelebrationEffect({
+        show: true,
+        type: 'stars',
+        message: customMessage || `+${opts.stars} Ngôi sao vàng tặng ${sName}! ⭐`,
+        studentName: sName,
+        count: opts.stars
+      });
+    } else if (opts.points && opts.points > 0) {
+      sfx.playApplause();
+      setCelebrationEffect({
+        show: true,
+        type: 'points',
+        message: customMessage || `+${opts.points} Điểm thưởng cho ${sName}! 👏`,
+        studentName: sName,
+        count: opts.points
+      });
+    } else {
+      sfx.playPop();
+    }
+
+    setTimeout(() => {
+      setCelebrationEffect(null);
+    }, 2800);
+
+    try {
+      await classroomSessionApi.scoreStudent(sessionId, { studentId, ...opts });
+    } catch (e) {
+      console.warn('Could not persist student score:', e);
+    }
   };
 
-  // ── Multi-Student & Bulk Scoring (The Core Requirement) ────────────────────
+  // ── Multi-Student & Bulk Scoring ──────────────────────────────────────────
   const applyBulkScore = async (
     studentIds: string[],
     opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
@@ -401,11 +712,18 @@ export const LiveSessionPage: React.FC = () => {
     if (studentIds.length === 0) return;
     try {
       sfx.playStarFanfare();
+      setCelebrationEffect({
+        show: true,
+        type: 'all',
+        message: successMsg || `Hoan hô cả lớp! Thưởng lớn cho ${studentIds.length} học sinh! 🌟`,
+        count: studentIds.length
+      });
+      setTimeout(() => setCelebrationEffect(null), 3000);
+
       await classroomSessionApi.scoreBulk(sessionId, { studentIds, ...opts });
       showToast(successMsg || `🎉 Đã cộng điểm thành công cho ${studentIds.length} học sinh!`);
       void load();
     } catch {
-      // Fallback: per student scoring if bulk fails
       await Promise.all(studentIds.map(sid => classroomSessionApi.scoreStudent(sessionId, { studentId: sid, ...opts })));
       void load();
     }
@@ -429,17 +747,21 @@ export const LiveSessionPage: React.FC = () => {
     );
   };
 
-  // 2. Thưởng CẢ LỚP cùng lúc
+  // 2. Thưởng CẢ LỚP cùng lúc (sửa lỗi thông báo báo +0 sao)
   const handleAwardWholeClass = (stars = 1, points = 5) => {
     if (!session?.studentScores || session.studentScores.length === 0) return;
     const allIds = session.studentScores.map(sc =>
       typeof sc.student === 'string' ? sc.student : (sc.student as User)._id || ''
     ).filter(Boolean);
 
+    const message = stars > 0
+      ? `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được thưởng +${stars} Sao vàng (+${points} điểm)!`
+      : `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được khen thưởng +${points} điểm!`;
+
     void applyBulkScore(
       allIds,
       { stars, points },
-      `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được thưởng +${stars} Sao vàng!`
+      message
     );
   };
 
@@ -476,15 +798,29 @@ export const LiveSessionPage: React.FC = () => {
     );
   };
 
-  // ── End session ───────────────────────────────────────────────────────────
+  // ── End session (luôn điều hướng tới trang summary mượt mà) ────────────────
   const handleEnd = async () => {
     if (!confirm('Bạn có chắc muốn kết thúc phiên học này không? Hệ thống sẽ tạo bảng tổng kết và báo cáo cho phụ huynh.')) return;
     setEnding(true);
     try {
       await classroomSessionApi.endSession(sessionId);
+    } catch (err) {
+      console.warn('Could not call endSession API (session may already be ended):', err);
+    } finally {
       navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
-    } catch {
-      setEnding(false);
+    }
+  };
+
+  // ── Auto end session when overtime expires ────────────────────────────────
+  const handleAutoEnd = async () => {
+    setIsOvertimeModalOpen(false);
+    setEnding(true);
+    try {
+      await classroomSessionApi.endSession(sessionId);
+    } catch (err) {
+      console.warn('Auto end session warning:', err);
+    } finally {
+      navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
     }
   };
 
@@ -501,6 +837,9 @@ export const LiveSessionPage: React.FC = () => {
   const currentAct = session.activities?.[session.currentActivityIndex] || null;
   const correct = scores.reduce((n, s) => n + s.correctCount, 0);
   const totalStars = scores.reduce((n, s) => n + s.stars, 0);
+  const topPerformers = [...scores]
+    .sort((a, b) => (b.stars || 0) - (a.stars || 0) || (b.points || 0) - (a.points || 0))
+    .slice(0, 3);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-white select-none">
@@ -599,6 +938,19 @@ export const LiveSessionPage: React.FC = () => {
 
           <button
             type="button"
+            onClick={() => setActiveTab('wrapup')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeTab === 'wrapup'
+                ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md scale-105'
+                : 'text-amber-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Award size={16} />
+            <span>4. Tổng Kết & Vinh Danh</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('grid')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'grid'
@@ -607,7 +959,7 @@ export const LiveSessionPage: React.FC = () => {
             }`}
           >
             <Users size={16} />
-            <span>4. Lưới Quản Lý ({scores.length})</span>
+            <span>5. Lưới Quản Lý ({scores.length})</span>
           </button>
         </div>
 
@@ -630,6 +982,22 @@ export const LiveSessionPage: React.FC = () => {
             <Star size={14} className="fill-amber-400 text-amber-400" />
             {totalStars} sao
           </span>
+
+          {/* AI Teacher Copilot Live Button */}
+          <button
+            type="button"
+            onClick={() => setCopilotOpen(!copilotOpen)}
+            className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md ${
+              copilotOpen
+                ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 scale-105'
+                : 'bg-white/10 hover:bg-white/20 text-amber-300 border border-amber-400/40'
+            }`}
+            title="Mở ngăn kéo Trợ lý nhắc bài AI (Alt+K)"
+          >
+            <Sparkles size={16} className={copilotOpen ? 'text-amber-950' : 'text-amber-300'} />
+            <span className="hidden xs:inline">Kịch bản AI</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-amber-200 hidden md:inline">Copilot</span>
+          </button>
 
           <button
             onClick={handleEnd}
@@ -676,6 +1044,14 @@ export const LiveSessionPage: React.FC = () => {
           }`}
         >
           <Gamepad2 size={14} /> Trò Chơi
+        </button>
+        <button
+          onClick={() => setActiveTab('wrapup')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all ${
+            activeTab === 'wrapup' ? 'bg-amber-400 text-slate-950' : 'text-amber-300 hover:bg-white/10'
+          }`}
+        >
+          <Award size={14} /> Tổng Kết
         </button>
         <button
           onClick={() => setActiveTab('grid')}
@@ -735,7 +1111,7 @@ export const LiveSessionPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Switcher Vocab vs Patterns */}
+                  {/* Switcher Vocab vs Patterns vs Freeze Dance */}
                   <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-white/15 shadow-inner">
                     <button
                       type="button"
@@ -763,12 +1139,26 @@ export const LiveSessionPage: React.FC = () => {
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      💬 Mẫu câu ({warmupPatterns.length})
+                      💬 Mẫu câu ({activeWarmupPatterns.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playPop();
+                        setWarmupSection('freeze-dance');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                        warmupSection === 'freeze-dance'
+                          ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-xs'
+                          : 'text-cyan-300 hover:text-white'
+                      }`}
+                    >
+                      🧊 Freeze Dance!
                     </button>
                   </div>
 
-                  {/* Navigation arrows */}
-                  {warmupSection === 'vocab' ? (
+                  {/* Navigation arrows for Vocab */}
+                  {warmupSection === 'vocab' && (
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => {
@@ -793,13 +1183,16 @@ export const LiveSessionPage: React.FC = () => {
                         <ChevronRight size={18} />
                       </button>
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Navigation arrows for Sentence Patterns */}
+                  {warmupSection === 'patterns' && (
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => {
                           sfx.playPop();
                           setIsWarmupPatternRevealed(false);
-                          setCurrentWarmupPatternIndex((i) => (i > 0 ? i - 1 : warmupPatterns.length - 1));
+                          setCurrentWarmupPatternIndex((i) => (i > 0 ? i - 1 : activeWarmupPatterns.length - 1));
                         }}
                         className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all"
                         title="Mẫu câu trước"
@@ -810,7 +1203,7 @@ export const LiveSessionPage: React.FC = () => {
                         onClick={() => {
                           sfx.playPop();
                           setIsWarmupPatternRevealed(false);
-                          setCurrentWarmupPatternIndex((i) => (i < warmupPatterns.length - 1 ? i + 1 : 0));
+                          setCurrentWarmupPatternIndex((i) => (i < activeWarmupPatterns.length - 1 ? i + 1 : 0));
                         }}
                         className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all"
                         title="Mẫu câu tiếp theo"
@@ -947,6 +1340,106 @@ export const LiveSessionPage: React.FC = () => {
                   <div className="flex items-center justify-center gap-3">
                     <KokoSpeakingCoach targetWord={currentWarmupPattern.english} audioUrl={currentWarmupPattern.audioUrl || undefined}
                       ageGroup={session.ageGroup} contextKey={`${sessionId}:warmup-pattern:${currentWarmupPatternIndex}`} />
+                  </div>
+                </div>
+              )}
+
+              {/* Main Mode for Warm-up: Koko Freeze Dance */}
+              {warmupSection === 'freeze-dance' && (
+                <div className="flex flex-col items-center text-center my-auto w-full py-4">
+                  {/* Status Banner */}
+                  <div className="mb-6">
+                    {freezeState === 'idle' && (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="text-7xl sm:text-8xl animate-bounce">🐒</div>
+                        <h2 className="text-3xl sm:text-5xl font-black text-cyan-300 font-display">
+                          Koko Freeze Dance!
+                        </h2>
+                        <p className="text-sm sm:text-base font-bold text-slate-300 max-w-lg mt-1">
+                          Cô bật nhạc: Bé đứng dậy nhảy theo Koko! Khi nhạc dừng hoặc cô hô <span className="text-cyan-400 font-black">FREEZE!</span>, bé phải đứng im như tượng băng!
+                        </p>
+                      </div>
+                    )}
+
+                    {freezeState === 'dancing' && (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="relative">
+                          <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center text-7xl sm:text-8xl shadow-2xl animate-pulse ring-8 ring-cyan-300/40">
+                            💃
+                          </div>
+                          <span className="absolute -top-2 -right-2 text-4xl animate-bounce">🎵</span>
+                          <span className="absolute -bottom-2 -left-2 text-4xl animate-bounce">🎶</span>
+                        </div>
+                        <h2 className="text-4xl sm:text-6xl font-black text-amber-400 font-display uppercase tracking-wider animate-pulse">
+                          DANCE! NHẢY CÙNG KOKO!
+                        </h2>
+                        <div className="flex items-center gap-2 text-2xl font-black text-white bg-white/10 px-6 py-2 rounded-2xl border border-white/20">
+                          <span>Đếm ngược đóng băng:</span>
+                          <span className="text-cyan-400 text-3xl font-mono">{freezeCountdown}s</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {freezeState === 'frozen' && (
+                      <div className="flex flex-col items-center gap-3 animate-bounce-short">
+                        <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-tr from-blue-300 to-cyan-500 flex items-center justify-center text-7xl sm:text-8xl shadow-2xl ring-8 ring-cyan-200">
+                          🧊
+                        </div>
+                        <h2 className="text-4xl sm:text-6xl font-black text-cyan-200 font-display uppercase tracking-wider drop-shadow-[0_0_25px_rgba(56,189,248,0.8)]">
+                          ❄️ FREEZE! ĐỨNG IM! ❄️
+                        </h2>
+                        <p className="text-base sm:text-lg font-bold text-white max-w-md">
+                          Ai nhúc nhích là thua! Bé nào đứng im như tảng băng sẽ được thưởng sao!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Freeze Controls */}
+                  <div className="flex flex-wrap items-center justify-center gap-4">
+                    {freezeState === 'idle' ? (
+                      <button
+                        type="button"
+                        onClick={handleStartFreezeDance}
+                        className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-base sm:text-lg px-8 py-4 rounded-3xl shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-cyan-300/30"
+                      >
+                        <Play size={22} className="fill-white" />
+                        <span>Bắt Đầu Nhảy (Play Dance Music) 🎵</span>
+                      </button>
+                    ) : freezeState === 'dancing' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFreezeState('frozen');
+                          sfx.playFreezeSound();
+                        }}
+                        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 text-white font-black text-base sm:text-lg px-8 py-4 rounded-3xl shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-blue-300/40"
+                      >
+                        <span>🧊 BẤM FREEZE NGAY!</span>
+                      </button>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleAwardWholeClass(1, 5);
+                            showToast('⭐ Cả lớp đứng im xuất sắc! +1 sao cho tất cả các bé!');
+                          }}
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-6 py-3.5 rounded-2xl shadow-xl active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Star size={20} className="fill-slate-950" />
+                          <span>Thưởng Cả Lớp +1 ⭐</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleStartFreezeDance}
+                          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm sm:text-base px-6 py-3.5 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer"
+                        >
+                          <RotateCcw size={18} />
+                          <span>Chơi Vòng Nữa 🔄</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1184,7 +1677,7 @@ export const LiveSessionPage: React.FC = () => {
                 </h2>
 
                 {/* Vietnamese Meaning & Pronunciation hint */}
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-slate-300 text-base sm:text-2xl font-bold mb-6">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-slate-300 text-base sm:text-2xl font-bold mb-3">
                   <span className="text-white bg-white/10 px-4 py-1 rounded-2xl">
                     {currentVocab.vietnamese}
                   </span>
@@ -1194,6 +1687,24 @@ export const LiveSessionPage: React.FC = () => {
                     </span>
                   )}
                 </div>
+
+                {/* Physical TPR Mime Action Callout from Lesson Plan */}
+                {currentTprGesture && (
+                  <div className="w-full max-w-xl mx-auto my-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-amber-500/25 border-2 border-amber-400/50 flex items-center gap-3.5 shadow-lg backdrop-blur-sm">
+                    <div className="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-2xl shrink-0 shadow-md">
+                      🤸
+                    </div>
+                    <div className="text-left">
+                      <div className="text-amber-300 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <span>Cử chỉ vận động phản xạ TPR</span>
+                        <span className="bg-amber-400/30 text-amber-200 px-1.5 py-0.5 rounded text-[10px]">Cô & Bé cùng làm</span>
+                      </div>
+                      <div className="text-white font-extrabold text-sm sm:text-base leading-snug mt-0.5">
+                        {currentTprGesture}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Classroom Interactive Prompt */}
                 <div className="flex flex-wrap items-center justify-center gap-3">
@@ -1715,6 +2226,14 @@ export const LiveSessionPage: React.FC = () => {
               {/* Game type selector buttons */}
               <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-2xl border border-white/10">
                 <button
+                  onClick={() => setClassroomGameMode('mystery-box')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                    classroomGameMode === 'mystery-box' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 shadow font-black' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🎁 Hộp Bí Mật
+                </button>
+                <button
                   onClick={() => setClassroomGameMode('listen-choose')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
                     classroomGameMode === 'listen-choose' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
@@ -1745,74 +2264,533 @@ export const LiveSessionPage: React.FC = () => {
             <div className="bg-slate-950/70 rounded-3xl border-2 border-purple-400/30 p-6 sm:p-8 flex flex-col items-center text-center mb-6">
               <span className="bg-purple-500/20 text-purple-300 border border-purple-400/30 px-5 py-1.5 rounded-full text-xs sm:text-sm font-black mb-4 flex items-center gap-2">
                 <Sparkles size={14} />
-                Câu hỏi {gameQuestionIdx + 1} / {activeVocabList.length}
+                {classroomGameMode === 'mystery-box'
+                  ? `Món đồ ${mysteryVocabIndex + 1} / ${activeVocabList.length}`
+                  : `Câu hỏi ${gameQuestionIdx + 1} / ${activeVocabList.length}`}
               </span>
+
+              {classroomGameMode === 'mystery-box' && (
+                <div className="flex flex-col items-center py-4 w-full">
+                  {!isMysteryBoxOpen ? (
+                    <div className="flex flex-col items-center">
+                      {/* Bouncing Gift Box */}
+                      <div
+                        onClick={handleOpenMysteryBox}
+                        className={`w-48 h-48 sm:w-60 sm:h-60 rounded-4xl bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-300 p-6 flex flex-col items-center justify-center shadow-2xl border-4 border-amber-200 cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                          isMysteryShaking ? 'animate-bounce' : 'hover:animate-pulse'
+                        }`}
+                      >
+                        <span className="text-7xl sm:text-8xl filter drop-shadow-lg">🎁</span>
+                        <span className="text-slate-950 font-black text-sm sm:text-base mt-2 bg-white/90 px-3 py-1 rounded-full shadow-xs">
+                          {isMysteryShaking ? 'Đang mở hộp… 🥁' : 'BẤM ĐỂ MỞ HỘP'}
+                        </span>
+                      </div>
+
+                      <h3 className="text-2xl sm:text-3xl font-black text-amber-300 font-display mt-6 mb-2">
+                        Chiếc Hộp Bí Mật Của Koko!
+                      </h3>
+                      <p className="text-slate-300 text-xs sm:text-sm font-bold mb-6 max-w-md">
+                        Mời một bé lên bục hoặc bấm vào hộp để mở món đồ bí mật và cùng đoán xem là gì nào!
+                      </p>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleOpenMysteryBox}
+                          disabled={isMysteryShaking}
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl shadow-xl active:scale-95 cursor-pointer disabled:opacity-50"
+                        >
+                          <Sparkles size={18} />
+                          <span>Mở Hộp Ngay!</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={pickRandomStudent}
+                          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm px-5 py-3.5 rounded-2xl border border-white/20 cursor-pointer"
+                        >
+                          <Shuffle size={16} />
+                          <span>Gọi 1 bé lên mở 🎲</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center animate-fade-in w-full">
+                      {/* Revealed Card Frame */}
+                      <div className="w-52 h-52 sm:w-64 sm:h-64 rounded-4xl bg-white p-4 shadow-2xl border-4 border-amber-300 mb-4 flex items-center justify-center relative ring-8 ring-amber-400/30">
+                        <img
+                          src={currentMysteryVocab.imageUrl}
+                          alt={currentMysteryVocab.english}
+                          className="w-full h-full object-contain filter drop-shadow-md animate-scale-up"
+                        />
+                        <button
+                          onClick={() => {
+                            sfx.playPop();
+                            playWordAudio(currentMysteryVocab.english, currentMysteryVocab.audioUrl);
+                          }}
+                          className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-xl active:scale-90 cursor-pointer ring-4 ring-amber-300/40"
+                          title="Phát âm từ"
+                        >
+                          <Volume2 size={24} />
+                        </button>
+                      </div>
+
+                      {/* English Word & Meaning */}
+                      <h2 className="text-4xl sm:text-6xl font-black text-amber-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
+                        {currentMysteryVocab.english}
+                      </h2>
+                      <div className="flex items-center gap-2 text-slate-300 text-base sm:text-lg font-bold mb-4">
+                        <span className="text-white bg-white/10 px-4 py-1 rounded-xl">
+                          {currentMysteryVocab.vietnamese}
+                        </span>
+                        {currentMysteryVocab.pronunciation && (
+                          <span className="text-amber-300/80 font-mono text-sm">
+                            {currentMysteryVocab.pronunciation}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Revealed TPR Mime Action */}
+                      {currentMysteryTpr && (
+                        <div className="w-full max-w-lg mb-6 p-3 rounded-2xl bg-amber-500/20 border-2 border-amber-400/40 flex items-center gap-3">
+                          <span className="text-3xl">🤸</span>
+                          <div className="text-left">
+                            <span className="text-amber-300 text-xs font-black uppercase tracking-wider block">Cử chỉ TPR của từ này:</span>
+                            <span className="text-white font-extrabold text-sm">{currentMysteryTpr}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playSuccess();
+                            handleAwardWholeClass(1, 5);
+                            showToast(`⭐ Cả lớp gọi đúng "${currentMysteryVocab.english}"! +1 sao!`);
+                          }}
+                          className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-white font-black text-sm px-6 py-3 rounded-2xl shadow-lg active:scale-95 cursor-pointer"
+                        >
+                          <Star size={18} className="fill-white" />
+                          <span>Bé / Cả lớp đoán đúng (+1 ⭐)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleOpenMysteryBox}
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl shadow-lg active:scale-95 cursor-pointer"
+                        >
+                          <Gift size={18} />
+                          <span>Hộp Tiếp Theo ➔</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {classroomGameMode === 'listen-choose' && (
                 <div className="flex flex-col items-center">
-                  <button
-                    onClick={() => playWordAudio(currentVocab.english, currentVocab.audioUrl)}
-                    className="w-24 h-24 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 text-white flex items-center justify-center shadow-2xl active:scale-95 cursor-pointer ring-8 ring-sky-400/30 mb-4 animate-pulse"
-                  >
-                    <Volume2 size={44} />
-                  </button>
-                  <p className="text-slate-400 text-sm font-bold mb-2">Bé lắng nghe cô phát âm và chọn tranh đúng:</p>
-                  <h3 className="text-3xl sm:text-4xl font-black text-amber-400 tracking-wide uppercase font-display mb-6">
-                    "{currentVocab.english}"
-                  </h3>
+                  <div className="flex items-center gap-3 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => playWordAudio(currentVocab.english, currentVocab.audioUrl)}
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 text-white flex items-center justify-center shadow-2xl active:scale-95 cursor-pointer ring-8 ring-sky-400/30 animate-pulse hover:scale-105 transition-all"
+                      title="Bấm để nghe phát âm"
+                    >
+                      <Volume2 size={40} />
+                    </button>
+                  </div>
+                  <p className="text-slate-300 text-sm font-bold mb-1">
+                    Bé hãy lắng nghe âm thanh và chạm vào bức tranh đúng nhất:
+                  </p>
+                  <p className="text-xs text-slate-400 mb-5">
+                    (Giáo viên bấm vào loa phát âm, sau đó mời bé chạm vào tranh trên màn hình)
+                  </p>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
-                    {activeVocabList.slice(0, 4).map((v) => (
-                      <div
-                        key={v._id}
-                        className={`rounded-2xl border-3 p-3 bg-white/5 flex flex-col items-center justify-center ${
-                          v.english === currentVocab.english ? 'border-emerald-400 bg-emerald-500/10' : 'border-white/10'
+                  {/* 4 Interactive Choice Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl mb-6">
+                    {activeVocabList.slice(0, 4).map((v) => {
+                      const isChosen = listenPickSelectedId === v._id;
+                      const isCorrectAnswer = v._id === currentVocab._id || v.english === currentVocab.english;
+
+                      let borderClass = 'border-white/15 bg-white/5 hover:border-sky-400 hover:bg-white/10';
+                      if (listenPickSelectedId) {
+                        if (isCorrectAnswer) {
+                          borderClass = 'border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/50 scale-105';
+                        } else if (isChosen) {
+                          borderClass = 'border-rose-500 bg-rose-500/20 ring-4 ring-rose-400/50';
+                        } else {
+                          borderClass = 'border-white/5 bg-white/5 opacity-50';
+                        }
+                      }
+
+                      return (
+                        <button
+                          key={v._id}
+                          type="button"
+                          onClick={() => {
+                            setListenPickSelectedId(v._id);
+                            if (isCorrectAnswer) {
+                              setListenPickStatus('correct');
+                              sfx.playCorrect();
+                              sfx.playBadgeChime();
+                            } else {
+                              setListenPickStatus('wrong');
+                              sfx.playGentleWrong();
+                            }
+                          }}
+                          className={`rounded-3xl border-3 p-4 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 shadow-lg relative group ${borderClass}`}
+                        >
+                          {listenPickSelectedId && isCorrectAnswer && (
+                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg font-black text-sm animate-bounce">
+                              ✓
+                            </div>
+                          )}
+                          {isChosen && !isCorrectAnswer && (
+                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg font-black text-sm">
+                              ✕
+                            </div>
+                          )}
+                          <div className="w-24 h-24 sm:w-28 sm:h-28 mb-3 flex items-center justify-center p-2 bg-white rounded-2xl shadow-inner group-hover:scale-105 transition-transform">
+                            <img src={v.imageUrl} alt="" className="w-full h-full object-contain" />
+                          </div>
+                          <span className="font-black text-base text-white tracking-wide">{v.english}</span>
+                          <span className="text-xs text-slate-300 font-medium mt-0.5">{v.vietnamese}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Feedback & Actions */}
+                  {listenPickStatus === 'correct' && (
+                    <div className="flex flex-wrap items-center justify-center gap-3 animate-fade-in bg-emerald-500/15 border-2 border-emerald-400/50 p-4 rounded-3xl mb-4">
+                      <div className="flex items-center gap-2 text-emerald-300 font-black text-base sm:text-lg">
+                        <CheckCircle2 size={24} className="text-emerald-400" />
+                        <span>Chính xác! Đó là &ldquo;{currentVocab.english}&rdquo; ({currentVocab.vietnamese})! 🎉</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playStarFanfare();
+                            handleAwardWholeClass(1, 5);
+                            showToast(`⭐ Thưởng cả lớp trả lời đúng câu hỏi!`);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                        >
+                          <Star size={16} className="fill-amber-950" /> Thưởng cả lớp (+1 ⭐)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playPop();
+                            setListenPickSelectedId(null);
+                            setListenPickStatus(null);
+                            setCurrentVocabIndex((prev) => (prev + 1) % activeVocabList.length);
+                            setGameQuestionIdx((prev) => prev + 1);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                        >
+                          <span>Câu tiếp theo ➔</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {listenPickStatus === 'wrong' && (
+                    <div className="flex items-center gap-3 animate-fade-in bg-rose-500/15 border border-rose-400/40 px-5 py-3 rounded-2xl mb-4 text-rose-300 text-sm font-bold">
+                      <XCircle size={20} className="text-rose-400 shrink-0" />
+                      <span>Chưa đúng rồi! Bé hãy bấm vào chiếc loa để nghe lại nhé! 👂</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setListenPickSelectedId(null);
+                          setListenPickStatus(null);
+                          playWordAudio(currentVocab.english, currentVocab.audioUrl);
+                        }}
+                        className="ml-auto underline hover:text-white cursor-pointer"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {classroomGameMode === 'true-false' && (() => {
+                const isMatch = tfMatchRatio;
+                const otherVocabs = activeVocabList.filter(v => v._id !== currentVocab._id);
+                const displayedVocab = isMatch
+                  ? currentVocab
+                  : (otherVocabs.length > 0 ? otherVocabs[gameQuestionIdx % otherVocabs.length] : currentVocab);
+
+                return (
+                  <div className="flex flex-col items-center">
+                    <p className="text-slate-400 text-xs sm:text-sm font-bold mb-3">
+                      Bé hãy quan sát hình ảnh và cho cô biết câu hỏi dưới đây là ĐÚNG hay SAI:
+                    </p>
+
+                    <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-3xl bg-white p-3 border-4 border-amber-300 shadow-2xl mb-4 flex items-center justify-center relative group">
+                      <img src={currentVocab.imageUrl} alt="" className="w-full h-full object-contain filter drop-shadow group-hover:scale-105 transition-transform" />
+                      <button
+                        type="button"
+                        onClick={() => playWordAudio(displayedVocab.english)}
+                        className="absolute bottom-2 right-2 w-11 h-11 rounded-full bg-amber-400 hover:bg-amber-300 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer"
+                        title="Nghe phát âm từ"
+                      >
+                        <Volume2 size={20} />
+                      </button>
+                    </div>
+
+                    <h3 className="text-xl sm:text-3xl font-black text-white mb-6 text-center">
+                      Đây có phải là: <span className="text-amber-400 font-display uppercase tracking-wide">&ldquo;{displayedVocab.english}&rdquo;</span> ({displayedVocab.vietnamese}) không các con?
+                    </h3>
+
+                    {/* Interactive Yes / No choice buttons */}
+                    <div className="flex flex-wrap items-center justify-center gap-6 mb-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const correct = isMatch === true;
+                          setTfSelectedResult(correct ? 'correct' : 'wrong');
+                          if (correct) {
+                            sfx.playCorrect();
+                            sfx.playBadgeChime();
+                          } else {
+                            sfx.playGentleWrong();
+                          }
+                        }}
+                        className={`py-4 px-8 rounded-2xl border-3 font-black text-lg sm:text-xl flex items-center gap-3 shadow-xl transition-all active:scale-95 cursor-pointer ${
+                          tfSelectedResult === 'correct' && isMatch === true
+                            ? 'bg-emerald-500 text-white border-emerald-300 ring-4 ring-emerald-400/50 scale-105'
+                            : 'bg-emerald-500/20 border-emerald-400 text-emerald-300 hover:bg-emerald-500/30'
                         }`}
                       >
-                        <div className="w-24 h-24 mb-2 flex items-center justify-center p-2 bg-white rounded-xl">
-                          <img src={v.imageUrl} alt="" className="w-full h-full object-contain" />
+                        <CheckCircle2 size={26} />
+                        <span>ĐÚNG (YES)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const correct = isMatch === false;
+                          setTfSelectedResult(correct ? 'correct' : 'wrong');
+                          if (correct) {
+                            sfx.playCorrect();
+                            sfx.playBadgeChime();
+                          } else {
+                            sfx.playGentleWrong();
+                          }
+                        }}
+                        className={`py-4 px-8 rounded-2xl border-3 font-black text-lg sm:text-xl flex items-center gap-3 shadow-xl transition-all active:scale-95 cursor-pointer ${
+                          tfSelectedResult === 'correct' && isMatch === false
+                            ? 'bg-rose-500 text-white border-rose-300 ring-4 ring-rose-400/50 scale-105'
+                            : 'bg-rose-500/20 border-rose-400 text-rose-300 hover:bg-rose-500/30'
+                        }`}
+                      >
+                        <XCircle size={26} />
+                        <span>SAI (NO)</span>
+                      </button>
+                    </div>
+
+                    {/* True/False Result feedback banner */}
+                    {tfSelectedResult === 'correct' && (
+                      <div className="flex flex-wrap items-center justify-center gap-3 animate-fade-in bg-emerald-500/15 border-2 border-emerald-400/50 p-4 rounded-3xl mb-4">
+                        <div className="flex items-center gap-2 text-emerald-300 font-black text-base sm:text-lg">
+                          <CheckCircle2 size={24} className="text-emerald-400" />
+                          <span>
+                            {isMatch
+                              ? `Chính xác! Tranh đúng là "${currentVocab.english}" (${currentVocab.vietnamese})! 🎉`
+                              : `Chính xác! Bức tranh này là "${currentVocab.english}" chứ không phải "${displayedVocab.english}"! 🎉`}
+                          </span>
                         </div>
-                        <span className="font-black text-sm text-white">{v.english}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playStarFanfare();
+                              handleAwardWholeClass(1, 5);
+                              showToast(`⭐ Thưởng cả lớp trả lời đúng!`);
+                            }}
+                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                          >
+                            <Star size={16} className="fill-amber-950" /> Thưởng cả lớp (+1 ⭐)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playPop();
+                              setTfSelectedResult(null);
+                              setTfMatchRatio(Math.random() > 0.5);
+                              setCurrentVocabIndex((prev) => (prev + 1) % activeVocabList.length);
+                              setGameQuestionIdx((prev) => prev + 1);
+                            }}
+                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                          >
+                            <span>Câu tiếp theo ➔</span>
+                          </button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {classroomGameMode === 'true-false' && (
-                <div className="flex flex-col items-center">
-                  <div className="w-48 h-48 rounded-3xl bg-white p-3 border-4 border-amber-300 shadow-xl mb-4 flex items-center justify-center">
-                    <img src={currentVocab.imageUrl} alt="" className="w-full h-full object-contain" />
+                    {tfSelectedResult === 'wrong' && (
+                      <div className="flex items-center gap-3 animate-fade-in bg-rose-500/15 border border-rose-400/40 px-5 py-3 rounded-2xl mb-4 text-rose-300 text-sm font-bold">
+                        <XCircle size={20} className="text-rose-400 shrink-0" />
+                        <span>Chưa đúng rồi! Bé hãy nhìn thật kỹ tranh và đọc lại từ nhé!</span>
+                        <button
+                          type="button"
+                          onClick={() => setTfSelectedResult(null)}
+                          className="ml-auto underline hover:text-white cursor-pointer"
+                        >
+                          Chọn lại
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white mb-6">
-                    Đây có phải là: <span className="text-amber-400 font-display uppercase">"{currentVocab.english}"</span> ({currentVocab.vietnamese}) không các con?
-                  </h3>
-                  <div className="flex gap-6">
-                    <div className="py-4 px-8 rounded-2xl bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-black text-xl flex items-center gap-2">
-                      <CheckCircle2 size={24} /> ĐÚNG (YES)
-                    </div>
-                    <div className="py-4 px-8 rounded-2xl bg-rose-500/20 border-2 border-rose-400 text-rose-300 font-black text-xl flex items-center gap-2">
-                      <XCircle size={24} /> SAI (NO)
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {classroomGameMode === 'animal-sound' && (
-                <div className="flex flex-col items-center">
-                  <span className="text-7xl mb-4 animate-bounce">🐶 🐱 🐮 🦆</span>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white mb-3">
-                    "Tiếng kêu Meow Meow / Woof Woof..."
-                  </h3>
-                  <p className="text-slate-400 text-sm font-bold mb-6">Bạn động vật nào vừa kêu thế nhỉ?</p>
-                  <button
-                    onClick={() => playWordAudio('Woof woof! Dog!')}
-                    className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-amber-950 font-black px-6 py-2.5 rounded-2xl cursor-pointer"
-                  >
-                    <Volume2 size={18} /> Nghe tiếng kêu con vật
-                  </button>
-                </div>
-              )}
+              {classroomGameMode === 'animal-sound' && (() => {
+                const currentAnimal = ANIMAL_ROSTER[animalGameIndex % ANIMAL_ROSTER.length];
+                const otherAnimals = ANIMAL_ROSTER.filter(a => a.id !== currentAnimal.id);
+                const displayChoices = [
+                  currentAnimal,
+                  ...otherAnimals.slice(0, 3)
+                ].sort((a, b) => a.name.localeCompare(b.name));
+
+                return (
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-3 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sfx.playPop();
+                          sfx.playAnimal(currentAnimal.id);
+                        }}
+                        className="px-8 py-4 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-lg sm:text-xl flex items-center gap-3 shadow-2xl active:scale-95 transition-all ring-6 ring-amber-300/30 animate-pulse cursor-pointer"
+                      >
+                        <Volume2 size={28} />
+                        <span>BẤM NGHE TIẾNG KÊU BÍ ẨN 🎵</span>
+                      </button>
+                    </div>
+
+                    <p className="text-slate-300 text-sm font-bold mb-1">
+                      Bạn động vật đáng yêu nào vừa phát ra tiếng kêu thế nhỉ?
+                    </p>
+                    <p className="text-xs text-slate-400 mb-6">
+                      (Bấm vào nút vàng ở trên để nghe tiếng kêu, sau đó mời các con chọn bạn động vật tương ứng)
+                    </p>
+
+                    {/* 4 Interactive Animal Choice Buttons */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl mb-6">
+                      {displayChoices.map((a) => {
+                        const isChosen = animalSelectedChoiceId === a.id;
+                        const isCorrectAnswer = a.id === currentAnimal.id;
+
+                        let borderClass = 'border-white/15 bg-white/5 hover:border-amber-400 hover:bg-white/10';
+                        if (animalSelectedChoiceId) {
+                          if (isCorrectAnswer) {
+                            borderClass = 'border-emerald-400 bg-emerald-500/20 ring-4 ring-emerald-400/50 scale-105';
+                          } else if (isChosen) {
+                            borderClass = 'border-rose-500 bg-rose-500/20 ring-4 ring-rose-400/50';
+                          } else {
+                            borderClass = 'border-white/5 bg-white/5 opacity-50';
+                          }
+                        }
+
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => {
+                              setAnimalSelectedChoiceId(a.id);
+                              if (isCorrectAnswer) {
+                                setAnimalResultStatus('correct');
+                                sfx.playCheerFanfare();
+                              } else {
+                                setAnimalResultStatus('wrong');
+                                sfx.playGentleWrong();
+                              }
+                            }}
+                            className={`rounded-3xl border-3 p-5 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 shadow-lg relative group ${borderClass}`}
+                          >
+                            {animalSelectedChoiceId && isCorrectAnswer && (
+                              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg font-black text-sm animate-bounce">
+                                ✓
+                              </div>
+                            )}
+                            {isChosen && !isCorrectAnswer && (
+                              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg font-black text-sm">
+                                ✕
+                              </div>
+                            )}
+                            <span className="text-6xl sm:text-7xl mb-3 filter drop-shadow group-hover:scale-110 transition-transform">
+                              {a.emoji}
+                            </span>
+                            <span className="font-black text-lg text-white tracking-wide">{a.name}</span>
+                            <span className="text-xs text-amber-300 font-bold mt-0.5">{a.vi}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Animal Sound Result feedback */}
+                    {animalResultStatus === 'correct' && (
+                      <div className="flex flex-wrap items-center justify-center gap-3 animate-fade-in bg-emerald-500/15 border-2 border-emerald-400/50 p-4 rounded-3xl mb-4">
+                        <div className="flex items-center gap-2 text-emerald-300 font-black text-base sm:text-lg">
+                          <CheckCircle2 size={24} className="text-emerald-400" />
+                          <span>
+                            🎉 Chính xác! Đó là bạn {currentAnimal.emoji} {currentAnimal.name} ({currentAnimal.vi})! {currentAnimal.callText}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playStarFanfare();
+                              handleAwardWholeClass(1, 5);
+                              showToast(`⭐ Thưởng cả lớp trả lời đúng con vật!`);
+                            }}
+                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                          >
+                            <Star size={16} className="fill-amber-950" /> Thưởng cả lớp (+1 ⭐)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playPop();
+                              setAnimalSelectedChoiceId(null);
+                              setAnimalResultStatus(null);
+                              setAnimalGameIndex((prev) => prev + 1);
+                            }}
+                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                          >
+                            <span>Con vật tiếp theo ➔</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {animalResultStatus === 'wrong' && (
+                      <div className="flex items-center gap-3 animate-fade-in bg-rose-500/15 border border-rose-400/40 px-5 py-3 rounded-2xl mb-4 text-rose-300 text-sm font-bold">
+                        <XCircle size={20} className="text-rose-400 shrink-0" />
+                        <span>Chưa phải bạn này rồi! Bé hãy bấm nghe lại tiếng kêu xem sao nhé! 👂</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAnimalSelectedChoiceId(null);
+                            setAnimalResultStatus(null);
+                            playWordAudio(currentAnimal.soundText);
+                          }}
+                          className="ml-auto underline hover:text-white cursor-pointer"
+                        >
+                          Nghe lại
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Live Student Response & Instant Bulk Awarding */}
@@ -1922,7 +2900,120 @@ export const LiveSessionPage: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: FULL CLASSROOM GRID & BULK GRADING (Lưới Quản Lý & Chấm Điểm)       */}
+        {/* TAB 4: WRAP-UP & CELEBRATION (Tổng Kết & Lễ Trao Thưởng Sao Vàng)        */}
+        {/* ========================================================================= */}
+        {activeTab === 'wrapup' && (
+          <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-amber-400/50 p-6 sm:p-8 shadow-2xl space-y-7">
+            {/* Celebration Header */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-2xl shadow-lg text-slate-950 font-black">
+                  🏆
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white">Tổng Kết & Lễ Trao Thưởng Sao Vàng</h2>
+                  <p className="text-xs sm:text-sm font-bold text-amber-300/90">
+                    Giai đoạn 4: Khen ngợi nỗ lực của bé, hát bài tạm biệt và dặn dò phụ huynh về nhà
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playBadgeChime();
+                  showToast('🎉 Cả lớp vỗ tay hoan hô thật to nào các con! 👏👏👏');
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm cursor-pointer shadow-md active:scale-95 transition-all"
+              >
+                <span>👏 Cả lớp vỗ tay chúc mừng!</span>
+              </button>
+            </div>
+
+            {/* Top Star Performers Podium */}
+            <div className="bg-slate-950/70 rounded-3xl border-2 border-amber-400/30 p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <span className="text-xs font-black uppercase tracking-widest text-amber-400 bg-amber-400/10 border border-amber-400/30 px-4 py-1 rounded-full inline-block">
+                  ⭐ BẢNG VINH DANH NGÔI SAO TIẾT HỌC ⭐
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white mt-2">
+                  Những Bạn Nhỏ Tích Cực Nhất Hôm Nay
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                {topPerformers.map((st, idx) => {
+                  const s = st as any;
+                  const rankBadge = idx === 0 ? '🥇 Hạng Nhất' : idx === 1 ? '🥈 Hạng Nhì' : '🥉 Hạng Ba';
+                  const borderCol = idx === 0 ? 'border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/40' : idx === 1 ? 'border-slate-300 bg-slate-500/10' : 'border-amber-700 bg-amber-700/10';
+                  return (
+                    <div
+                      key={s.studentId || idx}
+                      className={`flex flex-col items-center rounded-3xl border-2 p-5 text-center relative ${borderCol}`}
+                    >
+                      <span className="text-xs font-black text-amber-300 mb-2">{rankBadge}</span>
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black text-xl mb-3 shadow-md">
+                        {initials(s.name)}
+                      </div>
+                      <div className="text-base font-extrabold text-white">{s.name}</div>
+                      <div className="flex items-center gap-1.5 mt-2 text-amber-400 font-black text-sm">
+                        <Star size={16} className="fill-amber-400" />
+                        <span>{s.stars || 0} sao ({s.points || 0} điểm)</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Goodbye Song Card */}
+            <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🎵</span>
+                  <h4 className="text-base font-black text-white">Bài Hát Tạm Biệt (Goodbye Song)</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => sfx.playDanceMelody()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/40 text-xs font-bold hover:bg-purple-500/30 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Volume2 size={16} /> Mở giai điệu tạm biệt
+                </button>
+              </div>
+              <div className="text-sm sm:text-base text-slate-200 font-medium leading-relaxed italic bg-white/5 p-4 rounded-2xl border border-white/5">
+                &ldquo;Goodbye, goodbye, it&apos;s time to go!<br />
+                Goodbye, goodbye, I&apos;ll miss you so!<br />
+                See you tomorrow, have a wonderful day!&rdquo;
+              </div>
+              <p className="text-xs text-slate-400 font-medium">
+                Cô vẫy tay chào các con, ôm hoặc đập tay (high-five) từng bạn khi ra về!
+              </p>
+            </div>
+
+            {/* Finish Session Call to Action */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-emerald-900/60 to-teal-900/60 p-5 rounded-3xl border border-emerald-500/30">
+              <div>
+                <h4 className="text-base font-black text-white">Kết Thúc Tiết Học & Xuất Báo Cáo</h4>
+                <p className="text-xs text-slate-300 font-medium">
+                  Lưu lại toàn bộ kết quả phát biểu, số sao và chuẩn bị gửi thông báo về ứng dụng phụ huynh.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleEnd}
+                disabled={ending}
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl shadow-xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <StopCircle size={18} />
+                <span>{ending ? 'Đang hoàn tất…' : 'Hoàn Tất Tiết Học & Xuất Báo Cáo'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 5: FULL CLASSROOM GRID & BULK GRADING (Lưới Quản Lý & Chấm Điểm)       */}
         {/* ========================================================================= */}
         {activeTab === 'grid' && (
           <div className="flex-1 flex flex-col w-full max-w-[2200px] 2xl:max-w-none mx-auto">
@@ -2117,16 +3208,22 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Spotlight / Mời phát biểu Modal ─────────────────────────────────── */}
       {spotlightStudent && (
         <SpotlightModal
-          score={spotlightStudent}
+          score={
+            session?.studentScores?.find((s) => {
+              const sid = typeof s.student === 'string' ? s.student : (s.student as User)?._id;
+              const targetId = typeof spotlightStudent.student === 'string' ? spotlightStudent.student : (spotlightStudent.student as User)?._id;
+              return sid === targetId;
+            }) || spotlightStudent
+          }
           vocabPrompt={currentVocab.english}
           onClose={() => setSpotlightStudent(null)}
           onPickAnother={pickRandomStudent}
-          onApply={(opts) => {
+          onApply={(opts, actionType, customMessage) => {
             const sid =
               typeof spotlightStudent.student === 'string'
                 ? spotlightStudent.student
                 : (spotlightStudent.student as User)._id || '';
-            void applyScore(sid, opts);
+            void applyScore(sid, opts, actionType, customMessage);
           }}
         />
       )}
@@ -2134,16 +3231,97 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Individual Scoring modal ─────────────────────────────────────────── */}
       {scoringStudent && (
         <ScoringModal
-          score={scoringStudent}
+          score={
+            session?.studentScores?.find((s) => {
+              const sid = typeof s.student === 'string' ? s.student : (s.student as User)?._id;
+              const targetId = typeof scoringStudent.student === 'string' ? scoringStudent.student : (scoringStudent.student as User)?._id;
+              return sid === targetId;
+            }) || scoringStudent
+          }
           onClose={() => setScoringStudent(null)}
-          onApply={(opts) => {
+          onApply={(opts, actionType, customMessage) => {
             const sid =
               typeof scoringStudent.student === 'string'
                 ? scoringStudent.student
                 : (scoringStudent.student as User)._id || '';
-            void applyScore(sid, opts);
+            void applyScore(sid, opts, actionType, customMessage);
           }}
         />
+      )}
+
+      {/* ── AI Teacher Copilot Teleprompter Drawer ─────────────────────────── */}
+      <LiveSessionCopilotDrawer
+        isOpen={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        activeTab={activeTab}
+        lessonPlan={lessonPlan}
+        loading={copilotLoading}
+        currentVocab={currentVocab}
+        currentSentence={patterns[currentPatternIndex]}
+        onSelectTab={setActiveTab}
+      />
+
+      {/* ── Visual Joyous Scoring Celebration Effect ─────────────────────────── */}
+      {celebrationEffect && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-4">
+          <div className="relative flex flex-col items-center justify-center rounded-3xl bg-slate-900/95 border-4 border-amber-400 p-8 shadow-[0_0_80px_rgba(251,191,36,0.7)] backdrop-blur-md animate-bounce max-w-sm sm:max-w-md text-center">
+            <div className="text-6xl sm:text-7xl mb-2 animate-pulse">
+              {celebrationEffect.type === 'stars'
+                ? '⭐🌟⭐'
+                : celebrationEffect.type === 'correct'
+                ? '🎯🎉✨'
+                : '🏆👏🥳'}
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black text-amber-300 tracking-wide font-display drop-shadow-md">
+              {celebrationEffect.studentName || 'Hoan Hô Cả Lớp!'}
+            </h3>
+            <p className="mt-1 text-base sm:text-lg font-black text-white">
+              {celebrationEffect.message}
+            </p>
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 text-amber-950 px-4 py-1 text-xs font-black uppercase tracking-wider shadow-lg">
+              <span>🎉 THƯỞNG THÀNH TÍCH VUI NHỘN</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Overtime Auto-End Prompt Modal ──────────────────────────────────── */}
+      {isOvertimeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-amber-400 p-6 shadow-2xl text-center">
+            <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-amber-400/20 text-amber-400">
+              <Clock size={28} className="animate-spin" />
+            </div>
+            <h3 className="text-xl font-black text-white">Buổi dạy đã quá giờ dự kiến!</h3>
+            <p className="text-sm text-slate-300 mt-2">
+              Thời gian học dự kiến ({session.plannedDuration || 35} phút) đã kết thúc. Để đảm bảo dữ liệu buổi học được bảo toàn và không bị treo phòng học, hệ thống sẽ tự động tổng kết sau:
+            </p>
+
+            <div className="my-4 text-4xl font-black text-amber-400 font-mono animate-pulse">
+              {overtimeCountdown}s
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOvertimeModalOpen(false);
+                  setOvertimeSnoozeUntil(Date.now() + 15 * 60 * 1000);
+                }}
+                className="flex-1 rounded-2xl border border-white/20 bg-white/10 py-3 text-xs font-bold text-white hover:bg-white/20 transition-all cursor-pointer"
+              >
+                Dạy thêm 15 phút
+              </button>
+              <button
+                type="button"
+                onClick={handleAutoEnd}
+                className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-xs font-black text-white transition-all shadow-md cursor-pointer"
+              >
+                Kết thúc & Lưu ngay
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2205,8 +3383,22 @@ const StudentCard = ({
           <div className="text-purple-400">
             {isSelected ? <CheckSquare size={18} /> : <Square size={18} className="text-slate-500" />}
           </div>
+        ) : score.attendance === 'ABSENT' ? (
+          <span className="text-[10px] font-black text-rose-300 bg-rose-500/20 border border-rose-500/30 px-1.5 py-0.5 rounded-md">
+            🔴 VẮNG
+          </span>
+        ) : score.attendance === 'LATE' ? (
+          <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 rounded-md">
+            🟡 MUỘN
+          </span>
+        ) : score.attendance === 'EXCUSED' ? (
+          <span className="text-[10px] font-black text-sky-300 bg-sky-500/20 border border-sky-500/30 px-1.5 py-0.5 rounded-md">
+            🔵 PHÉP
+          </span>
         ) : (
-          <span className="text-[10px] font-black text-slate-500 uppercase">Học sinh</span>
+          <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
+            🟢 CÓ MẶT
+          </span>
         )}
 
         <button
@@ -2283,10 +3475,27 @@ const SpotlightModal = ({
   vocabPrompt?: string;
   onClose: () => void;
   onPickAnother: () => void;
-  onApply: (opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number }) => void;
+  onApply: (
+    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
+    customMessage?: string
+  ) => void;
 }) => {
   const student = score.student as User;
   const name = student?.name || 'Bé yêu';
+  const [recentAward, setRecentAward] = useState<string | null>(null);
+  const [awardKey, setAwardKey] = useState(0);
+
+  const handleReward = (
+    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    actionType: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct',
+    badgeText: string,
+    celebrationText: string
+  ) => {
+    setRecentAward(badgeText);
+    setAwardKey((k) => k + 1);
+    onApply(opts, actionType, celebrationText);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
@@ -2314,24 +3523,52 @@ const SpotlightModal = ({
         <h3 className="text-4xl font-black text-amber-300 tracking-wide font-display drop-shadow-md">{name}</h3>
 
         {vocabPrompt && (
-          <div className="my-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-400/60 px-6 py-3 rounded-2xl inline-block shadow-inner">
-            <span className="text-xs text-amber-200 font-extrabold uppercase tracking-wider block mb-1">
+          <div className="my-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-400/60 px-6 py-2.5 rounded-2xl inline-block shadow-inner">
+            <span className="text-xs text-amber-200 font-extrabold uppercase tracking-wider block mb-0.5">
               Bé hãy đọc thật to từ này nhé 🎤:
             </span>
-            <span className="text-3xl font-black text-amber-300 uppercase font-display tracking-widest drop-shadow-lg">
-              "{vocabPrompt}"
+            <span className="text-2xl sm:text-3xl font-black text-amber-300 uppercase font-display tracking-widest drop-shadow-lg">
+              &ldquo;{vocabPrompt}&rdquo;
             </span>
           </div>
         )}
 
-        <p className="text-sm text-slate-300 font-bold">
-          ⭐ {score.stars} sao &bull; 🏆 {score.points} điểm &bull; ✓ {score.correctCount} đúng
-        </p>
+        {/* Live Reactive Score Display with Floating Award Bubble */}
+        <div className="relative my-3 inline-flex items-center justify-center gap-3 bg-white/10 px-5 py-2 rounded-2xl border border-white/15">
+          {recentAward && (
+            <div
+              key={awardKey}
+              className="absolute -top-7 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 text-amber-950 font-black text-xs shadow-xl animate-bounce border border-white pointer-events-none"
+            >
+              {recentAward}
+            </div>
+          )}
+          <span className="flex items-center gap-1.5 text-sm sm:text-base font-black text-amber-300">
+            <Star size={16} className="fill-amber-400 text-amber-400" />
+            {score.stars || 0} sao
+          </span>
+          <span className="text-slate-500 font-bold">&bull;</span>
+          <span className="text-sm sm:text-base font-black text-teal-300">
+            🏆 {score.points || 0} điểm
+          </span>
+          <span className="text-slate-500 font-bold">&bull;</span>
+          <span className="text-sm sm:text-base font-black text-emerald-300">
+            ✓ {score.correctCount || 0} đúng
+          </span>
+        </div>
 
-        {/* Reward buttons */}
-        <div className="mt-5 grid grid-cols-2 gap-3 text-left">
+        {/* Reward buttons with sound & joy */}
+        <div className="mt-4 grid grid-cols-2 gap-3 text-left">
           <button
-            onClick={() => onApply({ points: 5 })}
+            type="button"
+            onClick={() =>
+              handleReward(
+                { points: 5 },
+                'applause',
+                '+5 Điểm 👏',
+                `👏 Cả lớp vỗ tay hoan hô ${name}! +5 điểm!`
+              )
+            }
             className="flex items-center gap-3 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-3 hover:bg-sky-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <span className="text-2xl">👏</span>
@@ -2342,7 +3579,15 @@ const SpotlightModal = ({
           </button>
 
           <button
-            onClick={() => onApply({ stars: 1, points: 10 })}
+            type="button"
+            onClick={() =>
+              handleReward(
+                { stars: 1, points: 10 },
+                'loud_clear',
+                '+1 ⭐ (+10đ) 🗣️',
+                `🗣️ ${name} nói to, rõ ràng và rất tự tin! +1 ⭐ (+10đ)`
+              )
+            }
             className="flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 hover:bg-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <span className="text-2xl">🗣️</span>
@@ -2353,7 +3598,15 @@ const SpotlightModal = ({
           </button>
 
           <button
-            onClick={() => onApply({ stars: 3, points: 15, correctDelta: 1 })}
+            type="button"
+            onClick={() =>
+              handleReward(
+                { stars: 3, points: 15, correctDelta: 1 },
+                'excellent_pronunciation',
+                '+3 ⭐ (+15đ) 🌟',
+                `🌟 Tuyệt vời! ${name} phát âm cực kỳ chuẩn! +3 ⭐ (+15đ)`
+              )
+            }
             className="flex items-center gap-3 rounded-2xl border border-violet-500/40 bg-violet-500/10 p-3 hover:bg-violet-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <span className="text-2xl">🌟</span>
@@ -2364,7 +3617,15 @@ const SpotlightModal = ({
           </button>
 
           <button
-            onClick={() => onApply({ correctDelta: 1, points: 5 })}
+            type="button"
+            onClick={() =>
+              handleReward(
+                { correctDelta: 1, points: 5 },
+                'correct',
+                '+1 Đúng (+5đ) 🎯',
+                `🎯 Hoan hô! ${name} trả lời hoàn toàn chính xác! +5đ`
+              )
+            }
             className="flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-3 hover:bg-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <span className="text-2xl">✓</span>
@@ -2378,12 +3639,14 @@ const SpotlightModal = ({
         {/* Modal Controls */}
         <div className="mt-6 flex gap-2.5">
           <button
+            type="button"
             onClick={onPickAnother}
             className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-black text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <Shuffle size={16} /> Đổi bé khác
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-sm font-black text-white transition-colors cursor-pointer shadow-lg"
           >
@@ -2402,23 +3665,50 @@ const ScoringModal = ({
 }: {
   score: StudentSessionScore;
   onClose: () => void;
-  onApply: (opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number }) => void;
+  onApply: (
+    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
+    customMessage?: string
+  ) => void;
 }) => {
   const student = score.student as User;
   const name = student?.name || 'Học sinh';
+  const [recentAward, setRecentAward] = useState<string | null>(null);
+  const [awardKey, setAwardKey] = useState(0);
+
+  const handleReward = (
+    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
+    badgeText?: string,
+    customMessage?: string
+  ) => {
+    if (badgeText) {
+      setRecentAward(badgeText);
+      setAwardKey((k) => k + 1);
+    }
+    onApply(opts, actionType, customMessage);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm rounded-3xl bg-slate-900 border-2 border-white/20 p-6 shadow-2xl">
+      <div className="w-full max-w-sm rounded-3xl bg-slate-900 border-2 border-white/20 p-6 shadow-2xl relative">
         {/* Header */}
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/20 border border-teal-500/40 text-lg font-black text-teal-300">
             {initials(name)}
           </div>
-          <div>
+          <div className="relative">
+            {recentAward && (
+              <div
+                key={awardKey}
+                className="absolute -top-5 left-0 px-2.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-black text-[10px] shadow-md animate-bounce pointer-events-none"
+              >
+                {recentAward}
+              </div>
+            )}
             <h3 className="text-xl font-black text-white">{name}</h3>
             <p className="text-xs text-slate-300 font-bold mt-0.5">
-              ⭐ {score.stars} sao &bull; {score.points} điểm &bull; ✓ {score.correctCount} đúng
+              ⭐ {score.stars || 0} sao &bull; {score.points || 0} điểm &bull; ✓ {score.correctCount || 0} đúng
             </p>
           </div>
         </div>
@@ -2429,25 +3719,53 @@ const ScoringModal = ({
             label="✓ Đúng"
             sub="+5 điểm"
             color="emerald"
-            onClick={() => onApply({ correctDelta: 1, points: 5 })}
+            onClick={() =>
+              handleReward(
+                { correctDelta: 1, points: 5 },
+                'correct',
+                '+1 Đúng (+5đ)',
+                `🎯 Hoan hô! ${name} trả lời đúng!`
+              )
+            }
           />
           <ActionBtn
             label="✕ Chưa đúng"
             sub="cố gắng lần sau"
             color="rose"
-            onClick={() => onApply({ incorrectDelta: 1 })}
+            onClick={() =>
+              handleReward(
+                { incorrectDelta: 1 },
+                undefined,
+                undefined,
+                undefined
+              )
+            }
           />
           <ActionBtn
             label="⭐ +1 Sao"
-            sub="khen ngợi"
+            sub="khen ngợi (+10đ)"
             color="amber"
-            onClick={() => onApply({ stars: 1, points: 5 })}
+            onClick={() =>
+              handleReward(
+                { stars: 1, points: 10 },
+                'loud_clear',
+                '+1 ⭐ (+10đ)',
+                `🗣️ ${name} cố gắng rất tốt! +1 ⭐`
+              )
+            }
           />
           <ActionBtn
             label="🎉 +3 Sao"
-            sub="xuất sắc!"
+            sub="xuất sắc! (+15đ)"
             color="violet"
-            onClick={() => onApply({ stars: 3, points: 15 })}
+            onClick={() =>
+              handleReward(
+                { stars: 3, points: 15, correctDelta: 1 },
+                'excellent_pronunciation',
+                '+3 ⭐ (+15đ)',
+                `🌟 Xuất sắc! Thưởng ${name} 3 sao vàng!`
+              )
+            }
           />
         </div>
 
@@ -2455,8 +3773,16 @@ const ScoringModal = ({
           {[5, 10, 20].map((pts) => (
             <button
               key={pts}
-              onClick={() => onApply({ points: pts })}
-              className="rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-black text-slate-300 hover:bg-white/10 cursor-pointer"
+              type="button"
+              onClick={() =>
+                handleReward(
+                  { points: pts },
+                  'applause',
+                  `+${pts}đ`,
+                  `👏 Thưởng ${pts} điểm cho ${name}!`
+                )
+              }
+              className="rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-black text-slate-300 hover:bg-white/10 cursor-pointer active:scale-95 transition-all"
             >
               +{pts} điểm
             </button>
@@ -2464,6 +3790,7 @@ const ScoringModal = ({
         </div>
 
         <button
+          type="button"
           onClick={onClose}
           className="w-full rounded-2xl border border-white/15 py-2.5 text-sm font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
         >

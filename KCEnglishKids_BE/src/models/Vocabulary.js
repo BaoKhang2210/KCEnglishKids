@@ -65,6 +65,10 @@ const vocabularySchema = new mongoose.Schema(
         ref: 'Topic'
       }
     ],
+    lesson: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lesson'
+    },
     primaryMedia: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Media'

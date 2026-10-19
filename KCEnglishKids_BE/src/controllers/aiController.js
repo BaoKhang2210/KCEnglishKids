@@ -76,6 +76,80 @@ function createAiController({ db = models, rewards = computeRewards } = {}) {
       res.json({ success: true, data: ai.evaluatePronunciation({ targetWord, spokenTranscript, ageGroup: effectiveAge }) });
     } catch (error) { next(error); }
   };
-  return { generateParentNote, evaluatePronunciation };
+
+  const generateLessonPlan = async (req, res, next) => {
+    try {
+      if (!validBody(req.body, [
+        'lessonId', 'classroomId', 'durationMinutes', 'teachingStyle',
+        'ageGroup', 'lessonTitle', 'targetTopic', 'vocabularyList', 'sentencePatterns',
+        'bookLevel', 'unitNumber', 'curriculumUnit'
+      ])) {
+        return fail(res, 400, 'Invalid lesson plan request fields.');
+      }
+
+      const { lessonId, classroomId, durationMinutes, teachingStyle } = req.body;
+      const admin = req.user.role === 'ADMIN';
+
+      let targetAge = req.body.ageGroup || '3-4';
+      let title = req.body.lessonTitle || 'English Fun';
+      let topic = req.body.targetTopic || 'General';
+      let vocab = Array.isArray(req.body.vocabularyList) ? req.body.vocabularyList : [];
+      let sentences = Array.isArray(req.body.sentencePatterns) ? req.body.sentencePatterns : [];
+
+      if (classroomId) {
+        if (!validId(classroomId)) return fail(res, 400, 'Invalid classroomId format.');
+        const classroom = await db.ClassRoom.findOne({
+          _id: classroomId,
+          ...(admin ? {} : { teacher: req.user._id })
+        }).select('ageGroupCode name');
+        if (!classroom) return fail(res, 403, 'You do not have access to this classroom.');
+        if (classroom.ageGroupCode) targetAge = classroom.ageGroupCode;
+      }
+
+      if (lessonId) {
+        if (!validId(lessonId)) return fail(res, 400, 'Invalid lessonId format.');
+        const lesson = await db.Lesson.findOne({ _id: lessonId, status: { $ne: 'DELETED' } })
+          .populate('vocabularyItems', 'english vietnamese pronunciation')
+          .populate('languageContents', 'english vietnamese')
+          .populate('topic', 'englishName vietnameseName title name');
+        if (!lesson) return fail(res, 404, 'Lesson not found.');
+
+        title = lesson.title;
+        if (lesson.topic) {
+          topic = lesson.topic.englishName || lesson.topic.vietnameseName || lesson.topic.title || lesson.topic.name || topic;
+        }
+        if (lesson.ageGroupCode && !classroomId) {
+          targetAge = lesson.ageGroupCode;
+        }
+        if (lesson.vocabularyItems?.length > 0) {
+          vocab = lesson.vocabularyItems.map(v => ({
+            english: v.english,
+            vietnamese: v.vietnamese,
+            pronunciation: v.pronunciation
+          }));
+        }
+        if (lesson.languageContents?.length > 0) {
+          sentences = lesson.languageContents.map(l => ({
+            english: l.english,
+            vietnamese: l.vietnamese
+          }));
+        }
+      }
+
+      const plan = ai.generateLessonPlan({
+        ageGroup: targetAge,
+        lessonTitle: title,
+        targetTopic: topic,
+        durationMinutes: Number(durationMinutes) || 25,
+        vocabularyList: vocab,
+        sentencePatterns: sentences,
+        teachingStyle: teachingStyle || 'active_tpr'
+      });
+
+      res.json({ success: true, data: plan });
+    } catch (error) { next(error); }
+  };
+
+  return { generateParentNote, evaluatePronunciation, generateLessonPlan };
 }
 module.exports = { ...createAiController(), createAiController };

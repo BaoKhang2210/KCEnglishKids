@@ -209,8 +209,55 @@ const computeRewards = async (childId) => {
     });
   }
 
+  const totalStars = earnedStars + bonusStars + classroomStars;
+
+  let explorerLevel = {
+    level: 1,
+    title: 'Mầm Nhí Khám Phá',
+    titleEn: 'Sprout Explorer',
+    icon: '🌱',
+    minStars: 0,
+    maxStars: 50,
+    currentStars: totalStars,
+    progressPercent: Math.min(100, Math.round((totalStars / 50) * 100))
+  };
+  if (totalStars > 300) {
+    explorerLevel = {
+      level: 4,
+      title: 'Đại Sứ Anh Ngữ Nhí',
+      titleEn: 'Master Explorer',
+      icon: '👑',
+      minStars: 300,
+      maxStars: 500,
+      currentStars: totalStars,
+      progressPercent: 100
+    };
+  } else if (totalStars > 150) {
+    explorerLevel = {
+      level: 3,
+      title: 'Bạn Nhỏ Tự Tin',
+      titleEn: 'Confident Star',
+      icon: '🦁',
+      minStars: 151,
+      maxStars: 300,
+      currentStars: totalStars,
+      progressPercent: Math.min(100, Math.round(((totalStars - 150) / 150) * 100))
+    };
+  } else if (totalStars > 50) {
+    explorerLevel = {
+      level: 2,
+      title: 'Thám Hiểm Tí Hon',
+      titleEn: 'Little Adventurer',
+      icon: '🎒',
+      minStars: 51,
+      maxStars: 150,
+      currentStars: totalStars,
+      progressPercent: Math.min(100, Math.round(((totalStars - 50) / 100) * 100))
+    };
+  }
+
   return {
-    totalStars: earnedStars + bonusStars + classroomStars,
+    totalStars,
     earnedStars,
     bonusStars,
     classroomStars,
@@ -220,7 +267,8 @@ const computeRewards = async (childId) => {
     totalLessonsAttempted: progressDocs.length,
     openedChests,
     grantedStickerIds,
-    chests
+    chests,
+    explorerLevel
   };
 };
 

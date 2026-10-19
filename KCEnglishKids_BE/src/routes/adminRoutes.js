@@ -6,6 +6,7 @@ const {
   getUsers,
   createTeacher,
   createChild,
+  bulkImportChildren,
   updateUser,
   resetChildPin,
   deleteUser,
@@ -13,15 +14,40 @@ const {
   getAuditLogs,
   toggleTopicStatus,
   getClassrooms,
+  getClassroomById,
   createClassroom,
   updateClassroom,
   deleteClassroom,
   assignStudentsToClassroom,
+  addStudentToClassroom,
+  removeStudentFromClassroom,
+  assignTeacherToClassroom,
+  importStudentsFromExcel,
+  exportClassroomExcel,
+  getUnassignedStudents,
   getDeepCurriculum,
   toggleLessonStatus,
   getAdminAnalytics,
   getSystemSettings,
-  updateSystemSettings
+  updateSystemSettings,
+  createUnit,
+  updateUnit,
+  deleteUnit,
+  createLesson,
+  updateLesson,
+  deleteLesson,
+  createVocabulary,
+  updateVocabulary,
+  deleteVocabulary,
+  getSentencePatterns,
+  createSentencePattern,
+  updateSentencePattern,
+  deleteSentencePattern,
+  getSchedules,
+  createSchedule,
+  updateSchedule,
+  deleteSchedule,
+  getTeacherSchedule
 } = require('../controllers/adminController');
 const { getRewardsSummary } = require('../controllers/rewardController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
@@ -30,17 +56,49 @@ router.get('/dashboard', protect, authorize('ADMIN'), getDashboardStats);
 router.get('/curriculum', protect, authorize('ADMIN'), getCurriculum);
 router.get('/curriculum/deep', protect, authorize('ADMIN'), getDeepCurriculum);
 
-// Classroom Management (Phân chia lớp & gán giáo viên)
+// Curriculum Management (CRUD Units, Lessons, Vocabularies)
+router.post('/curriculum/units', protect, authorize('ADMIN'), createUnit);
+router.put('/curriculum/units/:id', protect, authorize('ADMIN'), updateUnit);
+router.delete('/curriculum/units/:id', protect, authorize('ADMIN'), deleteUnit);
+router.post('/curriculum/lessons', protect, authorize('ADMIN'), createLesson);
+router.put('/curriculum/lessons/:id', protect, authorize('ADMIN'), updateLesson);
+router.delete('/curriculum/lessons/:id', protect, authorize('ADMIN'), deleteLesson);
+router.post('/curriculum/vocabularies', protect, authorize('ADMIN'), createVocabulary);
+router.put('/curriculum/vocabularies/:id', protect, authorize('ADMIN'), updateVocabulary);
+router.delete('/curriculum/vocabularies/:id', protect, authorize('ADMIN'), deleteVocabulary);
+
+// Sentence Patterns Management (CRUD Mẫu câu)
+router.get('/sentences', protect, authorize('ADMIN'), getSentencePatterns);
+router.post('/sentences', protect, authorize('ADMIN'), createSentencePattern);
+router.put('/sentences/:id', protect, authorize('ADMIN'), updateSentencePattern);
+router.delete('/sentences/:id', protect, authorize('ADMIN'), deleteSentencePattern);
+
+// Classroom Management (Phân chia lớp & gán giáo viên & quản lý học sinh theo lớp)
 router.get('/classrooms', protect, authorize('ADMIN'), getClassrooms);
+router.get('/classrooms/:id', protect, authorize('ADMIN'), getClassroomById);
 router.post('/classrooms', protect, authorize('ADMIN'), createClassroom);
 router.put('/classrooms/:id', protect, authorize('ADMIN'), updateClassroom);
 router.delete('/classrooms/:id', protect, authorize('ADMIN'), deleteClassroom);
 router.post('/classrooms/:id/assign-students', protect, authorize('ADMIN'), assignStudentsToClassroom);
+router.post('/classrooms/:id/students', protect, authorize('ADMIN'), addStudentToClassroom);
+router.post('/classrooms/:id/import-students-excel', protect, authorize('ADMIN'), importStudentsFromExcel);
+router.get('/classrooms/:id/export-excel', protect, authorize('ADMIN'), exportClassroomExcel);
+router.delete('/classrooms/:id/students/:studentId', protect, authorize('ADMIN'), removeStudentFromClassroom);
+router.put('/classrooms/:id/teacher', protect, authorize('ADMIN'), assignTeacherToClassroom);
+router.get('/students/unassigned', protect, authorize('ADMIN'), getUnassignedStudents);
+
+// Schedule Management (Thời Khóa Biểu)
+router.get('/schedules', protect, authorize('ADMIN'), getSchedules);
+router.post('/schedules', protect, authorize('ADMIN'), createSchedule);
+router.put('/schedules/:id', protect, authorize('ADMIN'), updateSchedule);
+router.delete('/schedules/:id', protect, authorize('ADMIN'), deleteSchedule);
+router.get('/schedules/by-teacher/:teacherId', protect, authorize('ADMIN', 'TEACHER'), getTeacherSchedule);
 
 // User Management
 router.get('/users', protect, authorize('ADMIN'), getUsers);
 router.post('/teachers', protect, authorize('ADMIN'), createTeacher);
 router.post('/children', protect, authorize('ADMIN'), createChild);
+router.post('/children/bulk-import', protect, authorize('ADMIN'), bulkImportChildren);
 router.put('/users/:id', protect, authorize('ADMIN'), updateUser);
 router.post('/users/:id/reset-pin', protect, authorize('ADMIN'), resetChildPin);
 router.delete('/users/:id', protect, authorize('ADMIN'), deleteUser);
