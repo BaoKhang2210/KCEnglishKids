@@ -2497,6 +2497,416 @@ const getTeacherSchedule = async (req, res, next) => {
   }
 };
 
+// ─── Activity & Games Management (Kho Trò chơi & Hoạt động) ─────────────────
+
+// @desc    Get all activities/games with filtering, pagination and statistics
+// @route   GET /api/admin/activities
+// @access  Private / Admin
+const getAdminActivities = async (req, res, next) => {
+  try {
+    const {
+      search,
+      activityType,
+      ageGroupCode,
+      lessonId,
+      status,
+      difficulty,
+      page = 1,
+      limit = 12
+    } = req.query;
+
+    const query = {};
+
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { title: searchRegex },
+        { vietnameseTitle: searchRegex },
+        { instructions: searchRegex }
+      ];
+    }
+
+    if (activityType && activityType !== 'ALL') {
+      query.activityType = activityType;
+    }
+
+    if (ageGroupCode && ageGroupCode !== 'ALL') {
+      query.ageGroupCode = ageGroupCode;
+    }
+
+    if (lessonId && lessonId !== 'ALL') {
+      query.lesson = lessonId;
+    }
+
+    if (status && status !== 'ALL') {
+      query.status = status;
+    }
+
+    if (difficulty && difficulty !== 'ALL') {
+      query.difficulty = Number(difficulty);
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 12));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [activities, totalCount, statsData] = await Promise.all([
+      Activity.find(query)
+        .populate({
+          path: 'lesson',
+          select: 'title ageGroupCode displayOrder curriculumUnits topic',
+          populate: [
+            { path: 'curriculumUnits', select: 'unitNumber bigQuestion bookNumber book' },
+            { path: 'topic', select: 'englishName vietnameseName' }
+          ]
+        })
+        .populate('questions.vocabulary', 'english vietnamese imageUrl audioUrl category')
+        .sort({ updatedAt: -1, order: 1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Activity.countDocuments(query),
+      Activity.aggregate([
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            active: [{ $match: { status: 'ACTIVE' } }, { $count: 'count' }],
+            inactive: [{ $match: { status: 'INACTIVE' } }, { $count: 'count' }],
+            byType: [
+              { $group: { _id: '$activityType', count: { $sum: 1 } } },
+              { $sort: { count: -1 } }
+            ],
+            byAgeGroup: [
+              { $group: { _id: '$ageGroupCode', count: { $sum: 1 } } },
+              { $sort: { _id: 1 } }
+            ]
+          }
+        }
+      ])
+    ]);
+
+    const statsFacet = statsData[0] || {};
+    const totalActivities = statsFacet.total?.[0]?.count || 0;
+    const activeCount = statsFacet.active?.[0]?.count || 0;
+    const inactiveCount = statsFacet.inactive?.[0]?.count || 0;
+    const byType = (statsFacet.byType || []).reduce((acc, curr) => {
+      acc[curr._id] = curr.count;
+      return acc;
+    }, {});
+    const byAgeGroup = (statsFacet.byAgeGroup || []).reduce((acc, curr) => {
+      acc[curr._id] = curr.count;
+      return acc;
+    }, {});
+
+    res.status(200).json({
+      success: true,
+      data: activities,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      },
+      stats: {
+        totalActivities,
+        activeCount,
+        inactiveCount,
+        byType,
+        byAgeGroup
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get single activity by ID
+// @route   GET /api/admin/activities/:id
+// @access  Private / Admin
+const getAdminActivityById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activity = await Activity.findById(id)
+      .populate({
+        path: 'lesson',
+        select: 'title ageGroupCode displayOrder curriculumUnits topic vocabularyItems',
+        populate: [
+          { path: 'curriculumUnits', select: 'unitNumber bigQuestion bookNumber' },
+          { path: 'vocabularyItems', select: 'english vietnamese imageUrl audioUrl category' }
+        ]
+      })
+      .populate('questions.vocabulary', 'english vietnamese imageUrl audioUrl category');
+
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create new activity/game
+// @route   POST /api/admin/activities
+// @access  Private / Admin
+const createAdminActivity = async (req, res, next) => {
+  try {
+    const {
+      lessonId,
+      activityType,
+      title,
+      vietnameseTitle,
+      instructions,
+      instructionAudioUrl,
+      ageGroupCode,
+      difficulty = 1,
+      questionCount,
+      timeLimit = 0,
+      pointsPerQuestion = 10,
+      starConfig = { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
+      questions = [],
+      order = 0,
+      status = 'ACTIVE'
+    } = req.body;
+
+    if (!lessonId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn bài học (Lesson) cho trò chơi.' });
+    }
+    if (!activityType) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn thể loại trò chơi.' });
+    }
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên trò chơi.' });
+    }
+
+    const lessonDoc = await Lesson.findById(lessonId);
+    if (!lessonDoc) {
+      return res.status(404).json({ success: false, message: 'Bài học không tồn tại.' });
+    }
+
+    const finalAgeCode = ageGroupCode || lessonDoc.ageGroupCode || '3-4';
+    let ageGroupDoc = await AgeGroup.findOne({ code: finalAgeCode });
+    if (!ageGroupDoc) {
+      ageGroupDoc = await AgeGroup.findOne();
+    }
+
+    const formattedQuestions = (questions || []).map((q, idx) => ({
+      promptText: q.promptText || '',
+      promptAudioUrl: q.promptAudioUrl || '',
+      promptImageUrl: q.promptImageUrl || '',
+      correctAnswer: q.correctAnswer || (q.options?.find(o => o.isCorrect)?.text || ''),
+      vocabulary: q.vocabulary || null,
+      explanation: q.explanation || '',
+      metadata: q.metadata || {},
+      options: (q.options || []).map((opt, optIdx) => ({
+        id: opt.id || `opt_${idx}_${optIdx}`,
+        text: opt.text || '',
+        vietnameseText: opt.vietnameseText || '',
+        imageUrl: opt.imageUrl || '',
+        audioUrl: opt.audioUrl || '',
+        isCorrect: Boolean(opt.isCorrect)
+      }))
+    }));
+
+    const activity = await Activity.create({
+      lesson: lessonDoc._id,
+      activityType,
+      title: title.trim(),
+      vietnameseTitle: vietnameseTitle?.trim() || '',
+      instructions: instructions?.trim() || 'Listen and choose the correct picture!',
+      instructionAudioUrl: instructionAudioUrl || '',
+      ageGroup: ageGroupDoc._id,
+      ageGroupCode: finalAgeCode,
+      difficulty: Number(difficulty) || 1,
+      questionCount: questionCount ? Number(questionCount) : (formattedQuestions.length || 4),
+      timeLimit: Number(timeLimit) || 0,
+      pointsPerQuestion: Number(pointsPerQuestion) || 10,
+      starConfig: starConfig || { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
+      questions: formattedQuestions,
+      order: Number(order) || 0,
+      status: status || 'ACTIVE'
+    });
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'CREATE',
+      targetType: 'SYSTEM',
+      targetId: activity._id,
+      details: { title: activity.title, activityType: activity.activityType, lesson: lessonDoc.title }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo trò chơi thành công!',
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update existing activity/game
+// @route   PUT /api/admin/activities/:id
+// @access  Private / Admin
+const updateAdminActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      lessonId,
+      activityType,
+      title,
+      vietnameseTitle,
+      instructions,
+      instructionAudioUrl,
+      ageGroupCode,
+      difficulty,
+      questionCount,
+      timeLimit,
+      pointsPerQuestion,
+      starConfig,
+      questions,
+      order,
+      status
+    } = req.body;
+
+    const activity = await Activity.findById(id);
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    if (title !== undefined) activity.title = title.trim();
+    if (vietnameseTitle !== undefined) activity.vietnameseTitle = vietnameseTitle.trim();
+    if (instructions !== undefined) activity.instructions = instructions.trim();
+    if (instructionAudioUrl !== undefined) activity.instructionAudioUrl = instructionAudioUrl;
+    if (activityType !== undefined) activity.activityType = activityType;
+    if (difficulty !== undefined) activity.difficulty = Number(difficulty);
+    if (timeLimit !== undefined) activity.timeLimit = Number(timeLimit);
+    if (pointsPerQuestion !== undefined) activity.pointsPerQuestion = Number(pointsPerQuestion);
+    if (order !== undefined) activity.order = Number(order);
+    if (status !== undefined) activity.status = status;
+    if (starConfig !== undefined) activity.starConfig = starConfig;
+
+    if (lessonId && lessonId !== String(activity.lesson)) {
+      const lessonDoc = await Lesson.findById(lessonId);
+      if (lessonDoc) activity.lesson = lessonDoc._id;
+    }
+
+    if (ageGroupCode) {
+      activity.ageGroupCode = ageGroupCode;
+      const agDoc = await AgeGroup.findOne({ code: ageGroupCode });
+      if (agDoc) activity.ageGroup = agDoc._id;
+    }
+
+    if (questions && Array.isArray(questions)) {
+      activity.questions = questions.map((q, idx) => ({
+        promptText: q.promptText || '',
+        promptAudioUrl: q.promptAudioUrl || '',
+        promptImageUrl: q.promptImageUrl || '',
+        correctAnswer: q.correctAnswer || (q.options?.find(o => o.isCorrect)?.text || ''),
+        vocabulary: q.vocabulary || null,
+        explanation: q.explanation || '',
+        metadata: q.metadata || {},
+        options: (q.options || []).map((opt, optIdx) => ({
+          id: opt.id || `opt_${idx}_${optIdx}`,
+          text: opt.text || '',
+          vietnameseText: opt.vietnameseText || '',
+          imageUrl: opt.imageUrl || '',
+          audioUrl: opt.audioUrl || '',
+          isCorrect: Boolean(opt.isCorrect)
+        }))
+      }));
+      activity.questionCount = questionCount !== undefined ? Number(questionCount) : activity.questions.length;
+    } else if (questionCount !== undefined) {
+      activity.questionCount = Number(questionCount);
+    }
+
+    await activity.save();
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'UPDATE',
+      targetType: 'SYSTEM',
+      targetId: activity._id,
+      details: { title: activity.title, status: activity.status }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật trò chơi thành công!',
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete activity/game
+// @route   DELETE /api/admin/activities/:id
+// @access  Private / Admin
+const deleteAdminActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activity = await Activity.findById(id);
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    const title = activity.title;
+    await Activity.findByIdAndDelete(id);
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'DELETE',
+      targetType: 'SYSTEM',
+      targetId: id,
+      details: { title }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Đã xóa trò chơi "${title}".`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle activity active/inactive status
+// @route   PATCH /api/admin/activities/:id/status
+// @access  Private / Admin
+const toggleActivityStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activity = await Activity.findById(id);
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    activity.status = activity.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    await activity.save();
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'UPDATE',
+      targetType: 'SYSTEM',
+      targetId: activity._id,
+      details: { title: activity.title, status: activity.status }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Đã ${activity.status === 'ACTIVE' ? 'kích hoạt' : 'tạm ẩn'} trò chơi "${activity.title}".`,
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getCurriculum,
@@ -2547,5 +2957,12 @@ module.exports = {
   createSchedule,
   updateSchedule,
   deleteSchedule,
-  getTeacherSchedule
+  getTeacherSchedule,
+  // Activities & Games
+  getAdminActivities,
+  getAdminActivityById,
+  createAdminActivity,
+  updateAdminActivity,
+  deleteAdminActivity,
+  toggleActivityStatus
 };

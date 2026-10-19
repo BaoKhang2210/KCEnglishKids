@@ -421,10 +421,39 @@ export const adminApi = {
     api.post('/admin/schedules', data),
   updateSchedule: (id: string, data: any) =>
     api.put(`/admin/schedules/${id}`, data),
+  getTeacherSchedule: (teacherId: string) =>
+    api.get(`/admin/schedules/by-teacher/${teacherId}`),
   deleteSchedule: (id: string) =>
     api.delete(`/admin/schedules/${id}`),
-  getTeacherSchedule: (teacherId: string) =>
-    api.get(`/admin/schedules/by-teacher/${teacherId}`)
+
+  // Activities & Games Management (Kho Trò chơi & Hoạt động)
+  getActivities: (params?: {
+    search?: string;
+    activityType?: string;
+    ageGroupCode?: string;
+    lessonId?: string;
+    status?: string;
+    difficulty?: number | string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
+    if (params?.activityType && params.activityType !== 'ALL') q.append('activityType', params.activityType);
+    if (params?.ageGroupCode && params.ageGroupCode !== 'ALL') q.append('ageGroupCode', params.ageGroupCode);
+    if (params?.lessonId && params.lessonId !== 'ALL') q.append('lessonId', params.lessonId);
+    if (params?.status && params.status !== 'ALL') q.append('status', params.status);
+    if (params?.difficulty && params.difficulty !== 'ALL') q.append('difficulty', String(params.difficulty));
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.limit) q.append('limit', String(params.limit));
+    const qs = q.toString();
+    return api.get(`/admin/activities${qs ? `?${qs}` : ''}`);
+  },
+  getActivityById: (id: string) => api.get(`/admin/activities/${id}`),
+  createActivity: (data: any) => api.post('/admin/activities', data),
+  updateActivity: (id: string, data: any) => api.put(`/admin/activities/${id}`, data),
+  deleteActivity: (id: string) => api.delete(`/admin/activities/${id}`),
+  toggleActivityStatus: (id: string) => api.patch(`/admin/activities/${id}/status`)
 };
 
 // Teacher API
