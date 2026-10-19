@@ -59,3 +59,12 @@ coverage/
 
 # Local symlinks / junctions
 server
+
+# Screenshots & test artifacts in root
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+screenshot_*.png
+flow-*.png
+child-home*.png

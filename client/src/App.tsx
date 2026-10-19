@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { RewardProvider } from './context/RewardContext';
 import { StudentLoginPage } from './pages/child/StudentLoginPage';
 import { ChildHomePage } from './pages/child/ChildHomePage';
@@ -15,8 +16,21 @@ import { SessionSummaryPage } from './dashboards/teacher/SessionSummaryPage';
 import { ClassroomSessionsList } from './dashboards/teacher/ClassroomSessionsList';
 import { SentenceTeachingPage } from './dashboards/teacher/SentenceTeachingPage';
 import { TeacherTeachingSchedule } from './dashboards/teacher/TeacherTeachingSchedule';
+import { TeacherLessonPlanner } from './dashboards/teacher/TeacherLessonPlanner';
 import { ChangePinPage } from './pages/child/ChangePinPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Admin Portal Pages
+import { AdminLoginPage } from './dashboards/admin/AdminLoginPage';
+import { AdminLayout } from './dashboards/admin/AdminLayout';
+import { AdminDashboardPage } from './dashboards/admin/AdminDashboardPage';
+import { AdminClassroomsPage } from './dashboards/admin/AdminClassroomsPage';
+import { AdminCurriculumPage } from './dashboards/admin/AdminCurriculumPage';
+import { AdminSentencesPage } from './dashboards/admin/AdminSentencesPage';
+import { AdminUsersPage } from './dashboards/admin/AdminUsersPage';
+import { AdminLogsPage } from './dashboards/admin/AdminLogsPage';
+import { AdminAnalyticsPage } from './dashboards/admin/AdminAnalyticsPage';
+import { AdminSchedulePage } from './dashboards/admin/AdminSchedulePage';
 
 // Protected Route wrapper for Child
 const ProtectedChildRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,11 +55,19 @@ const ProtectedTeacherRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   return <>{children}</>;
 };
 
+const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-slate-900" />;
+  if (!user || user.role !== 'ADMIN') return <Navigate to="/admin/login" replace />;
+  return <>{children}</>;
+};
+
 export function App() {
   return (
     <AuthProvider>
-      <RewardProvider>
-        <Router>
+      <ThemeProvider>
+        <RewardProvider>
+          <Router>
           {/* §2.3.1 — catch any render error instead of a white screen */}
           <ErrorBoundary>
           <Routes>
@@ -115,6 +137,7 @@ export function App() {
             <Route path="analytics" element={<TeacherAnalytics />} />
             <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
             <Route path="sentences" element={<SentenceTeachingPage />} />
+            <Route path="lesson-planner" element={<TeacherLessonPlanner />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
@@ -136,12 +159,29 @@ export function App() {
             element={<ProtectedTeacherRoute><SessionSummaryPage /></ProtectedTeacherRoute>}
           />
 
+          {/* Admin Routes (Curriculum, Sentence Library, Classrooms, Teachers, Users) */}
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
+            <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="classrooms" element={<AdminClassroomsPage />} />
+            <Route path="schedule" element={<AdminSchedulePage />} />
+            <Route path="curriculum" element={<AdminCurriculumPage />} />
+            <Route path="sentences" element={<AdminSentencesPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="analytics" element={<AdminAnalyticsPage />} />
+            <Route path="settings" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="audit-logs" element={<AdminLogsPage />} />
+            <Route path="logs" element={<AdminLogsPage />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
+          </Route>
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </ErrorBoundary>
         </Router>
       </RewardProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

@@ -12,6 +12,11 @@ const studentScoreSchema = new mongoose.Schema({
   correctCount: { type: Number, default: 0 },
   incorrectCount: { type: Number, default: 0 },
   notAnswered: { type: Number, default: 0 },
+  attendance: {
+    type: String,
+    enum: ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'],
+    default: 'PRESENT'
+  },
   status: {
     type: String,
     enum: ['ACTIVE', 'NEEDS_PRACTICE', 'COMPLETED'],
@@ -101,6 +106,11 @@ const classroomSessionSchema = new mongoose.Schema(
     currentActivityIndex: {
       type: Number,
       default: 0
+    },
+    // AI Pedagogical Lesson Plan (Phase 2 & Live Copilot)
+    lessonPlan: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
     },
     // Per-student scores
     studentScores: [studentScoreSchema],

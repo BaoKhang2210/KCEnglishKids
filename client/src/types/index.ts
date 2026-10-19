@@ -51,6 +51,69 @@ export interface SpeakingFeedback {
   practiceTip: string;
 }
 
+export interface LessonPlanRequest {
+  lessonId?: string;
+  classroomId?: string;
+  durationMinutes?: 15 | 25 | 35;
+  teachingStyle?: 'active_tpr' | 'story_song' | 'interactive_drills';
+  ageGroup?: AgeGroupCode;
+  lessonTitle?: string;
+  targetTopic?: string;
+  vocabularyList?: Array<{ english: string; vietnamese?: string; pronunciation?: string }>;
+  sentencePatterns?: Array<{ english: string; vietnamese?: string }>;
+}
+
+export interface LessonPlanActivity {
+  name: string;
+  durationMin: number;
+  type: string;
+  teacherTalk: string;
+  tprAction: string;
+  description: string;
+}
+
+export interface LessonPlanPhase {
+  phaseId: 'warmup' | 'presentation' | 'practice' | 'wrapup';
+  name: string;
+  durationMin: number;
+  badge: string;
+  icon: string;
+  colorTheme: 'amber' | 'teal' | 'indigo' | 'emerald';
+  goals: string[];
+  activities: LessonPlanActivity[];
+}
+
+export interface LessonPlan {
+  meta: {
+    lessonTitle: string;
+    targetTopic: string;
+    ageGroup: AgeGroupCode;
+    bookLevel: string;
+    durationMinutes: number;
+    teachingStyle: 'active_tpr' | 'story_song' | 'interactive_drills';
+    wordCount: number;
+  };
+  targetVocabulary: Array<{
+    english: string;
+    vietnamese?: string;
+    pronunciation?: string;
+    tprGesture?: string;
+    teacherPrompt?: string;
+  }>;
+  targetSentences: Array<{ english: string; vietnamese?: string }>;
+  objectives: {
+    knowledge: string[];
+    skills: string[];
+    attitudes: string[];
+  };
+  materialsNeeded: string[];
+  teacherPrepTips: string[];
+  phases: LessonPlanPhase[];
+  homeConnectPrompt: string;
+  source: 'pedagogical_engine';
+  generative: false;
+}
+
 export interface User {
   id: string;
   _id?: string;
@@ -187,6 +250,48 @@ export interface RewardChest {
   };
 }
 
+export interface ExplorerLevel {
+  level: number;
+  title: string;
+  titleEn: string;
+  icon: string;
+  minStars: number;
+  maxStars: number;
+  currentStars: number;
+  progressPercent: number;
+}
+
+export interface VocabularyCompetency {
+  totalEncountered: number;
+  masteredCount: number;
+  practicingCount: number;
+  learningCount: number;
+  masteredWords: Array<{ english: string; vietnamese?: string; imageUrl?: string }>;
+  needsReviewWords: Array<{ english: string; vietnamese?: string; imageUrl?: string; wrongCount: number }>;
+}
+
+export interface ListeningCompetency {
+  accuracyRate: number;
+  totalResponses: number;
+  correctResponses: number;
+  reactionSpeed: string;
+  status: 'EXCELLENT' | 'GOOD' | 'PRACTICE_NEEDED';
+}
+
+export interface PronunciationCompetency {
+  averageScore: number;
+  confidence: string;
+  starsEarned: number;
+}
+
+export interface StudentCompetencyReport {
+  explorerLevel: ExplorerLevel;
+  vocabularyCompetency: VocabularyCompetency;
+  listeningCompetency: ListeningCompetency;
+  pronunciationCompetency: PronunciationCompetency;
+  recommendedAction: string;
+}
+
 export interface RewardSummary {
   totalStars: number;
   earnedStars: number;
@@ -199,6 +304,7 @@ export interface RewardSummary {
   totalLessonsAttempted: number;
   grantedStickerIds: string[];
   chests: RewardChest[];
+  explorerLevel?: ExplorerLevel;
 }
 
 export interface RevealedChest {
@@ -226,6 +332,7 @@ export interface StudentSessionScore {
   incorrectCount: number;
   notAnswered: number;
   status: StudentSessionStatus;
+  attendance?: 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE';
 }
 
 export interface QuestionStudentAnswer {
@@ -255,6 +362,7 @@ export interface ClassroomSession {
   classroom: any;
   teacher: User | string;
   lesson?: Lesson | null;
+  lessonPlan?: LessonPlan | null;
   title: string;
   ageGroup: AgeGroupCode;
   status: SessionStatus;
@@ -362,4 +470,43 @@ export interface ChildStreakData {
   nextMilestone: StreakNextMilestone;
   weekDays: StreakWeekDay[];
   activeDates: string[];
+}
+
+// ─── Timetable / Schedule Management ──────────────────────────────────────────
+
+export interface ScheduleWeeklySlot {
+  _id?: string;
+  dayOfWeek: number; // 0=Chủ nhật, 1=Thứ 2, ..., 6=Thứ 7
+  startTime: string; // "08:00"
+  endTime: string;   // "08:45"
+  subjectNote?: string;
+  room?: string;
+}
+
+export interface ClassSchedule {
+  _id: string;
+  classroom: {
+    _id: string;
+    name: string;
+    ageGroupCode?: string;
+    academicYear?: string;
+    studentCount?: number;
+    isActive?: boolean;
+  } | string;
+  teacher: {
+    _id: string;
+    name: string;
+    email?: string;
+    avatar?: string;
+    avatarUrl?: string;
+    username?: string;
+  } | string;
+  academicYear: string;
+  weeklySlots: ScheduleWeeklySlot[];
+  colorTag: 'indigo' | 'emerald' | 'amber' | 'rose' | 'purple' | 'sky' | 'teal' | 'orange';
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }

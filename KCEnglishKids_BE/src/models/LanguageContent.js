@@ -49,6 +49,15 @@ const languageContentSchema = new mongoose.Schema(
         ref: 'Vocabulary'
       }
     ],
+    pairId: {
+      type: String,
+      trim: true,
+      index: true
+    },
+    relatedQuestion: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LanguageContent'
+    },
     audioMedia: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Media'

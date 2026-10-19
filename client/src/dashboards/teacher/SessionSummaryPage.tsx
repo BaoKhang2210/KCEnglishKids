@@ -12,7 +12,9 @@ import {
   Target,
   BookOpen,
   X,
-  Loader2
+  Loader2,
+  Calendar,
+  History
 } from 'lucide-react';
 import { classroomSessionApi, parentNotificationApi } from '../../services/api';
 import type { ClassroomSession, User } from '../../types';
@@ -84,8 +86,13 @@ export const SessionSummaryPage: React.FC = () => {
     typeof t === 'string' ? t : (t as User)
   );
 
+  const presentCount = scores.filter((sc) => (sc as any).attendance === 'PRESENT' || !(sc as any).attendance).length;
+  const absentCount = scores.filter((sc) => (sc as any).attendance === 'ABSENT').length;
+  const excusedCount = scores.filter((sc) => (sc as any).attendance === 'EXCUSED').length;
+  const lateCount = scores.filter((sc) => (sc as any).attendance === 'LATE').length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
+    <div className="min-h-screen teacher-dark dark bg-[#0c1222] text-slate-100">
       {/* ── Hero banner ───────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-10 text-center">
         <p className="text-5xl mb-2">🎉</p>
@@ -93,7 +100,15 @@ export const SessionSummaryPage: React.FC = () => {
         <p className="mt-2 text-emerald-100 text-lg">
           {session.title}
         </p>
-        <p className="text-sm text-emerald-200 mt-1">
+        <div className="mt-3 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold text-white shadow-xs">
+          <span>🏫 Lớp: {(session.classroom as any)?.name || 'Chưa xác định'}</span>
+          {(session.classroom as any)?.ageGroupCode && (
+            <span className="bg-white/30 px-2.5 py-0.5 rounded-full text-xs font-black">
+              {(session.classroom as any)?.ageGroupCode} tuổi
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-emerald-200 mt-2">
           {fmt(session.startedAt)}
           {session.endedAt && ` · ${duration} phút`}
         </p>
@@ -131,14 +146,39 @@ export const SessionSummaryPage: React.FC = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ── Left: Student leaderboard ─────────────────────────────────── */}
           <div className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-            <h2 className="mb-4 text-xl font-bold text-slate-900">
-              Kết quả của các bé
-            </h2>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-bold text-slate-900">
+                Kết quả của các bé ({scores.length})
+              </h2>
+              {/* Quick Attendance Summary Pills */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-xl bg-emerald-50 border border-emerald-200 px-2.5 py-1 font-bold text-emerald-700">
+                  ✓ {presentCount} có mặt
+                </span>
+                {absentCount > 0 && (
+                  <span className="rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1 font-bold text-rose-700">
+                    ✕ {absentCount} vắng
+                  </span>
+                )}
+                {excusedCount > 0 && (
+                  <span className="rounded-xl bg-amber-50 border border-amber-200 px-2.5 py-1 font-bold text-amber-700">
+                    ✉ {excusedCount} có phép
+                  </span>
+                )}
+                {lateCount > 0 && (
+                  <span className="rounded-xl bg-orange-50 border border-orange-200 px-2.5 py-1 font-bold text-orange-700">
+                    ⏰ {lateCount} muộn
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-slate-500 border-b">
                   <tr>
                     <th className="pb-3">Học sinh</th>
+                    <th className="pb-3">Chuyên cần</th>
                     <th className="pb-3">✓ Đúng</th>
                     <th className="pb-3">✕ Sai</th>
                     <th className="pb-3">Chính xác</th>
@@ -162,6 +202,9 @@ export const SessionSummaryPage: React.FC = () => {
                             ) : initials(name)}
                           </div>
                           <span className="font-medium text-slate-800">{name}</span>
+                        </td>
+                        <td className="py-3">
+                          <AttendanceBadge attendance={(sc as any).attendance || 'PRESENT'} />
                         </td>
                         <td className="py-3 text-emerald-600 font-semibold">{sc.correctCount}</td>
                         <td className="py-3 text-rose-500">{sc.incorrectCount}</td>
@@ -243,13 +286,25 @@ export const SessionSummaryPage: React.FC = () => {
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={() => setShowReportModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white shadow hover:bg-teal-700"
+            className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white shadow hover:bg-teal-700 transition-colors"
           >
             <Send size={18} /> Gửi báo cáo cho phụ huynh
           </button>
           <Link
+            to={`/teacher/classroom-sessions?classroomId=${(session.classroom as any)?._id || ''}`}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <History size={16} className="text-teal-600" /> Nhật ký buổi dạy lớp này
+          </Link>
+          <Link
+            to={`/teacher/schedule?classroomId=${(session.classroom as any)?._id || ''}`}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Calendar size={16} className="text-teal-600" /> Sổ lịch & Giáo trình
+          </Link>
+          <Link
             to={`/teacher/classes/${(session.classroom as any)?._id || ''}`}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
             <ArrowLeft size={16} /> Quay lại lớp học
           </Link>
@@ -305,6 +360,21 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+const AttendanceBadge = ({ attendance }: { attendance?: string }) => {
+  const map: Record<string, { label: string; cls: string }> = {
+    PRESENT: { label: '✓ Có mặt', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    ABSENT: { label: '✕ Vắng', cls: 'bg-rose-100 text-rose-700 border-rose-200' },
+    EXCUSED: { label: '✉ Có phép', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+    LATE: { label: '⏰ Muộn', cls: 'bg-orange-100 text-orange-700 border-orange-200' }
+  };
+  const item = map[attendance || 'PRESENT'] || map.PRESENT;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${item.cls}`}>
+      {item.label}
+    </span>
+  );
+};
+
 const InfoRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between py-1 border-t first:border-0">
     <span className="text-slate-500">{label}</span>
@@ -322,9 +392,39 @@ const ParentReportModal = ({
 }) => {
   const scores = session.studentScores || [];
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [batchNote, setBatchNote] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+
+  const PRESET_TEMPLATES = [
+    {
+      label: '🌟 Khen cả lớp làm tốt',
+      text: 'Hôm nay bé tham gia rất tích cực, hào hứng và hoàn thành tốt toàn bộ các hoạt động của buổi học!'
+    },
+    {
+      label: '🗣️ Phát âm tiến bộ',
+      text: 'Bé phát âm từ vựng to, rõ ràng và tự tin tương tác với cô giáo trong các trò chơi tiếng Anh.'
+    },
+    {
+      label: '❤️ Chăm chỉ ngoan ngoãn',
+      text: 'Bé rất ngoan, chú ý lắng nghe cô hướng dẫn và hoàn thành bài tập đầy đủ với tinh thần vui vẻ.'
+    },
+    {
+      label: '⭐ Xuất sắc nhận sao',
+      text: 'Bé hoàn thành xuất sắc các thử thách trong buổi học và nhận được nhiều ngôi sao khen thưởng từ cô!'
+    }
+  ];
+
+  const applyTemplateToAll = (text: string) => {
+    const updated: Record<string, string> = {};
+    scores.forEach((sc) => {
+      const stu = sc.student as User;
+      const studentId = typeof sc.student === 'string' ? sc.student : stu._id || stu.id || '';
+      if (studentId) updated[studentId] = text;
+    });
+    setNotes(updated);
+  };
 
   const handleSendAll = async () => {
     setSending(true);
@@ -362,11 +462,14 @@ const ParentReportModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h3 className="text-lg font-bold text-slate-900">Gửi báo cáo cho phụ huynh</h3>
-          <button onClick={onClose}>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Gửi báo cáo & Nhận xét cho phụ huynh</h3>
+            <p className="text-xs text-slate-500">Gửi thông báo kết quả buổi học đến {scores.length} phụ huynh của lớp</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 transition-colors">
             <X size={20} className="text-slate-500" />
           </button>
         </div>
@@ -374,9 +477,9 @@ const ParentReportModal = ({
         {sent ? (
           <div className="flex flex-col items-center justify-center flex-1 p-8 text-center">
             <CheckCircle2 size={64} className="text-emerald-500 mb-4" />
-            <h4 className="text-xl font-bold text-slate-900">Đã gửi báo cáo!</h4>
+            <h4 className="text-xl font-bold text-slate-900">Đã gửi báo cáo thành công!</h4>
             <p className="mt-2 text-slate-500">
-              Đã ghi nhận {scores.length} báo cáo học tập thành công.
+              Đã ghi nhận và gửi {scores.length} báo cáo học tập đến phụ huynh.
             </p>
             <button onClick={onClose} className="mt-6 rounded-xl bg-teal-600 px-6 py-2.5 font-semibold text-white">
               Hoàn tất
@@ -384,18 +487,66 @@ const ParentReportModal = ({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-auto px-6 py-4">
-              <p className="mb-4 text-sm text-slate-500">
-                Một báo cáo học tập sẽ được tạo cho mỗi bé. Cô có thể thêm nhận xét riêng cho từng bé.
-              </p>
+            <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+              {/* Batch Evaluation Templates */}
+              <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xs font-black text-teal-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <span>✨</span> Mẫu nhận xét chung cho toàn bộ học sinh (Áp dụng nhanh 1-Click)
+                  </h4>
+                  <span className="text-[11px] text-teal-700 font-semibold">
+                    {scores.length} bé
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {PRESET_TEMPLATES.map((tpl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => applyTemplateToAll(tpl.text)}
+                      className="rounded-xl border border-teal-200/80 bg-white p-2.5 text-left text-xs hover:border-teal-400 hover:shadow-xs transition-all cursor-pointer group"
+                    >
+                      <p className="font-bold text-teal-900 group-hover:text-teal-700">{tpl.label}</p>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{tpl.text}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    value={batchNote}
+                    onChange={(e) => setBatchNote(e.target.value)}
+                    placeholder="Hoặc tự soạn nhận xét chung cho cả lớp…"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                  <button
+                    type="button"
+                    disabled={!batchNote.trim()}
+                    onClick={() => {
+                      if (batchNote.trim()) {
+                        applyTemplateToAll(batchNote.trim());
+                        setBatchNote('');
+                      }
+                    }}
+                    className="rounded-xl bg-teal-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-40 transition-colors shrink-0 cursor-pointer"
+                  >
+                    Áp dụng cho tất cả
+                  </button>
+                </div>
+              </div>
 
               {error && (
-                <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 border border-rose-200">
+                <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 border border-rose-200">
                   {error}
                 </div>
               )}
 
-              <div className="space-y-3">
+              {/* Individual Students list with personalized notes */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Chi tiết nhận xét từng bé ({scores.length} bé):
+                </p>
                 {scores.map((sc, i) => {
                   const stu = sc.student as User;
                   const studentId = typeof sc.student === 'string' ? sc.student : stu._id || stu.id || '';
@@ -404,22 +555,22 @@ const ParentReportModal = ({
                   const accuracy = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
 
                   return (
-                    <div key={i} className="rounded-xl border border-slate-200 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="font-semibold text-slate-900">{name}</p>
-                        <div className="flex gap-3 text-xs text-slate-500">
-                          <span>⭐ {sc.stars}</span>
+                    <div key={i} className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 transition-colors">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="font-bold text-sm text-slate-900">{name}</p>
+                        <div className="flex gap-2.5 text-xs text-slate-500 font-semibold">
+                          <span className="text-amber-600">⭐ {sc.stars}</span>
                           <span>🎯 {accuracy}%</span>
-                          <span>✓ {sc.correctCount}</span>
+                          <span className="text-emerald-600">✓ {sc.correctCount} đúng</span>
                         </div>
                       </div>
                       <input
-                        placeholder={`Thêm nhận xét cho bé ${name.split(' ')[0]}… (không bắt buộc)`}
+                        placeholder={`Nhận xét riêng cho bé ${name.split(' ').pop()}…`}
                         value={notes[studentId] || ''}
                         onChange={(e) =>
                           setNotes((prev) => ({ ...prev, [studentId]: e.target.value }))
                         }
-                        className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-teal-400"
+                        className="w-full rounded-lg border border-slate-200 p-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-400"
                       />
                     </div>
                   );

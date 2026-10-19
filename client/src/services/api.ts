@@ -1,4 +1,11 @@
-import type { ParentNoteRequest, ParentNoteSuggestions, SpeakingRequest, SpeakingFeedback } from '../types';
+import type {
+  ParentNoteRequest,
+  ParentNoteSuggestions,
+  SpeakingRequest,
+  SpeakingFeedback,
+  LessonPlanRequest,
+  LessonPlan
+} from '../types';
 
 const BASE_URL = '/api';
 
@@ -63,12 +70,16 @@ export const api = {
   }
 };
 
-async function assistantPost<T>(endpoint: string, body: ParentNoteRequest | SpeakingRequest, signal?: AbortSignal): Promise<{ success: true; data: T }> {
+async function assistantPost<T>(
+  endpoint: string,
+  body: ParentNoteRequest | SpeakingRequest | LessonPlanRequest,
+  signal?: AbortSignal
+): Promise<{ success: true; data: T }> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) cancel();
   signal?.addEventListener('abort', cancel, { once: true });
-  const timer = setTimeout(cancel, 5000);
+  const timer = setTimeout(cancel, 30000);
   try {
     return await api.post(endpoint, body, controller.signal);
   } finally {
@@ -81,7 +92,9 @@ export const aiApi = {
   generateParentNote: (body: ParentNoteRequest, signal?: AbortSignal) =>
     assistantPost<ParentNoteSuggestions>('/ai/generate-parent-note', body, signal),
   evaluatePronunciation: (body: SpeakingRequest, signal?: AbortSignal) =>
-    assistantPost<SpeakingFeedback>('/ai/evaluate-pronunciation', body, signal)
+    assistantPost<SpeakingFeedback>('/ai/evaluate-pronunciation', body, signal),
+  generateLessonPlan: (body: LessonPlanRequest, signal?: AbortSignal) =>
+    assistantPost<LessonPlan>('/ai/generate-lesson-plan', body, signal)
 };
 
 // Auth API
@@ -196,14 +209,138 @@ export const stageProgressApi = {
 export const adminApi = {
   getDashboardStats: () => api.get('/admin/dashboard'),
   getCurriculum: () => api.get('/admin/curriculum'),
-  getUsers: (role?: string, search?: string) => {
-    const params = new URLSearchParams();
-    if (role) params.append('role', role);
-    if (search) params.append('search', search);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return api.get(`/admin/users${query}`);
+  getDeepCurriculum: () => api.get('/admin/curriculum/deep'),
+
+  // Curriculum Units, Lessons, Vocab
+  createUnit: (data: { bookNumber: number; unitNumber: number; bigQuestion: string; storyTitle?: string; ageGroupCode?: string; values?: string | string[]; concept?: string; oracy?: string; displayOrder?: number }) =>
+    api.post('/admin/curriculum/units', data),
+  updateUnit: (id: string, data: any) =>
+    api.put(`/admin/curriculum/units/${id}`, data),
+  deleteUnit: (id: string) =>
+    api.delete(`/admin/curriculum/units/${id}`),
+
+  createLesson: (data: { title: string; vietnameseTitle?: string; description?: string; topicId?: string; unitId?: string; ageGroupCode?: string; displayOrder?: number; difficulty?: number }) =>
+    api.post('/admin/curriculum/lessons', data),
+  updateLesson: (id: string, data: any) =>
+    api.put(`/admin/curriculum/lessons/${id}`, data),
+  deleteLesson: (id: string) =>
+    api.delete(`/admin/curriculum/lessons/${id}`),
+  toggleLessonStatus: (id: string) =>
+    api.patch(`/admin/lessons/${id}/status`),
+
+  createVocabulary: (data: { english: string; vietnamese: string; pronunciation?: string; category?: string; ageGroupCodes?: string[]; sourceUnits?: string[]; lessonId?: string }) =>
+    api.post('/admin/curriculum/vocabularies', data),
+  updateVocabulary: (id: string, data: any) =>
+    api.put(`/admin/curriculum/vocabularies/${id}`, data),
+  deleteVocabulary: (id: string) =>
+    api.delete(`/admin/curriculum/vocabularies/${id}`),
+
+  // Sentence Patterns (Mẫu câu)
+  getSentencePatterns: (params?: { ageGroupCode?: string; contentType?: string; unitId?: string; lessonId?: string; search?: string; page?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') q.append(k, String(v));
+      });
+    }
+    const qs = q.toString();
+    return api.get(`/admin/sentences${qs ? `?${qs}` : ''}`);
   },
-  createTeacher: (data: { name: string; username: string; email: string; password: string; contact?: string; avatar?: string }) =>
+  createSentencePattern: (data: {
+    contentType?: string;
+    english: string;
+    vietnamese?: string;
+    pronunciation?: string;
+    ageGroupCode?: string;
+    sourceUnit?: string;
+    lesson?: string;
+    difficulty?: number;
+    status?: string;
+    isPair?: boolean;
+    pairId?: string;
+    relatedQuestion?: string;
+    answers?: Array<{ english: string; vietnamese?: string; pronunciation?: string }>;
+  }) => api.post('/admin/sentences', data),
+  updateSentencePattern: (id: string, data: any) =>
+    api.put(`/admin/sentences/${id}`, data),
+  deleteSentencePattern: (id: string) =>
+    api.delete(`/admin/sentences/${id}`),
+
+  // Classrooms & Student Assignment
+  getClassrooms: () =>
+    api.get('/admin/classrooms'),
+  getClassroomById: (id: string) =>
+    api.get(`/admin/classrooms/${id}`),
+  createClassroom: (data: {
+    name: string;
+    ageGroupCode: string;
+    teacherId?: string;
+    academicYear?: string;
+    description?: string;
+    students?: Array<{
+      name: string;
+      dob?: string;
+      pin?: string;
+      contact?: string;
+      parentContact?: string;
+      notes?: string;
+      avatar?: string;
+    }>;
+  }) => api.post('/admin/classrooms', data),
+  updateClassroom: (id: string, data: any) =>
+    api.put(`/admin/classrooms/${id}`, data),
+  deleteClassroom: (id: string) =>
+    api.delete(`/admin/classrooms/${id}`),
+  assignStudentsToClassroom: (id: string, studentIds: string[]) =>
+    api.post(`/admin/classrooms/${id}/assign-students`, { studentIds }),
+  addStudentToClassroom: (id: string, studentId: string) =>
+    api.post(`/admin/classrooms/${id}/students`, { studentId }),
+  removeStudentFromClassroom: (id: string, studentId: string) =>
+    api.delete(`/admin/classrooms/${id}/students/${studentId}`),
+  assignTeacherToClassroom: (id: string, teacherId: string) =>
+    api.put(`/admin/classrooms/${id}/teacher`, { teacherId }),
+  assignTeacher: (id: string, teacherId: string) =>
+    api.put(`/admin/classrooms/${id}/teacher`, { teacherId }),
+  importStudentsFromExcel: (
+    classId: string,
+    students: Array<{
+      name: string;
+      dob?: string;
+      pin?: string;
+      contact?: string;
+      parentContact?: string;
+      notes?: string;
+      avatar?: string;
+    }>
+  ) => api.post(`/admin/classrooms/${classId}/import-students-excel`, { students }),
+  exportClassroomExcel: (id: string) =>
+    api.get(`/admin/classrooms/${id}/export-excel`),
+  getUnassignedStudents: (params?: { ageGroupCode?: string; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.ageGroupCode) q.append('ageGroupCode', params.ageGroupCode);
+    if (params?.search) q.append('search', params.search);
+    const qs = q.toString();
+    return api.get(`/admin/students/unassigned${qs ? `?${qs}` : ''}`);
+  },
+
+  // User Management
+  getUsers: (optsOrRole?: any, search?: string, page?: number, limit?: number) => {
+    const q = new URLSearchParams();
+    if (typeof optsOrRole === 'object' && optsOrRole !== null) {
+      if (optsOrRole.role && optsOrRole.role !== 'ALL') q.append('role', optsOrRole.role);
+      if (optsOrRole.search) q.append('search', optsOrRole.search);
+      if (optsOrRole.page) q.append('page', String(optsOrRole.page));
+      if (optsOrRole.limit) q.append('limit', String(optsOrRole.limit));
+    } else {
+      if (optsOrRole && optsOrRole !== 'ALL') q.append('role', optsOrRole);
+      if (search) q.append('search', search);
+      if (page) q.append('page', String(page));
+      if (limit) q.append('limit', String(limit));
+    }
+    const qs = q.toString();
+    return api.get(`/admin/users${qs ? `?${qs}` : ''}`);
+  },
+  createTeacher: (data: { name: string; username: string; email: string; password: string; contact?: string; avatar?: string; assignedClass?: string }) =>
     api.post('/admin/teachers', data),
   createChild: (data: {
     name: string;
@@ -213,15 +350,81 @@ export const adminApi = {
     assignedClass?: string;
     email?: string;
     contact?: string;
+    username?: string;
     password?: string;
+    ageGroupCode?: string;
   }) =>
     api.post('/admin/children', data),
+  bulkImportChildren: (data: {
+    students: Array<{
+      name: string;
+      dob?: string;
+      pin?: string;
+      contact?: string;
+      parentContact?: string;
+      ageGroupCode?: string;
+      avatar?: string;
+    }>;
+    classroomId?: string;
+    defaultAgeGroupCode?: string;
+  }) => api.post('/admin/children/bulk-import', data),
+  updateUser: (id: string, data: any) =>
+    api.put(`/admin/users/${id}`, data),
+  deleteUser: (id: string) =>
+    api.delete(`/admin/users/${id}`),
+  resetChildPin: (id: string, pin: string) =>
+    api.post(`/admin/users/${id}/reset-pin`, { pin }),
   toggleUserStatus: (id: string) =>
     api.patch(`/admin/users/${id}/status`),
-  getAuditLogs: () =>
-    api.get('/admin/audit-logs'),
+
+  // Audit Logs & Settings
+  getAuditLogs: (params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    targetType?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.limit) q.append('limit', String(params.limit));
+    if (params?.action && params.action !== 'ALL') q.append('action', params.action);
+    if (params?.targetType && params.targetType !== 'ALL') q.append('targetType', params.targetType);
+    if (params?.search) q.append('search', params.search);
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString();
+    return api.get(`/admin/audit-logs${qs ? `?${qs}` : ''}`);
+  },
+  getAnalytics: () =>
+    api.get('/admin/analytics/overview'),
+  getSettings: () =>
+    api.get('/admin/settings'),
+  updateSettings: (data: any) =>
+    api.put('/admin/settings', data),
   toggleTopicStatus: (id: string) =>
-    api.patch(`/admin/topics/${id}/status`)
+    api.patch(`/admin/topics/${id}/status`),
+
+  // Schedule Management (Thời Khóa Biểu)
+  getSchedules: (params?: { classroomId?: string; teacherId?: string; academicYear?: string; isActive?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.classroomId) q.append('classroomId', params.classroomId);
+    if (params?.teacherId) q.append('teacherId', params.teacherId);
+    if (params?.academicYear) q.append('academicYear', params.academicYear);
+    if (params?.isActive !== undefined) q.append('isActive', String(params.isActive));
+    const qs = q.toString();
+    return api.get(`/admin/schedules${qs ? `?${qs}` : ''}`);
+  },
+  createSchedule: (data: any) =>
+    api.post('/admin/schedules', data),
+  updateSchedule: (id: string, data: any) =>
+    api.put(`/admin/schedules/${id}`, data),
+  deleteSchedule: (id: string) =>
+    api.delete(`/admin/schedules/${id}`),
+  getTeacherSchedule: (teacherId: string) =>
+    api.get(`/admin/schedules/by-teacher/${teacherId}`)
 };
 
 // Teacher API
@@ -233,7 +436,22 @@ export const teacherApi = {
   getEligibleStudents: (id: string, search?: string) => api.get(`/teacher/classes/${id}/eligible-students${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   addStudents: (id: string, studentIds: string[]) => api.post(`/teacher/classes/${id}/students`, { studentIds }),
   removeStudent: (id: string, studentId: string) => api.delete(`/teacher/classes/${id}/students/${studentId}`),
-  getStudents: (search?: string) => api.get(`/teacher/students${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  getClassAttendance: (id: string, date?: string) =>
+    api.get(`/teacher/classes/${id}/attendance${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  saveClassAttendance: (id: string, data: { date?: string; records: any[]; note?: string }) =>
+    api.post(`/teacher/classes/${id}/attendance`, data),
+  getStudents: (params?: { search?: string; classRoomId?: string } | string) => {
+    let qs = '';
+    if (typeof params === 'string') {
+      qs = params ? `?search=${encodeURIComponent(params)}` : '';
+    } else if (params) {
+      const q = new URLSearchParams();
+      if (params.search) q.append('search', params.search);
+      if (params.classRoomId) q.append('classRoomId', params.classRoomId);
+      qs = q.toString() ? `?${q.toString()}` : '';
+    }
+    return api.get(`/teacher/students${qs}`);
+  },
   getStudentOverview: (studentId: string) => api.get(`/teacher/students/${studentId}/overview`),
   getStudentHistory: (studentId: string) => api.get(`/teacher/students/${studentId}/history`),
   getStudentNotes: (studentId: string) => api.get(`/teacher/students/${studentId}/notes`),
@@ -268,6 +486,8 @@ export const teacherApi = {
     const query = ageGroupCode ? `?ageGroupCode=${ageGroupCode}` : '';
     return api.get(`/teacher/curriculum-options${query}`);
   },
+  getMySchedule: () =>
+    api.get('/teacher/my-schedule'),
   getContent: (params = '') => api.get(`/teacher/content${params ? `?${params}` : ''}`),
   getLesson: (id: string) => api.get(`/teacher/lessons/${id}`),
   getActivity: (id: string) => api.get(`/teacher/activities/${id}`),
@@ -292,6 +512,10 @@ export const classroomSessionApi = {
     plannedDuration?: number;
     sessionNumber?: number;
     includeWarmup?: boolean;
+    lessonPlan?: any;
+    attendanceRecords?: any[];
+    attendanceDate?: string;
+    attendanceNote?: string;
   }) => api.post('/teacher/classroom-sessions', data),
   getSession: (id: string) => api.get(`/teacher/classroom-sessions/${id}`),
   startSession: (id: string) =>
@@ -442,3 +666,4 @@ export const streakApi = {
   testStreakLevel: (childId: string, streak: number) =>
     api.post(`/children/${childId}/streak/test-level`, { streak })
 };
+

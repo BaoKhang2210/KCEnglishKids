@@ -14,6 +14,8 @@ router.get('/classes/:id/eligible-students', c.getEligibleStudents);
 router.get('/classes/:id/students', c.getClassDetail);
 router.post('/classes/:id/students', c.addStudents);
 router.delete('/classes/:id/students/:studentId', c.removeStudent);
+router.get('/classes/:id/attendance', c.getClassAttendance);
+router.post('/classes/:id/attendance', c.saveClassAttendance);
 
 router.get('/content', c.getContent);
 router.get('/curriculum-options', c.getCurriculumOptions);
@@ -47,6 +49,9 @@ router.post('/parent-notifications', pn.sendNotification);
 router.post('/parent-notifications/bulk', pn.sendBulkNotifications);
 router.get('/parent-notifications/child/:childId', pn.getChildNotifications);
 router.post('/parent-notifications/:id/reply', pn.replyAsTeacher);
+
+// Teacher Schedule (Thời Khóa Biểu cá nhân do Admin sắp lịch)
+router.get('/my-schedule', c.getMySchedule);
 
 module.exports = router;
 

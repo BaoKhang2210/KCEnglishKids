@@ -5,8 +5,10 @@ const {
   User,
   Lesson,
   Activity,
-  VocabularyMastery
+  VocabularyMastery,
+  Attendance
 } = require('../models');
+const aiService = require('../services/aiService');
 
 const validId = (id) => mongoose.isValidObjectId(id);
 const bad = (res, msg) => res.status(400).json({ success: false, message: msg });
@@ -35,25 +37,103 @@ const ownClass = async (req, classId) => {
   return ClassRoom.findOne(query);
 };
 
+const computeSessionSummary = (session) => {
+  const scores = session.studentScores || [];
+  const participated = scores.filter(
+    (s) => s.correctCount + s.incorrectCount > 0
+  );
+  const totalAnswered = participated.reduce(
+    (n, s) => n + s.correctCount + s.incorrectCount,
+    0
+  );
+  const totalCorrect = participated.reduce(
+    (n, s) => n + s.correctCount,
+    0
+  );
+  const avgAccuracy =
+    totalAnswered > 0
+      ? Math.round((totalCorrect / totalAnswered) * 100)
+      : 0;
+
+  const needsPractice = scores
+    .filter((s) => {
+      const ans = s.correctCount + s.incorrectCount;
+      if (ans === 0) return true;
+      return s.correctCount / ans < 0.5;
+    })
+    .map((s) => s.student);
+
+  const top = [...scores]
+    .sort((a, b) => b.stars - a.stars || b.points - a.points)
+    .slice(0, 3)
+    .map((s) => s.student);
+
+  session.summary = {
+    participationCount: participated.length,
+    averageAccuracy: avgAccuracy,
+    totalStars: scores.reduce((n, s) => n + s.stars, 0),
+    totalPoints: scores.reduce((n, s) => n + s.points, 0),
+    studentsNeedingPractice: needsPractice,
+    topPerformers: top
+  };
+
+  for (const s of session.studentScores) {
+    const ans = s.correctCount + s.incorrectCount;
+    if (ans === 0) {
+      s.status = 'ACTIVE';
+    } else {
+      const acc = s.correctCount / ans;
+      s.status = acc >= 0.8 ? 'COMPLETED' : acc < 0.5 ? 'NEEDS_PRACTICE' : 'ACTIVE';
+    }
+  }
+};
+
+const autoEndOverdueLiveSessions = async (teacherFilter = {}) => {
+  try {
+    const now = Date.now();
+    const liveSessions = await ClassroomSession.find({
+      status: 'LIVE',
+      ...teacherFilter
+    });
+
+    for (const session of liveSessions) {
+      const plannedMin = Number(session.plannedDuration) || 45;
+      // Allow plannedDuration + 30 minutes leeway, max 90 minutes
+      const maxAllowedMs = Math.max(plannedMin + 30, 75) * 60 * 1000;
+      const startMs = new Date(session.startedAt || session.createdAt).getTime();
+
+      if (now - startMs > maxAllowedMs) {
+        session.status = 'COMPLETED';
+        session.endedAt = new Date(startMs + plannedMin * 60 * 1000);
+        computeSessionSummary(session);
+        await session.save();
+      }
+    }
+  } catch (err) {
+    console.warn('Auto-end overdue sessions warning:', err);
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/teacher/classroom-sessions
 // List sessions for the logged-in teacher (or all for ADMIN)
 // ─────────────────────────────────────────────────────────────────────────────
 exports.getSessions = async (req, res, next) => {
   try {
-    // Auto cleanup stale/inactive sessions (SCHEDULED or LIVE older than 24 hours)
+    const teacherFilter = req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
+
+    // Auto cleanup stale/inactive sessions and auto-complete overdue LIVE sessions
+    await autoEndOverdueLiveSessions(teacherFilter);
+
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const deleteFilter = {
-      status: { $in: ['SCHEDULED', 'LIVE'] },
-      updatedAt: { $lt: twentyFourHoursAgo }
+      status: 'SCHEDULED',
+      updatedAt: { $lt: twentyFourHoursAgo },
+      ...teacherFilter
     };
-    if (req.user.role !== 'ADMIN') {
-      deleteFilter.teacher = req.user._id;
-    }
     await ClassroomSession.deleteMany(deleteFilter);
 
-    const q =
-      req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
+    const q = req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
     if (req.query.status) q.status = req.query.status;
     if (req.query.classroomId) q.classroom = req.query.classroomId;
 
@@ -85,7 +165,7 @@ exports.getSessions = async (req, res, next) => {
 exports.createSession = async (req, res, next) => {
   try {
     const classroomId = req.body.classroomId || req.body.classRoomId;
-    const { lessonId, title, activityIds, plannedDuration, sessionNumber, includeWarmup } = req.body;
+    const { lessonId, title, activityIds, plannedDuration, sessionNumber, includeWarmup, lessonPlan } = req.body;
 
     if (!validId(classroomId))
       return bad(res, 'Valid classroomId is required.');
@@ -96,10 +176,31 @@ exports.createSession = async (req, res, next) => {
 
     // Verify lesson exists (optional)
     let lesson = null;
+    let initialPlan = lessonPlan || null;
     if (lessonId) {
       if (!validId(lessonId)) return bad(res, 'Invalid lessonId.');
-      lesson = await Lesson.findOne({ _id: lessonId, status: 'ACTIVE' });
+      lesson = await Lesson.findOne({ _id: lessonId, status: 'ACTIVE' })
+        .populate('vocabularyItems', 'english vietnamese pronunciation')
+        .populate('languageContents', 'english vietnamese')
+        .populate('topic', 'englishName vietnameseName title name');
       if (!lesson) return bad(res, 'Lesson not found or inactive.');
+
+      if (!initialPlan) {
+        try {
+          const topicName = lesson.topic?.englishName || lesson.topic?.vietnameseName || lesson.topic?.title || 'General';
+          initialPlan = aiService.generateLessonPlan({
+            ageGroup: classroom.ageGroupCode || lesson.ageGroupCode || '3-4',
+            lessonTitle: lesson.title,
+            targetTopic: topicName,
+            durationMinutes: plannedDuration === 15 ? 15 : plannedDuration === 35 ? 35 : 25,
+            vocabularyList: lesson.vocabularyItems || [],
+            sentencePatterns: lesson.languageContents || [],
+            teachingStyle: 'active_tpr'
+          });
+        } catch (err) {
+          console.warn('Could not auto-generate plan for session:', err);
+        }
+      }
     }
 
     // Validate activity IDs (optional)
@@ -113,16 +214,54 @@ exports.createSession = async (req, res, next) => {
       resolvedActivities = resolvedActivities.map((a) => a._id);
     }
 
-    // Initialise per-student score rows
-    const studentScores = classroom.students.map((s) => ({
-      student: s,
-      points: 0,
-      stars: 0,
-      correctCount: 0,
-      incorrectCount: 0,
-      notAnswered: 0,
-      status: 'ACTIVE'
-    }));
+    // Initialise per-student score rows with attendance from pre-session check-in
+    const attendanceMap = new Map();
+    if (Array.isArray(req.body.attendanceRecords) && req.body.attendanceRecords.length > 0) {
+      req.body.attendanceRecords.forEach((r) => {
+        const sId = String(r.student?._id || r.student || r.studentId || '');
+        if (sId) {
+          attendanceMap.set(sId, ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'].includes(r.status) ? r.status : 'PRESENT');
+        }
+      });
+
+      // Also persist to Attendance collection for today
+      try {
+        const todayStr = req.body.attendanceDate || new Date().toISOString().split('T')[0];
+        const validRecs = req.body.attendanceRecords.map((r) => ({
+          student: r.student?._id || r.student || r.studentId,
+          status: ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'].includes(r.status) ? r.status : 'PRESENT',
+          note: String(r.note || '').trim()
+        }));
+        await Attendance.findOneAndUpdate(
+          { classroom: classroomId, date: todayStr },
+          {
+            classroom: classroomId,
+            teacher: req.user._id,
+            date: todayStr,
+            records: validRecs,
+            note: req.body.attendanceNote || ''
+          },
+          { upsert: true, new: true, runValidators: true }
+        );
+      } catch (attErr) {
+        console.warn('Could not auto-sync attendance on session create:', attErr);
+      }
+    }
+
+    const studentScores = classroom.students.map((s) => {
+      const sId = String(s._id || s);
+      const att = attendanceMap.get(sId) || 'PRESENT';
+      return {
+        student: s,
+        points: 0,
+        stars: 0,
+        correctCount: 0,
+        incorrectCount: 0,
+        notAnswered: 0,
+        attendance: att,
+        status: 'ACTIVE'
+      };
+    });
 
     const session = await ClassroomSession.create({
       classroom: classroomId,
@@ -136,6 +275,7 @@ exports.createSession = async (req, res, next) => {
       includeWarmup: includeWarmup !== false,
       activities: resolvedActivities,
       currentActivityIndex: 0,
+      lessonPlan: initialPlan,
       studentScores
     });
 
@@ -155,6 +295,19 @@ exports.getSession = async (req, res, next) => {
   try {
     const session = await ownSession(req, req.params.id);
     if (!session) return notFound(res, 'Session not found.');
+
+    // Auto-complete if session was LIVE and has exceeded maximum allowed duration
+    if (session.status === 'LIVE') {
+      const plannedMin = Number(session.plannedDuration) || 45;
+      const maxAllowedMs = Math.max(plannedMin + 30, 75) * 60 * 1000;
+      const startMs = new Date(session.startedAt || session.createdAt).getTime();
+      if (Date.now() - startMs > maxAllowedMs) {
+        session.status = 'COMPLETED';
+        session.endedAt = new Date(startMs + plannedMin * 60 * 1000);
+        computeSessionSummary(session);
+        await session.save();
+      }
+    }
 
     await session.populate('classroom', 'name ageGroupCode');
     await session.populate('teacher', 'name avatar avatarUrl');
@@ -214,62 +367,17 @@ exports.endSession = async (req, res, next) => {
   try {
     const session = await ownSession(req, req.params.id);
     if (!session) return notFound(res, 'Session not found.');
-    if (session.status === 'COMPLETED')
-      return bad(res, 'Session is already completed.');
+    if (session.status === 'COMPLETED') {
+      await session.populate('studentScores.student', 'name avatar avatarUrl');
+      await session.populate('summary.studentsNeedingPractice', 'name avatar');
+      await session.populate('summary.topPerformers', 'name avatar');
+      return res.json({ success: true, data: session, message: 'Session is already completed.' });
+    }
 
     session.status = 'COMPLETED';
     session.endedAt = new Date();
 
-    // ── Build summary ────────────────────────────────────────────────────────
-    const scores = session.studentScores;
-    const participated = scores.filter(
-      (s) => s.correctCount + s.incorrectCount > 0
-    );
-    const totalAnswered = participated.reduce(
-      (n, s) => n + s.correctCount + s.incorrectCount,
-      0
-    );
-    const totalCorrect = participated.reduce(
-      (n, s) => n + s.correctCount,
-      0
-    );
-    const avgAccuracy =
-      totalAnswered > 0
-        ? Math.round((totalCorrect / totalAnswered) * 100)
-        : 0;
-
-    // Mark students needing practice (< 50% accuracy OR no participation)
-    const needsPractice = scores
-      .filter((s) => {
-        const ans = s.correctCount + s.incorrectCount;
-        if (ans === 0) return true;
-        return s.correctCount / ans < 0.5;
-      })
-      .map((s) => s.student);
-
-    // Top performers (stars desc, take top 3)
-    const top = [...scores]
-      .sort((a, b) => b.stars - a.stars || b.points - a.points)
-      .slice(0, 3)
-      .map((s) => s.student);
-
-    session.summary = {
-      participationCount: participated.length,
-      averageAccuracy: avgAccuracy,
-      totalStars: scores.reduce((n, s) => n + s.stars, 0),
-      totalPoints: scores.reduce((n, s) => n + s.points, 0),
-      studentsNeedingPractice: needsPractice,
-      topPerformers: top
-    };
-
-    // Update student status flags
-    for (const s of session.studentScores) {
-      const ans = s.correctCount + s.incorrectCount;
-      if (ans === 0) { s.status = 'NEEDS_PRACTICE'; continue; }
-      const acc = s.correctCount / ans;
-      s.status = acc >= 0.8 ? 'COMPLETED' : acc < 0.5 ? 'NEEDS_PRACTICE' : 'ACTIVE';
-    }
-
+    computeSessionSummary(session);
     await session.save();
 
     await session.populate('studentScores.student', 'name avatar avatarUrl');
