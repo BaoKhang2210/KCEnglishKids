@@ -686,7 +686,9 @@ export const parentNotificationApi = {
   markAsReadByParent: (childId: string, id: string) =>
     api.patch(`/children/${childId}/parent-notifications/${id}/read`, {}),
   getChildAssignments: (childId: string) =>
-    api.get(`/children/${childId}/assignments`)
+    api.get(`/children/${childId}/assignments`),
+  getChildSchedule: (childId: string) =>
+    api.get(`/children/${childId}/schedule`)
 };
 
 export const streakApi = {
