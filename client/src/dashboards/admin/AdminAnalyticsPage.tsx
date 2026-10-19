@@ -165,9 +165,14 @@ export const AdminAnalyticsPage: React.FC = () => {
                       <p className="text-[10px] text-slate-400 font-medium">{st.className}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 font-black text-amber-400 text-xs">
-                    <span>{st.totalStars}</span>
-                    <Star size={13} className="fill-amber-400 text-amber-400" />
+                  <div className="text-right">
+                    <div className="flex items-center justify-end gap-1 font-black text-amber-400 text-xs">
+                      <span>{st.totalStars}</span>
+                      <Star size={13} className="fill-amber-400 text-amber-400" />
+                    </div>
+                    <span className="block text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                      Lớp: <span className="text-teal-400 font-bold">{st.classStars ?? 0}</span> • Nhà: <span className="text-purple-400 font-bold">{st.homeStars ?? 0}</span>
+                    </span>
                   </div>
                 </div>
               ))
@@ -222,10 +227,13 @@ export const AdminAnalyticsPage: React.FC = () => {
                       <td className="py-3 px-3.5 text-center font-bold text-teal-400">
                         {c.sessionCount} buổi
                       </td>
-                      <td className="py-3 px-3.5 text-center font-black text-amber-400">
-                        {c.totalStars} ⭐
+                      <td className="py-3 px-3.5 text-center">
+                        <span className="font-black text-amber-400 text-sm">{c.totalStars} ⭐</span>
+                        <span className="block text-[10px] text-slate-400 font-normal">
+                          Lớp: <span className="text-teal-400 font-semibold">{c.classSessionStars ?? c.classStars ?? 0}</span> • Nhà: <span className="text-purple-400 font-semibold">{c.homeStars ?? 0}</span>
+                        </span>
                       </td>
-                      <td className="py-3 px-3.5 text-right font-black text-indigo-400">
+                      <td className="py-3 px-3.5 text-right font-black text-indigo-400 text-sm">
                         {c.avgStarsPerStudent} ⭐
                       </td>
                     </tr>

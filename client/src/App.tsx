@@ -31,6 +31,7 @@ import { AdminUsersPage } from './dashboards/admin/AdminUsersPage';
 import { AdminLogsPage } from './dashboards/admin/AdminLogsPage';
 import { AdminAnalyticsPage } from './dashboards/admin/AdminAnalyticsPage';
 import { AdminSchedulePage } from './dashboards/admin/AdminSchedulePage';
+import { AdminGamesPage } from './dashboards/admin/AdminGamesPage';
 
 // Protected Route wrapper for Child
 const ProtectedChildRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -42,7 +43,7 @@ const ProtectedChildRoute: React.FC<{ children: React.ReactNode }> = ({ children
       </div>
     );
   }
-  if (!user || user.role !== 'CHILD') {
+  if (!user || (user.role !== 'CHILD' && user.role !== 'ADMIN' && user.role !== 'TEACHER')) {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
@@ -114,6 +115,14 @@ export function App() {
             }
           />
           <Route
+            path="/activity/:id"
+            element={
+              <ProtectedChildRoute>
+                <ActivityPlayPage />
+              </ProtectedChildRoute>
+            }
+          />
+          <Route
             path="/child/change-pin"
             element={
               <ProtectedChildRoute>
@@ -167,6 +176,7 @@ export function App() {
             <Route path="schedule" element={<AdminSchedulePage />} />
             <Route path="curriculum" element={<AdminCurriculumPage />} />
             <Route path="sentences" element={<AdminSentencesPage />} />
+            <Route path="games" element={<AdminGamesPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
             <Route path="settings" element={<Navigate to="/admin/dashboard" replace />} />

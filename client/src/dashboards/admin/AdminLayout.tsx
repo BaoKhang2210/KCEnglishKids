@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ExternalLink,
   BarChart3,
-  CalendarDays
+  CalendarDays,
+  Gamepad2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -30,6 +31,7 @@ export const AdminLayout: React.FC = () => {
     { label: 'Thời Khóa Biểu', path: '/admin/schedule', icon: CalendarDays },
     { label: 'Giáo trình & Bài học', path: '/admin/curriculum', icon: BookOpen },
     { label: 'Thư viện Mẫu câu', path: '/admin/sentences', icon: MessageSquare },
+    { label: 'Kho Trò Chơi', path: '/admin/games', icon: Gamepad2 },
     { label: 'Quản lý Tài khoản', path: '/admin/users', icon: Users },
     { label: 'Báo cáo Phân tích', path: '/admin/analytics', icon: BarChart3 },
     { label: 'Nhật ký Hoạt động', path: '/admin/audit-logs', icon: ClipboardList }

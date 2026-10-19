@@ -47,7 +47,14 @@ const {
   createSchedule,
   updateSchedule,
   deleteSchedule,
-  getTeacherSchedule
+  getTeacherSchedule,
+  // Activities & Games
+  getAdminActivities,
+  getAdminActivityById,
+  createAdminActivity,
+  updateAdminActivity,
+  deleteAdminActivity,
+  toggleActivityStatus
 } = require('../controllers/adminController');
 const { getRewardsSummary } = require('../controllers/rewardController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
@@ -55,6 +62,14 @@ const { protect, authorize } = require('../middlewares/authMiddleware');
 router.get('/dashboard', protect, authorize('ADMIN'), getDashboardStats);
 router.get('/curriculum', protect, authorize('ADMIN'), getCurriculum);
 router.get('/curriculum/deep', protect, authorize('ADMIN'), getDeepCurriculum);
+
+// Activity & Games Management (Kho Trò chơi & Hoạt động)
+router.get('/activities', protect, authorize('ADMIN'), getAdminActivities);
+router.get('/activities/:id', protect, authorize('ADMIN'), getAdminActivityById);
+router.post('/activities', protect, authorize('ADMIN'), createAdminActivity);
+router.put('/activities/:id', protect, authorize('ADMIN'), updateAdminActivity);
+router.delete('/activities/:id', protect, authorize('ADMIN'), deleteAdminActivity);
+router.patch('/activities/:id/status', protect, authorize('ADMIN'), toggleActivityStatus);
 
 // Curriculum Management (CRUD Units, Lessons, Vocabularies)
 router.post('/curriculum/units', protect, authorize('ADMIN'), createUnit);

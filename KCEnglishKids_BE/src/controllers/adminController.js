@@ -14,7 +14,8 @@ const {
   ClassroomSession,
   SystemSetting,
   LanguageContent,
-  Schedule
+  Schedule,
+  UnitCompletion
 } = require('../models');
 const XLSX = require('xlsx');
 
@@ -1210,49 +1211,98 @@ const getAdminAnalytics = async (req, res, next) => {
       classrooms,
       actResults,
       clsSessions,
+      unitCompletions,
       recentUsers
     ] = await Promise.all([
       User.countDocuments({ role: 'CHILD', status: 'ACTIVE' }),
       ClassRoom.find().populate('teacher', 'name email').populate('students', 'name avatar ageGroupCode').lean(),
       ActivityResult.find().select('score stars child createdAt').lean(),
-      ClassroomSession.find().select('sessionNumber classroom studentScores starsAwarded createdAt').lean(),
+      ClassroomSession.find().select('sessionNumber classroom studentScores summary status createdAt').lean(),
+      UnitCompletion.find().select('child rewards').lean(),
       User.find({ role: 'CHILD' }).select('name avatar ageGroupCode assignedClass streak createdAt').sort({ createdAt: -1 }).limit(10).lean()
     ]);
 
-    // Compute star distribution
-    let totalHomeStars = 0;
-    const studentStarMap = {};
+    // 1. Compute Home Stars (from ActivityResult + UnitCompletion bonus stars)
+    let totalHomeActivityStars = 0;
+    const studentHomeStarMap = {};
     for (const resItem of actResults) {
-      const s = resItem.stars || 0;
-      totalHomeStars += s;
+      const s = Number(resItem.stars) || 0;
+      totalHomeActivityStars += s;
       if (resItem.child) {
         const cid = resItem.child.toString();
-        studentStarMap[cid] = (studentStarMap[cid] || 0) + s;
+        studentHomeStarMap[cid] = (studentHomeStarMap[cid] || 0) + s;
       }
     }
 
+    let totalBonusStars = 0;
+    for (const comp of (unitCompletions || [])) {
+      const starReward = (comp.rewards || []).find(r => r.type === 'STAR');
+      const amt = starReward ? (Number(starReward.amount) || 0) : 0;
+      totalBonusStars += amt;
+      if (comp.child) {
+        const cid = comp.child.toString();
+        studentHomeStarMap[cid] = (studentHomeStarMap[cid] || 0) + amt;
+      }
+    }
+
+    const totalHomeStars = totalHomeActivityStars + totalBonusStars;
+
+    // 2. Compute Classroom Stars (from ClassroomSession.studentScores and session.summary)
     let totalClassStars = 0;
+    const studentClassStarMap = {};
     for (const session of clsSessions) {
-      totalClassStars += session.starsAwarded || 0;
-      if (session.studentScores) {
-        const entries = session.studentScores instanceof Map
-          ? Array.from(session.studentScores.entries())
-          : Object.entries(session.studentScores);
-        for (const [stId, scoreObj] of entries) {
-          const stars = typeof scoreObj === 'object' ? (scoreObj?.stars || 0) : 0;
-          studentStarMap[stId] = (studentStarMap[stId] || 0) + stars;
+      let sessionStars = 0;
+      if (Array.isArray(session.studentScores)) {
+        for (const scoreObj of session.studentScores) {
+          const stars = Number(scoreObj.stars) || 0;
+          sessionStars += stars;
+          const stId = (scoreObj.student?._id || scoreObj.student)?.toString();
+          if (stId) {
+            studentClassStarMap[stId] = (studentClassStarMap[stId] || 0) + stars;
+          }
         }
       }
+      // If studentScores didn't yield stars, fallback to summary.totalStars
+      if (sessionStars === 0 && session.summary && session.summary.totalStars) {
+        sessionStars = Number(session.summary.totalStars) || 0;
+      }
+      totalClassStars += sessionStars;
     }
 
-    // Classroom performance summary
+    // 3. Combined total stars map per student
+    const studentTotalStarMap = {};
+    const allStudentIds = new Set([...Object.keys(studentHomeStarMap), ...Object.keys(studentClassStarMap)]);
+    for (const id of allStudentIds) {
+      studentTotalStarMap[id] = (studentHomeStarMap[id] || 0) + (studentClassStarMap[id] || 0);
+    }
+
+    // 4. Classroom performance summary
     const classroomStats = classrooms.map(c => {
       const sCount = Array.isArray(c.students) ? c.students.length : 0;
       const cSessions = clsSessions.filter(cs => cs.classroom && cs.classroom.toString() === c._id.toString());
-      let classStars = 0;
-      for (const st of (c.students || [])) {
-        classStars += studentStarMap[st._id.toString()] || 0;
+
+      let classSessionStars = 0;
+      for (const cs of cSessions) {
+        let sStars = 0;
+        if (Array.isArray(cs.studentScores)) {
+          sStars = cs.studentScores.reduce((acc, sc) => acc + (Number(sc.stars) || 0), 0);
+        }
+        if (sStars === 0 && cs.summary?.totalStars) {
+          sStars = Number(cs.summary.totalStars) || 0;
+        }
+        classSessionStars += sStars;
       }
+
+      let totalStudentStars = 0;
+      let totalStudentHomeStars = 0;
+      let totalStudentClassStars = 0;
+      for (const st of (c.students || [])) {
+        const sid = st._id.toString();
+        totalStudentStars += studentTotalStarMap[sid] || 0;
+        totalStudentHomeStars += studentHomeStarMap[sid] || 0;
+        totalStudentClassStars += studentClassStarMap[sid] || 0;
+      }
+
       return {
         _id: c._id,
         name: c.name,
@@ -1260,21 +1310,36 @@ const getAdminAnalytics = async (req, res, next) => {
         teacherName: c.teacher?.name || 'Chưa phân công',
         studentCount: sCount,
         sessionCount: cSessions.length,
-        totalStars: classStars,
-        avgStarsPerStudent: sCount > 0 ? Math.round(classStars / sCount) : 0
+        totalStars: totalStudentStars,
+        classSessionStars,
+        classStars: totalStudentClassStars,
+        homeStars: totalStudentHomeStars,
+        avgStarsPerStudent: sCount > 0 ? Math.round(totalStudentStars / sCount) : 0
       };
     });
 
-    // Top 5 students
-    const studentDocs = await User.find({ role: 'CHILD', status: 'ACTIVE' }).select('name avatar ageGroupCode assignedClass').populate('assignedClass', 'name').lean();
-    const rankedStudents = studentDocs.map(st => ({
-      _id: st._id,
-      name: st.name,
-      avatar: st.avatar || 'lion',
-      ageGroupCode: st.ageGroupCode,
-      className: st.assignedClass?.name || 'Chưa vào lớp',
-      totalStars: studentStarMap[st._id.toString()] || 0
-    })).sort((a, b) => b.totalStars - a.totalStars).slice(0, 5);
+    // 5. Top 5 students
+    const studentDocs = await User.find({ role: 'CHILD', status: 'ACTIVE' })
+      .select('name avatar ageGroupCode assignedClass')
+      .populate('assignedClass', 'name')
+      .lean();
+
+    const rankedStudents = studentDocs.map(st => {
+      const cid = st._id.toString();
+      const home = studentHomeStarMap[cid] || 0;
+      const classStars = studentClassStarMap[cid] || 0;
+      const total = (studentTotalStarMap[cid] || (home + classStars)) || 0;
+      return {
+        _id: st._id,
+        name: st.name,
+        avatar: st.avatar || 'lion',
+        ageGroupCode: st.ageGroupCode,
+        className: st.assignedClass?.name || 'Chưa vào lớp',
+        homeStars: home,
+        classStars,
+        totalStars: total
+      };
+    }).sort((a, b) => b.totalStars - a.totalStars).slice(0, 5);
 
     res.status(200).json({
       success: true,
@@ -2497,6 +2562,416 @@ const getTeacherSchedule = async (req, res, next) => {
   }
 };
 
+// ─── Activity & Games Management (Kho Trò chơi & Hoạt động) ─────────────────
+
+// @desc    Get all activities/games with filtering, pagination and statistics
+// @route   GET /api/admin/activities
+// @access  Private / Admin
+const getAdminActivities = async (req, res, next) => {
+  try {
+    const {
+      search,
+      activityType,
+      ageGroupCode,
+      lessonId,
+      status,
+      difficulty,
+      page = 1,
+      limit = 12
+    } = req.query;
+
+    const query = {};
+
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { title: searchRegex },
+        { vietnameseTitle: searchRegex },
+        { instructions: searchRegex }
+      ];
+    }
+
+    if (activityType && activityType !== 'ALL') {
+      query.activityType = activityType;
+    }
+
+    if (ageGroupCode && ageGroupCode !== 'ALL') {
+      query.ageGroupCode = ageGroupCode;
+    }
+
+    if (lessonId && lessonId !== 'ALL') {
+      query.lesson = lessonId;
+    }
+
+    if (status && status !== 'ALL') {
+      query.status = status;
+    }
+
+    if (difficulty && difficulty !== 'ALL') {
+      query.difficulty = Number(difficulty);
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 12));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [activities, totalCount, statsData] = await Promise.all([
+      Activity.find(query)
+        .populate({
+          path: 'lesson',
+          select: 'title ageGroupCode displayOrder curriculumUnits topic',
+          populate: [
+            { path: 'curriculumUnits', select: 'unitNumber bigQuestion bookNumber book' },
+            { path: 'topic', select: 'englishName vietnameseName' }
+          ]
+        })
+        .populate('questions.vocabulary', 'english vietnamese imageUrl audioUrl category')
+        .sort({ updatedAt: -1, order: 1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Activity.countDocuments(query),
+      Activity.aggregate([
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            active: [{ $match: { status: 'ACTIVE' } }, { $count: 'count' }],
+            inactive: [{ $match: { status: 'INACTIVE' } }, { $count: 'count' }],
+            byType: [
+              { $group: { _id: '$activityType', count: { $sum: 1 } } },
+              { $sort: { count: -1 } }
+            ],
+            byAgeGroup: [
+              { $group: { _id: '$ageGroupCode', count: { $sum: 1 } } },
+              { $sort: { _id: 1 } }
+            ]
+          }
+        }
+      ])
+    ]);
+
+    const statsFacet = statsData[0] || {};
+    const totalActivities = statsFacet.total?.[0]?.count || 0;
+    const activeCount = statsFacet.active?.[0]?.count || 0;
+    const inactiveCount = statsFacet.inactive?.[0]?.count || 0;
+    const byType = (statsFacet.byType || []).reduce((acc, curr) => {
+      acc[curr._id] = curr.count;
+      return acc;
+    }, {});
+    const byAgeGroup = (statsFacet.byAgeGroup || []).reduce((acc, curr) => {
+      acc[curr._id] = curr.count;
+      return acc;
+    }, {});
+
+    res.status(200).json({
+      success: true,
+      data: activities,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      },
+      stats: {
+        totalActivities,
+        activeCount,
+        inactiveCount,
+        byType,
+        byAgeGroup
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get single activity by ID
+// @route   GET /api/admin/activities/:id
+// @access  Private / Admin
+const getAdminActivityById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activity = await Activity.findById(id)
+      .populate({
+        path: 'lesson',
+        select: 'title ageGroupCode displayOrder curriculumUnits topic vocabularyItems',
+        populate: [
+          { path: 'curriculumUnits', select: 'unitNumber bigQuestion bookNumber' },
+          { path: 'vocabularyItems', select: 'english vietnamese imageUrl audioUrl category' }
+        ]
+      })
+      .populate('questions.vocabulary', 'english vietnamese imageUrl audioUrl category');
+
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create new activity/game
+// @route   POST /api/admin/activities
+// @access  Private / Admin
+const createAdminActivity = async (req, res, next) => {
+  try {
+    const {
+      lessonId,
+      activityType,
+      title,
+      vietnameseTitle,
+      instructions,
+      instructionAudioUrl,
+      ageGroupCode,
+      difficulty = 1,
+      questionCount,
+      timeLimit = 0,
+      pointsPerQuestion = 10,
+      starConfig = { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
+      questions = [],
+      order = 0,
+      status = 'ACTIVE'
+    } = req.body;
+
+    if (!lessonId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn bài học (Lesson) cho trò chơi.' });
+    }
+    if (!activityType) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn thể loại trò chơi.' });
+    }
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên trò chơi.' });
+    }
+
+    const lessonDoc = await Lesson.findById(lessonId);
+    if (!lessonDoc) {
+      return res.status(404).json({ success: false, message: 'Bài học không tồn tại.' });
+    }
+
+    const finalAgeCode = ageGroupCode || lessonDoc.ageGroupCode || '3-4';
+    let ageGroupDoc = await AgeGroup.findOne({ code: finalAgeCode });
+    if (!ageGroupDoc) {
+      ageGroupDoc = await AgeGroup.findOne();
+    }
+
+    const formattedQuestions = (questions || []).map((q, idx) => ({
+      promptText: q.promptText || '',
+      promptAudioUrl: q.promptAudioUrl || '',
+      promptImageUrl: q.promptImageUrl || '',
+      correctAnswer: q.correctAnswer || (q.options?.find(o => o.isCorrect)?.text || ''),
+      vocabulary: q.vocabulary || null,
+      explanation: q.explanation || '',
+      metadata: q.metadata || {},
+      options: (q.options || []).map((opt, optIdx) => ({
+        id: opt.id || `opt_${idx}_${optIdx}`,
+        text: opt.text || '',
+        vietnameseText: opt.vietnameseText || '',
+        imageUrl: opt.imageUrl || '',
+        audioUrl: opt.audioUrl || '',
+        isCorrect: Boolean(opt.isCorrect)
+      }))
+    }));
+
+    const activity = await Activity.create({
+      lesson: lessonDoc._id,
+      activityType,
+      title: title.trim(),
+      vietnameseTitle: vietnameseTitle?.trim() || '',
+      instructions: instructions?.trim() || 'Listen and choose the correct picture!',
+      instructionAudioUrl: instructionAudioUrl || '',
+      ageGroup: ageGroupDoc._id,
+      ageGroupCode: finalAgeCode,
+      difficulty: Number(difficulty) || 1,
+      questionCount: questionCount ? Number(questionCount) : (formattedQuestions.length || 4),
+      timeLimit: Number(timeLimit) || 0,
+      pointsPerQuestion: Number(pointsPerQuestion) || 10,
+      starConfig: starConfig || { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
+      questions: formattedQuestions,
+      order: Number(order) || 0,
+      status: status || 'ACTIVE'
+    });
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'CREATE',
+      targetType: 'SYSTEM',
+      targetId: activity._id,
+      details: { title: activity.title, activityType: activity.activityType, lesson: lessonDoc.title }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo trò chơi thành công!',
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update existing activity/game
+// @route   PUT /api/admin/activities/:id
+// @access  Private / Admin
+const updateAdminActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      lessonId,
+      activityType,
+      title,
+      vietnameseTitle,
+      instructions,
+      instructionAudioUrl,
+      ageGroupCode,
+      difficulty,
+      questionCount,
+      timeLimit,
+      pointsPerQuestion,
+      starConfig,
+      questions,
+      order,
+      status
+    } = req.body;
+
+    const activity = await Activity.findById(id);
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    if (title !== undefined) activity.title = title.trim();
+    if (vietnameseTitle !== undefined) activity.vietnameseTitle = vietnameseTitle.trim();
+    if (instructions !== undefined) activity.instructions = instructions.trim();
+    if (instructionAudioUrl !== undefined) activity.instructionAudioUrl = instructionAudioUrl;
+    if (activityType !== undefined) activity.activityType = activityType;
+    if (difficulty !== undefined) activity.difficulty = Number(difficulty);
+    if (timeLimit !== undefined) activity.timeLimit = Number(timeLimit);
+    if (pointsPerQuestion !== undefined) activity.pointsPerQuestion = Number(pointsPerQuestion);
+    if (order !== undefined) activity.order = Number(order);
+    if (status !== undefined) activity.status = status;
+    if (starConfig !== undefined) activity.starConfig = starConfig;
+
+    if (lessonId && lessonId !== String(activity.lesson)) {
+      const lessonDoc = await Lesson.findById(lessonId);
+      if (lessonDoc) activity.lesson = lessonDoc._id;
+    }
+
+    if (ageGroupCode) {
+      activity.ageGroupCode = ageGroupCode;
+      const agDoc = await AgeGroup.findOne({ code: ageGroupCode });
+      if (agDoc) activity.ageGroup = agDoc._id;
+    }
+
+    if (questions && Array.isArray(questions)) {
+      activity.questions = questions.map((q, idx) => ({
+        promptText: q.promptText || '',
+        promptAudioUrl: q.promptAudioUrl || '',
+        promptImageUrl: q.promptImageUrl || '',
+        correctAnswer: q.correctAnswer || (q.options?.find(o => o.isCorrect)?.text || ''),
+        vocabulary: q.vocabulary || null,
+        explanation: q.explanation || '',
+        metadata: q.metadata || {},
+        options: (q.options || []).map((opt, optIdx) => ({
+          id: opt.id || `opt_${idx}_${optIdx}`,
+          text: opt.text || '',
+          vietnameseText: opt.vietnameseText || '',
+          imageUrl: opt.imageUrl || '',
+          audioUrl: opt.audioUrl || '',
+          isCorrect: Boolean(opt.isCorrect)
+        }))
+      }));
+      activity.questionCount = questionCount !== undefined ? Number(questionCount) : activity.questions.length;
+    } else if (questionCount !== undefined) {
+      activity.questionCount = Number(questionCount);
+    }
+
+    await activity.save();
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'UPDATE',
+      targetType: 'SYSTEM',
+      targetId: activity._id,
+      details: { title: activity.title, status: activity.status }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật trò chơi thành công!',
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete activity/game
+// @route   DELETE /api/admin/activities/:id
+// @access  Private / Admin
+const deleteAdminActivity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activity = await Activity.findById(id);
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    const title = activity.title;
+    await Activity.findByIdAndDelete(id);
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'DELETE',
+      targetType: 'SYSTEM',
+      targetId: id,
+      details: { title }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Đã xóa trò chơi "${title}".`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle activity active/inactive status
+// @route   PATCH /api/admin/activities/:id/status
+// @access  Private / Admin
+const toggleActivityStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activity = await Activity.findById(id);
+    if (!activity) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
+    }
+
+    activity.status = activity.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    await activity.save();
+
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'UPDATE',
+      targetType: 'SYSTEM',
+      targetId: activity._id,
+      details: { title: activity.title, status: activity.status }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Đã ${activity.status === 'ACTIVE' ? 'kích hoạt' : 'tạm ẩn'} trò chơi "${activity.title}".`,
+      data: activity
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getCurriculum,
@@ -2547,5 +3022,12 @@ module.exports = {
   createSchedule,
   updateSchedule,
   deleteSchedule,
-  getTeacherSchedule
+  getTeacherSchedule,
+  // Activities & Games
+  getAdminActivities,
+  getAdminActivityById,
+  createAdminActivity,
+  updateAdminActivity,
+  deleteAdminActivity,
+  toggleActivityStatus
 };
