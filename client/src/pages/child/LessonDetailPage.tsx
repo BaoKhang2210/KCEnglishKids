@@ -10,7 +10,6 @@ import type { Lesson } from '../../types';
 import { sfx } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
 import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2PracticeFlow';
-import { UnitReviewStage } from '../../components/child/lesson/UnitReviewStage';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer';
 import { Stage3ArcadeHub } from '../../components/child/lesson/Stage3ArcadeHub';
@@ -22,7 +21,7 @@ export const LessonDetailPage: React.FC = () => {
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeStage, setActiveStage] = useState<1 | 2 | 3 | 4>(1);
+  const [activeStage, setActiveStage] = useState<1 | 2 | 3>(1);
   const [lockNotice, setLockNotice] = useState<string | null>(null);
   const [showParentDrawer, setShowParentDrawer] = useState(false);
 
@@ -130,10 +129,6 @@ export const LessonDetailPage: React.FC = () => {
   const isStage3Completed =
     finalGames.length === 0 || finalGames.every((a: any) => a.completed);
 
-  const isStage4Completed =
-    localStorage.getItem(`kc_stage4_${childId}_${id}`) === 'true' ||
-    isStage3Completed;
-
   const completedGamesCount = finalGames.filter((a: any) => a.completed).length;
   const resumeGame = finalGames.find((a: any) => !a.completed) || finalGames[0];
 
@@ -164,7 +159,7 @@ export const LessonDetailPage: React.FC = () => {
     lockNoticeTimer.current = setTimeout(() => setLockNotice(null), 5000);
   };
 
-  const handleSelectStage = (stage: 1 | 2 | 3 | 4) => {
+  const handleSelectStage = (stage: 1 | 2 | 3) => {
     if (stage >= 2 && !isStage1Completed) {
       showKokoLockNotice(
         'Bé hãy khám phá ít nhất 4 hình ở Chặng 1 trước đã nhé! 🔍',
@@ -176,13 +171,6 @@ export const LessonDetailPage: React.FC = () => {
       showKokoLockNotice(
         'Bé hoàn thành bài Luyện tập Chặng 2 thì mở được Thử thách Game nha! 🎯',
         'Bé ơi, hoàn thành bài luyện tập ở Chặng 2 đã rồi chơi game nhé!'
-      );
-      return;
-    }
-    if (stage === 4 && !isStage3Completed) {
-      showKokoLockNotice(
-        'Bé hãy hoàn thành các trò chơi ở Chặng 3 để mở khóa Ôn tập nhé! 🏆',
-        'Bé ơi, chơi hết các mini game ở Chặng 3 để vào Chặng 4 nhé!'
       );
       return;
     }
@@ -216,82 +204,81 @@ export const LessonDetailPage: React.FC = () => {
       .catch(err => console.warn('Stage 2 sync failed — kept offline:', err));
   };
 
-  const handleCompleteStage4 = () => {
-    sfx.playSuccess();
-    localStorage.setItem(`kc_stage4_${childId}_${id}`, 'true');
-    navigate('/');
-  };
-
   const topicIcon = (lesson as any)?.topic?.icon || '🌟';
 
-  // Stage dot colors
-  const stageDotColors: Record<number, { active: string; icon: string }> = {
-    1: { active: 'bg-emerald-500 ring-emerald-300', icon: '🔍' },
-    2: { active: 'bg-sky-500 ring-sky-300', icon: '📖' },
-    3: { active: 'bg-purple-500 ring-purple-300', icon: '🎮' },
-    4: { active: 'bg-amber-500 ring-amber-300', icon: '🏆' },
+  // Stage metadata with clear text names for children
+  const stageInfo: Record<number, { active: string; icon: string; name: string }> = {
+    1: { active: 'bg-emerald-500 ring-emerald-300', icon: '🔍', name: 'Khám phá' },
+    2: { active: 'bg-sky-500 ring-sky-300', icon: '📖', name: 'Luyện tập' },
+    3: { active: 'bg-purple-500 ring-purple-300', icon: '🎮', name: 'Vui chơi' },
   };
 
-  const stageCompletedMap = [
-    isStage1Completed, isStage2Completed, isStage3Completed, isStage4Completed
-  ];
+  const stageCompletedMap = [isStage1Completed, isStage2Completed, isStage3Completed];
   const stageLockedMap = [
     false,
     !isStage1Completed,
     !isStage2Completed,
-    !isStage3Completed,
   ];
 
-  // Compact 1-row TitleBar with stage dots + parent button
+  // Centered 3-Stage Navigation Bar with clear text labels
   const titleBarElement = (
-    <div className="w-full flex items-center gap-2 bg-white/90 backdrop-blur-xs px-3 sm:px-4 py-1.5 rounded-2xl border-2 border-amber-200/80 shadow-2xs">
-      {/* Back */}
-      <button
-        onClick={() => { sfx.playPop(); navigate(-1); }}
-        aria-label="Quay lại"
-        className="w-11 h-11 rounded-xl bg-slate-50 hover:bg-amber-100 border-2 border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0"
-      >
-        <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
-      </button>
+    <div className="w-full flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md px-2.5 sm:px-4 py-1.5 rounded-2xl border-2 border-amber-200/80 shadow-2xs">
+      {/* LEFT: Back button + Lesson title */}
+      <div className="flex items-center gap-2 min-w-0 max-w-[150px] sm:max-w-[200px] md:max-w-[240px]">
+        <button
+          onClick={() => { sfx.playPop(); navigate(-1); }}
+          aria-label="Quay lại"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-50 hover:bg-amber-100 border-2 border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0"
+        >
+          <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+        </button>
 
-      {/* Icon + Title */}
-      <span className="text-xl shrink-0">{topicIcon}</span>
-      <div className="flex-1 min-w-0">
-        <h1 className="text-sm font-black text-slate-800 truncate leading-tight">
-          {lesson?.title || 'Lesson tiếng Anh'}
-        </h1>
+        <span className="text-lg sm:text-xl shrink-0 hidden xs:inline">{topicIcon}</span>
+        <div className="min-w-0 truncate">
+          <h1 className="text-xs sm:text-sm font-black text-slate-800 truncate leading-tight">
+            {lesson?.title || 'Lesson'}
+          </h1>
+        </div>
       </div>
 
-      {/* 4 stage tabs with clear stage number and badge */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {[1, 2, 3, 4].map((stage) => {
+      {/* CENTER: 3 Stages with large, readable labels */}
+      <div className="flex-1 flex items-center justify-center gap-1 sm:gap-2 px-1 max-w-xl">
+        {[1, 2, 3].map((stage) => {
           const done = stageCompletedMap[stage - 1];
           const locked = stageLockedMap[stage - 1];
           const isActive = activeStage === stage;
-          const colors = stageDotColors[stage];
+          const info = stageInfo[stage];
+
           return (
             <button
               key={stage}
-              onClick={() => handleSelectStage(stage as 1 | 2 | 3 | 4)}
-              aria-label={`Chặng ${stage}${done ? ' — Đã xong' : locked ? ' — Đang khóa' : isActive ? ' — Đang học' : ''}`}
-              title={`Chặng ${stage}`}
+              onClick={() => handleSelectStage(stage as 1 | 2 | 3)}
+              aria-label={`Chặng ${stage}: ${info.name}${done ? ' — Đã xong' : locked ? ' — Đang khóa' : isActive ? ' — Đang học' : ''}`}
+              title={`Chặng ${stage}: ${info.name}`}
               className={`
-                h-10 px-2.5 sm:px-3 rounded-xl flex items-center justify-center gap-1.5
-                cursor-pointer transition-all active:scale-95 border-2 relative
+                min-w-0 h-14 px-1 sm:px-3 rounded-xl flex flex-1 sm:flex-none flex-col sm:flex-row items-center justify-center gap-0 sm:gap-1.5
+                cursor-pointer transition-all active:scale-95 border-2 relative select-none
                 ${isActive
-                  ? `${colors.active} border-white/60 text-white shadow-md ring-3 animate-soft-bounce z-10`
+                  ? `${info.active} border-white text-white shadow-md ring-3 animate-soft-bounce z-10 scale-105`
                   : done
                   ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 shadow-2xs'
                   : locked
-                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-75'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-65'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
                 }
               `}
             >
-              <span className="text-sm leading-none">{locked ? '🔒' : colors.icon}</span>
-              <span className={`text-xs font-black tracking-tight ${isActive ? 'text-white' : ''}`}>
-                C{stage}
+                <span className="text-xl sm:text-2xl leading-none shrink-0">
+                {locked ? '🔒' : info.icon}
               </span>
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left leading-tight min-w-0">
+                <span className={`text-xs sm:text-sm font-black uppercase tracking-wide ${isActive ? 'text-white/90' : 'text-slate-600'}`}>
+                  Chặng {stage}
+                </span>
+                <span className={`text-[13px] sm:text-base font-black truncate ${isActive ? 'text-white' : ''}`}>
+                  {info.name}
+                </span>
+              </div>
 
               {/* Small check badge when completed */}
               {done && (
@@ -304,23 +291,24 @@ export const LessonDetailPage: React.FC = () => {
         })}
       </div>
 
-      {/* Lock notice toast — inline after dots */}
-      {lockNotice && (
-        <div className="hidden sm:flex items-center gap-1.5 bg-amber-400 text-amber-950 text-sm font-black px-3 py-1.5 rounded-xl shadow-xs shrink-0 max-w-[180px]">
-          <Lock className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{lockNotice}</span>
-        </div>
-      )}
+      {/* RIGHT: Lock notice + Parent button */}
+      <div className="flex items-center gap-2 shrink-0">
+        {lockNotice && (
+          <div className="hidden lg:flex items-center gap-1.5 bg-amber-400 text-amber-950 text-xs font-black px-2.5 py-1.5 rounded-xl shadow-xs shrink-0 max-w-[150px]">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{lockNotice}</span>
+          </div>
+        )}
 
-      {/* Parent button */}
-      <button
-        onClick={() => { sfx.playPop(); setShowParentDrawer(true); }}
-        aria-label="Thông tin phụ huynh"
-        title="Góc phụ huynh"
-        className="w-11 h-11 rounded-xl bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-300 flex items-center justify-center cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0 text-base"
-      >
-        👨‍👩‍👧
-      </button>
+        <button
+          onClick={() => { sfx.playPop(); setShowParentDrawer(true); }}
+          aria-label="Thông tin phụ huynh"
+          title="Góc phụ huynh"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-300 flex items-center justify-center cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0 text-base"
+        >
+          👨‍👩‍👧
+        </button>
+      </div>
     </div>
   );
 
@@ -370,6 +358,8 @@ export const LessonDetailPage: React.FC = () => {
               <div className="w-full h-full min-h-0 flex flex-col overflow-hidden">
                 <Stage2PracticeFlow
                   vocabulary={lesson.vocabularyItems || []}
+                  lessonId={id || ''}
+                  stage2Completed={isStage2Completed}
                   ageGroup={user?.ageGroupCode}
                   onComplete={handleCompleteStage2}
                   onParentOpen={() => setShowParentDrawer(true)}
@@ -390,10 +380,6 @@ export const LessonDetailPage: React.FC = () => {
               />
             )}
 
-            {/* STAGE 4: ÔN TẬP */}
-            {activeStage === 4 && (
-              <UnitReviewStage vocabulary={lesson.vocabularyItems || []} onComplete={handleCompleteStage4} />
-            )}
           </div>
         </div>
       )}
@@ -412,7 +398,6 @@ export const LessonDetailPage: React.FC = () => {
       stage1Completed={isStage1Completed}
       stage2Completed={isStage2Completed}
       stage3Completed={isStage3Completed}
-      stage4Completed={isStage4Completed}
       activeStage={activeStage}
       games={finalGames}
     />

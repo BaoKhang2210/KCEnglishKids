@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, Home, Play, Star } from 'lucide-react';
+import { Check, Home, Play, Star } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Activity } from '../../../types';
 import { GAME_VISUALS } from '../../../data/stage3Games';
@@ -16,8 +16,8 @@ interface Stage3ArcadeHubProps {
   completedCount: number;
   isCompleted: boolean;
   onStart: (activityId: string) => void;
-  onBackToStage2: () => void;
-  onHome: () => void;
+  onBackToStage2?: () => void;
+  onHome?: () => void;
 }
 
 const useReducedMotion = () => {
@@ -50,7 +50,6 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
   completedCount,
   isCompleted,
   onStart,
-  onBackToStage2,
   onHome
 }) => {
   const reducedMotion = useReducedMotion();
@@ -125,19 +124,18 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
             <KokoMascot state="thinking" size="lg" interactive={false} />
             <p className="text-[clamp(20px,2.5dvh,24px)] font-black">Chưa có trò chơi phù hợp</p>
           </div>
-        ) : isCompleted ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center text-white">
-            <KokoMascot state="celebrating" size="lg" interactive={false} className="stage3-koko stage3-celebration-dance" />
-            {celebrationSticker && (
-              <div className={`puffy-sticker flex h-[9dvh] min-h-16 w-[9dvh] min-w-16 items-center justify-center rounded-3xl border-2 border-white bg-gradient-to-tr ${celebrationSticker.bgGradient} text-[clamp(32px,6dvh,52px)] shadow-xl`} aria-label={`Sticker đã mở: ${celebrationSticker.name}`}>
-                {celebrationSticker.icon}
-              </div>
-            )}
-            <h2 className="text-[clamp(28px,4dvh,36px)] font-black">Bé chơi hết rồi! 🎉</h2>
-            <p className="text-[clamp(20px,2.5dvh,24px)] font-bold text-indigo-100">Giỏi quá! 🏆</p>
-          </div>
         ) : (
           <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2">
+            {isCompleted && (
+              <div className="flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-amber-200/70 bg-slate-950/45 px-3 py-1.5 text-white">
+                {celebrationSticker && (
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr ${celebrationSticker.bgGradient} text-2xl`} aria-label={`Sticker đã mở: ${celebrationSticker.name}`}>
+                    {celebrationSticker.icon}
+                  </span>
+                )}
+                <span className="text-base font-black sm:text-xl">Bé chơi hết rồi! 🎉 Giỏi quá! 🏆</span>
+              </div>
+            )}
             <div
               className="stage3-game-grid grid min-h-0 w-full flex-1 content-center justify-center gap-x-2 gap-y-2 sm:gap-x-4 sm:gap-y-3"
               style={{
@@ -193,17 +191,17 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
         )}
       </div>
 
-      <footer className="stage3-footer shrink-0 rounded-3xl border border-amber-300/60 bg-slate-900/95 px-2 py-2 text-white shadow-lg sm:px-4">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+      <footer className="stage3-footer shrink-0 rounded-3xl border border-amber-300/60 bg-slate-900/95 px-4 py-2.5 text-white shadow-lg">
+        <div className="flex items-center justify-between gap-3 sm:gap-6">
           <KokoMascot
             state={isCompleted ? 'celebrating' : 'encouraging'}
             size="lg"
             interactive={false}
-            speechBubble={isCompleted ? 'Giỏi quá! 🏆' : 'Chơi nào!'}
+            speechBubble={isCompleted ? 'Bé hoàn thành rồi! Về nhà nhận thưởng nhé! 🏆' : 'Chơi nào!'}
             bubblePosition="top"
             className="stage3-koko shrink-0"
           />
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1">
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5">
             <div className="flex items-center gap-2" aria-label={`Tiến độ ${progressStars} trên 3`}>
               {[0, 1, 2].map(index => (
                 <Star key={index} className={`h-8 w-8 ${index < progressStars ? 'fill-amber-300 text-amber-300' : 'fill-white/10 text-white/50'}`} />
@@ -211,21 +209,13 @@ export const Stage3ArcadeHub: React.FC<Stage3ArcadeHubProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => isCompleted ? onHome() : nextGame && handleGameStart(nextGame)}
-              disabled={!isCompleted && !nextGame}
-              className="flex min-h-[10dvh] min-w-40 items-center justify-center gap-2 rounded-3xl border-4 border-amber-100 bg-gradient-to-b from-amber-300 to-orange-400 px-5 text-[24px] font-black text-slate-950 shadow-[0_6px_0_#b45309] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-60"
+              onClick={() => isCompleted ? onHome?.() : nextGame && handleGameStart(nextGame)}
+              disabled={!nextGame}
+              className="flex min-h-[9dvh] sm:min-h-[10dvh] min-w-44 items-center justify-center gap-2 rounded-3xl border-4 border-amber-100 bg-gradient-to-b from-amber-300 to-orange-400 px-6 text-[22px] sm:text-[24px] font-black text-slate-950 shadow-[0_6px_0_#b45309] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-60 cursor-pointer"
             >
-              {isCompleted ? <><Home className="h-7 w-7" />Về nhà</> : <><Play className="h-7 w-7 fill-current" />Chơi</>}
+              {isCompleted ? <><Home className="h-7 w-7" />Về nhà</> : <><Play className="h-7 w-7 fill-current" />Chơi ngay</>}
             </button>
           </div>
-          <div className="hidden shrink-0 flex-col gap-2 sm:flex-row sm:flex">
-            <button type="button" onClick={onBackToStage2} aria-label="Quay lại Chặng 2" title="Chặng 2" className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white/50 bg-indigo-800 text-3xl text-white transition-transform active:scale-95"><ArrowLeft className="h-8 w-8" /></button>
-            <button type="button" onClick={onHome} aria-label="Về trang chủ" title="Trang chủ" className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white/50 bg-indigo-800 text-3xl text-white transition-transform active:scale-95"><Home className="h-8 w-8" /></button>
-          </div>
-        </div>
-        <div className="mt-1 flex justify-center gap-3 sm:hidden">
-          <button type="button" onClick={onBackToStage2} aria-label="Quay lại Chặng 2" className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white/50 bg-indigo-800 text-3xl text-white"><ArrowLeft className="h-8 w-8" /></button>
-          <button type="button" onClick={onHome} aria-label="Về trang chủ" className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white/50 bg-indigo-800 text-3xl text-white"><Home className="h-8 w-8" /></button>
         </div>
       </footer>
     </section>
