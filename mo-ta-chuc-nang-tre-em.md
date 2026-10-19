@@ -1,0 +1,19 @@
+1.4.4. Chức năng dành cho trẻ em 3–6 tuổi
+
+Học theo giáo trình: Trẻ em mở một bài học và trải nghiệm theo ba chặng tuần tự, chặng một là khám phá từ vựng hiển thị thẻ từ lớn có hình minh họa, từ tiếng Anh, phát âm và nghĩa tiếng Việt, trẻ có thể bấm vào nút nghe để nghe từ; chặng hai là thực hành qua loạt hoạt động tương tác do hệ thống lập kế hoạch, mỗi hoạt động hiển thị hướng dẫn văn bản hoặc audio và giao diện câu hỏi để trẻ thao tác; chặng ba là khu vui chơi gồm các mini game củng cố, trẻ chọn một trò chơi từ lưới game để bắt đầu phiên chơi, mỗi chặng chỉ mở sau khi hoàn thành chặng trước và tiến độ được lưu lại.
+
+Thẻ từ vựng: Trẻ em xem thẻ từ vựng hiển thị hình ảnh minh họa lớn, từ tiếng Anh ở kích thước nổi bật, nút nghe phát âm, phần đọc phiên âm nếu có và một viên hiển thị nghĩa tiếng Việt, đồng thời có thể thấy câu ví dụ rút gọn; trẻ có thể bấm vào hình để quan sát và bấm nút loa để nghe phát âm.
+
+Kế hoạch thực hành không đọc: Trẻ em bắt đầu một chuỗi luyện tập do hệ thống xây dựng bao gồm các loại hoạt động LT, FS, GK, YN, SS tức là Listen & Tap, Find in Scene, Give to Koko, Yes/No và Starting Sound, mỗi từ xuất hiện chính xác ba lượt với thứ tự lượt một là LT, lượt hai là FS hoặc GK, lượt ba là YN hoặc SS hoặc LT nâng cao, các quy tắc giao bài bao gồm không hỏi cùng một từ hai câu liên tiếp, không lặp lại cùng loại hoạt động hai câu liên tiếp và vị trí đáp án được xáo trộn.
+
+Kiểm tra nhận diện: Trẻ em mở bài kiểm tra nhận diện và thấy bộ đếm câu hiện ở đầu, một nút loa lớn để nghe yêu cầu, tiêu đề câu hỏi dạng Where is the [từ] và hướng dẫn ngắn, màn hình hiển thị ba lựa chọn hình ảnh lớn mà trẻ chạm để chọn, khi chọn sẽ hiển thị phản hồi đúng hoặc sai và cho phép làm lại hoặc tiến tới chặng tiếp theo.
+
+Khu vui chơi arcade: Trẻ em vào khu vui chơi và thấy lưới các mini game có phân trang và bố cục điều chỉnh theo kích thước màn hình, mỗi ô game hiển thị nhãn loại trò chơi và trạng thái hoàn thành, trẻ chạm vào một ô để nghe tên trò chơi rồi bắt đầu phiên chơi, khi hoàn tất một trang chơi sẽ hiển thị tóm tắt điểm số và phần thưởng hình dán hoặc sao, khi hoàn thành toàn bộ trò chơi sẽ có hiệu ứng ăn mừng như confetti.
+
+Chơi hoạt động: Trẻ em mở một hoạt động cụ thể và lần lượt đọc hoặc nghe phần hướng dẫn, sau đó làm từng câu hỏi hiển thị dạng prompt văn bản, hình hoặc audio và chọn đáp án bằng cách chạm, kéo thả hoặc tương tác theo hình thức bài tập, loại bài tập cụ thể bao gồm các kiểu LISTEN_CHOOSE, LISTEN_REPEAT, MATCHING, IMAGE_WORD_MATCH, DRAG_DROP, MEMORY, MEMORY_CARD, FIND_OBJECT, MISSING_OBJECT, COLOR_RECOGNITION, COUNT_OBJECTS, TRUE_FALSE, CLASSIFICATION, FEED_ANIMAL, BUBBLE_POP, TAP_PICTURE, ANIMAL_SOUND, STAR_CATCHER; tiến trình câu hỏi và kết quả phiên chơi được hiển thị ở cuối phiên.
+
+Thay đổi mã PIN: Trẻ em hoặc người giám hộ mở chức năng đổi mã PIN và thực hiện ba bước liên tiếp gồm nhập mật khẩu hiện tại, nhập mật khẩu mới và xác nhận mật khẩu mới bằng bàn phím mã gồm bốn chữ số, mỗi bước hiển thị các chấm biểu thị số chữ số đã nhập, khi nhập đủ bốn chữ số hệ thống chuyển bước tiếp theo, thông báo lỗi hiển thị rõ ràng khi nhập không khớp và có hiệu ứng âm thanh tương ứng.
+
+Bàn phím mã PIN: Trẻ em thao tác trên bàn phím số trực quan gồm các phím 1 đến 9, phím 0 và phím xóa, trẻ bấm các phím để điền dãy mã bốn chữ số và có thể bấm xóa để xóa ký tự cuối cùng, các chấm hiển thị sẽ đổi trạng thái khi nhập số và khi có lỗi sẽ được làm rỗng sau hiệu ứng cảnh báo.
+
+Trang chủ trẻ em và thành tích: Trẻ em vào trang chủ thấy tổng quan thành tích bao gồm số sao, các huy hiệu hoặc sticker được cấp, khu vực đề xuất bài học và khu vực lối vào nhanh đến khu vui chơi arcade, các phần hiển thị số sao và bài học gần nhất giúp trẻ chọn nội dung tiếp theo.
