@@ -28,7 +28,6 @@ interface ParentInfoDrawerProps {
   stage1Completed?: boolean;
   stage2Completed?: boolean;
   stage3Completed?: boolean;
-  stage4Completed?: boolean;
   activeStage?: number;
   games?: ParentGameInfo[];
   enableSpeakCoach?: boolean;
@@ -39,7 +38,6 @@ const STAGE_DESCRIPTIONS: Record<number, { label: string; icon: string; desc: st
   1: { label: 'Khám phá', icon: '🔍', desc: 'Bé chạm vào hình ảnh để nghe phát âm và khám phá từ vựng mới.' },
   2: { label: 'Học & Luyện tập', icon: '📖', desc: 'Bé luyện phản xạ 5 hoạt động (Nghe chạm, Tìm đồ, Đưa Koko, Đúng/Sai, Âm đầu).' },
   3: { label: 'Vui chơi', icon: '🎮', desc: 'Bé chơi mini-game tương tác để củng cố từ vựng đã học.' },
-  4: { label: 'Ôn tập', icon: '🏆', desc: 'Bé ôn lại toàn bộ từ vựng để hoàn thành bài học và nhận phần thưởng.' },
 };
 
 export const ParentInfoDrawer: React.FC<ParentInfoDrawerProps> = ({
@@ -54,7 +52,6 @@ export const ParentInfoDrawer: React.FC<ParentInfoDrawerProps> = ({
   stage1Completed,
   stage2Completed,
   stage3Completed,
-  stage4Completed,
   activeStage = 1,
   games = [],
   enableSpeakCoach = true,
@@ -173,23 +170,21 @@ export const ParentInfoDrawer: React.FC<ParentInfoDrawerProps> = ({
             </div>
           </div>
 
-          {/* 4 Stages progress */}
+          {/* 3 Stages progress */}
           <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 shadow-xs">
             <h3 className="text-sm font-black text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-indigo-600" />
-              Lộ trình 4 Chặng học
+              Lộ trình 3 Chặng học
             </h3>
             <div className="space-y-2">
-              {[1, 2, 3, 4].map((stageNum) => {
+              {[1, 2, 3].map((stageNum) => {
                 const info = STAGE_DESCRIPTIONS[stageNum];
                 const isCompleted =
                   stageNum === 1
                     ? stage1Completed
                     : stageNum === 2
                     ? stage2Completed
-                    : stageNum === 3
-                    ? stage3Completed
-                    : stage4Completed;
+                    : stage3Completed;
                 const isCurrent = activeStage === stageNum;
 
                 return (
