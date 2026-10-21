@@ -35,7 +35,7 @@ router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(),
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');
-const { Assignment, User, ActivityResult } = require('../models');
+const { Assignment, User, ActivityResult, ClassRoom, Schedule } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
 router.post('/:childId/parent-notifications/:id/reply', protect, ownChildOr403(), pn.replyAsParent);
@@ -76,6 +76,44 @@ router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, n
     }));
 
     res.json({ success: true, count: dataWithStatus.length, data: dataWithStatus });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Child school schedule (Thời khóa biểu trên lớp)
+router.get('/:childId/schedule', protect, ownChildOr403(), async (req, res, next) => {
+  try {
+    const { childId } = req.params;
+    const child = await User.findById(childId).select('assignedClass name');
+    if (!child) return res.status(404).json({ success: false, message: 'Child not found' });
+
+    if (!child.assignedClass) {
+      return res.json({
+        success: true,
+        data: {
+          classroom: null,
+          schedule: null
+        }
+      });
+    }
+
+    const classroom = await ClassRoom.findById(child.assignedClass)
+      .populate('teacher', 'name email avatar')
+      .lean();
+
+    const schedule = await Schedule.findOne({ classroom: child.assignedClass, isActive: true })
+      .populate('teacher', 'name email avatar')
+      .populate('classroom', 'name room academicYear ageGroup')
+      .lean();
+
+    return res.json({
+      success: true,
+      data: {
+        classroom,
+        schedule
+      }
+    });
   } catch (e) {
     next(e);
   }
