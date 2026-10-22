@@ -21,6 +21,11 @@ import type { Vocabulary, AgeGroupCode } from '../../../types';
 import { sfx, playWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
 import { useVocabStats } from '../../../hooks/useVocabStats';
+import {
+  vocabStatsService,
+  type Stage2PracticeSession,
+  type WordPracticeResult
+} from '../../../services/vocabStatsService';
 import { buildPracticePlan } from './buildPracticePlan';
 import { KokoMascot, type MascotState } from '../KokoMascot';
 
@@ -90,38 +95,6 @@ export interface Stage2PracticeFlowProps {
   onParentOpen: () => void;
 }
 
-interface Stage2WordSummary {
-  id: string;
-  english: string;
-  vietnamese: string;
-  emoji: string;
-  plannedTurns: number;
-  firstTryCorrect: number;
-  retryAttempts: number;
-}
-
-interface Stage2Summary {
-  source: 'session' | 'legacy';
-  savedAt: number;
-  totalQuestions: number;
-  completedQuestions: number;
-  firstTryCorrectTotal: number;
-  totalWrongAttempts: number;
-  stars: number;
-  words: Stage2WordSummary[];
-}
-
-function readStage2Summary(key: string): Stage2Summary | null {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) || 'null');
-    return parsed && Array.isArray(parsed.words)
-      ? { ...parsed, source: parsed.source === 'legacy' ? 'legacy' : 'session' } as Stage2Summary
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
@@ -137,8 +110,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const effectiveAgeGroup: AgeGroupCode = (ageGroup || ageGroupCode || '4-5') as AgeGroupCode;
   const { user } = useAuth();
   const childId = (user as any)?._id || (user as any)?.id || 'child_guest';
-  const summaryStorageKey = `kc_stage2_summary_${childId}_${lessonId}`;
-  const [savedSummary, setSavedSummary] = useState<Stage2Summary | null>(() => readStage2Summary(summaryStorageKey));
   const [showSavedSummary, setShowSavedSummary] = useState(stage2Completed);
   const { statsMap, recordAttempt } = useVocabStats(childId);
 
@@ -167,42 +138,12 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const [kokoBubble, setKokoBubble] = useState<string | undefined>('Lắng nghe Koko nhé! 👂');
 
   // Scoring & Accuracy tracking
-  const [starsEarned, setStarsEarned] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [correctCount, setCorrectCount] = useState(0);
   const [totalWrongAttempts, setTotalWrongAttempts] = useState(0);
   const [sessionWordStats, setSessionWordStats] = useState<Record<string, { firstTryCorrect: number; retryAttempts: number }>>({});
 
   const currentQ = questions[currentIdx];
   const totalQ = questions.length;
-
-  const legacySummary = useMemo<Stage2Summary | null>(() => {
-    const words = vocabulary.map((word) => {
-      const id = word._id || (word as any).id || word.english;
-      const saved = statsMap[id];
-      return {
-        id,
-        english: word.english,
-        vietnamese: word.vietnamese || '',
-        emoji: getWordEmoji(word),
-        plannedTurns: 0,
-        firstTryCorrect: saved?.firstTryCorrect || 0,
-        retryAttempts: saved?.wrong || 0,
-        attempts: saved?.attempts || 0,
-      };
-    });
-    if (!words.some((word) => word.attempts > 0)) return null;
-    return {
-      source: 'legacy',
-      savedAt: 0,
-      totalQuestions: 0,
-      completedQuestions: 0,
-      firstTryCorrectTotal: words.reduce((sum, word) => sum + word.firstTryCorrect, 0),
-      totalWrongAttempts: words.reduce((sum, word) => sum + word.retryAttempts, 0),
-      stars: 0,
-      words: words.map(({ attempts: _attempts, ...word }) => word).sort((a, b) => b.retryAttempts - a.retryAttempts),
-    };
-  }, [vocabulary, statsMap]);
 
   const playPrompt = useCallback(() => {
     if (!currentQ) return;
@@ -250,7 +191,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setKokoBubble(`${randomPraise()} ${currentQ.targetVocab.english}! 🎉`);
 
     const firstTry = wrongCount === 0;
-    setCorrectCount((p) => p + 1);
     if (firstTry) {
       setSessionWordStats((previous) => ({
         ...previous,
@@ -267,13 +207,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       usedHint: wrongCount >= 3,
       vocab: currentQ.targetVocab,
     });
-
-    const add = firstTry
-      ? STAGE2_REWARDS.FIRST_TRY_CORRECT_STARS
-      : wrongCount === 1
-      ? STAGE2_REWARDS.SECOND_TRY_CORRECT_STARS
-      : STAGE2_REWARDS.HINT_ASSISTED_STARS;
-    setStarsEarned((p) => p + add);
 
     setTimeout(() => {
       playWordAudio(currentQ.targetVocab.english, currentQ.targetVocab.audioUrl);
@@ -367,41 +300,56 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     else { handleWrong(picked); setGkPicked(null); }
   };
 
-  const buildStage2Summary = useCallback((): Stage2Summary => {
-    const words = vocabulary.map((word) => {
+  // Session tracking: startedAt and sessionId
+  const [sessionStartTime, setSessionStartTime] = useState<number>(() => Date.now());
+  const [currentSession, setCurrentSession] = useState<Stage2PracticeSession | null>(null);
+
+  // Get previous session for comparison (if any)
+  const previousSession = useMemo<Stage2PracticeSession | null>(() => {
+    const list = vocabStatsService.getStage2Sessions(childId, lessonId);
+    if (!list || list.length === 0) return null;
+    // If we just finished a session, previous is list[1], else list[0]
+    if (currentSession && list.length > 1 && list[0].sessionId === currentSession.sessionId) {
+      return list[1];
+    }
+    return list[0] || null;
+  }, [childId, lessonId, currentSession]);
+
+  const buildCurrentSession = useCallback((): Stage2PracticeSession => {
+    const words: WordPracticeResult[] = vocabulary.map((word) => {
       const id = word._id || (word as any).id || word.english;
       const stats = sessionWordStats[id] || { firstTryCorrect: 0, retryAttempts: 0 };
       return {
-        id,
+        wordId: id,
         english: word.english,
         vietnamese: word.vietnamese || '',
+        imageUrl: word.imageUrl,
         emoji: getWordEmoji(word),
-        plannedTurns: questions.filter((question) => question.wordId === id).length,
-        ...stats,
+        firstTryCorrect: stats.firstTryCorrect,
+        wrongCount: stats.retryAttempts,
+        isConfident: stats.firstTryCorrect > 0 && stats.retryAttempts === 0
       };
-    }).sort((a, b) => b.retryAttempts - a.retryAttempts);
+    }).sort((a, b) => b.wrongCount - a.wrongCount);
+
     return {
-      source: 'session',
-      savedAt: Date.now(),
+      sessionId: `${lessonId}_${sessionStartTime}`,
+      childId,
+      lessonId,
+      startedAt: sessionStartTime,
+      completedAt: Date.now(),
       totalQuestions: totalQ,
-      completedQuestions: correctCount,
-      firstTryCorrectTotal: words.reduce((sum, word) => sum + word.firstTryCorrect, 0),
+      firstTryCorrectTotal: words.reduce((sum, w) => sum + w.firstTryCorrect, 0),
       totalWrongAttempts,
-      stars: Math.min(3, Math.max(1, Math.round((starsEarned / Math.max(1, totalQ * 2)) * 3))),
-      words,
+      words
     };
-  }, [vocabulary, sessionWordStats, questions, totalQ, correctCount, totalWrongAttempts, starsEarned]);
+  }, [vocabulary, sessionWordStats, lessonId, sessionStartTime, childId, totalQ, totalWrongAttempts]);
 
   useEffect(() => {
     if (!isCompleted) return;
-    const summary = buildStage2Summary();
-    try {
-      localStorage.setItem(summaryStorageKey, JSON.stringify(summary));
-      setSavedSummary(summary);
-    } catch {
-      // Keep the in-memory result available when browser storage is unavailable.
-    }
-  }, [isCompleted, buildStage2Summary, summaryStorageKey]);
+    const session = buildCurrentSession();
+    setCurrentSession(session);
+    vocabStatsService.saveStage2Session(session);
+  }, [isCompleted, buildCurrentSession]);
 
   const startPracticeAgain = () => {
     sfx.playPop();
@@ -414,111 +362,151 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setShowCheck(false);
     setWiggling(false);
     setGkPicked(null);
-    setStarsEarned(0);
-    setCorrectCount(0);
     setTotalWrongAttempts(0);
     setSessionWordStats({});
+    setSessionStartTime(Date.now());
+    setCurrentSession(null);
     setIsCompleted(false);
   };
 
   const handleFinish = () => {
-    const summary = buildStage2Summary();
-    try {
-      localStorage.setItem(summaryStorageKey, JSON.stringify(summary));
-      setSavedSummary(summary);
-    } catch {
-      // Progress can still continue when storage is unavailable.
+    if (!currentSession) {
+      const session = buildCurrentSession();
+      vocabStatsService.saveStage2Session(session);
     }
-    onComplete({ score: 100, stars: summary.stars });
+    onComplete({ score: 100, stars: 3 });
   };
 
   // ── Completion screen ──────────────────────────────────────────────────────
 
-  if (showSavedSummary && !savedSummary && !legacySummary) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-amber-50 via-sky-50 to-indigo-50 px-5 text-center">
-        <span className="text-6xl" aria-hidden>📖</span>
-        <h2 className="text-2xl sm:text-3xl font-black text-indigo-900">Chặng 2 đã hoàn thành!</h2>
-        <p className="max-w-xl text-base sm:text-lg font-bold leading-relaxed text-slate-700">
-          Lần học trước chưa lưu thống kê chi tiết từng từ. Bé làm lại Chặng 2 để xem từ nào đúng ngay và từ nào cần ôn thêm nhé.
-        </p>
-        <button type="button" onClick={startPracticeAgain} className="min-h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-7 text-lg font-black text-white shadow-lg active:scale-95">
-          Làm lại Chặng 2 🔄
-        </button>
-      </div>
-    );
-  }
-
   if (isCompleted || showSavedSummary) {
-    const summary = showSavedSummary
-      ? savedSummary || legacySummary || buildStage2Summary()
-      : buildStage2Summary();
-    const isLegacySummary = summary.source === 'legacy';
+    // If showing saved summary, load latest saved session or fallback
+    const latestSavedList = vocabStatsService.getStage2Sessions(childId, lessonId);
+    const activeSession: Stage2PracticeSession | null =
+      currentSession || (latestSavedList.length > 0 ? latestSavedList[0] : null);
+
+    const wordsToDisplay = activeSession?.words || vocabulary.map((word) => {
+      const id = word._id || (word as any).id || word.english;
+      return {
+        wordId: id,
+        english: word.english,
+        vietnamese: word.vietnamese || '',
+        imageUrl: word.imageUrl,
+        emoji: getWordEmoji(word),
+        firstTryCorrect: 0,
+        wrongCount: 0,
+        isConfident: true
+      };
+    });
+
+    // Comparison with previous completed session
+    let comparisonText: string | null = null;
+    if (previousSession && activeSession && previousSession.sessionId !== activeSession.sessionId) {
+      const prevFirstTry = previousSession.firstTryCorrectTotal;
+      const curFirstTry = activeSession.firstTryCorrectTotal;
+      if (curFirstTry > prevFirstTry) {
+        comparisonText = `Tiến bộ vượt trội! Lần trước bé đúng ngay ${prevFirstTry} từ, lần này đạt ${curFirstTry} từ! 🌟`;
+      } else if (curFirstTry === prevFirstTry) {
+        comparisonText = `Bé duy trì phong độ rất tốt! Giữ vững sự chăm chỉ nhé! 👏`;
+      } else {
+        comparisonText = `Bé đã rất nỗ lực luyện tập! Cùng ôn lại để nhớ lâu hơn nhé! 💖`;
+      }
+    }
+
+    const sessionDateStr = activeSession?.completedAt
+      ? new Date(activeSession.completedAt).toLocaleDateString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
+      : new Date().toLocaleDateString('vi-VN');
+
+    const totalWordsCount = wordsToDisplay.length;
+    const firstTryCount = activeSession?.firstTryCorrectTotal ?? wordsToDisplay.filter(w => w.firstTryCorrect > 0).length;
+    const wrongCount = activeSession?.totalWrongAttempts ?? wordsToDisplay.reduce((sum, w) => sum + w.wrongCount, 0);
+
     return (
       <div className="w-full h-full min-h-0 flex flex-col bg-gradient-to-b from-amber-50 via-sky-50 to-indigo-50 text-slate-800 select-none overflow-hidden">
-        <header className="shrink-0 px-3 pt-2 text-center">
+        {/* HEADER */}
+        <header className="shrink-0 px-3 pt-3 text-center">
           <span className="inline-block text-4xl sm:text-5xl" aria-hidden>🎉</span>
           <h2 className="text-[clamp(1.45rem,3.2vh,2rem)] font-black text-indigo-900 leading-tight">
-            {showSavedSummary
-              ? isLegacySummary ? 'Thống kê đã lưu của Chặng 2' : 'Thống kê Chặng 2 lần trước'
-              : 'Con làm tốt lắm!'}
+            Con làm tốt lắm!
           </h2>
-          <p className="text-base sm:text-lg font-bold text-slate-600">
-            {isLegacySummary
-              ? 'Đây là số liệu tích lũy còn lưu theo từng từ; dữ liệu cũ chưa tách riêng từng buổi.'
-              : <>{showSavedSummary && summary.savedAt ? `Ngày ${new Date(summary.savedAt).toLocaleDateString('vi-VN')} · ` : ''}Con hoàn thành {summary.completedQuestions}/{summary.totalQuestions} lượt luyện.</>}
+          <p className="text-base sm:text-lg font-bold text-slate-600 mt-0.5">
+            Ngày hoàn thành: <span className="text-indigo-800 font-black">{sessionDateStr}</span> · Con hoàn thành {activeSession?.totalQuestions || totalQ} lượt luyện.
           </p>
-          {!isLegacySummary && (
-            <div className="flex justify-center gap-1" aria-label={`${summary.stars} sao đạt được`}>
-              {[1, 2, 3].map((star) => (
-                <span key={star} className={`text-2xl sm:text-3xl ${star <= summary.stars ? '' : 'opacity-25 grayscale'}`}>⭐</span>
-              ))}
+
+          {/* Dòng so sánh nhẹ nhàng nếu có buổi trước */}
+          {comparisonText && (
+            <div className="inline-block mt-1 px-4 py-1 rounded-2xl bg-indigo-100/90 border border-indigo-200 text-indigo-900 text-xs sm:text-sm font-black shadow-2xs">
+              {comparisonText}
             </div>
           )}
         </header>
 
+        {/* MAIN BODY: 3 METRIC BOXES + LIST OF WORDS */}
         <main className="flex-1 min-h-0 w-full max-w-4xl mx-auto overflow-y-auto px-3 py-2">
-          <section className="grid grid-cols-3 gap-2 mb-3" aria-label="Tóm tắt kết quả">
+          {/* 3 Metrics of the current session */}
+          <section className="grid grid-cols-3 gap-2 mb-3" aria-label="Tóm tắt kết quả buổi học">
             <div className="rounded-2xl border-2 border-sky-200 bg-white p-2 text-center shadow-sm">
               <span className="block text-xl sm:text-2xl" aria-hidden>📚</span>
               <span className="block text-xs sm:text-sm font-bold text-slate-600">Số từ</span>
-              <strong className="text-lg sm:text-xl font-black text-sky-800">{summary.words.length}</strong>
+              <strong className="text-lg sm:text-xl font-black text-sky-800">{totalWordsCount}</strong>
             </div>
             <div className="rounded-2xl border-2 border-emerald-200 bg-white p-2 text-center shadow-sm">
               <span className="block text-xl sm:text-2xl" aria-hidden>🎯</span>
-              <span className="block text-xs sm:text-sm font-bold text-slate-600">{isLegacySummary ? 'Lần đúng ngay' : 'Đúng ngay'}</span>
-              <strong className="text-lg sm:text-xl font-black text-emerald-800">{isLegacySummary ? summary.firstTryCorrectTotal : `${summary.firstTryCorrectTotal}/${summary.totalQuestions}`}</strong>
+              <span className="block text-xs sm:text-sm font-bold text-slate-600">Đúng ngay</span>
+              <strong className="text-lg sm:text-xl font-black text-emerald-800">{firstTryCount}</strong>
             </div>
             <div className="rounded-2xl border-2 border-amber-200 bg-white p-2 text-center shadow-sm">
               <span className="block text-xl sm:text-2xl" aria-hidden>🔁</span>
-              <span className="block text-xs sm:text-sm font-bold text-slate-600">{isLegacySummary ? 'Lần trả lời sai' : 'Thử lại'}</span>
-              <strong className="text-lg sm:text-xl font-black text-amber-800">{summary.totalWrongAttempts}</strong>
+              <span className="block text-xs sm:text-sm font-bold text-slate-600">Lần trả lời sai</span>
+              <strong className="text-lg sm:text-xl font-black text-amber-800">{wrongCount}</strong>
             </div>
           </section>
 
+          {/* Word detail cards: đúng ngay & số lần sai */}
           <section className="rounded-2xl border-2 border-indigo-100 bg-white/90 p-3 shadow-sm">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
               <h3 className="text-lg sm:text-xl font-black text-indigo-900">📖 Từng từ con đã luyện</h3>
-              <p className="text-sm font-bold text-slate-600">Đúng ngay và số lần thử lại</p>
+              <p className="text-sm font-bold text-slate-600">Đúng ngay và số lần thử lại trong buổi</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {summary.words.map(({ id, english, vietnamese, emoji, plannedTurns, firstTryCorrect, retryAttempts }) => {
-                const needsReview = retryAttempts > 0;
-                const hasSavedAttempts = firstTryCorrect > 0 || retryAttempts > 0;
+              {wordsToDisplay.map((w) => {
+                const needsReview = w.wrongCount > 0;
                 return (
-                  <article key={id || english} className={`flex min-w-0 items-center gap-3 rounded-2xl border-2 p-2.5 ${needsReview ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-3xl shadow-sm" aria-hidden>{emoji}</span>
+                  <article
+                    key={w.wordId}
+                    className={`flex min-w-0 items-center gap-3 rounded-2xl border-2 p-2.5 ${
+                      needsReview ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                    }`}
+                  >
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-3xl shadow-sm"
+                      aria-hidden
+                    >
+                      {w.emoji || '🌟'}
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-lg font-black text-slate-900">{english}</p>
-                      <p className="truncate text-base font-bold text-slate-700">{vietnamese || 'Chưa có nghĩa tiếng Việt'}</p>
+                      <p className="truncate text-lg font-black text-slate-900">{w.english}</p>
+                      <p className="truncate text-base font-bold text-slate-700">{w.vietnamese || 'Từ vựng'}</p>
                       <p className="text-sm font-bold text-slate-600">
-                        {isLegacySummary
-                          ? `Đúng ngay ${firstTryCorrect} lượt · sai ${retryAttempts} lần`
-                          : `Đúng ngay: ${firstTryCorrect}/${plannedTurns} lượt`}
+                        Đúng ngay {w.firstTryCorrect} lượt · sai {w.wrongCount} lần
                       </p>
                     </div>
-                    <span className={`shrink-0 rounded-xl px-2 py-1 text-center text-sm font-black ${needsReview ? 'bg-amber-200 text-amber-950' : 'bg-emerald-200 text-emerald-950'}`}>
-                      {needsReview ? <>Ôn thêm<br />{retryAttempts} lần</> : hasSavedAttempts ? 'Tự tin' : 'Chưa có số liệu'}
+                    <span
+                      className={`shrink-0 rounded-xl px-2.5 py-1 text-center text-sm font-black ${
+                        needsReview ? 'bg-amber-200 text-amber-950' : 'bg-emerald-200 text-emerald-950'
+                      }`}
+                    >
+                      {needsReview ? (
+                        <>
+                          Ôn thêm<br />{w.wrongCount} lần
+                        </>
+                      ) : (
+                        'Tự tin'
+                      )}
                     </span>
                   </article>
                 );
@@ -527,14 +515,26 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
           </section>
         </main>
 
-        <div className="shrink-0 w-full max-w-sm mx-auto px-3 pb-2 pt-1">
+        {/* BOTTOM ACTION BAR */}
+        <div className="shrink-0 w-full max-w-sm mx-auto px-3 pb-2 pt-1 flex items-center justify-center gap-2">
           <button
             type="button"
-            onClick={showSavedSummary ? startPracticeAgain : handleFinish}
-            className="w-full min-h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-lg sm:text-xl flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all cursor-pointer"
+            onClick={startPracticeAgain}
+            aria-label="Làm lại Chặng 2"
+            className="flex-1 min-h-14 rounded-2xl bg-white hover:bg-amber-50 active:bg-amber-100 text-slate-700 border-2 border-amber-300 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
           >
-            <span>{showSavedSummary ? 'Làm lại Chặng 2' : 'Đến Khu vui chơi 🚀'}</span>
-            {showSavedSummary ? <span aria-hidden>🔄</span> : <ArrowRight className="w-6 h-6 stroke-[3]" />}
+            <span aria-hidden>🔄</span>
+            <span>Làm lại</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleFinish}
+            aria-label="Đến Khu vui chơi"
+            className="flex-1 min-h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"
+          >
+            <span>Khu vui chơi 🚀</span>
+            <ArrowRight className="w-5 h-5 stroke-[3]" />
           </button>
         </div>
       </div>

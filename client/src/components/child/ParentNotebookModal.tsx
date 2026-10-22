@@ -14,9 +14,11 @@ import {
   Sparkles,
   Clock,
   MapPin,
-  UserCheck
+  UserCheck,
+  BookOpen
 } from 'lucide-react';
 import { parentNotificationApi } from '../../services/api';
+import { type Stage2PracticeSession } from '../../services/vocabStatsService';
 import { sfx } from '../../utils/audio';
 
 interface ReplyItem {
@@ -113,7 +115,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
   onClose
 }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'NOTIFICATIONS' | 'ASSIGNMENTS' | 'SCHEDULE'>('NOTIFICATIONS');
+  const [activeTab, setActiveTab] = useState<'NOTIFICATIONS' | 'ASSIGNMENTS' | 'SCHEDULE' | 'PRACTICE'>('NOTIFICATIONS');
   const [items, setItems] = useState<ParentNotificationItem[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
@@ -218,14 +220,14 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             </button>
           </div>
 
-          {/* Navigation Tabs (3 tabs: Lời nhắn, Bài tập, Thời khóa biểu) */}
-          <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-2">
+          {/* Navigation Tabs (4 tabs: Lời nhắn, Bài tập, Luyện tập, Thời khóa biểu) */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
             <button
               onClick={() => {
                 sfx.playPop();
                 setActiveTab('NOTIFICATIONS');
               }}
-              className={`py-2 px-2 sm:px-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`py-2 px-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'NOTIFICATIONS'
                   ? 'bg-white text-amber-900 shadow-md scale-102 font-black'
                   : 'bg-amber-500/40 text-amber-950 hover:bg-amber-500/60'
@@ -240,7 +242,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                 sfx.playPop();
                 setActiveTab('ASSIGNMENTS');
               }}
-              className={`py-2 px-2 sm:px-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`py-2 px-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'ASSIGNMENTS'
                   ? 'bg-white text-teal-900 shadow-md scale-102 font-black'
                   : 'bg-amber-500/40 text-amber-950 hover:bg-amber-500/60'
@@ -253,16 +255,31 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             <button
               onClick={() => {
                 sfx.playPop();
+                setActiveTab('PRACTICE');
+              }}
+              className={`py-2 px-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'PRACTICE'
+                  ? 'bg-white text-rose-900 shadow-md scale-102 font-black'
+                  : 'bg-amber-500/40 text-amber-950 hover:bg-amber-500/60'
+              }`}
+            >
+              <BookOpen size={15} />
+              <span className="truncate">Luyện tập</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sfx.playPop();
                 setActiveTab('SCHEDULE');
               }}
-              className={`py-2 px-2 sm:px-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`py-2 px-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'SCHEDULE'
                   ? 'bg-white text-indigo-900 shadow-md scale-102 font-black'
                   : 'bg-amber-500/40 text-amber-950 hover:bg-amber-500/60'
               }`}
             >
               <Calendar size={15} />
-              <span className="truncate">Lịch học lớp</span>
+              <span className="truncate">Thời khóa biểu</span>
             </button>
           </div>
         </div>
@@ -624,6 +641,115 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                 </div>
               </div>
             )
+          )}
+
+          {/* TAB 4: PRACTICE SESSION HISTORY */}
+          {activeTab === 'PRACTICE' && (
+            (() => {
+              // Gather all session keys from localStorage for this child
+              const prefix = `kc_stage2_sessions_${childId}_`;
+              const allSessions: Stage2PracticeSession[] = [];
+              try {
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && key.startsWith(prefix)) {
+                    const raw = localStorage.getItem(key);
+                    if (raw) {
+                      const list = JSON.parse(raw);
+                      if (Array.isArray(list)) allSessions.push(...list);
+                    }
+                  }
+                }
+              } catch {}
+
+              // Sort by newest completedAt
+              allSessions.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+              if (allSessions.length === 0) {
+                return (
+                  <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8">
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-3xl">
+                      📖
+                    </div>
+                    <p className="text-base font-black text-slate-700">Chưa có buổi luyện tập nào</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      Khi bé hoàn thành các buổi học Chặng 2 Luyện tập, danh sách chi tiết các buổi và kết quả từng từ sẽ được ghi nhận tại đây!
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-black text-slate-600 uppercase tracking-wide">
+                      Tổng số: {allSessions.length} buổi luyện tập
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">Mới nhất trước</span>
+                  </div>
+
+                  {allSessions.map((sess, idx) => {
+                    const dt = new Date(sess.completedAt || sess.startedAt);
+                    const timeStr = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = dt.toLocaleDateString('vi-VN');
+                    return (
+                      <div
+                        key={sess.sessionId || idx}
+                        className="rounded-2xl border-2 border-slate-200 bg-white shadow-xs p-4 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🎯</span>
+                            <span className="font-black text-sm text-slate-800">
+                              Buổi {allSessions.length - idx}: {timeStr} · {dateStr}
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+                            Đúng ngay: {sess.firstTryCorrectTotal} / {sess.words.length} từ
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                          <p>
+                            Số từ đã luyện: <b className="text-slate-800">{sess.words.length} từ</b>
+                          </p>
+                          <p>
+                            Lượt thử lại: <b className="text-amber-700">{sess.totalWrongAttempts} lần</b>
+                          </p>
+                        </div>
+
+                        {/* Words breakdown */}
+                        <div className="pt-1 border-t border-slate-100">
+                          <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-1.5">
+                            Chi tiết từng từ trong buổi:
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                            {sess.words.map((w) => (
+                              <div
+                                key={w.wordId}
+                                className={`flex items-center gap-1.5 p-1.5 rounded-xl border text-xs ${
+                                  w.wrongCount > 0
+                                    ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                                    : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                                }`}
+                              >
+                                <span className="text-base shrink-0">{w.emoji || '🌟'}</span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black truncate">{w.english}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">
+                                    {w.wrongCount > 0 ? `Ôn ${w.wrongCount} lần` : 'Đúng ngay'}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
           )}
         </div>
 

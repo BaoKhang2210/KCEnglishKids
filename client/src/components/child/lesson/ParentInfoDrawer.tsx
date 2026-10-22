@@ -5,6 +5,8 @@ import { useVocabStats } from '../../../hooks/useVocabStats';
 import { playWordAudio, sfx } from '../../../utils/audio';
 import { getGameInstructions, getGameLabel } from '../../../data/labels';
 
+import { vocabStatsService } from '../../../services/vocabStatsService';
+
 interface ParentGameInfo {
   _id: string;
   title: string;
@@ -20,6 +22,7 @@ interface ParentInfoDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   childId?: string;
+  lessonId?: string;
   lessonTitle?: string;
   lessonVietnameseTitle?: string;
   objectives?: string[];
@@ -44,6 +47,7 @@ export const ParentInfoDrawer: React.FC<ParentInfoDrawerProps> = ({
   isOpen,
   onClose,
   childId = 'default',
+  lessonId,
   lessonTitle = 'Bài học',
   lessonVietnameseTitle,
   objectives = [],
@@ -256,6 +260,66 @@ export const ParentInfoDrawer: React.FC<ParentInfoDrawerProps> = ({
                 ))}
               </div>
             </section>
+          )}
+
+          {/* Stage 2 Practice Session History */}
+          {lessonId && (
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 shadow-xs">
+              <h3 className="text-sm font-black text-slate-700 uppercase tracking-wide mb-3 flex items-center justify-between">
+                <span>📊 Lịch sử các buổi Luyện tập</span>
+                <span className="text-xs font-bold text-slate-400">
+                  {vocabStatsService.getStage2Sessions(childId, lessonId).length} buổi
+                </span>
+              </h3>
+              {(() => {
+                const sessionList = vocabStatsService.getStage2Sessions(childId, lessonId);
+                if (sessionList.length === 0) {
+                  return (
+                    <p className="text-sm text-slate-500 font-bold italic py-2 text-center">
+                      Bé chưa hoàn thành buổi luyện tập nào cho bài này.
+                    </p>
+                  );
+                }
+                return (
+                  <div className="space-y-2.5">
+                    {sessionList.map((sess, idx) => {
+                      const dt = new Date(sess.completedAt || sess.startedAt);
+                      const timeStr = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                      const dateStr = dt.toLocaleDateString('vi-VN');
+                      return (
+                        <div key={sess.sessionId || idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-black text-slate-800">
+                              Buổi {sessionList.length - idx}: {timeStr} · {dateStr}
+                            </span>
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              Đúng ngay: {sess.firstTryCorrectTotal} từ
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-slate-600 mb-2">
+                            Số từ luyện: <b>{sess.words.length}</b> · Lượt thử lại: <b>{sess.totalWrongAttempts}</b>
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-200/80">
+                            {sess.words.map((w) => (
+                              <span
+                                key={w.wordId}
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                                  w.wrongCount > 0
+                                    ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                }`}
+                              >
+                                {w.english}: {w.wrongCount > 0 ? `ôn ${w.wrongCount} lần` : 'đúng ngay'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           )}
 
           {/* Objectives */}

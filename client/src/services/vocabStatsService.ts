@@ -37,10 +37,38 @@ export interface WordStats {
 
 export type ChildVocabStatsMap = Record<string, WordStats>;
 
+export interface WordPracticeResult {
+  wordId: string;
+  english: string;
+  vietnamese: string;
+  imageUrl?: string;
+  emoji?: string;
+  firstTryCorrect: number;
+  wrongCount: number;
+  isConfident: boolean; // firstTryCorrect > 0 && wrongCount === 0
+}
+
+export interface Stage2PracticeSession {
+  sessionId: string;
+  childId: string;
+  lessonId: string;
+  startedAt: number;
+  completedAt: number;
+  totalQuestions: number;
+  firstTryCorrectTotal: number;
+  totalWrongAttempts: number;
+  words: WordPracticeResult[];
+}
+
 const STATS_KEY_PREFIX = 'kc_vocab_stats_';
+const STAGE2_SESSIONS_PREFIX = 'kc_stage2_sessions_';
 
 export function getStatsStorageKey(childId: string): string {
   return `${STATS_KEY_PREFIX}${childId || 'default'}`;
+}
+
+export function getStage2SessionsStorageKey(childId: string, lessonId: string): string {
+  return `${STAGE2_SESSIONS_PREFIX}${childId || 'default'}_${lessonId || 'default'}`;
 }
 
 /**
@@ -243,6 +271,34 @@ export const vocabStatsService = {
       );
     } catch (e) {
       console.warn('Failed to clear stats:', e);
+    }
+  },
+
+  getStage2Sessions(childId: string, lessonId: string): Stage2PracticeSession[] {
+    try {
+      const raw = localStorage.getItem(getStage2SessionsStorageKey(childId, lessonId));
+      if (!raw) return [];
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveStage2Session(session: Stage2PracticeSession): void {
+    try {
+      const existing = this.getStage2Sessions(session.childId, session.lessonId);
+      // Keep up to 20 recent sessions, newest first
+      const updated = [session, ...existing.filter(s => s.sessionId !== session.sessionId)].slice(0, 20);
+      localStorage.setItem(
+        getStage2SessionsStorageKey(session.childId, session.lessonId),
+        JSON.stringify(updated)
+      );
+      window.dispatchEvent(
+        new CustomEvent('kc_stage2_session_saved', { detail: { session } })
+      );
+    } catch (e) {
+      console.warn('Failed to save stage2 session:', e);
     }
   },
 };
