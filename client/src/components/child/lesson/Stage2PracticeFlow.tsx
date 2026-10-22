@@ -413,110 +413,128 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       }
     }
 
+    const sessionDateStr = activeSession?.completedAt
+      ? new Date(activeSession.completedAt).toLocaleDateString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
+      : new Date().toLocaleDateString('vi-VN');
+
+    const totalWordsCount = wordsToDisplay.length;
+    const firstTryCount = activeSession?.firstTryCorrectTotal ?? wordsToDisplay.filter(w => w.firstTryCorrect > 0).length;
+    const wrongCount = activeSession?.totalWrongAttempts ?? wordsToDisplay.reduce((sum, w) => sum + w.wrongCount, 0);
+
     return (
-      <div className="w-full h-full min-h-0 flex flex-col bg-gradient-to-b from-amber-50 via-sky-50 to-indigo-50 text-slate-800 select-none overflow-hidden p-2 sm:p-4">
-        {/* Top Celebration Header with Koko Mascot */}
-        <div className="shrink-0 flex flex-col items-center justify-center text-center gap-1.5 pt-1">
-          <KokoMascot
-            state="celebrating"
-            size="md"
-            speechBubble="Bé làm tốt lắm! 🎉"
-            bubblePosition="top"
-            interactive={true}
-          />
-          <h2 className="text-xl sm:text-2xl font-black text-indigo-950 leading-tight">
-            Hoàn thành buổi Luyện tập!
+      <div className="w-full h-full min-h-0 flex flex-col bg-gradient-to-b from-amber-50 via-sky-50 to-indigo-50 text-slate-800 select-none overflow-hidden">
+        {/* HEADER */}
+        <header className="shrink-0 px-3 pt-3 text-center">
+          <span className="inline-block text-4xl sm:text-5xl" aria-hidden>🎉</span>
+          <h2 className="text-[clamp(1.45rem,3.2vh,2rem)] font-black text-indigo-900 leading-tight">
+            Con làm tốt lắm!
           </h2>
-          <p className="text-sm sm:text-base font-bold text-slate-600 max-w-md">
-            Bé vừa hoàn thành các câu hỏi luyện tập cho <span className="text-indigo-700 font-black">{wordsToDisplay.length}</span> từ vựng của bài học!
+          <p className="text-base sm:text-lg font-bold text-slate-600 mt-0.5">
+            Ngày hoàn thành: <span className="text-indigo-800 font-black">{sessionDateStr}</span> · Con hoàn thành {activeSession?.totalQuestions || totalQ} lượt luyện.
           </p>
 
-          {/* Gentle comparison note if previous session exists */}
+          {/* Dòng so sánh nhẹ nhàng nếu có buổi trước */}
           {comparisonText && (
-            <div className="mt-1 px-4 py-1.5 rounded-2xl bg-indigo-100/80 border border-indigo-200 text-indigo-900 text-xs sm:text-sm font-black shadow-2xs animate-fade-in">
+            <div className="inline-block mt-1 px-4 py-1 rounded-2xl bg-indigo-100/90 border border-indigo-200 text-indigo-900 text-xs sm:text-sm font-black shadow-2xs">
               {comparisonText}
             </div>
           )}
-        </div>
+        </header>
 
-        {/* Word Grid: Fits cleanly without small scroll area */}
-        <div className="flex-1 min-h-0 w-full max-w-4xl mx-auto flex items-center justify-center p-2">
-          <div
-            className={`w-full max-h-full grid gap-2.5 sm:gap-3.5 overflow-y-auto p-1 ${
-              wordsToDisplay.length <= 2
-                ? 'grid-cols-1 sm:grid-cols-2 max-w-md'
-                : wordsToDisplay.length <= 4
-                ? 'grid-cols-2 max-w-lg'
-                : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
-            }`}
-          >
-            {wordsToDisplay.map((w) => {
-              const needsReview = w.wrongCount > 0;
-              return (
-                <div
-                  key={w.wordId}
-                  className={`flex flex-col items-center text-center rounded-2xl p-2.5 sm:p-3 border-3 shadow-sm transition-all duration-200 bg-white/95 ${
-                    needsReview
-                      ? 'border-amber-300 hover:border-amber-400'
-                      : 'border-emerald-300 hover:border-emerald-400'
-                  }`}
-                >
-                  {/* Word Image or Emoji */}
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-50 flex items-center justify-center p-1.5 mb-1.5 border border-slate-100 shadow-inner">
-                    {w.imageUrl ? (
-                      <img
-                        src={w.imageUrl}
-                        alt={w.english}
-                        className="max-h-full max-w-full object-contain filter drop-shadow-xs"
-                      />
-                    ) : (
-                      <span className="text-3xl select-none">{w.emoji || '🌟'}</span>
-                    )}
-                  </div>
+        {/* MAIN BODY: 3 METRIC BOXES + LIST OF WORDS */}
+        <main className="flex-1 min-h-0 w-full max-w-4xl mx-auto overflow-y-auto px-3 py-2">
+          {/* 3 Metrics of the current session */}
+          <section className="grid grid-cols-3 gap-2 mb-3" aria-label="Tóm tắt kết quả buổi học">
+            <div className="rounded-2xl border-2 border-sky-200 bg-white p-2 text-center shadow-sm">
+              <span className="block text-xl sm:text-2xl" aria-hidden>📚</span>
+              <span className="block text-xs sm:text-sm font-bold text-slate-600">Số từ</span>
+              <strong className="text-lg sm:text-xl font-black text-sky-800">{totalWordsCount}</strong>
+            </div>
+            <div className="rounded-2xl border-2 border-emerald-200 bg-white p-2 text-center shadow-sm">
+              <span className="block text-xl sm:text-2xl" aria-hidden>🎯</span>
+              <span className="block text-xs sm:text-sm font-bold text-slate-600">Đúng ngay</span>
+              <strong className="text-lg sm:text-xl font-black text-emerald-800">{firstTryCount}</strong>
+            </div>
+            <div className="rounded-2xl border-2 border-amber-200 bg-white p-2 text-center shadow-sm">
+              <span className="block text-xl sm:text-2xl" aria-hidden>🔁</span>
+              <span className="block text-xs sm:text-sm font-bold text-slate-600">Lần trả lời sai</span>
+              <strong className="text-lg sm:text-xl font-black text-amber-800">{wrongCount}</strong>
+            </div>
+          </section>
 
-                  {/* Word English Name */}
-                  <p className="font-black text-slate-800 text-base sm:text-lg capitalize leading-tight truncate w-full">
-                    {w.english}
-                  </p>
+          {/* Word detail cards: đúng ngay & số lần sai */}
+          <section className="rounded-2xl border-2 border-indigo-100 bg-white/90 p-3 shadow-sm">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
+              <h3 className="text-lg sm:text-xl font-black text-indigo-900">📖 Từng từ con đã luyện</h3>
+              <p className="text-sm font-bold text-slate-600">Đúng ngay và số lần thử lại trong buổi</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {wordsToDisplay.map((w) => {
+                const needsReview = w.wrongCount > 0;
+                return (
+                  <article
+                    key={w.wordId}
+                    className={`flex min-w-0 items-center gap-3 rounded-2xl border-2 p-2.5 ${
+                      needsReview ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                    }`}
+                  >
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-3xl shadow-sm"
+                      aria-hidden
+                    >
+                      {w.emoji || '🌟'}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-black text-slate-900">{w.english}</p>
+                      <p className="truncate text-base font-bold text-slate-700">{w.vietnamese || 'Từ vựng'}</p>
+                      <p className="text-sm font-bold text-slate-600">
+                        Đúng ngay {w.firstTryCorrect} lượt · sai {w.wrongCount} lần
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-xl px-2.5 py-1 text-center text-sm font-black ${
+                        needsReview ? 'bg-amber-200 text-amber-950' : 'bg-emerald-200 text-emerald-950'
+                      }`}
+                    >
+                      {needsReview ? (
+                        <>
+                          Ôn thêm<br />{w.wrongCount} lần
+                        </>
+                      ) : (
+                        'Tự tin'
+                      )}
+                    </span>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </main>
 
-                  {/* Gentle review hint tag for 1-star / needs review words */}
-                  <div className="mt-1.5">
-                    {needsReview ? (
-                      <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black text-xs border border-amber-300">
-                        Luyện thêm
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs border border-emerald-300">
-                        Rất giỏi! ✨
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Bottom Actions: Làm lại Chặng 2 & Sang Chặng 3 */}
-        <div className="shrink-0 w-full max-w-md mx-auto flex items-center justify-center gap-3 pt-2 pb-1">
+        {/* BOTTOM ACTION BAR */}
+        <div className="shrink-0 w-full max-w-sm mx-auto px-3 pb-2 pt-1 flex items-center justify-center gap-2">
           <button
             type="button"
             onClick={startPracticeAgain}
             aria-label="Làm lại Chặng 2"
-            className="flex-1 min-h-13 sm:min-h-14 rounded-2xl bg-white hover:bg-amber-50 active:bg-amber-100 text-slate-700 border-3 border-amber-300 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
+            className="flex-1 min-h-14 rounded-2xl bg-white hover:bg-amber-50 active:bg-amber-100 text-slate-700 border-2 border-amber-300 font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
           >
             <span aria-hidden>🔄</span>
-            <span>Làm lại Chặng 2</span>
+            <span>Làm lại</span>
           </button>
 
           <button
             type="button"
             onClick={handleFinish}
-            aria-label="Sang Chặng 3 Vui chơi"
-            className="flex-1 min-h-13 sm:min-h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer ring-3 ring-emerald-300/60 animate-soft-bounce"
+            aria-label="Đến Khu vui chơi"
+            className="flex-1 min-h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-base sm:text-lg flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"
           >
-            <span>Sang Chặng 3</span>
-            <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
+            <span>Khu vui chơi 🚀</span>
+            <ArrowRight className="w-5 h-5 stroke-[3]" />
           </button>
         </div>
       </div>
