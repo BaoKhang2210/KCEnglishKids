@@ -56,7 +56,10 @@ export const GAME_LABELS: Record<string, string> = {
   CLASSIFICATION: 'Phân loại',
   LISTEN_REPEAT: 'Nghe chọn',
   MATCHING: 'Ghép cặp',
-  MEMORY: 'Ghi nhớ'
+  MEMORY: 'Ghi nhớ',
+  tap_pop: 'Chạm & Bùng',
+  find_match: 'Tìm & Ghép',
+  build_make: 'Ghép & Làm',
 };
 
 /** Parent-facing instructions stay local so the lesson API contract is unchanged. */
@@ -78,7 +81,10 @@ export const GAME_INSTRUCTIONS: Record<string, string> = {
   CLASSIFICATION: 'Bé chọn nhóm phù hợp với đồ vật hoặc con vật.',
   LISTEN_REPEAT: 'Bé nghe từ vựng rồi chọn hình tương ứng.',
   MATCHING: 'Bé ghép các hình hoặc từ có liên quan.',
-  MEMORY: 'Bé ghi nhớ hình ảnh rồi chọn đáp án đúng.'
+  MEMORY: 'Bé ghi nhớ hình ảnh rồi chọn đáp án đúng.',
+  tap_pop: 'Bé nghe từ rồi chạm vào hình đúng đang chuyển động.',
+  find_match: 'Bé tìm, lật hoặc kéo thả để ghép đúng hình.',
+  build_make: 'Bé ghép mảnh hoặc đưa đồ đúng cho Koko.',
 };
 
 export const getGameLabel = (activityType?: string): string =>

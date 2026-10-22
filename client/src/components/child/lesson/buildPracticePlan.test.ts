@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPracticeQuestions,
   buildPracticePlan,
+  assignRoundOneVariants,
   PRACTICE_ROUNDS_PER_LESSON,
 } from './buildPracticePlan';
-import type { Vocabulary, AgeGroupCode } from '../../../types';
+import type { Vocabulary } from '../../../types';
 import type { WordStats } from '../../../services/vocabStatsService';
 
 const mockVocabs: Vocabulary[] = [
@@ -39,25 +40,56 @@ describe('buildPracticeQuestions & buildPracticePlan standardization', () => {
     expect(plan8.questions.length).toBe(24);
   });
 
-  it('guarantees sequential order Word 1 -> Word N for all 3 rounds', () => {
+  it('keeps every word once per round and shuffles without adjacent word repeats', () => {
     const subset = mockVocabs.slice(0, 5);
     const expectedIds = subset.map((w) => w._id);
     const plan = buildPracticeQuestions(subset, '4-5');
 
-    // Round 1 (index 0 to 4)
-    const round1Ids = plan.questions.slice(0, 5).map((q) => q.wordId);
-    expect(round1Ids).toEqual(expectedIds);
-    plan.questions.slice(0, 5).forEach((q) => expect(q.turn).toBe(1));
+    for (const turn of [1, 2, 3]) {
+      const round = plan.questions.filter((question) => question.turn === turn);
+      expect(round.map((question) => question.wordId).sort()).toEqual([...expectedIds].sort());
+    }
+    for (let index = 1; index < plan.questions.length; index += 1) {
+      expect(plan.questions[index].wordId).not.toBe(plan.questions[index - 1].wordId);
+    }
+  });
 
-    // Round 2 (index 5 to 9)
-    const round2Ids = plan.questions.slice(5, 10).map((q) => q.wordId);
-    expect(round2Ids).toEqual(expectedIds);
-    plan.questions.slice(5, 10).forEach((q) => expect(q.turn).toBe(2));
+  it('assigns balanced Round 1 variants with no run of three and preserves checkpoint assignments', () => {
+    for (const count of [5, 6, 7]) {
+      const plan = buildPracticeQuestions(mockVocabs.slice(0, count), '4-5');
+      const roundOne = plan.questions.filter((question) => question.turn === 1);
+      const counts = roundOne.reduce((result, question) => {
+        result[question.variant!] = (result[question.variant!] || 0) + 1;
+        return result;
+      }, {} as Record<string, number>);
+      expect(Math.abs((counts.A || 0) - (counts.B || 0))).toBeLessThanOrEqual(1);
+      expect(roundOne.every((question) => question.activityId === (question.variant === 'A' ? 'listen-choose' : 'look-choose-word'))).toBe(true);
+      for (let index = 2; index < roundOne.length; index += 1) {
+        expect(roundOne[index].variant === roundOne[index - 1].variant && roundOne[index].variant === roundOne[index - 2].variant).toBe(false);
+      }
+    }
 
-    // Round 3 (index 10 to 14)
-    const round3Ids = plan.questions.slice(10, 15).map((q) => q.wordId);
-    expect(round3Ids).toEqual(expectedIds);
-    plan.questions.slice(10, 15).forEach((q) => expect(q.turn).toBe(3));
+    const saved = { w1: 'B', w2: 'A' } as const;
+    const resumed = assignRoundOneVariants(['w1', 'w2', 'w3'], ['A', 'B'], saved);
+    expect(resumed.w1).toBe('B');
+    expect(resumed.w2).toBe('A');
+    expect(['A', 'B']).toContain(resumed.w3);
+    expect(assignRoundOneVariants(['w1', 'w2'], ['A']).w1).toBe('A');
+  });
+
+  it('skips abstract picture-choice questions for ages under five and flags them for older children', () => {
+    const abstractWords = mockVocabs.slice(0, 5).map((word) => ({ ...word, visualType: 'abstract' as const }));
+    const youngerPlan = buildPracticeQuestions(abstractWords, '4-5', {}, undefined, 1);
+    expect(youngerPlan.questions.filter((question) => question.turn === 1 && question.variant === 'A')).toHaveLength(0);
+
+    const olderPlan = buildPracticeQuestions(abstractWords, '5-6', {}, undefined, 1);
+    expect(olderPlan.questions.filter((question) => question.turn === 1 && question.variant === 'A').every((question) => question.isAbstractVisual)).toBe(true);
+  });
+
+  it('detects identical choice artwork as abstract', () => {
+    const sameArtwork = mockVocabs.slice(0, 5).map((word) => ({ ...word, imageUrl: '/same.svg' }));
+    const plan = buildPracticeQuestions(sameArtwork, '5-6', {}, undefined, 1);
+    expect(plan.questions.filter((question) => question.turn === 1 && question.variant === 'A').every((question) => question.isAbstractVisual)).toBe(true);
   });
 
   it('each word appears exactly 3 times across all 3 rounds', () => {
@@ -99,5 +131,31 @@ describe('buildPracticeQuestions & buildPracticePlan standardization', () => {
     const plan = buildPracticePlan(mockVocabs.slice(0, 5), '4-5', stats);
     // Must strictly remain 15 questions
     expect(plan.questions.length).toBe(15);
+  });
+
+  it('uses the single Line Match activity for every Round 2 question', () => {
+    for (const count of [2, 5, 7]) {
+      const plan = buildPracticeQuestions(mockVocabs.slice(0, count), '5-6');
+      const roundTwo = plan.questions.filter((question) => question.turn === 2);
+      expect(roundTwo).toHaveLength(count);
+      expect(roundTwo.every((question) => question.type === 'MATCH_LINES')).toBe(true);
+      expect(roundTwo.every((question) => question.activityId === 'match-lines')).toBe(true);
+      expect(roundTwo.every((question) => question.activityName === 'Line Match')).toBe(true);
+    }
+  });
+
+  it('skips abstract words in Round 2 under age five and flags them as text cards at 5-6', () => {
+    const mixed: Vocabulary[] = [
+      ...mockVocabs.slice(0, 3),
+      { _id: 'mon', english: 'Monday', vietnamese: 'thứ hai', category: 'school', visualType: 'abstract' },
+    ];
+    const youngPlan = buildPracticeQuestions(mixed, '4-5');
+    expect(youngPlan.questions.filter((question) => question.turn === 2 && question.wordId === 'mon')).toHaveLength(0);
+    expect(youngPlan.questions.filter((question) => question.turn === 2)).toHaveLength(3);
+
+    const olderPlan = buildPracticeQuestions(mixed, '5-6');
+    const monday = olderPlan.questions.find((question) => question.turn === 2 && question.wordId === 'mon');
+    expect(monday?.isAbstractVisual).toBe(true);
+    expect(olderPlan.questions.filter((question) => question.turn === 2)).toHaveLength(4);
   });
 });

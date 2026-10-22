@@ -2,14 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { lessonsApi, stageProgressApi } from '../../services/api';
-import type { Lesson } from '../../types';
+import { lessonsApi, stageProgressApi, topicsApi } from '../../services/api';
+import type { Lesson, Vocabulary } from '../../types';
 import { sfx } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
 import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2PracticeFlow';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer';
-import { Stage3ArcadeHub } from '../../components/child/lesson/Stage3ArcadeHub';
+import { GamesTab, REQUIRED_GAMES_TO_COMPLETE } from '../../games/hub/GamesTab';
+import { GameRunner } from '../../games/core/GameRunner';
+import type { GameId } from '../../games/core/types';
+import { getLessonGames } from '../../games/registry';
 import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
 
 export const LessonDetailPage: React.FC = () => {
@@ -53,6 +56,9 @@ export const LessonDetailPage: React.FC = () => {
               } else {
                 localStorage.removeItem(`kc_stage2_${childId}_${id}`);
               }
+              if (progRes.data.stage3Completed) {
+                localStorage.setItem(`kc_stage3_${childId}_${id}`, 'true');
+              }
             }
           } catch {
             /* offline fallback */
@@ -86,38 +92,24 @@ export const LessonDetailPage: React.FC = () => {
 
   const activities = (lesson as any)?.activities || [];
   const completedCount = activities.filter((a: any) => a.completed).length;
-  const isAllCompleted = activities.length > 0 && activities.every((a: any) => a.completed);
+  const unitNumber = (lesson as any)?.unit?.displayOrder
+    ?? (lesson as any)?.unit?.unitNumber
+    ?? (lesson as any)?.curriculumUnits?.[0]?.unitNumber
+    ?? (lesson as any)?.unitNumber
+    ?? 1;
+  const lessonNumber = (lesson as any)?.displayOrder ?? (lesson as any)?.lessonNumber ?? 1;
 
-  const isMamAge = (user?.ageGroupCode || '3-4') === '3-4';
-  const MAM_GAME_TYPES = new Set(['LISTEN_CHOOSE', 'COLOR_RECOGNITION', 'TAP_PICTURE', 'BUBBLE_POP', 'ANIMAL_SOUND']);
-  const CHOI_LA_GAME_TYPES = new Set([
-    'IMAGE_WORD_MATCH', 'COUNT_OBJECTS', 'MISSING_OBJECT', 'MEMORY_CARD',
-    'STAR_CATCHER', 'FEED_ANIMAL', 'TRUE_FALSE', 'DRAG_DROP',
-    'FIND_OBJECT', 'CLASSIFICATION', 'LISTEN_REPEAT', 'MATCHING', 'MEMORY'
-  ]);
-  const allowedGameTypes = isMamAge ? MAM_GAME_TYPES : CHOI_LA_GAME_TYPES;
-
-  const ageGroupCode = user?.ageGroupCode || (lesson as any)?.ageGroupCode || '3-4';
-  const hasVisualVocabulary = (lesson?.vocabularyItems || []).some(vocab => Boolean(vocab.imageUrl));
-  const finalGames = activities.filter((activity: any) => {
-    const type = String(activity.activityType || '').toUpperCase();
-    const titleAndType = `${activity.title || ''} ${activity.vietnameseTitle || ''}`.toLowerCase();
-    const isTextOnlyGame =
-      titleAndType.includes('match the words') ||
-      titleAndType.includes('spelling') ||
-      (type === 'DRAG_DROP' && /\b(word|spell|chữ|từ)\b/.test(titleAndType));
-
-    // These text-only types do not exist in the current Activity enum/game runtime.
-    if (['DRAG_DROP_WORD', 'SPELL_PUZZLE'].includes(type)) return false;
-    if ((ageGroupCode === '3-4' || ageGroupCode === '4-5') && isTextOnlyGame) return false;
-    if (type === 'IMAGE_WORD_MATCH' && ageGroupCode !== '5-6') return false;
-    if (type === 'IMAGE_WORD_MATCH' && ageGroupCode === '5-6' && !hasVisualVocabulary) return false;
-    if (type === 'DRAG_DROP' && ageGroupCode === '5-6' && !hasVisualVocabulary) return false;
-    return true;
-  }).sort(
-    (a: any, b: any) =>
-      Number(allowedGameTypes.has(b.activityType)) - Number(allowedGameTypes.has(a.activityType))
-  );
+  // Stage 3 Minigames State
+  const [activeGameId, setActiveGameId] = useState<GameId | null>(null);
+  const [distractorPool, setDistractorPool] = useState<Vocabulary[]>([]);
+  const [completedGames, setCompletedGames] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(`kc_stage3_games_${childId}_${id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const isStage1Completed =
     localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
@@ -126,14 +118,48 @@ export const LessonDetailPage: React.FC = () => {
     localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
   const isStage3Completed =
-    finalGames.length > 0 && finalGames.every((a: any) => a.completed);
+    completedGames.length >= REQUIRED_GAMES_TO_COMPLETE ||
+    localStorage.getItem(`kc_stage3_${childId}_${id}`) === 'true';
 
-  const completedGamesCount = finalGames.filter((a: any) => a.completed).length;
-  const resumeGame = finalGames.find((a: any) => !a.completed) || finalGames[0];
+  const handleGameCompleted = (gameId: string) => {
+    const nextCompleted = Array.from(new Set([...completedGames, gameId]));
+    setCompletedGames(nextCompleted);
+    try {
+      localStorage.setItem(`kc_stage3_games_${childId}_${id}`, JSON.stringify(nextCompleted));
+    } catch {}
 
-  const handleStartActivity = (activityId: string) => {
+    if (nextCompleted.length >= REQUIRED_GAMES_TO_COMPLETE) {
+      localStorage.setItem(`kc_stage3_${childId}_${id}`, 'true');
+      stageProgressApi
+        .completeStage(childId, id!, { stage: 3, score: 100, stars: 3 })
+        .catch(err => console.warn('Stage 3 sync failed:', err));
+    }
+  };
+
+  useEffect(() => {
+    const topicId = typeof lesson?.topic === 'object' ? (lesson.topic as any)?._id : lesson?.topic;
+    if (!topicId || !id) return;
+    let cancelled = false;
+    topicsApi
+      .getLessonsByTopic(String(topicId), user?.ageGroupCode, childId)
+      .then((res: any) => {
+        if (cancelled || !res?.success) return;
+        const pool: Vocabulary[] = [];
+        (res.data || []).forEach((other: any) => {
+          if (String(other._id) === String(id)) return;
+          (other.vocabularyItems || []).forEach((v: Vocabulary) => pool.push(v));
+        });
+        setDistractorPool(pool);
+      })
+      .catch(() => setDistractorPool([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [lesson, id, user?.ageGroupCode, childId]);
+
+  const handleStartGame = (gameId: string) => {
     sfx.playPop();
-    navigate(`/activities/${activityId}`);
+    setActiveGameId(gameId as GameId);
   };
 
   const closeLockedStage = () => {
@@ -276,9 +302,10 @@ export const LessonDetailPage: React.FC = () => {
           onClick={() => { sfx.playPop(); setShowParentDrawer(true); }}
           aria-label="Thông tin phụ huynh"
           title="Góc phụ huynh"
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-300 flex items-center justify-center cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0 text-base"
+          className="h-10 sm:h-11 min-w-10 sm:min-w-11 px-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0 text-base"
         >
           👨‍👩‍👧
+          <span className="text-[11px] sm:text-xs font-black text-indigo-950 whitespace-nowrap">Phụ huynh</span>
         </button>
       </div>
     </div>
@@ -323,23 +350,52 @@ export const LessonDetailPage: React.FC = () => {
                   lessonId={id || ''}
                   stage2Completed={isStage2Completed}
                   ageGroup={user?.ageGroupCode}
+                  unitNumber={unitNumber}
+                  lessonNumber={lessonNumber}
+                  onBackToStage1={() => {
+                    setActiveStage(1);
+                    localStorage.setItem(`kc_stage_active_${childId}_${id}`, '1');
+                  }}
                   onComplete={handleCompleteStage2}
-                  onParentOpen={() => setShowParentDrawer(true)}
                 />
               </div>
             )}
 
             {/* STAGE 3: VUI CHƠI */}
             {activeStage === 3 && (
-              <Stage3ArcadeHub
-                games={finalGames}
-                resumeGame={resumeGame}
-                completedCount={completedGamesCount}
-                isCompleted={isStage3Completed}
-                onStart={handleStartActivity}
-                onBackToStage2={() => handleSelectStage(2)}
-                onHome={() => navigate('/')}
-              />
+              <>
+                <GamesTab
+                  vocabularyList={lesson.vocabularyItems || []}
+                  unitNumber={unitNumber}
+                  lessonNumber={lessonNumber}
+                  completedGameIds={completedGames}
+                  isStage3Completed={isStage3Completed}
+                  onSelectGame={handleStartGame}
+                />
+
+                {activeGameId && (
+                  <GameRunner
+                    key={activeGameId}
+                    config={{
+                      unitId: (lesson as any)?.unit?._id
+                        || (lesson as any)?.curriculumUnits?.[0]?._id
+                        || (lesson as any)?.unitId
+                        || 'u1',
+                      lessonId: id || '',
+                      gameId: activeGameId,
+                      vocabularyList: lesson.vocabularyItems || [],
+                      distractorPool,
+                      ageGroup: user?.ageGroupCode || '3-4',
+                      childId,
+                    }}
+                    unitNumber={unitNumber}
+                    lessonNumber={lessonNumber}
+                    onExit={() => setActiveGameId(null)}
+                    onGameComplete={handleGameCompleted}
+                    onNextGame={(nextId) => setActiveGameId(nextId as GameId)}
+                  />
+                )}
+              </>
             )}
 
           </div>
@@ -362,7 +418,14 @@ export const LessonDetailPage: React.FC = () => {
       stage2Completed={isStage2Completed}
       stage3Completed={isStage3Completed}
       activeStage={activeStage}
-      games={finalGames}
+      games={getLessonGames(unitNumber, lessonNumber).map((game) => ({
+        _id: game.id,
+        title: game.title,
+        vietnameseTitle: game.subtitle,
+        activityType: game.category,
+        instructions: game.subtitle,
+        completed: completedGames.includes(game.id),
+      }))}
     />
     {lockedStage !== null && (
       <LockedStageDialog

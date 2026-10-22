@@ -9,11 +9,16 @@
 import { vocabMasteryService } from './vocabMasteryService';
 import type { Vocabulary } from '../types';
 
-export type ActivityType = 'LT' | 'FS' | 'GK' | 'YN' | 'SS';
+export type ActivityType = 'LT' | 'FS' | 'GK' | 'YN' | 'SS' | 'LOOK_WORD' | 'WIPE' | 'MEMORY' | 'TRACE' | 'SLIDE' | 'DELIVER' | 'PUPPET' | 'SEQUENCE' | 'PATH' | 'MATCH_LINES';
+
+export type ActivityId = 'listen-choose' | 'look-choose-word' | 'match-lines';
 
 export interface RecentAttempt {
   ok: boolean;
   type: ActivityType;
+  activityId?: ActivityId;
+  round?: number;
+  affectsMastery?: boolean;
   ts: number;
   chosenDistractorId?: string;
 }
@@ -156,6 +161,9 @@ export const vocabStatsService = {
     wordId: string,
     payload: {
       type: ActivityType;
+      activityId?: ActivityId;
+      round?: number;
+      affectsMastery?: boolean;
       ok: boolean;
       isFirstTry: boolean;
       usedHint?: boolean;
@@ -187,23 +195,21 @@ export const vocabStatsService = {
       cur.sessionDaysCount = (cur.sessionDaysCount || 1) + 1;
     }
 
-    cur.attempts += 1;
-    if (payload.isFirstTry && payload.ok) {
-      cur.firstTryCorrect += 1;
-    }
-    if (!payload.ok) {
-      cur.wrong += 1;
-      if (payload.chosenDistractorId) {
-        cur.confusions[payload.chosenDistractorId] =
-          (cur.confusions[payload.chosenDistractorId] || 0) + 1;
+    if (payload.affectsMastery !== false) {
+      cur.attempts += 1;
+      if (payload.isFirstTry && payload.ok) {
+        cur.firstTryCorrect += 1;
       }
-    }
-    if (payload.usedHint) {
-      cur.hints += 1;
-    }
+      if (!payload.ok) {
+        cur.wrong += 1;
+        if (payload.chosenDistractorId) {
+          cur.confusions[payload.chosenDistractorId] =
+            (cur.confusions[payload.chosenDistractorId] || 0) + 1;
+        }
+      }
+      if (payload.usedHint) cur.hints += 1;
 
-    if (payload.ok && !cur.typesCorrect.includes(payload.type)) {
-      cur.typesCorrect.push(payload.type);
+      if (payload.ok && !cur.typesCorrect.includes(payload.type)) cur.typesCorrect.push(payload.type);
     }
 
     // append to last6
@@ -212,15 +218,19 @@ export const vocabStatsService = {
       {
         ok: payload.ok,
         type: payload.type,
+        activityId: payload.activityId,
+        round: payload.round,
         ts: Date.now(),
         chosenDistractorId: payload.chosenDistractorId,
       },
     ];
 
     // Compute updated mastery
-    const computed = computeMastery(cur);
-    cur.mastery = computed.mastery;
-    cur.trouble = computed.trouble;
+    if (payload.affectsMastery !== false) {
+      const computed = computeMastery(cur);
+      cur.mastery = computed.mastery;
+      cur.trouble = computed.trouble;
+    }
     cur.updatedAt = Date.now();
 
     all[wordId] = cur;

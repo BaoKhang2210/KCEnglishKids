@@ -4,6 +4,7 @@ import {
   type ChildVocabStatsMap,
   type WordStats,
   type ActivityType,
+  type ActivityId,
 } from '../services/vocabStatsService';
 import type { Vocabulary } from '../types';
 
@@ -29,6 +30,9 @@ export function useVocabStats(childId: string) {
       wordId: string,
       payload: {
         type: ActivityType;
+        activityId?: ActivityId;
+        round?: number;
+        affectsMastery?: boolean;
         ok: boolean;
         isFirstTry: boolean;
         usedHint?: boolean;
