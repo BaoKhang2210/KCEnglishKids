@@ -162,8 +162,8 @@ export const LessonDetailPage: React.FC = () => {
   const handleSelectStage = (stage: 1 | 2 | 3) => {
     if (stage >= 2 && !isStage1Completed) {
       showKokoLockNotice(
-        'Bé hãy khám phá ít nhất 4 hình ở Chặng 1 trước đã nhé! 🔍',
-        'Bé ơi, hãy khám phá các đồ vật ở Chặng 1 trước đã nhé!'
+        'Bé hãy khám phá hết các thẻ từ ở Chặng 1 trước đã nhé! 🔍',
+        'Bé ơi, hãy khám phá hết các từ ở Chặng 1 trước đã nhé!'
       );
       return;
     }
@@ -390,6 +390,7 @@ export const LessonDetailPage: React.FC = () => {
       isOpen={showParentDrawer}
       onClose={() => setShowParentDrawer(false)}
       childId={childId}
+      lessonId={id}
       lessonTitle={lesson?.title}
       lessonVietnameseTitle={(lesson as any)?.vietnameseTitle}
       objectives={lesson?.learningObjectives || []}
