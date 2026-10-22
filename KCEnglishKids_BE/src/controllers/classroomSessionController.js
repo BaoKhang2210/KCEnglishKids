@@ -37,6 +37,64 @@ const ownClass = async (req, classId) => {
   return ClassRoom.findOne(query);
 };
 
+// Helper — verify that classroom session can only be opened/started when scheduled day & time arrive
+const checkScheduledTiming = async (classroomId, userRole) => {
+  if (userRole === 'ADMIN') return { allowed: true };
+
+  const Schedule = mongoose.models.Schedule || require('../models/Schedule');
+  const schedule = await Schedule.findOne({ classroom: classroomId, isActive: true });
+  if (!schedule || !Array.isArray(schedule.weeklySlots) || schedule.weeklySlots.length === 0) {
+    return { allowed: true };
+  }
+
+  // Get current day of week and current time in Vietnam GMT+7
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const vnNow = new Date(utc + 7 * 3600000);
+  const currentDayOfWeek = vnNow.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const currentMinutes = vnNow.getHours() * 60 + vnNow.getMinutes();
+
+  const dayLabels = {
+    1: 'Thứ 2',
+    2: 'Thứ 3',
+    3: 'Thứ 4',
+    4: 'Thứ 5',
+    5: 'Thứ 6',
+    6: 'Thứ 7',
+    0: 'Chủ Nhật'
+  };
+
+  let isCurrentlyActive = false;
+  let activeSlot = null;
+  const slotList = [];
+
+  for (const slot of schedule.weeklySlots) {
+    const [startH, startM] = (slot.startTime || '00:00').split(':').map(Number);
+    const [endH, endM] = (slot.endTime || '23:59').split(':').map(Number);
+    const startMin = startH * 60 + startM;
+    const endMin = endH * 60 + endM;
+
+    // Check if slot matches today and current time is within slot (allowing 15m early buffer and 30m after end)
+    if (slot.dayOfWeek === currentDayOfWeek) {
+      if (currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
+        isCurrentlyActive = true;
+        activeSlot = slot;
+        break;
+      }
+    }
+    slotList.push(`${dayLabels[slot.dayOfWeek] || 'Ngày'} (${slot.startTime} - ${slot.endTime})`);
+  }
+
+  if (isCurrentlyActive) {
+    return { allowed: true, activeSlot };
+  }
+
+  return {
+    allowed: false,
+    message: `Chưa đến giờ dạy theo thời khóa biểu! Lớp học này được lên lịch vào: ${slotList.join(', ')}. Khi đến đúng ngày và giờ học thì giáo viên mới có thể mở lớp và bắt đầu dạy (hệ thống cho phép mở trước 15 phút).`
+  };
+};
+
 const computeSessionSummary = (session) => {
   const scores = session.studentScores || [];
   const participated = scores.filter(
@@ -173,6 +231,16 @@ exports.createSession = async (req, res, next) => {
     const classroom = await ownClass(req, classroomId);
     if (!classroom)
       return forbidden(res, 'You do not have access to this classroom.');
+
+    // Verify scheduled timing: can only create/open class when it's the scheduled day & hour
+    const timingCheck = await checkScheduledTiming(classroomId, req.user.role);
+    if (!timingCheck.allowed) {
+      return res.status(400).json({
+        success: false,
+        timingLocked: true,
+        message: timingCheck.message
+      });
+    }
 
     // Verify lesson exists (optional)
     let lesson = null;
@@ -348,6 +416,16 @@ exports.startSession = async (req, res, next) => {
     if (!session) return notFound(res, 'Session not found.');
     if (session.status === 'COMPLETED')
       return bad(res, 'This session has already ended.');
+
+    // Verify scheduled timing
+    const timingCheck = await checkScheduledTiming(session.classroom, req.user.role);
+    if (!timingCheck.allowed) {
+      return res.status(400).json({
+        success: false,
+        timingLocked: true,
+        message: timingCheck.message
+      });
+    }
 
     session.status = 'LIVE';
     if (!session.startedAt) session.startedAt = new Date();

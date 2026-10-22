@@ -295,12 +295,22 @@ export const adminApi = {
     api.post(`/admin/classrooms/${id}/assign-students`, { studentIds }),
   addStudentToClassroom: (id: string, studentId: string) =>
     api.post(`/admin/classrooms/${id}/students`, { studentId }),
+  addIndividualStudentToClassroom: (
+    id: string,
+    data: { name: string; dob?: string; pin?: string; contact?: string; parentContact?: string }
+  ) => api.post(`/admin/classrooms/${id}/students`, data),
   removeStudentFromClassroom: (id: string, studentId: string) =>
     api.delete(`/admin/classrooms/${id}/students/${studentId}`),
   assignTeacherToClassroom: (id: string, teacherId: string) =>
     api.put(`/admin/classrooms/${id}/teacher`, { teacherId }),
   assignTeacher: (id: string, teacherId: string) =>
     api.put(`/admin/classrooms/${id}/teacher`, { teacherId }),
+  getClassroomCurriculumProgress: (id: string) =>
+    api.get(`/admin/classrooms/${id}/curriculum-progress`),
+  updateClassroomCurriculumProgress: (id: string, data: any) =>
+    api.put(`/admin/classrooms/${id}/curriculum-progress`, data),
+  exportSystemBackup: () =>
+    api.get('/admin/system/backup'),
   importStudentsFromExcel: (
     classId: string,
     students: Array<{

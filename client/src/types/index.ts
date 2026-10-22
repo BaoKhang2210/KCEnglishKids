@@ -490,6 +490,15 @@ export interface ScheduleWeeklySlot {
   endTime: string;   // "08:45"
   subjectNote?: string;
   room?: string;
+  lesson?: {
+    _id: string;
+    title: string;
+    vietnameseTitle?: string;
+    displayOrder?: number;
+    lessonNumber?: number;
+  } | string | null;
+  lessonNumber?: number | null;
+  lessonTitle?: string;
 }
 
 export interface ClassSchedule {

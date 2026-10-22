@@ -5,7 +5,8 @@ const classRoomSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
+      unique: true
     },
     description: {
       type: String,
@@ -26,6 +27,21 @@ const classRoomSchema = new mongoose.Schema(
       type: String,
       enum: ['3-4', '4-5', '5-6']
     },
+    curriculumBook: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CurriculumBook'
+    },
+    currentLesson: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lesson',
+      default: null
+    },
+    completedLessons: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lesson'
+      }
+    ],
     academicYear: {
       type: String,
       default: '2026-2027'

@@ -93,6 +93,34 @@ export const SessionSummaryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen teacher-dark dark bg-[#0c1222] text-slate-100">
+      {/* ── Top navigation bar ────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-slate-900/95 border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between backdrop-blur shadow-md">
+        <div className="flex items-center gap-2.5">
+          <Link
+            to={`/teacher/classes/${(session.classroom as any)?._id || ''}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs sm:text-sm font-black text-slate-200 transition-colors shadow-xs"
+          >
+            <ArrowLeft size={16} />
+            <span>Về Lớp Học</span>
+          </Link>
+          <Link
+            to={`/teacher/classroom-sessions?classroomId=${(session.classroom as any)?._id || ''}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs sm:text-sm font-black text-teal-300 transition-colors shadow-xs"
+          >
+            <History size={16} />
+            <span className="hidden sm:inline">Nhật Ký Buổi Dạy</span>
+          </Link>
+        </div>
+
+        <Link
+          to="/teacher/classes"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-xs sm:text-sm font-black text-slate-950 transition-colors shadow-sm"
+        >
+          <Users size={15} />
+          <span>Quản Lý Lớp Học</span>
+        </Link>
+      </header>
+
       {/* ── Hero banner ───────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-10 text-center">
         <p className="text-5xl mb-2">🎉</p>

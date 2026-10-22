@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trophy, Flame, Sparkles, ChevronRight, Award, RotateCcw } from 'lucide-react';
+import { X, Trophy, Flame, Sparkles, ChevronRight, Award } from 'lucide-react';
 import { StreakFlameIcon } from './StreakFlameIcon';
 import { KokoMascot } from './KokoMascot';
 import { sfx } from '../../utils/audio';
@@ -148,28 +148,6 @@ export const DailyStreakModal: React.FC<DailyStreakModalProps> = ({
 
         {/* Modal Scrollable Body */}
         <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-4">
-          {/* Preview Notification Banner */}
-          {isPreviewing && (
-            <div className="bg-gradient-to-r from-amber-100 to-orange-100 border-2 border-amber-400 rounded-2xl p-3 flex items-center justify-between gap-2 shadow-xs animate-fade-in">
-              <div className="flex items-center gap-2 text-xs font-black text-amber-950">
-                <span className="text-base">🔮</span>
-                <span>
-                  Đang xem thử hiệu ứng <b>Cấp {displayLevel} ({displayDays} ngày)</b>. Chuỗi thật: <b>{streak} ngày</b>.
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  sfx.playPop();
-                  setPreviewDays(null);
-                }}
-                className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[11px] font-black shrink-0 transition-transform hover:scale-105 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Mức thật</span>
-              </button>
-            </div>
-          )}
-
           {/* Main Flame Hero Showcase */}
           <div className={`relative p-5 sm:p-6 rounded-[28px] border-3 text-center overflow-hidden transition-all shadow-md ${
             displayLevel >= 4

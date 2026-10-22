@@ -24,8 +24,8 @@ html, body {
 }
 
 html {
-  /* 15px tại 720px cao; co/giãn theo cả chiều cao VÀ chiều rộng */
-  font-size: clamp(14px, min(calc(100dvh / 45), calc(100vw / 80)), 18px);
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
 }
 
 @layer base {
@@ -579,277 +579,37 @@ html {
 }
 
 /* ─────────────────────────────────────────────────────────
-   1. TEACHER THEME (Permanently Dark Eye-Comfort)
+   PORTAL DESIGN SYSTEM (Admin & Teacher) — Bright, Clean, Friendly
    ───────────────────────────────────────────────────────── */
 
-/* Teacher Dark Mode (.teacher-dark) — Deep Midnight Eye-Comfort */
-.teacher-dark {
-  background-color: #0c1222 !important;
-  color: #e2e8f0 !important;
-  color-scheme: dark;
+
+
+
+
+
+/* Soft card hover transition */
+.portal-card {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.teacher-dark aside,
-.teacher-dark .lg\:hidden {
-  background-color: #080d19 !important;
-  border-color: rgba(148, 163, 184, 0.12) !important;
+.portal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
 }
 
-.teacher-dark main {
-  background-color: #0c1222 !important;
+/* Ensure clean inputs across portals */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="time"],
+input[type="date"],
+select,
+textarea {
+  font-family: inherit;
+  color: #0f172a;
 }
 
-/* Cards, Sections & Panels in Teacher Dark */
-.teacher-dark .bg-white {
-  background-color: #141d30 !important;
-  border-color: rgba(148, 163, 184, 0.14) !important;
-  color: #f1f5f9 !important;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.25) !important;
-}
-
-.teacher-dark .bg-slate-50 {
-  background-color: #0f1626 !important;
-  color: #cbd5e1 !important;
-}
-
-.teacher-dark .bg-slate-100 {
-  background-color: #1e2a44 !important;
-  color: #f1f5f9 !important;
-  border-color: rgba(148, 163, 184, 0.18) !important;
-}
-
-.teacher-dark .bg-slate-200 {
-  background-color: #293856 !important;
-}
-
-/* Borders in Teacher Dark */
-.teacher-dark .border-slate-200,
-.teacher-dark .border-slate-100,
-.teacher-dark .border-slate-300 {
-  border-color: rgba(148, 163, 184, 0.12) !important;
-}
-
-/* Typography in Teacher Dark */
-.teacher-dark .text-slate-900,
-.teacher-dark .text-slate-800 {
-  color: #f8fafc !important;
-}
-
-.teacher-dark .text-slate-700 {
-  color: #e2e8f0 !important;
-}
-
-.teacher-dark .text-slate-600,
-.teacher-dark .text-slate-500 {
-  color: #94a3b8 !important;
-}
-
-.teacher-dark .text-slate-400 {
-  color: #64748b !important;
-}
-
-/* Form Controls in Teacher Dark */
-.teacher-dark input:not([type="checkbox"]):not([type="radio"]),
-.teacher-dark textarea,
-.teacher-dark select {
-  background-color: #162035 !important;
-  border-color: #263654 !important;
-  color: #f8fafc !important;
-}
-
-.teacher-dark input:focus,
-.teacher-dark textarea:focus,
-.teacher-dark select:focus {
-  border-color: #14b8a6 !important;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2) !important;
-}
-
-.teacher-dark input::placeholder,
-.teacher-dark textarea::placeholder {
-  color: #64748b !important;
-}
-
-/* Navigation Links in Teacher Dark */
-.teacher-dark aside nav a:not([class*="bg-teal"]):not(.active) {
-  color: #94a3b8 !important;
-}
-
-.teacher-dark aside nav a:not([class*="bg-teal"]):not(.active):hover {
-  background-color: #1a253e !important;
-  color: #f8fafc !important;
-}
-
-/* Tables in Teacher Dark */
-.teacher-dark table th,
-.teacher-dark table thead {
-  background-color: #0b1120 !important;
-  color: #94a3b8 !important;
-  border-color: rgba(148, 163, 184, 0.12) !important;
-}
-
-.teacher-dark table td {
-  border-color: rgba(148, 163, 184, 0.1) !important;
-  color: #e2e8f0 !important;
-}
-
-.teacher-dark table tr:hover {
-  background-color: rgba(30, 42, 68, 0.45) !important;
-}
-
-/* Pastel Tinted Badges & Highlight Containers in Teacher Dark */
-.teacher-dark .bg-teal-50,
-.teacher-dark [class*="bg-teal-50"] {
-  background-color: rgba(20, 184, 166, 0.12) !important;
-  border-color: rgba(45, 212, 191, 0.25) !important;
-  color: #2dd4bf !important;
-}
-
-.teacher-dark .bg-emerald-50,
-.teacher-dark [class*="bg-emerald-50"] {
-  background-color: rgba(16, 185, 129, 0.12) !important;
-  border-color: rgba(52, 211, 153, 0.25) !important;
-  color: #34d399 !important;
-}
-
-.teacher-dark .bg-amber-50,
-.teacher-dark [class*="bg-amber-50"],
-.teacher-dark .bg-amber-50\/30,
-.teacher-dark .bg-amber-50\/60 {
-  background-color: rgba(245, 158, 11, 0.12) !important;
-  border-color: rgba(251, 191, 36, 0.25) !important;
-  color: #fbbf24 !important;
-}
-
-.teacher-dark .bg-indigo-50,
-.teacher-dark [class*="bg-indigo-50"] {
-  background-color: rgba(99, 102, 241, 0.12) !important;
-  border-color: rgba(165, 180, 252, 0.25) !important;
-  color: #a5b4fc !important;
-}
-
-.teacher-dark .bg-blue-50,
-.teacher-dark [class*="bg-blue-50"] {
-  background-color: rgba(59, 130, 246, 0.12) !important;
-  border-color: rgba(147, 197, 253, 0.25) !important;
-  color: #93c5fd !important;
-}
-
-.teacher-dark .bg-sky-50,
-.teacher-dark [class*="bg-sky-50"] {
-  background-color: rgba(14, 165, 233, 0.12) !important;
-  border-color: rgba(125, 211, 252, 0.25) !important;
-  color: #7dd3fc !important;
-}
-
-.teacher-dark .bg-rose-50,
-.teacher-dark [class*="bg-rose-50"] {
-  background-color: rgba(244, 63, 94, 0.12) !important;
-  border-color: rgba(253, 164, 175, 0.25) !important;
-  color: #fda4af !important;
-}
-
-.teacher-dark .bg-violet-50,
-.teacher-dark .bg-purple-50,
-.teacher-dark [class*="bg-violet-50"],
-.teacher-dark [class*="bg-purple-50"] {
-  background-color: rgba(168, 85, 247, 0.12) !important;
-  border-color: rgba(216, 180, 254, 0.25) !important;
-  color: #d8b4fe !important;
-}
-
-/* Gradients in Teacher Dark (preventing white blowout) */
-.teacher-dark [class*="via-white"],
-.teacher-dark [class*="to-white"] {
-  background-image: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(20, 29, 48, 0.95)) !important;
-  border-color: rgba(20, 184, 166, 0.25) !important;
-}
-
-.teacher-dark .from-teal-50.to-emerald-50 {
-  background-image: linear-gradient(to bottom right, rgba(13, 148, 136, 0.2), rgba(16, 185, 129, 0.15)) !important;
-  border-color: rgba(13, 148, 136, 0.35) !important;
-}
-
-/* ─────────────────────────────────────────────────────────
-   2. ADMIN THEME (Permanently Dark Executive Indigo)
-   ───────────────────────────────────────────────────────── */
-
-/* Admin Dark Mode (.admin-dark) — Executive Midnight Indigo */
-.admin-dark {
-  background-color: #0b0f19 !important;
-  color: #e2e8f0 !important;
-  color-scheme: dark;
-}
-
-.admin-dark aside,
-.admin-dark .md\:hidden {
-  background-color: #070b14 !important;
-  border-color: rgba(148, 163, 184, 0.12) !important;
-}
-
-.admin-dark main {
-  background-color: #0b0f19 !important;
-}
-
-.admin-dark div[class*="bg-slate-900"]:not(button):not(a),
-.admin-dark section[class*="bg-slate-900"],
-.admin-dark .bg-slate-900:not(button):not(a),
-.admin-dark .bg-white {
-  background-color: #121a2c !important;
-  border-color: rgba(99, 102, 241, 0.16) !important;
-  color: #f1f5f9 !important;
-}
-
-.admin-dark .bg-white h3,
-.admin-dark .bg-white h2,
-.admin-dark .bg-white h1 {
-  color: #f8fafc !important;
-}
-
-.admin-dark .bg-white p {
-  color: #94a3b8 !important;
-}
-
-.admin-dark div[class*="bg-slate-950"]:not(button):not(a),
-.admin-dark [class*="bg-slate-950/"]:not(button):not(a) {
-  background-color: #0c1220 !important;
-  border-color: rgba(148, 163, 184, 0.1) !important;
-}
-
-.admin-dark input:not([type="checkbox"]):not([type="radio"]),
-.admin-dark textarea,
-.admin-dark select {
-  background-color: #162035 !important;
-  border-color: #263654 !important;
-  color: #f8fafc !important;
-}
-
-.admin-dark input::placeholder,
-.admin-dark textarea::placeholder {
-  color: #64748b !important;
-}
-
-.admin-dark input:focus,
-.admin-dark textarea:focus,
-.admin-dark select:focus {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
-}
-
-.admin-dark table thead tr,
-.admin-dark table tr.border-b {
-  background-color: #0c1220 !important;
-  color: #94a3b8 !important;
-  border-color: rgba(148, 163, 184, 0.1) !important;
-}
-
-.admin-dark table td {
-  border-color: rgba(148, 163, 184, 0.08) !important;
-  color: #e2e8f0 !important;
-}
-
-.admin-dark table tr:hover {
-  background-color: #162035 !important;
-}
 
 
 /* Stage 2 uses a dedicated immersive viewport while a question is active. */

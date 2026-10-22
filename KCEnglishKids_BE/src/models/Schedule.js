@@ -38,6 +38,19 @@ const scheduleSchema = new mongoose.Schema({
     room: {
       type: String,
       default: ''
+    },
+    lesson: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lesson',
+      default: null
+    },
+    lessonNumber: {
+      type: Number,
+      default: null
+    },
+    lessonTitle: {
+      type: String,
+      default: ''
     }
   }],
   colorTag: {

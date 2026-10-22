@@ -470,15 +470,21 @@ const getClassrooms = async (req, res, next) => {
   try {
     const classrooms = await ClassRoom.find()
       .populate('teacher', 'name email username avatar avatarUrl contact')
-      .populate('students', 'name username avatar avatarUrl ageGroupCode dob')
+      .populate('students', 'name username avatar avatarUrl ageGroupCode dob contact pin status')
       .populate('ageGroup', 'name code')
-      .sort({ academicYear: -1, name: 1 })
+      .populate('currentLesson', 'title vietnameseTitle displayOrder')
+      .sort({ createdAt: -1 })
       .lean();
+
+    const formatted = classrooms.map(c => ({
+      ...c,
+      studentCount: c.students ? c.students.length : 0
+    }));
 
     res.status(200).json({
       success: true,
-      count: classrooms.length,
-      data: classrooms
+      count: formatted.length,
+      data: formatted
     });
   } catch (error) {
     next(error);
@@ -677,6 +683,26 @@ const createClassroom = async (req, res, next) => {
       });
     }
 
+    const cleanName = String(name).trim();
+    if (!cleanName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tên lớp học không được để trống.'
+      });
+    }
+
+    // 1. Check duplicate class name (case-insensitive)
+    const existingName = await ClassRoom.findOne({
+      name: { $regex: new RegExp(`^${cleanName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') }
+    });
+    if (existingName) {
+      return res.status(400).json({
+        success: false,
+        message: `Tên lớp "${cleanName}" đã tồn tại trên hệ thống. Vui lòng đặt tên khác không bị trùng!`
+      });
+    }
+
+    // 2. Validate teacher and enforce 1-1 rule
     const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
     if (!teacher) {
       return res.status(400).json({
@@ -685,12 +711,41 @@ const createClassroom = async (req, res, next) => {
       });
     }
 
+    const existingTeacherClass = await ClassRoom.findOne({
+      teacher: teacher._id,
+      status: { $ne: 'INACTIVE' }
+    });
+    if (existingTeacherClass) {
+      return res.status(400).json({
+        success: false,
+        message: `Giáo viên "${teacher.name}" đã được phân công chủ nhiệm lớp "${existingTeacherClass.name}". Theo quy định của trường, mỗi giáo viên chỉ dạy 1 lớp học!`
+      });
+    }
+
     const ageGroupDoc = await AgeGroup.findOne({ code: ageGroupCode });
+    const bookNumber = ageGroupCode === '3-4' ? 1 : ageGroupCode === '4-5' ? 2 : 3;
+    const curriculumBookDoc = await CurriculumBook.findOne({ bookNumber });
+
+    // Find initial lesson for this age group / book
+    let initialLessonId = null;
+    if (curriculumBookDoc) {
+      const firstUnit = await CurriculumUnit.findOne({ book: curriculumBookDoc._id }).sort({ unitNumber: 1 });
+      if (firstUnit) {
+        const firstLesson = await Lesson.findOne({
+          curriculumUnits: firstUnit._id,
+          status: 'ACTIVE'
+        }).sort({ displayOrder: 1, createdAt: 1 });
+        if (firstLesson) initialLessonId = firstLesson._id;
+      }
+    }
 
     const classroom = await ClassRoom.create({
-      name: name.trim(),
+      name: cleanName,
       ageGroupCode,
       ageGroup: ageGroupDoc ? ageGroupDoc._id : undefined,
+      curriculumBook: curriculumBookDoc ? curriculumBookDoc._id : undefined,
+      currentLesson: initialLessonId || undefined,
+      completedLessons: [],
       teacher: teacher._id,
       academicYear: academicYear || '2026-2027',
       description: description || '',
@@ -710,6 +765,7 @@ const createClassroom = async (req, res, next) => {
 
     await classroom.populate('teacher', 'name email username avatar avatarUrl');
     await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob pin contact');
+    await classroom.populate('currentLesson', 'title vietnameseTitle displayOrder');
 
     if (req.user) {
       await AuditLog.create({
@@ -744,23 +800,62 @@ const createClassroom = async (req, res, next) => {
 const updateClassroom = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, ageGroupCode, teacherId, academicYear, description, status } = req.body;
+    const { name, ageGroupCode, teacherId, academicYear, description, status, currentLessonId } = req.body;
 
     const classroom = await ClassRoom.findById(id);
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
 
-    if (name) classroom.name = name.trim();
-    if (ageGroupCode) {
+    // Check unique name if name is changing
+    if (name) {
+      const cleanName = String(name).trim();
+      const duplicateName = await ClassRoom.findOne({
+        name: { $regex: new RegExp(`^${cleanName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+        _id: { $ne: id }
+      });
+      if (duplicateName) {
+        return res.status(400).json({
+          success: false,
+          message: `Tên lớp "${cleanName}" đã trùng với lớp khác. Vui lòng chọn tên khác!`
+        });
+      }
+      classroom.name = cleanName;
+    }
+
+    if (ageGroupCode && ageGroupCode !== classroom.ageGroupCode) {
       classroom.ageGroupCode = ageGroupCode;
       const ag = await AgeGroup.findOne({ code: ageGroupCode });
       if (ag) classroom.ageGroup = ag._id;
+      const bookNumber = ageGroupCode === '3-4' ? 1 : ageGroupCode === '4-5' ? 2 : 3;
+      const bookDoc = await CurriculumBook.findOne({ bookNumber });
+      if (bookDoc) classroom.curriculumBook = bookDoc._id;
     }
-    if (teacherId) {
+
+    // Teacher 1-1 rule check
+    if (teacherId && String(teacherId) !== String(classroom.teacher)) {
       const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
-      if (teacher) classroom.teacher = teacher._id;
+      if (!teacher) {
+        return res.status(400).json({ success: false, message: 'Giáo viên phụ trách không hợp lệ.' });
+      }
+      const existingTeacherClass = await ClassRoom.findOne({
+        teacher: teacher._id,
+        _id: { $ne: id },
+        status: { $ne: 'INACTIVE' }
+      });
+      if (existingTeacherClass) {
+        return res.status(400).json({
+          success: false,
+          message: `Giáo viên "${teacher.name}" đã phụ trách lớp "${existingTeacherClass.name}". Mỗi giáo viên chỉ được phụ trách 1 lớp học!`
+        });
+      }
+      classroom.teacher = teacher._id;
     }
+
+    if (currentLessonId) {
+      classroom.currentLesson = currentLessonId;
+    }
+
     if (academicYear) classroom.academicYear = academicYear;
     if (description !== undefined) classroom.description = description;
     if (status && ['ACTIVE', 'INACTIVE', 'COMPLETED', 'UPCOMING'].includes(status)) {
@@ -769,7 +864,8 @@ const updateClassroom = async (req, res, next) => {
 
     await classroom.save();
     await classroom.populate('teacher', 'name email username avatar avatarUrl');
-    await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob');
+    await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob contact pin');
+    await classroom.populate('currentLesson', 'title vietnameseTitle displayOrder');
 
     if (req.user) {
       await AuditLog.create({
@@ -796,7 +892,7 @@ const updateClassroom = async (req, res, next) => {
   }
 };
 
-// @desc    Delete classroom permanently and disassociate students safely
+// @desc    Delete classroom permanently and cascade delete all its students cleanly
 // @route   DELETE /api/admin/classrooms/:id
 // @access  Private / Admin
 const deleteClassroom = async (req, res, next) => {
@@ -808,25 +904,30 @@ const deleteClassroom = async (req, res, next) => {
     }
 
     const className = classroom.name;
-    const studentCount = classroom.students?.length || 0;
+    const studentIds = classroom.students || [];
 
-    // 1. Unassign all students belonging to this classroom so accounts are safely preserved
-    await User.updateMany(
-      { assignedClass: classroom._id },
-      { $unset: { assignedClass: 1 } }
-    );
+    // 1. Wipe out all student accounts belonging to this class permanently
+    const deleteStudentsResult = await User.deleteMany({
+      $or: [
+        { assignedClass: classroom._id },
+        { _id: { $in: studentIds } }
+      ],
+      role: 'CHILD'
+    });
 
-    // 2. Safely clean up future schedules for this class
+    // 2. Clean up attendances, sessions, and schedules associated with this class
     try {
+      await Attendance.deleteMany({ classroom: classroom._id });
+      await ClassroomSession.deleteMany({ classroom: classroom._id });
       const Schedule = mongoose.models.Schedule || require('../models/Schedule');
       if (Schedule) {
         await Schedule.deleteMany({ classroom: classroom._id });
       }
     } catch (e) {
-      console.warn('Could not clean up classroom schedules:', e);
+      console.warn('Could not clean up secondary classroom records:', e);
     }
 
-    // 3. Delete the classroom document
+    // 3. Delete the classroom document itself
     await ClassRoom.findByIdAndDelete(id);
 
     if (req.user) {
@@ -837,15 +938,15 @@ const deleteClassroom = async (req, res, next) => {
         targetId: id,
         details: {
           name: className,
-          unassignedStudents: studentCount,
-          note: 'Đã xóa vĩnh viễn lớp học và chuyển các học sinh về danh sách chưa phân lớp'
+          deletedStudentsCount: deleteStudentsResult.deletedCount,
+          note: 'Đã xóa vĩnh viễn lớp học và toàn bộ học sinh thuộc lớp theo quy định'
         }
       });
     }
 
     res.status(200).json({
       success: true,
-      message: `Đã xóa vĩnh viễn lớp học "${className}". ${studentCount > 0 ? `Đã chuyển an toàn ${studentCount} học sinh về danh sách chưa phân lớp.` : ''}`
+      message: `Đã xóa vĩnh viễn lớp học "${className}" cùng toàn bộ ${deleteStudentsResult.deletedCount} hồ sơ học sinh thuộc lớp.`
     });
   } catch (error) {
     next(error);
@@ -2051,57 +2152,115 @@ const getClassroomById = async (req, res, next) => {
 const addStudentToClassroom = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { studentId, studentIds } = req.body;
+    const { studentId, studentIds, name, fullName, dob, pin, contact, parentContact } = req.body;
 
-    const idsToAdd = Array.isArray(studentIds) ? studentIds : (studentId ? [studentId] : []);
-    if (idsToAdd.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ID học sinh cần thêm vào lớp.' });
-    }
-
-    const classroom = await ClassRoom.findById(id);
+    const classroom = await ClassRoom.findById(id).populate('ageGroup');
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
 
-    const validStudents = await User.find({ _id: { $in: idsToAdd }, role: 'CHILD' });
-    const validIds = validStudents.map(s => s._id);
+    // 1. Existing student ID(s) (Thêm từ tài khoản học sinh đã có sẵn trong hệ thống)
+    const idsToAdd = Array.isArray(studentIds) ? studentIds : (studentId ? [studentId] : []);
+    if (idsToAdd.length > 0) {
+      const validStudents = await User.find({ _id: { $in: idsToAdd }, role: 'CHILD' });
+      if (validStudents.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản học sinh hợp lệ trong hệ thống.' });
+      }
+      const validIds = validStudents.map(s => s._id);
 
-    // Remove from other classes
-    await ClassRoom.updateMany(
-      { _id: { $ne: classroom._id }, students: { $in: validIds } },
-      { $pull: { students: { $in: validIds } } }
-    );
+      // Remove from other classes
+      await ClassRoom.updateMany(
+        { _id: { $ne: classroom._id }, students: { $in: validIds } },
+        { $pull: { students: { $in: validIds } } }
+      );
 
-    // Add to this class
-    await ClassRoom.findByIdAndUpdate(id, {
-      $addToSet: { students: { $each: validIds } }
-    });
+      // Add to this class
+      await ClassRoom.findByIdAndUpdate(id, {
+        $addToSet: { students: { $each: validIds } }
+      });
 
-    // Update students' assignedClass
-    await User.updateMany(
-      { _id: { $in: validIds } },
-      { $set: { assignedClass: classroom._id, ageGroupCode: classroom.ageGroupCode } }
-    );
+      // Update students' assignedClass and ageGroupCode to match class
+      await User.updateMany(
+        { _id: { $in: validIds } },
+        { $set: { assignedClass: classroom._id, ageGroupCode: classroom.ageGroupCode } }
+      );
 
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'ADD_STUDENTS_TO_CLASS',
-        targetType: 'ClassRoom',
-        targetId: classroom._id,
-        details: { className: classroom.name, count: validIds.length }
+      if (req.user) {
+        await AuditLog.create({
+          user: req.user._id,
+          action: 'ADD_STUDENTS_TO_CLASS',
+          targetType: 'ClassRoom',
+          targetId: classroom._id,
+          details: { className: classroom.name, count: validIds.length, studentNames: validStudents.map(s => s.name) }
+        });
+      }
+
+      const updated = await ClassRoom.findById(id)
+        .populate('teacher', 'name email username avatar avatarUrl')
+        .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username pin status');
+
+      const studentNameStr = validStudents.length === 1 ? `học sinh "${validStudents[0].name}"` : `${validIds.length} học sinh`;
+      return res.status(200).json({
+        success: true,
+        message: `Đã thêm ${studentNameStr} vào lớp ${classroom.name}!`,
+        data: updated
       });
     }
 
-    const updated = await ClassRoom.findById(id)
-      .populate('teacher', 'name email username avatar avatarUrl')
-      .populate('students', 'name avatar avatarUrl ageGroupCode dob contact');
+    // 2. Single student admission fallback (Trường hợp tạo mới học sinh lẻ từ form)
+    const rawName = name || fullName;
+    if (rawName && String(rawName).trim()) {
+      const studentObj = {
+        name: String(rawName).trim(),
+        dob: dob || undefined,
+        pin: pin || undefined,
+        contact: contact || parentContact || undefined,
+        ageGroupCode: classroom.ageGroupCode
+      };
+      const ageGroupCode = classroom.ageGroupCode || '3-4';
+      const ageGroupDoc = classroom.ageGroup || (await AgeGroup.findOne({ code: ageGroupCode }));
+      const { createdUsers, errors } = await helperCreateStudentsFromList(
+        [studentObj],
+        classroom._id,
+        ageGroupCode,
+        ageGroupDoc
+      );
 
-    res.status(200).json({
-      success: true,
-      message: `Đã thêm ${validIds.length} học sinh vào lớp ${classroom.name}!`,
-      data: updated
-    });
+      if (errors.length > 0 || createdUsers.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: errors[0] || 'Không thể tạo hồ sơ học sinh mới.'
+        });
+      }
+
+      const newKid = createdUsers[0];
+      await ClassRoom.findByIdAndUpdate(id, {
+        $addToSet: { students: newKid._id }
+      });
+
+      if (req.user) {
+        await AuditLog.create({
+          user: req.user._id,
+          action: 'ADD_INDIVIDUAL_STUDENT',
+          targetType: 'ClassRoom',
+          targetId: classroom._id,
+          details: { className: classroom.name, studentName: newKid.name, username: newKid.username }
+        });
+      }
+
+      const updated = await ClassRoom.findById(id)
+        .populate('teacher', 'name email username avatar avatarUrl')
+        .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username pin status');
+
+      return res.status(201).json({
+        success: true,
+        message: `Đã tiếp nhận và thêm học sinh "${newKid.name}" (Mã: ${newKid.username}, PIN: ${newKid.pin}) vào lớp ${classroom.name}!`,
+        data: updated,
+        createdStudent: newKid
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Vui lòng chọn học sinh có sẵn từ hệ thống hoặc nhập thông tin học sinh cần thêm.' });
   } catch (error) {
     next(error);
   }
@@ -2285,6 +2444,19 @@ const assignTeacherToClassroom = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
 
+    // Check 1-1 rule: teacher cannot already have another active classroom
+    const existingTeacherClass = await ClassRoom.findOne({
+      teacher: teacher._id,
+      _id: { $ne: id },
+      status: { $ne: 'INACTIVE' }
+    });
+    if (existingTeacherClass) {
+      return res.status(400).json({
+        success: false,
+        message: `Giáo viên "${teacher.name}" đã phụ trách lớp "${existingTeacherClass.name}". Mỗi giáo viên chỉ được phụ trách 1 lớp học!`
+      });
+    }
+
     // Update classroom teacher
     classroom.teacher = teacher._id;
     await classroom.save();
@@ -2308,7 +2480,7 @@ const assignTeacherToClassroom = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Phân công giáo viên ${teacher.name} phụ trách lớp ${classroom.name} thành công!`,
+      message: `Đã phân công giáo viên ${teacher.name} phụ trách lớp ${classroom.name}!`,
       data: updated
     });
   } catch (error) {
@@ -2375,6 +2547,7 @@ const getSchedules = async (req, res, next) => {
     const schedules = await Schedule.find(query)
       .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
+      .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -2436,16 +2609,19 @@ const createSchedule = async (req, res, next) => {
 
     const populatedSchedule = await Schedule.findById(schedule._id)
       .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
-      .populate('teacher', 'name email avatar avatarUrl username');
+      .populate('teacher', 'name email avatar avatarUrl username')
+      .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder');
 
     // Audit log
-    await AuditLog.create({
-      action: 'CREATE',
-      targetType: 'Schedule',
-      targetId: schedule._id.toString(),
-      details: `Admin đã thiết lập thời khóa biểu cho lớp ${classroomDoc.name}`,
-      performedBy: req.user?._id
-    }).catch(err => console.error('AuditLog error:', err));
+    if (req.user?._id) {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'CREATE',
+        targetType: 'Schedule',
+        targetId: schedule._id,
+        details: { message: `Admin đã thiết lập thời khóa biểu cho lớp ${classroomDoc.name}` }
+      }).catch(err => console.error('AuditLog error:', err));
+    }
 
     res.status(201).json({
       success: true,
@@ -2486,16 +2662,19 @@ const updateSchedule = async (req, res, next) => {
 
     const populatedSchedule = await Schedule.findById(schedule._id)
       .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
-      .populate('teacher', 'name email avatar avatarUrl username');
+      .populate('teacher', 'name email avatar avatarUrl username')
+      .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder');
 
     // Audit log
-    await AuditLog.create({
-      action: 'UPDATE',
-      targetType: 'Schedule',
-      targetId: schedule._id.toString(),
-      details: `Admin đã cập nhật thời khóa biểu ${schedule._id}`,
-      performedBy: req.user?._id
-    }).catch(err => console.error('AuditLog error:', err));
+    if (req.user?._id) {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'UPDATE',
+        targetType: 'Schedule',
+        targetId: schedule._id,
+        details: { message: `Admin đã cập nhật thời khóa biểu ${schedule._id}` }
+      }).catch(err => console.error('AuditLog error:', err));
+    }
 
     res.status(200).json({
       success: true,
@@ -2524,13 +2703,15 @@ const deleteSchedule = async (req, res, next) => {
     await Schedule.findByIdAndDelete(id);
 
     // Audit log
-    await AuditLog.create({
-      action: 'DELETE',
-      targetType: 'Schedule',
-      targetId: id,
-      details: `Admin đã xóa thời khóa biểu ${id}`,
-      performedBy: req.user?._id
-    }).catch(err => console.error('AuditLog error:', err));
+    if (req.user?._id) {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'DELETE',
+        targetType: 'Schedule',
+        targetId: id,
+        details: { message: `Admin đã xóa thời khóa biểu ${id}` }
+      }).catch(err => console.error('AuditLog error:', err));
+    }
 
     res.status(200).json({
       success: true,
@@ -2550,6 +2731,7 @@ const getTeacherSchedule = async (req, res, next) => {
     const schedules = await Schedule.find({ teacher: teacherId, isActive: true })
       .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
+      .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
       .lean();
 
     res.status(200).json({
@@ -2972,6 +3154,274 @@ const toggleActivityStatus = async (req, res, next) => {
   }
 };
 
+// @desc    Get complete curriculum syllabus in exact order for a specific classroom
+// @route   GET /api/admin/classrooms/:id/curriculum-progress
+// @access  Private / Admin
+const getClassroomCurriculumProgress = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const classroom = await ClassRoom.findById(id)
+      .populate('teacher', 'name avatar avatarUrl email')
+      .populate('currentLesson', 'title vietnameseTitle displayOrder')
+      .lean();
+
+    if (!classroom) {
+      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
+    }
+
+    const bookNumber = classroom.ageGroupCode === '3-4' ? 1 : classroom.ageGroupCode === '4-5' ? 2 : 3;
+    const book = await CurriculumBook.findOne({ bookNumber }).lean();
+
+    // Get all units for this book sorted by unitNumber
+    const units = await CurriculumUnit.find({ bookNumber, status: 'ACTIVE' })
+      .sort({ unitNumber: 1 })
+      .lean();
+
+    const unitIds = units.map(u => u._id);
+
+    // Get all lessons for these units sorted by displayOrder
+    const lessons = await Lesson.find({
+      curriculumUnits: { $in: unitIds },
+      status: 'ACTIVE'
+    })
+      .populate('topic', 'englishName vietnameseName icon')
+      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl')
+      .populate('languageContents', 'english vietnamese')
+      .sort({ displayOrder: 1, createdAt: 1 })
+      .lean();
+
+    // Get completed classroom sessions for this class to know which lessons were taught
+    const completedSessions = await ClassroomSession.find({
+      classroom: classroom._id,
+      status: 'COMPLETED'
+    }).select('lesson startedAt endedAt sessionNumber summary').lean();
+
+    const taughtLessonMap = new Map();
+    completedSessions.forEach(s => {
+      if (s.lesson) {
+        const lid = String(s.lesson);
+        const count = (taughtLessonMap.get(lid)?.count || 0) + 1;
+        taughtLessonMap.set(lid, { count, lastTaughtAt: s.endedAt || s.startedAt });
+      }
+    });
+
+    // Completed lesson IDs array stored on classroom
+    const completedIdsSet = new Set((classroom.completedLessons || []).map(String));
+
+    // Group lessons by unit
+    const unitsWithLessons = units.map(unit => {
+      const unitLessons = lessons.filter(l =>
+        l.curriculumUnits && l.curriculumUnits.some(u => String(u) === String(unit._id))
+      );
+
+      return {
+        ...unit,
+        lessons: unitLessons.map((les, lIdx) => {
+          const taughtInfo = taughtLessonMap.get(String(les._id));
+          const isMarkedCompleted = completedIdsSet.has(String(les._id)) || Boolean(taughtInfo);
+          const isCurrent = classroom.currentLesson
+            ? String(classroom.currentLesson._id || classroom.currentLesson) === String(les._id)
+            : false;
+
+          return {
+            ...les,
+            unitOrder: lIdx + 1,
+            isCompleted: isMarkedCompleted,
+            isCurrent,
+            taughtCount: taughtInfo?.count || 0,
+            lastTaughtAt: taughtInfo?.lastTaughtAt || null
+          };
+        })
+      };
+    });
+
+    // Flatten sequential syllabus
+    let sequentialSyllabus = [];
+    let lessonIndex = 0;
+    unitsWithLessons.forEach(u => {
+      u.lessons.forEach(l => {
+        lessonIndex++;
+        sequentialSyllabus.push({
+          ...l,
+          syllabusOrder: lessonIndex,
+          unitNumber: u.unitNumber,
+          unitTitle: u.bigQuestion || `Unit ${u.unitNumber}`
+        });
+      });
+    });
+
+    // If currentLesson is not explicitly set, determine the next untaught lesson
+    let activeLesson = classroom.currentLesson;
+    if (!activeLesson && sequentialSyllabus.length > 0) {
+      const nextUntaught = sequentialSyllabus.find(l => !l.isCompleted) || sequentialSyllabus[0];
+      activeLesson = nextUntaught;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        classroom,
+        curriculumBook: book,
+        currentLesson: activeLesson,
+        totalLessons: sequentialSyllabus.length,
+        completedCount: sequentialSyllabus.filter(l => l.isCompleted).length,
+        units: unitsWithLessons,
+        sequentialSyllabus
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update class curriculum progress (set current active lesson or completed lessons)
+// @route   PUT /api/admin/classrooms/:id/curriculum-progress
+// @access  Private / Admin
+const updateClassroomCurriculumProgress = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { currentLessonId, completedLessonIds, markCompletedLessonId } = req.body;
+
+    const classroom = await ClassRoom.findById(id);
+    if (!classroom) {
+      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
+    }
+
+    if (currentLessonId) {
+      const lesson = await Lesson.findById(currentLessonId);
+      if (!lesson) {
+        return res.status(400).json({ success: false, message: 'Bài học không hợp lệ.' });
+      }
+      classroom.currentLesson = lesson._id;
+    }
+
+    if (Array.isArray(completedLessonIds)) {
+      classroom.completedLessons = completedLessonIds;
+    }
+
+    if (markCompletedLessonId) {
+      if (!classroom.completedLessons.includes(markCompletedLessonId)) {
+        classroom.completedLessons.push(markCompletedLessonId);
+      }
+    }
+
+    await classroom.save();
+
+    if (req.user) {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'UPDATE_CLASS_CURRICULUM_PROGRESS',
+        targetType: 'ClassRoom',
+        targetId: classroom._id,
+        details: { className: classroom.name, currentLessonId }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Đã cập nhật tiến độ giáo trình cho lớp ${classroom.name} thành công!`,
+      data: classroom
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Full system database export for disaster recovery & backup
+// @route   GET /api/admin/system/backup
+// @access  Private / Admin
+const exportSystemBackup = async (req, res, next) => {
+  try {
+    const [
+      users,
+      classrooms,
+      schedules,
+      curriculumBooks,
+      curriculumUnits,
+      lessons,
+      topics,
+      vocabularies,
+      languageContents,
+      activities,
+      classroomSessions,
+      attendances,
+      systemSettings,
+      auditLogs
+    ] = await Promise.all([
+      User.find().select('-password').lean(),
+      ClassRoom.find().lean(),
+      Schedule.find().lean(),
+      CurriculumBook.find().lean(),
+      CurriculumUnit.find().lean(),
+      Lesson.find().lean(),
+      Topic.find().lean(),
+      Vocabulary.find().lean(),
+      LanguageContent.find().lean(),
+      Activity.find().lean(),
+      ClassroomSession.find().lean(),
+      Attendance.find().lean(),
+      SystemSetting.find().lean(),
+      AuditLog.find().sort({ createdAt: -1 }).limit(1000).lean()
+    ]);
+
+    const backupPayload = {
+      system: 'KCEnglishKids',
+      exportType: 'FULL_SYSTEM_BACKUP',
+      version: '2.0.0',
+      exportedAt: new Date().toISOString(),
+      exportedBy: req.user ? { name: req.user.name, email: req.user.email, role: req.user.role } : 'ADMIN',
+      summary: {
+        totalUsers: users.length,
+        totalClassrooms: classrooms.length,
+        totalSchedules: schedules.length,
+        totalCurriculumBooks: curriculumBooks.length,
+        totalCurriculumUnits: curriculumUnits.length,
+        totalLessons: lessons.length,
+        totalTopics: topics.length,
+        totalVocabularies: vocabularies.length,
+        totalSentencePatterns: languageContents.length,
+        totalActivities: activities.length,
+        totalSessions: classroomSessions.length,
+        totalAttendances: attendances.length
+      },
+      collections: {
+        users,
+        classrooms,
+        schedules,
+        curriculumBooks,
+        curriculumUnits,
+        lessons,
+        topics,
+        vocabularies,
+        languageContents,
+        activities,
+        classroomSessions,
+        attendances,
+        systemSettings,
+        auditLogs
+      }
+    };
+
+    if (req.user) {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'EXPORT_SYSTEM_BACKUP',
+        targetType: 'System',
+        details: { totalCollections: Object.keys(backupPayload.collections).length, summary: backupPayload.summary }
+      });
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="KCEnglishKids_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json"`
+    );
+    res.status(200).json(backupPayload);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getCurriculum,
@@ -2996,6 +3446,9 @@ module.exports = {
   assignTeacherToClassroom,
   importStudentsFromExcel,
   exportClassroomExcel,
+  getClassroomCurriculumProgress,
+  updateClassroomCurriculumProgress,
+  exportSystemBackup,
   getUnassignedStudents,
   getDeepCurriculum,
   toggleLessonStatus,

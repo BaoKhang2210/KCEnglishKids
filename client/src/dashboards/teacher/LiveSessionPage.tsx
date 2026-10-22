@@ -29,7 +29,8 @@ import {
   Flame,
   Play,
   RotateCcw,
-  Gift
+  Gift,
+  LogOut
 } from 'lucide-react';
 import { classroomSessionApi, sentenceApi, teacherApi, aiApi } from '../../services/api';
 import type { ClassroomSession, StudentSessionScore, User, LessonPlan } from '../../types';
@@ -150,6 +151,9 @@ export const LiveSessionPage: React.FC = () => {
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
   const [overtimeCountdown, setOvertimeCountdown] = useState<number>(45);
   const [overtimeSnoozeUntil, setOvertimeSnoozeUntil] = useState<number>(0);
+
+  // Exit / End Session Modal state
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
   // Classroom teaching views
   const [activeTab, setActiveTab] = useState<ViewTab>('presentation');
@@ -798,9 +802,14 @@ export const LiveSessionPage: React.FC = () => {
     );
   };
 
-  // ── End session (luôn điều hướng tới trang summary mượt mà) ────────────────
-  const handleEnd = async () => {
-    if (!confirm('Bạn có chắc muốn kết thúc phiên học này không? Hệ thống sẽ tạo bảng tổng kết và báo cáo cho phụ huynh.')) return;
+  // ── Mở modal tùy chọn kết thúc hoặc thoát buổi dạy ────────────────────────
+  const handleEnd = () => {
+    setIsExitModalOpen(true);
+  };
+
+  // ── 1. Hoàn tất tiết học & Xuất báo cáo (chuyển sang trang summary) ────────
+  const handleCompleteAndExit = async () => {
+    setIsExitModalOpen(false);
     setEnding(true);
     try {
       await classroomSessionApi.endSession(sessionId);
@@ -809,6 +818,18 @@ export const LiveSessionPage: React.FC = () => {
     } finally {
       navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
     }
+  };
+
+  // ── 2. Tạm dừng & Thoát ra danh sách buổi dạy ─────────────────────────────
+  const handlePauseAndExit = () => {
+    setIsExitModalOpen(false);
+    navigate('/teacher/classroom-sessions');
+  };
+
+  // ── 3. Thoát ra danh sách lớp học ─────────────────────────────────────────
+  const handleExitToClasses = () => {
+    setIsExitModalOpen(false);
+    navigate('/teacher/classes');
   };
 
   // ── Auto end session when overtime expires ────────────────────────────────
@@ -1000,12 +1021,24 @@ export const LiveSessionPage: React.FC = () => {
           </button>
 
           <button
+            type="button"
+            onClick={() => setIsExitModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black text-slate-200 border border-white/15 transition-all cursor-pointer shadow-xs active:scale-95"
+            title="Thoát hoặc tạm dừng buổi dạy"
+          >
+            <LogOut size={15} className="text-amber-300" />
+            <span className="hidden sm:inline">Thoát</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleEnd}
             disabled={ending}
             className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-black text-white shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            title="Kết thúc hoặc dừng buổi dạy"
           >
             <StopCircle size={15} />
-            <span className="hidden xs:inline">{ending ? 'Đang kết thúc…' : 'Kết thúc'}</span>
+            <span className="hidden xs:inline">{ending ? 'Đang hoàn tất…' : 'Dừng lại / Kết thúc'}</span>
             <span className="xs:hidden">Dừng</span>
           </button>
         </div>
@@ -3318,6 +3351,97 @@ export const LiveSessionPage: React.FC = () => {
                 className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-xs font-black text-white transition-all shadow-md cursor-pointer"
               >
                 Kết thúc & Lưu ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Xác Nhận Kết Thúc Hoặc Thoát Buổi Học ────────────────── */}
+      {isExitModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-lg bg-slate-900 border-2 border-white/20 rounded-3xl p-6 shadow-2xl text-white space-y-5 animate-pop-in">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-2xl">
+                  🛑
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">Kết Thúc Hoặc Thoát Tiết Học</h3>
+                  <p className="text-xs text-slate-400 font-medium">Bạn muốn hoàn tất buổi dạy hay tạm dừng để thoát ra?</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsExitModalOpen(false)}
+                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="space-y-3">
+              {/* Option 1: Complete and view summary */}
+              <button
+                type="button"
+                onClick={handleCompleteAndExit}
+                disabled={ending}
+                className="w-full text-left p-4 rounded-2xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 border-2 border-emerald-500/50 transition-all cursor-pointer group hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-black text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                    Hoàn Tất Buổi Học & Xuất Báo Cáo
+                  </span>
+                  <span className="text-[11px] font-bold bg-emerald-500 text-slate-950 px-2.5 py-0.5 rounded-full">
+                    {ending ? 'Đang lưu…' : 'Khuyên Dùng'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                  Chốt toàn bộ số sao thưởng, điểm số và chuyển sang trang tổng kết để gửi phiếu nhận xét về Sổ liên lạc của phụ huynh.
+                </p>
+              </button>
+
+              {/* Option 2: Pause and exit to sessions */}
+              <button
+                type="button"
+                onClick={handlePauseAndExit}
+                className="w-full text-left p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border-2 border-white/15 hover:border-amber-400/50 transition-all cursor-pointer group hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-black text-amber-300 flex items-center gap-2">
+                    <Clock size={16} className="text-amber-400" />
+                    Tạm Dừng & Thoát Ra Nhật Ký Buổi Dạy
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                  Lưu lại các điểm số hiện tại của bé và thoát ra ngoài danh sách buổi dạy. Bạn có thể tiếp tục buổi học này bất kỳ lúc nào.
+                </p>
+              </button>
+
+              {/* Option 3: Exit to classes */}
+              <button
+                type="button"
+                onClick={handleExitToClasses}
+                className="w-full text-left p-3.5 rounded-2xl bg-slate-800/40 hover:bg-slate-800/70 border border-white/10 hover:border-teal-400/40 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2 text-sm font-black text-slate-300">
+                  <LogOut size={16} className="text-teal-400" />
+                  <span>Thoát Về Danh Sách Lớp Học</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Cancel / Stay */}
+            <div className="pt-2 border-t border-white/10 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsExitModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 font-bold text-xs sm:text-sm transition-colors cursor-pointer"
+              >
+                Tiếp tục ở lại dạy học
               </button>
             </div>
           </div>
