@@ -43,14 +43,14 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t-4 border-amber-200 px-3 py-2.5 shadow-2xl flex items-center justify-around">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#13110e]/95 backdrop-blur-md border-t-0 border-amber-900/70 px-3 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.32)] outline-none ring-0 flex items-center justify-around">
         <button
           onClick={() => handleNav('/', 'path')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-transform active:scale-90 ${
-            isPathActive ? 'text-amber-800 scale-105 font-black' : 'text-slate-400 font-bold'
+            isPathActive ? 'text-amber-200 font-black' : 'text-stone-300 font-bold'
           }`}
         >
-          <div className={`p-2.5 rounded-2xl transition-all ${isPathActive ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-sm' : ''}`}>
+          <div className={`p-2.5 rounded-2xl transition-all ${isPathActive ? 'bg-amber-400 text-amber-950 shadow-sm' : ''}`}>
             <Map className="w-6 h-6 stroke-[2.5]" />
           </div>
           <span className="text-xs">Hành trình</span>
@@ -59,10 +59,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
         <button
           onClick={() => handleNav('/', 'topics')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-transform active:scale-90 ${
-            isTopicsActive ? 'text-emerald-700 scale-105 font-black' : 'text-slate-400 font-bold'
+            isTopicsActive ? 'text-emerald-300 font-black' : 'text-stone-300 font-bold'
           }`}
         >
-          <div className={`p-2.5 rounded-2xl transition-all ${isTopicsActive ? 'bg-emerald-500 text-white ring-2 ring-emerald-300 shadow-sm' : ''}`}>
+          <div className={`p-2.5 rounded-2xl transition-all ${isTopicsActive ? 'bg-emerald-500 text-white shadow-sm' : ''}`}>
             <Compass className="w-6 h-6 stroke-[2.5]" />
           </div>
           <span className="text-xs">Chủ đề</span>
@@ -71,10 +71,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
         <button
           onClick={() => handleNav('/', 'vocab')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-transform active:scale-90 ${
-            isVocabActive ? 'text-rose-700 scale-105 font-black' : 'text-slate-400 font-bold'
+            isVocabActive ? 'text-rose-300 font-black' : 'text-stone-300 font-bold'
           }`}
         >
-          <div className={`p-2.5 rounded-2xl transition-all ${isVocabActive ? 'bg-rose-500 text-white ring-2 ring-rose-300 shadow-sm' : ''}`}>
+          <div className={`p-2.5 rounded-2xl transition-all ${isVocabActive ? 'bg-rose-500 text-white shadow-sm' : ''}`}>
             <BookMarked className="w-6 h-6 stroke-[2.5]" />
           </div>
           <span className="text-xs">Từ vựng</span>
@@ -83,10 +83,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
         <button
           onClick={() => handleNav('/', 'games')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-transform active:scale-90 ${
-            isGamesActive ? 'text-sky-700 scale-105 font-black' : 'text-slate-400 font-bold'
+            isGamesActive ? 'text-sky-300 font-black' : 'text-stone-300 font-bold'
           }`}
         >
-          <div className={`p-2.5 rounded-2xl transition-all ${isGamesActive ? 'bg-sky-500 text-white ring-2 ring-sky-300 shadow-sm' : ''}`}>
+          <div className={`p-2.5 rounded-2xl transition-all ${isGamesActive ? 'bg-sky-500 text-white shadow-sm' : ''}`}>
             <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
           </div>
           <span className="text-xs">Trò chơi</span>
@@ -98,10 +98,10 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
             if (onTabChange) onTabChange('badges'); else setShowBadges(true);
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-transform active:scale-90 ${
-            isBadgesActive ? 'text-purple-700 scale-105 font-black' : 'text-slate-400 font-bold'
+            isBadgesActive ? 'text-purple-300 font-black' : 'text-stone-300 font-bold'
           }`}
         >
-          <div className={`p-2.5 rounded-2xl transition-all ${isBadgesActive ? 'bg-purple-500 text-white ring-2 ring-purple-300 shadow-sm' : ''}`}>
+          <div className={`p-2.5 rounded-2xl transition-all ${isBadgesActive ? 'bg-purple-500 text-white shadow-sm' : ''}`}>
             <Award className="w-6 h-6 stroke-[2.5]" />
           </div>
           <span className="text-xs">Bộ sưu tập</span>

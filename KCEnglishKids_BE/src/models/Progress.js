@@ -57,6 +57,16 @@ const progressSchema = new mongoose.Schema(
       min: 0,
       max: 3
     },
+    stage3Completed: {
+      type: Boolean,
+      default: false
+    },
+    stage3Stars: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 3
+    },
     weakVocabulary: [
       {
         vocabulary: {

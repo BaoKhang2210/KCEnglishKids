@@ -201,7 +201,7 @@ export const stageProgressApi = {
   completeStage: (
     childId: string,
     lessonId: string,
-    payload: { stage: 1 | 2; score?: number; stars?: number }
+    payload: { stage: 1 | 2 | 3; score?: number; stars?: number }
   ) => api.put(`/children/${childId}/progress/${lessonId}/stage`, payload)
 };
 

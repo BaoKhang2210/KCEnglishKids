@@ -1,18 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Lock
-} from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { lessonsApi, stageProgressApi } from '../../services/api';
-import type { Lesson } from '../../types';
+import { lessonsApi, stageProgressApi, topicsApi } from '../../services/api';
+import type { Lesson, Vocabulary } from '../../types';
 import { sfx } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
 import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2PracticeFlow';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer';
-import { Stage3ArcadeHub } from '../../components/child/lesson/Stage3ArcadeHub';
+import { GamesTab, REQUIRED_GAMES_TO_COMPLETE } from '../../games/hub/GamesTab';
+import { GameRunner } from '../../games/core/GameRunner';
+import type { GameId } from '../../games/core/types';
+import { getLessonGames } from '../../games/registry';
+import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
 
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +23,9 @@ export const LessonDetailPage: React.FC = () => {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState<1 | 2 | 3>(1);
-  const [lockNotice, setLockNotice] = useState<string | null>(null);
+  const [lockedStage, setLockedStage] = useState<1 | 2 | 3 | null>(null);
+  const lockedStageTriggerRef = useRef<HTMLElement | null>(null);
+  const stageButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [showParentDrawer, setShowParentDrawer] = useState(false);
 
   const childId = user?._id || user?.id || 'child_guest';
@@ -45,18 +48,23 @@ export const LessonDetailPage: React.FC = () => {
             if (progRes.success && progRes.data) {
               if (progRes.data.stage1Completed) {
                 localStorage.setItem(`kc_stage1_${childId}_${id}`, 'true');
+              } else {
+                localStorage.removeItem(`kc_stage1_${childId}_${id}`);
               }
               if (progRes.data.stage2Completed) {
                 localStorage.setItem(`kc_stage2_${childId}_${id}`, 'true');
+              } else {
+                localStorage.removeItem(`kc_stage2_${childId}_${id}`);
+              }
+              if (progRes.data.stage3Completed) {
+                localStorage.setItem(`kc_stage3_${childId}_${id}`, 'true');
               }
             }
           } catch {
             /* offline fallback */
           }
 
-          const rawActs = res.data?.activities || [];
-          const hasCompletedAny = rawActs.some((a: any) => a.completed);
-          const savedStage1 = localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true' || hasCompletedAny;
+          const savedStage1 = localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
           const savedStage2 = localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
           const savedActive = localStorage.getItem(`kc_stage_active_${childId}_${id}`);
@@ -84,98 +92,94 @@ export const LessonDetailPage: React.FC = () => {
 
   const activities = (lesson as any)?.activities || [];
   const completedCount = activities.filter((a: any) => a.completed).length;
-  const isAllCompleted = activities.length > 0 && activities.every((a: any) => a.completed);
+  const unitNumber = (lesson as any)?.unit?.displayOrder
+    ?? (lesson as any)?.unit?.unitNumber
+    ?? (lesson as any)?.curriculumUnits?.[0]?.unitNumber
+    ?? (lesson as any)?.unitNumber
+    ?? 1;
+  const lessonNumber = (lesson as any)?.displayOrder ?? (lesson as any)?.lessonNumber ?? 1;
 
-  const isMamAge = (user?.ageGroupCode || '3-4') === '3-4';
-  const MAM_GAME_TYPES = new Set(['LISTEN_CHOOSE', 'COLOR_RECOGNITION', 'TAP_PICTURE', 'BUBBLE_POP', 'ANIMAL_SOUND']);
-  const CHOI_LA_GAME_TYPES = new Set([
-    'IMAGE_WORD_MATCH', 'COUNT_OBJECTS', 'MISSING_OBJECT', 'MEMORY_CARD',
-    'STAR_CATCHER', 'FEED_ANIMAL', 'TRUE_FALSE', 'DRAG_DROP',
-    'FIND_OBJECT', 'CLASSIFICATION', 'LISTEN_REPEAT', 'MATCHING', 'MEMORY'
-  ]);
-  const allowedGameTypes = isMamAge ? MAM_GAME_TYPES : CHOI_LA_GAME_TYPES;
-
-  const ageGroupCode = user?.ageGroupCode || (lesson as any)?.ageGroupCode || '3-4';
-  const hasVisualVocabulary = (lesson?.vocabularyItems || []).some(vocab => Boolean(vocab.imageUrl));
-  const finalGames = activities.filter((activity: any) => {
-    const type = String(activity.activityType || '').toUpperCase();
-    const titleAndType = `${activity.title || ''} ${activity.vietnameseTitle || ''}`.toLowerCase();
-    const isTextOnlyGame =
-      titleAndType.includes('match the words') ||
-      titleAndType.includes('spelling') ||
-      (type === 'DRAG_DROP' && /\b(word|spell|chữ|từ)\b/.test(titleAndType));
-
-    // These text-only types do not exist in the current Activity enum/game runtime.
-    if (['DRAG_DROP_WORD', 'SPELL_PUZZLE'].includes(type)) return false;
-    if ((ageGroupCode === '3-4' || ageGroupCode === '4-5') && isTextOnlyGame) return false;
-    if (type === 'IMAGE_WORD_MATCH' && ageGroupCode !== '5-6') return false;
-    if (type === 'IMAGE_WORD_MATCH' && ageGroupCode === '5-6' && !hasVisualVocabulary) return false;
-    if (type === 'DRAG_DROP' && ageGroupCode === '5-6' && !hasVisualVocabulary) return false;
-    return true;
-  }).sort(
-    (a: any, b: any) =>
-      Number(allowedGameTypes.has(b.activityType)) - Number(allowedGameTypes.has(a.activityType))
-  );
+  // Stage 3 Minigames State
+  const [activeGameId, setActiveGameId] = useState<GameId | null>(null);
+  const [distractorPool, setDistractorPool] = useState<Vocabulary[]>([]);
+  const [completedGames, setCompletedGames] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(`kc_stage3_games_${childId}_${id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const isStage1Completed =
-    localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true' ||
-    completedCount > 0 ||
-    isAllCompleted;
+    localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
 
   const isStage2Completed =
-    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true' ||
-    isAllCompleted;
+    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
   const isStage3Completed =
-    finalGames.length === 0 || finalGames.every((a: any) => a.completed);
+    completedGames.length >= REQUIRED_GAMES_TO_COMPLETE ||
+    localStorage.getItem(`kc_stage3_${childId}_${id}`) === 'true';
 
-  const completedGamesCount = finalGames.filter((a: any) => a.completed).length;
-  const resumeGame = finalGames.find((a: any) => !a.completed) || finalGames[0];
-
-  const handleStartActivity = (activityId: string) => {
-    sfx.playPop();
-    navigate(`/activities/${activityId}`);
-  };
-
-  const lockNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const speakKokoReminder = (text: string) => {
+  const handleGameCompleted = (gameId: string) => {
+    const nextCompleted = Array.from(new Set([...completedGames, gameId]));
+    setCompletedGames(nextCompleted);
     try {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'vi-VN';
-      utter.rate = 0.95;
-      window.speechSynthesis.speak(utter);
-    } catch {
-      /* speech synthesis unavailable */
+      localStorage.setItem(`kc_stage3_games_${childId}_${id}`, JSON.stringify(nextCompleted));
+    } catch {}
+
+    if (nextCompleted.length >= REQUIRED_GAMES_TO_COMPLETE) {
+      localStorage.setItem(`kc_stage3_${childId}_${id}`, 'true');
+      stageProgressApi
+        .completeStage(childId, id!, { stage: 3, score: 100, stars: 3 })
+        .catch(err => console.warn('Stage 3 sync failed:', err));
     }
   };
 
-  const showKokoLockNotice = (message: string, spoken: string) => {
-    sfx.playGentleWrong();
-    setLockNotice(message);
-    speakKokoReminder(spoken);
-    if (lockNoticeTimer.current) clearTimeout(lockNoticeTimer.current);
-    lockNoticeTimer.current = setTimeout(() => setLockNotice(null), 5000);
+  useEffect(() => {
+    const topicId = typeof lesson?.topic === 'object' ? (lesson.topic as any)?._id : lesson?.topic;
+    if (!topicId || !id) return;
+    let cancelled = false;
+    topicsApi
+      .getLessonsByTopic(String(topicId), user?.ageGroupCode, childId)
+      .then((res: any) => {
+        if (cancelled || !res?.success) return;
+        const pool: Vocabulary[] = [];
+        (res.data || []).forEach((other: any) => {
+          if (String(other._id) === String(id)) return;
+          (other.vocabularyItems || []).forEach((v: Vocabulary) => pool.push(v));
+        });
+        setDistractorPool(pool);
+      })
+      .catch(() => setDistractorPool([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [lesson, id, user?.ageGroupCode, childId]);
+
+  const handleStartGame = (gameId: string) => {
+    sfx.playPop();
+    setActiveGameId(gameId as GameId);
+  };
+
+  const closeLockedStage = () => {
+    setLockedStage(null);
+    window.setTimeout(() => lockedStageTriggerRef.current?.focus(), 0);
   };
 
   const handleSelectStage = (stage: 1 | 2 | 3) => {
     if (stage >= 2 && !isStage1Completed) {
-      showKokoLockNotice(
-        'Bé hãy khám phá hết các thẻ từ ở Chặng 1 trước đã nhé! 🔍',
-        'Bé ơi, hãy khám phá hết các từ ở Chặng 1 trước đã nhé!'
-      );
+      lockedStageTriggerRef.current = stageButtonRefs.current[stage - 1];
+      setLockedStage(stage);
       return;
     }
     if (stage >= 3 && !isStage2Completed) {
-      showKokoLockNotice(
-        'Bé hoàn thành bài Luyện tập Chặng 2 thì mở được Thử thách Game nha! 🎯',
-        'Bé ơi, hoàn thành bài luyện tập ở Chặng 2 đã rồi chơi game nhé!'
-      );
+      lockedStageTriggerRef.current = stageButtonRefs.current[stage - 1];
+      setLockedStage(stage);
       return;
     }
     sfx.playPop();
-    setLockNotice(null);
+    setLockedStage(null);
     setActiveStage(stage);
     localStorage.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
   };
@@ -252,6 +256,7 @@ export const LessonDetailPage: React.FC = () => {
           return (
             <button
               key={stage}
+              ref={(element) => { stageButtonRefs.current[stage - 1] = element; }}
               onClick={() => handleSelectStage(stage as 1 | 2 | 3)}
               aria-label={`Chặng ${stage}: ${info.name}${done ? ' — Đã xong' : locked ? ' — Đang khóa' : isActive ? ' — Đang học' : ''}`}
               title={`Chặng ${stage}: ${info.name}`}
@@ -291,34 +296,20 @@ export const LessonDetailPage: React.FC = () => {
         })}
       </div>
 
-      {/* RIGHT: Lock notice + Parent button */}
+      {/* RIGHT: Parent button */}
       <div className="flex items-center gap-2 shrink-0">
-        {lockNotice && (
-          <div className="hidden lg:flex items-center gap-1.5 bg-amber-400 text-amber-950 text-xs font-black px-2.5 py-1.5 rounded-xl shadow-xs shrink-0 max-w-[150px]">
-            <Lock className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{lockNotice}</span>
-          </div>
-        )}
-
         <button
           onClick={() => { sfx.playPop(); setShowParentDrawer(true); }}
           aria-label="Thông tin phụ huynh"
           title="Góc phụ huynh"
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-300 flex items-center justify-center cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0 text-base"
+          className="h-10 sm:h-11 min-w-10 sm:min-w-11 px-2 rounded-xl bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0 text-base"
         >
           👨‍👩‍👧
+          <span className="text-[11px] sm:text-xs font-black text-indigo-950 whitespace-nowrap">Phụ huynh</span>
         </button>
       </div>
     </div>
   );
-
-  // Lock notice toast for mobile (below title bar)
-  const lockToastMobile = lockNotice ? (
-    <div className="sm:hidden shrink-0 flex items-center gap-1.5 bg-amber-400 text-amber-950 text-sm font-black px-3 py-1.5 rounded-xl shadow-xs mx-1">
-      <Lock className="w-3.5 h-3.5 shrink-0" />
-      <span>{lockNotice}</span>
-    </div>
-  ) : null;
 
   return (
     <>
@@ -339,8 +330,6 @@ export const LessonDetailPage: React.FC = () => {
         </div>
       ) : (
         <div className="w-full h-full min-h-0 flex flex-col gap-2 overflow-hidden">
-          {/* Mobile lock toast */}
-          {lockToastMobile}
           {/* ACTIVE STAGE CONTENT — fills all space */}
           <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             {/* STAGE 1: KHÁM PHÁ */}
@@ -361,23 +350,52 @@ export const LessonDetailPage: React.FC = () => {
                   lessonId={id || ''}
                   stage2Completed={isStage2Completed}
                   ageGroup={user?.ageGroupCode}
+                  unitNumber={unitNumber}
+                  lessonNumber={lessonNumber}
+                  onBackToStage1={() => {
+                    setActiveStage(1);
+                    localStorage.setItem(`kc_stage_active_${childId}_${id}`, '1');
+                  }}
                   onComplete={handleCompleteStage2}
-                  onParentOpen={() => setShowParentDrawer(true)}
                 />
               </div>
             )}
 
             {/* STAGE 3: VUI CHƠI */}
             {activeStage === 3 && (
-              <Stage3ArcadeHub
-                games={finalGames}
-                resumeGame={resumeGame}
-                completedCount={completedGamesCount}
-                isCompleted={isStage3Completed}
-                onStart={handleStartActivity}
-                onBackToStage2={() => handleSelectStage(2)}
-                onHome={() => navigate('/')}
-              />
+              <>
+                <GamesTab
+                  vocabularyList={lesson.vocabularyItems || []}
+                  unitNumber={unitNumber}
+                  lessonNumber={lessonNumber}
+                  completedGameIds={completedGames}
+                  isStage3Completed={isStage3Completed}
+                  onSelectGame={handleStartGame}
+                />
+
+                {activeGameId && (
+                  <GameRunner
+                    key={activeGameId}
+                    config={{
+                      unitId: (lesson as any)?.unit?._id
+                        || (lesson as any)?.curriculumUnits?.[0]?._id
+                        || (lesson as any)?.unitId
+                        || 'u1',
+                      lessonId: id || '',
+                      gameId: activeGameId,
+                      vocabularyList: lesson.vocabularyItems || [],
+                      distractorPool,
+                      ageGroup: user?.ageGroupCode || '3-4',
+                      childId,
+                    }}
+                    unitNumber={unitNumber}
+                    lessonNumber={lessonNumber}
+                    onExit={() => setActiveGameId(null)}
+                    onGameComplete={handleGameCompleted}
+                    onNextGame={(nextId) => setActiveGameId(nextId as GameId)}
+                  />
+                )}
+              </>
             )}
 
           </div>
@@ -400,8 +418,27 @@ export const LessonDetailPage: React.FC = () => {
       stage2Completed={isStage2Completed}
       stage3Completed={isStage3Completed}
       activeStage={activeStage}
-      games={finalGames}
+      games={getLessonGames(unitNumber, lessonNumber).map((game) => ({
+        _id: game.id,
+        title: game.title,
+        vietnameseTitle: game.subtitle,
+        activityType: game.category,
+        instructions: game.subtitle,
+        completed: completedGames.includes(game.id),
+      }))}
     />
+    {lockedStage !== null && (
+      <LockedStageDialog
+        currentStage={isStage1Completed ? (isStage2Completed ? 3 : 2) : 1}
+        onContinue={() => {
+          const target = isStage1Completed ? (isStage2Completed ? 3 : 2) : 1;
+          closeLockedStage();
+          setActiveStage(target);
+          localStorage.setItem(`kc_stage_active_${childId}_${id}`, target.toString());
+        }}
+        onClose={closeLockedStage}
+      />
+    )}
     </>
   );
 };

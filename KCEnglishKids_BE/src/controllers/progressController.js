@@ -74,7 +74,7 @@ const getLessonProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
     const progress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
-      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage2Stars'
+      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage2Stars stage3Completed stage3Stars'
     );
     res.status(200).json({ success: true, data: progress });
   } catch (error) {
@@ -91,8 +91,8 @@ const updateStageProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
     const stage = Number(req.body.stage);
-    if (![1, 2].includes(stage)) {
-      return res.status(400).json({ success: false, message: 'stage must be 1 or 2.' });
+    if (![1, 2, 3].includes(stage)) {
+      return res.status(400).json({ success: false, message: 'stage must be 1, 2, or 3.' });
     }
 
     const lesson = await Lesson.findById(lessonId).select('topic');
@@ -114,9 +114,13 @@ const updateStageProgress = async (req, res, next) => {
     };
     if (stage === 1) {
       update.$set.stage1Completed = true;
-    } else {
+    } else if (stage === 2) {
       update.$set.stage2Completed = true;
       update.$max = { stage2Score: score, stage2Stars: stars };
+    } else {
+      update.$set.stage3Completed = true;
+      update.$set.completed = true;
+      update.$max = { stage3Stars: stars, stars };
     }
 
     const progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId }, update, {
@@ -126,7 +130,7 @@ const updateStageProgress = async (req, res, next) => {
     });
 
     // §1.3.1 — practice points must not be wasted: add them to the open session
-    if (stage === 2 && (score > 0 || stars > 0)) {
+    if ((stage === 2 || stage === 3) && (score > 0 || stars > 0)) {
       const session = await getOrCreateSession(childId, lessonId);
       session.totalScore = (session.totalScore || 0) + score;
       session.stars = Math.max(session.stars || 0, stars);

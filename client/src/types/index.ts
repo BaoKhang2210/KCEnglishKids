@@ -140,6 +140,8 @@ export interface Topic {
   featured?: boolean;
 }
 
+export type VocabWordType = 'noun' | 'verb' | 'number' | 'color' | 'adjective';
+
 export interface Vocabulary {
   _id: string;
   english: string;
@@ -150,6 +152,13 @@ export interface Vocabulary {
   exampleSentence?: string;
   exampleSentenceVietnamese?: string;
   category?: string;
+  /** Optional hint for words that cannot be represented by a unique picture. */
+  visualType?: 'concrete' | 'abstract';
+  /** Optional classification for Stage 3 minigames. Inferred from english/category when missing. */
+  wordType?: VocabWordType;
+  /** Transparent PNG/SVG/WebP assets work best for silhouette games. */
+  isTransparent?: boolean;
+  countable?: boolean;
 }
 
 export interface ActivityOption {
