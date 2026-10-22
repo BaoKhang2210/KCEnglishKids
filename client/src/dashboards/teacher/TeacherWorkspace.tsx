@@ -65,7 +65,7 @@ export const TeacherLayout = () => {
   );
 
   return (
-    <div className="min-h-screen teacher-dark dark bg-[#0c1222] text-slate-100">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white p-4 lg:flex lg:flex-col lg:justify-between z-20 overflow-y-auto">
         <div>

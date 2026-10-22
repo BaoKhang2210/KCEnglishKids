@@ -24,6 +24,9 @@ const {
   assignTeacherToClassroom,
   importStudentsFromExcel,
   exportClassroomExcel,
+  getClassroomCurriculumProgress,
+  updateClassroomCurriculumProgress,
+  exportSystemBackup,
   getUnassignedStudents,
   getDeepCurriculum,
   toggleLessonStatus,
@@ -88,12 +91,17 @@ router.post('/sentences', protect, authorize('ADMIN'), createSentencePattern);
 router.put('/sentences/:id', protect, authorize('ADMIN'), updateSentencePattern);
 router.delete('/sentences/:id', protect, authorize('ADMIN'), deleteSentencePattern);
 
+// System Backup (Bảo lưu toàn bộ dữ liệu hệ thống)
+router.get('/system/backup', protect, authorize('ADMIN'), exportSystemBackup);
+
 // Classroom Management (Phân chia lớp & gán giáo viên & quản lý học sinh theo lớp)
 router.get('/classrooms', protect, authorize('ADMIN'), getClassrooms);
 router.get('/classrooms/:id', protect, authorize('ADMIN'), getClassroomById);
 router.post('/classrooms', protect, authorize('ADMIN'), createClassroom);
 router.put('/classrooms/:id', protect, authorize('ADMIN'), updateClassroom);
 router.delete('/classrooms/:id', protect, authorize('ADMIN'), deleteClassroom);
+router.get('/classrooms/:id/curriculum-progress', protect, authorize('ADMIN'), getClassroomCurriculumProgress);
+router.put('/classrooms/:id/curriculum-progress', protect, authorize('ADMIN'), updateClassroomCurriculumProgress);
 router.post('/classrooms/:id/assign-students', protect, authorize('ADMIN'), assignStudentsToClassroom);
 router.post('/classrooms/:id/students', protect, authorize('ADMIN'), addStudentToClassroom);
 router.post('/classrooms/:id/import-students-excel', protect, authorize('ADMIN'), importStudentsFromExcel);

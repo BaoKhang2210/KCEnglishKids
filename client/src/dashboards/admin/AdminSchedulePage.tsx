@@ -3,17 +3,17 @@ import {
   CalendarDays,
   Plus,
   Clock,
-  User as UserIcon,
   School,
   Edit2,
   Trash2,
   Filter,
   LayoutGrid,
   List,
-  Sparkles,
   X,
   AlertCircle,
-  MapPin
+  MapPin,
+  CheckCircle2,
+  BookOpen
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
@@ -53,68 +53,68 @@ const DAY_LABELS: { [key: number]: string } = {
 
 const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string; badge: string; dot: string; lightBg: string } } = {
   indigo: {
-    bg: 'bg-indigo-50 dark:bg-indigo-950/40',
-    border: 'border-indigo-200 dark:border-indigo-800/60',
-    text: 'text-indigo-900 dark:text-indigo-200',
-    badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300',
-    dot: 'bg-indigo-500',
-    lightBg: '#6366f1'
+    bg: 'bg-indigo-50/70',
+    border: 'border-indigo-200',
+    text: 'text-indigo-900',
+    badge: 'bg-indigo-100 text-indigo-800',
+    dot: 'bg-indigo-600',
+    lightBg: '#4f46e5'
   },
   emerald: {
-    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
-    border: 'border-emerald-200 dark:border-emerald-800/60',
-    text: 'text-emerald-900 dark:text-emerald-200',
-    badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
-    dot: 'bg-emerald-500',
-    lightBg: '#10b981'
+    bg: 'bg-emerald-50/70',
+    border: 'border-emerald-200',
+    text: 'text-emerald-900',
+    badge: 'bg-emerald-100 text-emerald-800',
+    dot: 'bg-emerald-600',
+    lightBg: '#059669'
   },
   amber: {
-    bg: 'bg-amber-50 dark:bg-amber-950/40',
-    border: 'border-amber-200 dark:border-amber-800/60',
-    text: 'text-amber-900 dark:text-amber-200',
-    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300',
-    dot: 'bg-amber-500',
-    lightBg: '#f59e0b'
+    bg: 'bg-amber-50/70',
+    border: 'border-amber-200',
+    text: 'text-amber-900',
+    badge: 'bg-amber-100 text-amber-800',
+    dot: 'bg-amber-600',
+    lightBg: '#d97706'
   },
   rose: {
-    bg: 'bg-rose-50 dark:bg-rose-950/40',
-    border: 'border-rose-200 dark:border-rose-800/60',
-    text: 'text-rose-900 dark:text-rose-200',
-    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300',
-    dot: 'bg-rose-500',
-    lightBg: '#f43f5e'
+    bg: 'bg-rose-50/70',
+    border: 'border-rose-200',
+    text: 'text-rose-900',
+    badge: 'bg-rose-100 text-rose-800',
+    dot: 'bg-rose-600',
+    lightBg: '#e11d48'
   },
   purple: {
-    bg: 'bg-purple-50 dark:bg-purple-950/40',
-    border: 'border-purple-200 dark:border-purple-800/60',
-    text: 'text-purple-900 dark:text-purple-200',
-    badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300',
-    dot: 'bg-purple-500',
-    lightBg: '#a855f7'
+    bg: 'bg-purple-50/70',
+    border: 'border-purple-200',
+    text: 'text-purple-900',
+    badge: 'bg-purple-100 text-purple-800',
+    dot: 'bg-purple-600',
+    lightBg: '#9333ea'
   },
   sky: {
-    bg: 'bg-sky-50 dark:bg-sky-950/40',
-    border: 'border-sky-200 dark:border-sky-800/60',
-    text: 'text-sky-900 dark:text-sky-200',
-    badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-300',
-    dot: 'bg-sky-500',
-    lightBg: '#0ea5e9'
+    bg: 'bg-sky-50/70',
+    border: 'border-sky-200',
+    text: 'text-sky-900',
+    badge: 'bg-sky-100 text-sky-800',
+    dot: 'bg-sky-600',
+    lightBg: '#0284c7'
   },
   teal: {
-    bg: 'bg-teal-50 dark:bg-teal-950/40',
-    border: 'border-teal-200 dark:border-teal-800/60',
-    text: 'text-teal-900 dark:text-teal-200',
-    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300',
-    dot: 'bg-teal-500',
-    lightBg: '#14b8a6'
+    bg: 'bg-teal-50/70',
+    border: 'border-teal-200',
+    text: 'text-teal-900',
+    badge: 'bg-teal-100 text-teal-800',
+    dot: 'bg-teal-600',
+    lightBg: '#0d9488'
   },
   orange: {
-    bg: 'bg-orange-50 dark:bg-orange-950/40',
-    border: 'border-orange-200 dark:border-orange-800/60',
-    text: 'text-orange-900 dark:text-orange-200',
-    badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300',
-    dot: 'bg-orange-500',
-    lightBg: '#f97316'
+    bg: 'bg-orange-50/70',
+    border: 'border-orange-200',
+    text: 'text-orange-900',
+    badge: 'bg-orange-100 text-orange-800',
+    dot: 'bg-orange-600',
+    lightBg: '#ea580c'
   }
 };
 
@@ -129,13 +129,25 @@ export const AdminSchedulePage: React.FC = () => {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState<string>('ALL');
 
-  // Modal State
+  // Modal State for Schedule
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  // Form State
+  // Modal State for Quick Add Class right from TKB page
+  const [isQuickAddClassOpen, setIsQuickAddClassOpen] = useState(false);
+  const [quickClassData, setQuickClassData] = useState({
+    name: '',
+    ageGroupCode: '3-4',
+    teacherId: '',
+    academicYear: '2026-2027',
+    description: ''
+  });
+  const [quickClassError, setQuickClassError] = useState<string | null>(null);
+  const [quickClassSubmitting, setQuickClassSubmitting] = useState(false);
+
+  // Form State for Schedule
   const [formData, setFormData] = useState<{
     classroom: string;
     teacher: string;
@@ -150,11 +162,20 @@ export const AdminSchedulePage: React.FC = () => {
     academicYear: '2026-2027',
     colorTag: 'indigo',
     weeklySlots: [
-      { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Playtime', room: 'Phòng A1' }
+      { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101' },
+      { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101' }
     ],
     effectiveFrom: new Date().toISOString().split('T')[0],
     isActive: true
   });
+
+  // Toast
+  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showAlert = (type: 'success' | 'error', message: string) => {
+    setAlert({ type, message });
+    setTimeout(() => setAlert(null), 5000);
+  };
 
   // Fetch data
   const fetchData = async () => {
@@ -174,8 +195,9 @@ export const AdminSchedulePage: React.FC = () => {
 
       const tList = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || teachersRes?.users || []);
       setTeachers(tList);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Lỗi khi tải dữ liệu thời khóa biểu:', error);
+      showAlert('error', error?.message || 'Không thể tải thời khóa biểu.');
     } finally {
       setLoading(false);
     }
@@ -185,9 +207,21 @@ export const AdminSchedulePage: React.FC = () => {
     fetchData();
   }, []);
 
+  // Map teachers that already have an active class (1-1 check)
+  const teacherClassMap = useMemo(() => {
+    const map = new Map<string, string>();
+    classrooms.forEach((c) => {
+      const tId = c.teacher?._id || (typeof c.teacher === 'string' ? c.teacher : null);
+      if (tId) {
+        map.set(String(tId), c.name);
+      }
+    });
+    return map;
+  }, [classrooms]);
+
   // Filtered schedules
   const filteredSchedules = useMemo(() => {
-    return schedules.filter(sch => {
+    return schedules.filter((sch) => {
       const cId = typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom;
       const tId = typeof sch.teacher === 'object' ? sch.teacher?._id : sch.teacher;
 
@@ -197,12 +231,51 @@ export const AdminSchedulePage: React.FC = () => {
     });
   }, [schedules, selectedClassFilter, selectedTeacherFilter]);
 
-  // Open Modal for Create
+  // Lessons available for the selected classroom (để gắn buổi học cụ thể là bài mấy lên TKB)
+  const [classroomLessons, setClassroomLessons] = useState<Array<{
+    _id: string;
+    title: string;
+    vietnameseTitle?: string;
+    syllabusOrder: number;
+    unitNumber?: number;
+    unitTitle?: string;
+  }>>([]);
+  const [loadingLessons, setLoadingLessons] = useState(false);
+
+  // Load sequential syllabus lessons for classroom
+  const loadClassroomLessons = async (classroomId: string) => {
+    if (!classroomId) {
+      setClassroomLessons([]);
+      return;
+    }
+    try {
+      setLoadingLessons(true);
+      const res = await adminApi.getClassroomCurriculumProgress(classroomId);
+      if (res.success && res.data?.sequentialSyllabus) {
+        setClassroomLessons(res.data.sequentialSyllabus);
+      } else {
+        setClassroomLessons([]);
+      }
+    } catch (err) {
+      console.warn('Could not load lessons for classroom:', err);
+      setClassroomLessons([]);
+    } finally {
+      setLoadingLessons(false);
+    }
+  };
+
+  // Open Modal for Create Schedule
   const handleOpenCreateModal = () => {
     setEditingSchedule(null);
     setModalError(null);
     const firstClass = classrooms[0];
     const initialTeacher = firstClass?.teacher?._id || teachers[0]?._id || '';
+
+    if (firstClass?._id) {
+      loadClassroomLessons(firstClass._id);
+    } else {
+      setClassroomLessons([]);
+    }
 
     setFormData({
       classroom: firstClass?._id || '',
@@ -210,8 +283,8 @@ export const AdminSchedulePage: React.FC = () => {
       academicYear: firstClass?.academicYear || '2026-2027',
       colorTag: 'indigo',
       weeklySlots: [
-        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101' },
-        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101' }
+        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101', lesson: null, lessonNumber: 1, lessonTitle: 'Bài 1: Làm quen & Chào hỏi' },
+        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101', lesson: null, lessonNumber: 2, lessonTitle: 'Bài 2: Từ vựng & Mẫu câu' }
       ],
       effectiveFrom: new Date().toISOString().split('T')[0],
       isActive: true
@@ -219,12 +292,18 @@ export const AdminSchedulePage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // Open Modal for Edit
+  // Open Modal for Edit Schedule
   const handleOpenEditModal = (sch: ClassSchedule) => {
     setEditingSchedule(sch);
     setModalError(null);
     const cId = typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom;
     const tId = typeof sch.teacher === 'object' ? sch.teacher?._id : sch.teacher;
+
+    if (cId) {
+      loadClassroomLessons(cId);
+    } else {
+      setClassroomLessons([]);
+    }
 
     setFormData({
       classroom: cId,
@@ -232,7 +311,7 @@ export const AdminSchedulePage: React.FC = () => {
       academicYear: sch.academicYear || '2026-2027',
       colorTag: sch.colorTag || 'indigo',
       weeklySlots: sch.weeklySlots?.length > 0 ? [...sch.weeklySlots] : [
-        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: '', room: '' }
+        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: '', room: '', lesson: null, lessonNumber: null, lessonTitle: '' }
       ],
       effectiveFrom: sch.effectiveFrom ? new Date(sch.effectiveFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       isActive: sch.isActive !== undefined ? sch.isActive : true
@@ -240,46 +319,45 @@ export const AdminSchedulePage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // Class change in form -> auto populate teacher
+  // Class change in form -> auto populate teacher & reload lessons
   const handleClassChange = (classId: string) => {
-    const selected = classrooms.find(c => c._id === classId);
-    setFormData(prev => ({
+    const selected = classrooms.find((c) => String(c._id) === String(classId));
+    setFormData((prev) => ({
       ...prev,
       classroom: classId,
       teacher: selected?.teacher?._id || prev.teacher,
       academicYear: selected?.academicYear || prev.academicYear
     }));
+    loadClassroomLessons(classId);
   };
 
-  // Add slot
+  // Slot handlers
   const handleAddSlot = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       weeklySlots: [
         ...prev.weeklySlots,
-        { dayOfWeek: 2, startTime: '09:00', endTime: '09:45', subjectNote: '', room: '' }
+        { dayOfWeek: 2, startTime: '09:00', endTime: '09:45', subjectNote: '', room: 'Phòng 101' }
       ]
     }));
   };
 
-  // Remove slot
   const handleRemoveSlot = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       weeklySlots: prev.weeklySlots.filter((_, i) => i !== index)
     }));
   };
 
-  // Update slot field
   const handleSlotChange = (index: number, field: keyof ScheduleWeeklySlot, value: any) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const updated = [...prev.weeklySlots];
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, weeklySlots: updated };
     });
   };
 
-  // Save Modal
+  // Save Schedule Submit
   const handleSubmitModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.classroom) {
@@ -301,374 +379,507 @@ export const AdminSchedulePage: React.FC = () => {
 
       if (editingSchedule) {
         await adminApi.updateSchedule(editingSchedule._id, formData);
+        showAlert('success', 'Đã cập nhật thời khóa biểu thành công!');
       } else {
         await adminApi.createSchedule(formData);
+        showAlert('success', 'Đã thiết lập thời khóa biểu mới thành công!');
       }
 
-      await fetchData();
       setIsModalOpen(false);
+      await fetchData();
     } catch (err: any) {
-      console.error('Lỗi khi lưu thời khóa biểu:', err);
-      setModalError(err.response?.data?.message || 'Có lỗi xảy ra khi lưu thời khóa biểu');
+      setModalError(err?.message || 'Có lỗi xảy ra khi lưu thời khóa biểu');
     } finally {
       setModalLoading(false);
     }
   };
 
   // Delete Schedule
-  const handleDeleteSchedule = async (id: string, className: string) => {
+  const handleDeleteSchedule = async (scheduleId: string, className: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa thời khóa biểu của lớp "${className}"?`)) return;
     try {
-      await adminApi.deleteSchedule(id);
-      setSchedules(prev => prev.filter(s => s._id !== id));
-    } catch (err) {
-      console.error('Lỗi khi xóa thời khóa biểu:', err);
-      alert('Không thể xóa thời khóa biểu. Vui lòng thử lại!');
+      await adminApi.deleteSchedule(scheduleId);
+      showAlert('success', 'Đã xóa thời khóa biểu thành công.');
+      await fetchData();
+    } catch (err: any) {
+      showAlert('error', err?.message || 'Không thể xóa thời khóa biểu.');
     }
   };
 
-  // Extract all slots for Grid view sorted by dayOfWeek and startTime
-  const gridSlotsByDay = useMemo(() => {
-    // 1 to 6 (Thứ 2 to Thứ 7), 0 (Chủ Nhật)
-    const days = [1, 2, 3, 4, 5, 6, 0];
+  // Open Quick Add Class Modal
+  const handleOpenQuickAddClass = () => {
+    const availableTeacher = teachers.find((t) => !teacherClassMap.has(String(t._id)));
+    setQuickClassData({
+      name: '',
+      ageGroupCode: '3-4',
+      teacherId: availableTeacher?._id || '',
+      academicYear: '2026-2027',
+      description: ''
+    });
+    setQuickClassError(null);
+    setIsQuickAddClassOpen(true);
+  };
+
+  // Submit Quick Add Class
+  const handleQuickAddClassSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuickClassError(null);
+    const cleanName = quickClassData.name.trim();
+    if (!cleanName) {
+      setQuickClassError('Vui lòng nhập tên lớp học.');
+      return;
+    }
+
+    // Check duplicate
+    const exists = classrooms.find((c) => c.name.trim().toLowerCase() === cleanName.toLowerCase());
+    if (exists) {
+      setQuickClassError(`Tên lớp "${cleanName}" đã tồn tại. Vui lòng chọn tên khác!`);
+      return;
+    }
+
+    if (!quickClassData.teacherId) {
+      setQuickClassError('Vui lòng phân công giáo viên phụ trách (quy tắc 1-1).');
+      return;
+    }
+
+    try {
+      setQuickClassSubmitting(true);
+      const res = await adminApi.createClassroom({
+        name: cleanName,
+        ageGroupCode: quickClassData.ageGroupCode,
+        teacherId: quickClassData.teacherId,
+        academicYear: quickClassData.academicYear,
+        description: quickClassData.description
+      });
+
+      if (res.success) {
+        showAlert('success', `Đã tạo thành công lớp "${cleanName}"! Lớp đã được thêm vào danh sách.`);
+        setIsQuickAddClassOpen(false);
+        // Refresh classrooms and auto select this new class in schedule modal
+        const freshClasses = await adminApi.getClassrooms();
+        const freshList = Array.isArray(freshClasses) ? freshClasses : (freshClasses?.data || []);
+        setClassrooms(freshList);
+        // If schedule modal was open or to be opened:
+        const createdClassId = res.data?._id;
+        if (createdClassId) {
+          setFormData((prev) => ({
+            ...prev,
+            classroom: createdClassId,
+            teacher: quickClassData.teacherId
+          }));
+        }
+        await fetchData();
+      }
+    } catch (err: any) {
+      setQuickClassError(err?.message || 'Tạo lớp học thất bại.');
+    } finally {
+      setQuickClassSubmitting(false);
+    }
+  };
+
+  // Organize timetable weekly slots by Day (1..6, 0)
+  const timetableByDay = useMemo(() => {
     const map: { [key: number]: Array<{ schedule: ClassSchedule; slot: ScheduleWeeklySlot }> } = {};
+    for (let d = 0; d <= 6; d++) map[d] = [];
 
-    days.forEach(d => { map[d] = []; });
-
-    filteredSchedules.forEach(sch => {
+    filteredSchedules.forEach((sch) => {
       if (!sch.isActive) return;
-      sch.weeklySlots?.forEach(slot => {
-        if (map[slot.dayOfWeek] !== undefined) {
+      sch.weeklySlots?.forEach((slot) => {
+        if (map[slot.dayOfWeek]) {
           map[slot.dayOfWeek].push({ schedule: sch, slot });
         }
       });
     });
 
     // Sort slots by startTime
-    days.forEach(d => {
-      map[d].sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime));
+    Object.keys(map).forEach((dStr) => {
+      const d = Number(dStr);
+      map[d].sort((a, b) => (a.slot.startTime || '').localeCompare(b.slot.startTime || ''));
     });
 
     return map;
   }, [filteredSchedules]);
 
+  // Check if a slot is currently in session right now
+  const isSlotLiveNow = (dayOfWeek: number, startTime: string, endTime: string) => {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const vnNow = new Date(utc + 7 * 3600000);
+    if (vnNow.getDay() !== dayOfWeek) return false;
+
+    const currentMin = vnNow.getHours() * 60 + vnNow.getMinutes();
+    const [sH, sM] = startTime.split(':').map(Number);
+    const [eH, eM] = endTime.split(':').map(Number);
+    const sMin = sH * 60 + sM;
+    const eMin = eH * 60 + eM;
+
+    return currentMin >= sMin - 15 && currentMin <= eMin + 30;
+  };
+
   return (
-    <div className="space-y-6">
-      {/* ── Top Header Banner (Executive Midnight Indigo & Sapphire Glow) ────────── */}
-      <div className="relative overflow-hidden rounded-3xl border border-indigo-500/20 bg-gradient-to-r from-slate-950 via-indigo-950/70 to-slate-950 p-6 md:p-8 shadow-xl shadow-indigo-950/40">
-        {/* Decorative ambient glowing orbs & top highlight line */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent pointer-events-none" />
-        <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 -bottom-10 h-44 w-44 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
+    <div className="space-y-7 animate-fade-in text-slate-800 text-base">
+      {/* Toast Alert */}
+      {alert && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-5 py-4 rounded-2xl shadow-xl flex items-center gap-3 text-base font-bold border transition-all ${
+            alert.type === 'success'
+              ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+              : 'bg-rose-50 text-rose-900 border-rose-300'
+          }`}
+        >
+          {alert.type === 'success' ? (
+            <CheckCircle2 size={22} className="text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle size={22} className="text-rose-600 shrink-0" />
+          )}
+          <span>{alert.message}</span>
+        </div>
+      )}
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2.5 max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/15 px-3.5 py-1 text-xs font-bold text-indigo-300 border border-indigo-500/30 shadow-xs backdrop-blur-md">
-              <Sparkles size={14} className="text-indigo-400 animate-pulse" />
-              <span>Quản lý Lịch giảng dạy &amp; Thời khóa biểu tập trung</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
-              <CalendarDays className="h-8 w-8 text-indigo-400" />
-              <span>Thời Khóa Biểu Các Lớp Học</span>
+      {/* ── Page Header ───────────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 bg-white p-7 rounded-3xl border border-slate-200/90 shadow-sm">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600">
+              <CalendarDays size={28} />
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Thời Khóa Biểu Giảng Dạy
             </h1>
-            <p className="text-sm md:text-base text-slate-300 max-w-2xl leading-relaxed font-normal">
-              Thiết lập và phân công thời khóa biểu cố định hàng tuần cho giáo viên và học sinh.
-              Giáo viên sẽ tự động đồng bộ lịch này vào màn hình giảng dạy lớp học.
-            </p>
           </div>
+          <p className="text-base text-slate-500 font-semibold max-w-2xl leading-relaxed">
+            Thiết lập lịch học cố định theo tuần cho từng lớp. Giáo viên chỉ có thể mở lớp và bắt đầu giảng dạy khi đến đúng ngày và giờ quy định theo thời khóa biểu.
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30 hover:shadow-indigo-500/40 transition-all transform active:scale-95"
-            >
-              <Plus size={18} className="stroke-[3]" />
-              <span>Thêm Lịch Dạy Mới</span>
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={handleOpenQuickAddClass}
+            className="py-3 px-5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-sm sm:text-base flex items-center gap-2 transition-all border border-indigo-200 cursor-pointer shadow-2xs"
+            title="Tạo lớp học mới trực tiếp từ đây"
+          >
+            <School size={18} />
+            <span>+ Thêm Lớp Mới</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="py-3 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+          >
+            <Plus size={20} />
+            <span>+ Xếp Lịch Cho Lớp</span>
+          </button>
         </div>
       </div>
 
-      {/* ── Filters & View Modes ────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <Filter size={14} />
-            <span>Bộ lọc:</span>
+      {/* ── Filters & Controls Bar ────────────────────────────────────────── */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          {/* Class filter */}
+          <div className="flex items-center gap-2">
+            <Filter size={18} className="text-slate-400" />
+            <select
+              value={selectedClassFilter}
+              onChange={(e) => setSelectedClassFilter(e.target.value)}
+              className="py-2.5 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 text-sm sm:text-base font-bold focus:outline-none focus:border-indigo-600"
+            >
+              <option value="ALL">Tất cả lớp học ({classrooms.length})</option>
+              {classrooms.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name} {c.ageGroupCode ? `(${c.ageGroupCode} tuổi)` : ''}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {/* Classroom filter */}
-          <select
-            value={selectedClassFilter}
-            onChange={(e) => setSelectedClassFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            <option value="ALL">Tất cả lớp học ({classrooms.length})</option>
-            {classrooms.map(c => (
-              <option key={c._id} value={c._id}>
-                {c.name} ({c.ageGroupCode ? `${c.ageGroupCode} tuổi` : 'Chưa phân độ tuổi'})
-              </option>
-            ))}
-          </select>
 
           {/* Teacher filter */}
           <select
             value={selectedTeacherFilter}
             onChange={(e) => setSelectedTeacherFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="py-2.5 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 text-sm sm:text-base font-bold focus:outline-none focus:border-indigo-600"
           >
             <option value="ALL">Tất cả giáo viên ({teachers.length})</option>
-            {teachers.map(t => (
+            {teachers.map((t) => (
               <option key={t._id} value={t._id}>
-                {t.name} ({t.email})
+                {t.name}
               </option>
             ))}
           </select>
         </div>
 
-        {/* View mode toggle */}
-        <div className="flex items-center rounded-xl bg-slate-100 p-1 dark:bg-slate-800 self-start md:self-auto">
+        {/* View Mode Switcher */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-100 shrink-0 self-end md:self-auto">
           <button
+            type="button"
             onClick={() => setViewMode('grid')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-              viewMode === 'grid'
-                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white'
-                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+            className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <LayoutGrid size={15} />
-            <span>Lưới Tuần (Grid)</span>
+            <LayoutGrid size={16} />
+            <span>Lịch Tuần</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('list')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-              viewMode === 'list'
-                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white'
-                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+            className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewMode === 'list' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <List size={15} />
-            <span>Danh sách Lớp ({filteredSchedules.length})</span>
+            <List size={16} />
+            <span>Danh Sách Lớp</span>
           </button>
         </div>
       </div>
 
-      {/* ── Content View ────────────────────────────────────────────────────── */}
+      {/* ── Main View: Weekly Grid or List ─────────────────────────────────── */}
       {loading ? (
-        <div className="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-            <p className="text-sm font-medium text-slate-500">Đang tải thời khóa biểu...</p>
-          </div>
+        <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center shadow-xs">
+          <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-lg font-bold text-slate-600">Đang đồng bộ thời khóa biểu các lớp học…</p>
         </div>
       ) : filteredSchedules.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 mb-4">
-            <CalendarDays size={32} />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Chưa có thời khóa biểu nào</h3>
-          <p className="mt-1 text-sm text-slate-500 max-w-md">
+        <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center shadow-xs space-y-4">
+          <CalendarDays size={52} className="mx-auto text-slate-300" />
+          <h3 className="text-xl font-black text-slate-900">Chưa có thời khóa biểu nào được xếp</h3>
+          <p className="text-base text-slate-500 font-semibold max-w-md mx-auto">
             Hãy bắt đầu tạo lịch học đầu tiên cho các lớp để phân công lịch dạy cố định cho giáo viên.
           </p>
-          <button
-            onClick={handleOpenCreateModal}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition"
-          >
-            <Plus size={16} />
-            <span>Tạo Thời Khóa Biểu Đầu Tiên</span>
-          </button>
-        </div>
-      ) : viewMode === 'grid' ? (
-        /* ── WEEKLY GRID VIEW ──────────────────────────────────────────────── */
-        <div className="overflow-x-auto pb-4">
-          <div className="grid min-w-[1000px] grid-cols-7 gap-3">
-            {[1, 2, 3, 4, 5, 6, 0].map((dayNum) => {
-              const daySlots = gridSlotsByDay[dayNum] || [];
-              const isWeekend = dayNum === 6 || dayNum === 0;
-
-              return (
-                <div
-                  key={dayNum}
-                  className={`flex flex-col rounded-2xl border transition-all ${
-                    isWeekend
-                      ? 'border-slate-200/80 bg-slate-50/70 dark:border-slate-800/80 dark:bg-slate-900/40'
-                      : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
-                  }`}
-                >
-                  {/* Day Header */}
-                  <div className={`p-3.5 border-b text-center rounded-t-2xl font-bold ${
-                    isWeekend
-                      ? 'border-slate-200 bg-slate-100/70 text-slate-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400'
-                      : 'border-slate-100 bg-indigo-50/40 text-indigo-950 dark:border-slate-800 dark:bg-indigo-950/20 dark:text-indigo-300'
-                  }`}>
-                    <div className="text-sm">{DAY_LABELS[dayNum]}</div>
-                    <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
-                      {daySlots.length} ca học
-                    </div>
-                  </div>
-
-                  {/* Slot Cards List */}
-                  <div className="p-2.5 flex-1 space-y-2.5 min-h-[350px]">
-                    {daySlots.length === 0 ? (
-                      <div className="h-full flex items-center justify-center p-4 text-center">
-                        <span className="text-xs font-medium text-slate-400 italic">Không có tiết học</span>
-                      </div>
-                    ) : (
-                      daySlots.map(({ schedule, slot }, sIdx) => {
-                        const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
-                        const cName = typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp học';
-                        const tName = typeof schedule.teacher === 'object' ? schedule.teacher?.name : 'Chưa phân công';
-
-                        return (
-                          <div
-                            key={`${schedule._id}-${sIdx}`}
-                            className={`group relative rounded-xl border p-3 shadow-xs transition-all hover:shadow-md ${theme.bg} ${theme.border}`}
-                          >
-                            {/* Time badge */}
-                            <div className="flex items-center justify-between gap-1 mb-1.5">
-                              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${theme.badge}`}>
-                                <Clock size={11} />
-                                {slot.startTime} - {slot.endTime}
-                              </span>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                <button
-                                  onClick={() => handleOpenEditModal(schedule)}
-                                  className="p-1 rounded-md hover:bg-black/10 text-slate-600 dark:text-slate-300"
-                                  title="Chỉnh sửa lịch lớp"
-                                >
-                                  <Edit2 size={12} />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Class name */}
-                            <div className="font-extrabold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                              <span className={`h-2 w-2 rounded-full ${theme.dot}`} />
-                              <span className="truncate">{cName}</span>
-                            </div>
-
-                            {/* Subject & Room */}
-                            {slot.subjectNote && (
-                              <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1 truncate">
-                                📚 {slot.subjectNote}
-                              </div>
-                            )}
-
-                            {slot.room && (
-                              <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                <MapPin size={11} />
-                                <span>{slot.room}</span>
-                              </div>
-                            )}
-
-                            {/* Teacher name */}
-                            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-black/5 dark:border-white/5">
-                              <UserIcon size={12} className="text-slate-400" />
-                              <span className="truncate">{tName}</span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={handleOpenQuickAddClass}
+              className="py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm sm:text-base border border-slate-200 cursor-pointer"
+            >
+              + Tạo Lớp Mới
+            </button>
+            <button
+              onClick={handleOpenCreateModal}
+              className="py-3 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm sm:text-base shadow-md cursor-pointer"
+            >
+              + Xếp Thời Khóa Biểu
+            </button>
           </div>
         </div>
+      ) : viewMode === 'grid' ? (
+        /* ── WEEKLY GRID VIEW ────────────────────────────────────────────── */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+          {[1, 2, 3, 4, 5, 6, 0].map((dayNum) => {
+            const daySlots = timetableByDay[dayNum] || [];
+            const isToday = new Date().getDay() === dayNum;
+
+            return (
+              <div
+                key={dayNum}
+                className={`rounded-3xl border transition-all flex flex-col min-h-[380px] ${
+                  isToday
+                    ? 'bg-indigo-50/40 border-indigo-300 shadow-sm ring-2 ring-indigo-500/20'
+                    : 'bg-white border-slate-200/90 shadow-2xs'
+                }`}
+              >
+                {/* Day Header */}
+                <div
+                  className={`p-4 border-b rounded-t-3xl flex items-center justify-between ${
+                    isToday ? 'bg-indigo-600 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
+                  }`}
+                >
+                  <span className="font-black text-base">{DAY_LABELS[dayNum]}</span>
+                  {isToday ? (
+                    <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full">
+                      Hôm nay
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400">
+                      {daySlots.length} ca
+                    </span>
+                  )}
+                </div>
+
+                {/* Day Slots Body */}
+                <div className="p-3 flex-1 overflow-y-auto space-y-2.5">
+                  {daySlots.length === 0 ? (
+                    <div className="h-full flex items-center justify-center p-4 text-center">
+                      <span className="text-xs font-semibold text-slate-400 italic">Không có ca học</span>
+                    </div>
+                  ) : (
+                    daySlots.map(({ schedule, slot }, sIdx) => {
+                      const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
+                      const cName =
+                        typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp học';
+                      const tName =
+                        typeof schedule.teacher === 'object' ? schedule.teacher?.name : 'Chưa phân công';
+                      const isLive = isSlotLiveNow(dayNum, slot.startTime, slot.endTime);
+
+                      return (
+                        <div
+                          key={`${schedule._id}-${sIdx}`}
+                          className={`p-3.5 rounded-2xl border transition-all group relative ${theme.bg} ${theme.border} hover:shadow-xs`}
+                        >
+                          {/* Live Now glowing badge */}
+                          {isLive && (
+                            <div className="flex items-center gap-1.5 mb-1.5 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                              <span>ĐANG TRONG GIỜ DẠY</span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-xs font-black text-slate-900 truncate" title={cName}>
+                              {cName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(schedule)}
+                              className="text-slate-400 hover:text-indigo-600 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
+                              title="Sửa lịch"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-1 text-xs font-black text-indigo-700 mb-1">
+                            <Clock size={13} />
+                            <span>
+                              {slot.startTime} – {slot.endTime}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-600 font-semibold truncate" title={tName}>
+                            GV: {tName}
+                          </p>
+
+                          {/* Attached Lesson Badge (Bài mấy) */}
+                          {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
+                            <div className="mt-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200/90 flex items-center gap-1.5 shadow-2xs">
+                              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 shrink-0" />
+                              <span className="text-[11px] font-black truncate" title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}>
+                                {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài học'}:{' '}
+                                {slot.lessonTitle
+                                  ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '')
+                                  : (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
+                              </span>
+                            </div>
+                          )}
+
+                          {slot.room && (
+                            <p className="text-[11px] text-slate-500 font-bold flex items-center gap-1 mt-1 truncate">
+                              <MapPin size={11} />
+                              <span>{slot.room}</span>
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        /* ── LIST VIEW ─────────────────────────────────────────────────────── */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        /* ── LIST VIEW ───────────────────────────────────────────────────── */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSchedules.map((sch) => {
             const theme = COLOR_THEMES[sch.colorTag] || COLOR_THEMES.indigo;
             const cName = typeof sch.classroom === 'object' ? sch.classroom?.name : 'Lớp học';
-            const cAge = typeof sch.classroom === 'object' ? sch.classroom?.ageGroupCode : '';
-            const cCount = typeof sch.classroom === 'object' ? sch.classroom?.studentCount : 0;
             const tName = typeof sch.teacher === 'object' ? sch.teacher?.name : 'Chưa phân công';
             const tEmail = typeof sch.teacher === 'object' ? sch.teacher?.email : '';
 
             return (
               <div
                 key={sch._id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900 flex flex-col justify-between"
+                className={`bg-white rounded-3xl border ${theme.border} p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between`}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="h-9 w-9 rounded-xl flex items-center justify-center font-black text-white shadow-sm"
-                        style={{ backgroundColor: theme.lightBg }}
-                      >
-                        <School size={18} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-base text-slate-900 dark:text-white">{cName}</h4>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                          {cAge && <span className="font-semibold text-indigo-600 dark:text-indigo-400">{cAge} tuổi</span>}
-                          <span>•</span>
-                          <span>{cCount || 0} học sinh</span>
-                          <span>•</span>
-                          <span>{sch.academicYear}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                      sch.isActive
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                    }`}>
-                      {sch.isActive ? 'Đang áp dụng' : 'Tạm dừng'}
-                    </span>
-                  </div>
-
-                  {/* Teacher info */}
-                  <div className="mb-4 rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-800/60 flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 flex items-center justify-center font-bold">
-                      {tName.charAt(0)}
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-bold text-slate-800 dark:text-slate-200">GV phụ trách: {tName}</div>
-                      <div className="text-slate-500 dark:text-slate-400">{tEmail || 'Email giáo viên'}</div>
+                      <span className="text-xs font-black uppercase tracking-wider text-indigo-600 block mb-1">
+                        Thời khóa biểu cố định
+                      </span>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">{cName}</h3>
+                      <p className="text-xs font-bold text-slate-400 mt-0.5">
+                        Năm học: {sch.academicYear || '2026-2027'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(sch)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                        title="Chỉnh sửa lịch"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSchedule(sch._id, cName)}
+                        className="p-2 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Xóa lịch"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Weekly slots */}
-                  <div className="space-y-1.5 mb-4">
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Thời khóa biểu ({sch.weeklySlots?.length || 0} buổi/tuần):
+                  {/* Teacher snippet */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                      {tName[0] || 'T'}
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-900 truncate">{tName}</p>
+                      <p className="text-xs text-slate-500 font-semibold truncate">{tEmail}</p>
+                    </div>
+                  </div>
+
+                  {/* Weekly slots list */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      Các buổi học trong tuần ({sch.weeklySlots?.length || 0}):
+                    </p>
+                    <div className="space-y-1.5">
                       {sch.weeklySlots?.map((slot, idx) => (
                         <div
                           key={idx}
-                          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${theme.bg} ${theme.text} border ${theme.border}`}
+                          className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-bold"
                         >
-                          <span className="font-extrabold">{DAY_LABELS[slot.dayOfWeek]}:</span>
-                          <span>{slot.startTime}-{slot.endTime}</span>
-                          {slot.room && <span className="opacity-75">({slot.room})</span>}
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-black">
+                              {DAY_LABELS[slot.dayOfWeek]}
+                            </span>
+                            <span className="text-slate-800 font-bold">
+                              {slot.startTime} – {slot.endTime}
+                            </span>
+                            {slot.room && (
+                              <span className="text-slate-500 font-semibold truncate">
+                                • {slot.room}
+                              </span>
+                            )}
+                          </div>
+                          {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
+                            <span
+                              className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-black border border-amber-200 truncate max-w-[200px]"
+                              title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
+                            >
+                              🎯 {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài'}:{' '}
+                              {slot.lessonTitle
+                                ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '')
+                                : (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => handleOpenEditModal(sch)}
-                    className="inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition"
-                  >
-                    <Edit2 size={14} />
-                    <span>Chỉnh sửa</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteSchedule(sch._id, cName)}
-                    className="inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50 transition"
-                  >
-                    <Trash2 size={14} />
-                    <span>Xóa</span>
-                  </button>
+                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400">
+                  <span>Màu thẻ: {sch.colorTag}</span>
+                  <span className={sch.isActive ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    {sch.isActive ? '✓ Đang kích hoạt' : 'Tạm dừng'}
+                  </span>
                 </div>
               </div>
             );
@@ -676,55 +887,68 @@ export const AdminSchedulePage: React.FC = () => {
         </div>
       )}
 
-      {/* ── CREATE / EDIT MODAL ──────────────────────────────────────────────── */}
+      {/* ── MODAL: XẾP THỜI KHÓA BIỂU (CREATE / EDIT) ───────────────────────── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white p-6 md:p-8 shadow-2xl dark:bg-slate-900 dark:border dark:border-slate-800 my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 animate-scale-up">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
-                  <CalendarDays size={22} />
+                <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                  <CalendarDays size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    {editingSchedule ? 'Chỉnh Sửa Thời Khóa Biểu' : 'Thêm Thời Khóa Biểu Mới'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
+                  <h2 className="text-xl font-black text-slate-900">
+                    {editingSchedule ? 'Cập Nhật Thời Khóa Biểu' : 'Xếp Thời Khóa Biểu Cho Lớp'}
+                  </h2>
+                  <p className="text-sm font-semibold text-slate-500">
                     Sắp xếp ngày và khung giờ dạy học định kỳ hàng tuần cho lớp
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
             {modalError && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                <AlertCircle size={16} />
+              <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold flex items-center gap-2">
+                <AlertCircle size={18} className="shrink-0 text-rose-600" />
                 <span>{modalError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmitModal} className="mt-5 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Classroom */}
+            <form onSubmit={handleSubmitModal} className="flex-1 overflow-y-auto py-5 space-y-5 pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Lớp học */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    Lớp học <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      Lớp Học <span className="text-rose-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        handleOpenQuickAddClass();
+                      }}
+                      className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      + Thêm lớp mới
+                    </button>
+                  </div>
                   <select
                     value={formData.classroom}
                     onChange={(e) => handleClassChange(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600"
                   >
-                    <option value="" disabled>-- Chọn lớp học --</option>
-                    {classrooms.map(c => (
+                    <option value="" disabled>
+                      -- Chọn lớp học --
+                    </option>
+                    {classrooms.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.name} {c.ageGroupCode ? `(${c.ageGroupCode} tuổi)` : ''}
                       </option>
@@ -732,196 +956,361 @@ export const AdminSchedulePage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Teacher */}
+                {/* Giáo viên */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    Giáo viên giảng dạy <span className="text-rose-500">*</span>
+                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Giáo Viên Giảng Dạy <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={formData.teacher}
-                    onChange={(e) => setFormData(p => ({ ...p, teacher: e.target.value }))}
+                    onChange={(e) => setFormData((p) => ({ ...p, teacher: e.target.value }))}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600"
                   >
-                    <option value="" disabled>-- Chọn giáo viên --</option>
-                    {teachers.map(t => (
+                    <option value="" disabled>
+                      -- Chọn giáo viên --
+                    </option>
+                    {teachers.map((t) => (
                       <option key={t._id} value={t._id}>
                         {t.name} ({t.email})
                       </option>
                     ))}
                   </select>
                 </div>
+              </div>
 
-                {/* Academic Year */}
+              {/* Năm học & Màu nhận diện */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    Năm học
+                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Năm Học
                   </label>
                   <input
                     type="text"
                     value={formData.academicYear}
-                    onChange={(e) => setFormData(p => ({ ...p, academicYear: e.target.value }))}
-                    placeholder="2026-2027"
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    onChange={(e) => setFormData((p) => ({ ...p, academicYear: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold"
                   />
                 </div>
 
-                {/* Color Tag */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    Màu nhận diện lớp học
+                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Màu Nhận Diện Lớp
                   </label>
-                  <div className="flex items-center gap-2 pt-1">
-                    {Object.keys(COLOR_THEMES).map(color => (
-                      <button
-                        type="button"
-                        key={color}
-                        onClick={() => setFormData(p => ({ ...p, colorTag: color }))}
-                        className={`h-7 w-7 rounded-full transition-transform ${
-                          formData.colorTag === color ? 'scale-125 ring-2 ring-slate-800 dark:ring-white ring-offset-2' : 'hover:scale-110 opacity-70'
-                        }`}
-                        style={{ backgroundColor: COLOR_THEMES[color].lightBg }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
+                  <select
+                    value={formData.colorTag}
+                    onChange={(e) => setFormData((p) => ({ ...p, colorTag: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold"
+                  >
+                    <option value="indigo">🟣 Màu Indigo (Xanh tím)</option>
+                    <option value="emerald">🟢 Màu Emerald (Xanh lá)</option>
+                    <option value="amber">🟠 Màu Amber (Cam đất)</option>
+                    <option value="rose">🔴 Màu Rose (Hồng đào)</option>
+                    <option value="teal">🌊 Màu Teal (Xanh ngọc)</option>
+                    <option value="purple">🔮 Màu Purple (Tím)</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Weekly Slots Builder */}
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                    Các buổi học trong tuần ({formData.weeklySlots.length})
+              {/* Danh sách các buổi học trong tuần */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-black uppercase tracking-wider text-slate-700">
+                    Khung Giờ Học Hàng Tuần <span className="text-rose-500">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={handleAddSlot}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                    className="py-1.5 px-3 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-xs hover:bg-indigo-100 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus size={14} />
                     <span>Thêm buổi học</span>
                   </button>
                 </div>
 
-                <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                  {formData.weeklySlots.map((slot, sIdx) => (
+                <div className="space-y-3">
+                  {formData.weeklySlots.map((slot, index) => (
                     <div
-                      key={sIdx}
-                      className="flex flex-col md:flex-row items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50"
+                      key={index}
+                      className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3"
                     >
-                      {/* Day of Week */}
-                      <select
-                        value={slot.dayOfWeek}
-                        onChange={(e) => handleSlotChange(sIdx, 'dayOfWeek', Number(e.target.value))}
-                        className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      >
-                        <option value={1}>Thứ 2</option>
-                        <option value={2}>Thứ 3</option>
-                        <option value={3}>Thứ 4</option>
-                        <option value={4}>Thứ 5</option>
-                        <option value={5}>Thứ 6</option>
-                        <option value={6}>Thứ 7</option>
-                        <option value={0}>Chủ Nhật</option>
-                      </select>
+                      {/* Row 1: Time, Day and Room */}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1">Thứ</label>
+                          <select
+                            value={slot.dayOfWeek}
+                            onChange={(e) => handleSlotChange(index, 'dayOfWeek', Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold"
+                          >
+                            <option value={1}>Thứ 2</option>
+                            <option value={2}>Thứ 3</option>
+                            <option value={3}>Thứ 4</option>
+                            <option value={4}>Thứ 5</option>
+                            <option value={5}>Thứ 6</option>
+                            <option value={6}>Thứ 7</option>
+                            <option value={0}>Chủ Nhật</option>
+                          </select>
+                        </div>
 
-                      {/* Start Time */}
-                      <input
-                        type="time"
-                        value={slot.startTime}
-                        onChange={(e) => handleSlotChange(sIdx, 'startTime', e.target.value)}
-                        required
-                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      />
-                      <span className="text-xs text-slate-400 font-bold">đến</span>
-                      {/* End Time */}
-                      <input
-                        type="time"
-                        value={slot.endTime}
-                        onChange={(e) => handleSlotChange(sIdx, 'endTime', e.target.value)}
-                        required
-                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      />
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1">Bắt đầu</label>
+                          <input
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => handleSlotChange(index, 'startTime', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold"
+                          />
+                        </div>
 
-                      {/* Room */}
-                      <input
-                        type="text"
-                        placeholder="Phòng học"
-                        value={slot.room || ''}
-                        onChange={(e) => handleSlotChange(sIdx, 'room', e.target.value)}
-                        className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      />
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1">Kết thúc</label>
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => handleSlotChange(index, 'endTime', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold"
+                          />
+                        </div>
 
-                      {/* Subject Note */}
-                      <input
-                        type="text"
-                        placeholder="Nội dung/môn (ví dụ: Giao tiếp)"
-                        value={slot.subjectNote || ''}
-                        onChange={(e) => handleSlotChange(sIdx, 'subjectNote', e.target.value)}
-                        className="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      />
+                        <div className="flex items-center gap-2 pt-1 sm:pt-0">
+                          <div className="flex-1">
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1">Phòng học</label>
+                            <input
+                              type="text"
+                              placeholder="Phòng 101"
+                              value={slot.room || ''}
+                              onChange={(e) => handleSlotChange(index, 'room', e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-semibold"
+                            />
+                          </div>
 
-                      {/* Remove Button */}
-                      {formData.weeklySlots.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSlot(sIdx)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+                          {formData.weeklySlots.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSlot(index)}
+                              className="mt-4 p-2 text-rose-500 hover:bg-rose-100 rounded-xl cursor-pointer shrink-0"
+                              title="Xóa buổi này"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Row 2: Lesson Assignment (Gắn buổi học cụ thể là bài mấy) */}
+                      <div className="pt-2 border-t border-slate-200/70 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                        <div className="sm:col-span-7">
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-indigo-700 mb-1 flex items-center gap-1.5">
+                            <BookOpen size={13} className="text-indigo-600" />
+                            <span>Gắn Bài Học Theo Giáo Trình (Bài mấy)</span>
+                          </label>
+                          <select
+                            value={typeof slot.lesson === 'object' ? slot.lesson?._id : (slot.lesson || '')}
+                            onChange={(e) => {
+                              const selectedLessonId = e.target.value;
+                              if (!selectedLessonId) {
+                                handleSlotChange(index, 'lesson', null);
+                                handleSlotChange(index, 'lessonNumber', null);
+                                handleSlotChange(index, 'lessonTitle', '');
+                              } else {
+                                const found = classroomLessons.find(l => l._id === selectedLessonId);
+                                const lessonNum = found?.syllabusOrder || index + 1;
+                                const titleStr = found
+                                  ? `Bài ${lessonNum}: ${found.title}${found.vietnameseTitle ? ` - ${found.vietnameseTitle}` : ''}`
+                                  : `Bài ${lessonNum}`;
+                                handleSlotChange(index, 'lesson', selectedLessonId);
+                                handleSlotChange(index, 'lessonNumber', lessonNum);
+                                handleSlotChange(index, 'lessonTitle', titleStr);
+                              }
+                            }}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                          >
+                            <option value="">-- Không gắn bài học cố định --</option>
+                            {classroomLessons.map((les) => (
+                              <option key={les._id} value={les._id}>
+                                🎯 Bài {les.syllabusOrder}: {les.title} {les.vietnameseTitle ? `(${les.vietnameseTitle})` : ''} {les.unitNumber ? `• Unit ${les.unitNumber}` : ''}
+                              </option>
+                            ))}
+                            {classroomLessons.length === 0 && (
+                              <option value="" disabled>
+                                {loadingLessons ? 'Đang tải danh sách bài học...' : 'Chưa có bài học trong giáo trình của lớp'}
+                              </option>
+                            )}
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                            Bài Số
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            placeholder="Số bài"
+                            value={slot.lessonNumber ?? ''}
+                            onChange={(e) => handleSlotChange(index, 'lessonNumber', e.target.value ? Number(e.target.value) : null)}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm font-bold text-indigo-700"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                            Tiêu Đề / Ghi Chú Ca
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ví dụ: Bài 1: Hello"
+                            value={slot.lessonTitle || ''}
+                            onChange={(e) => handleSlotChange(index, 'lessonTitle', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-800"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Status toggle & Effective date */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    Ngày bắt đầu áp dụng
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.effectiveFrom}
-                    onChange={(e) => setFormData(p => ({ ...p, effectiveFrom: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-6">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData(p => ({ ...p, isActive: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                  </label>
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                    {formData.isActive ? 'Kích hoạt lịch học' : 'Tạm dừng áp dụng'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              {/* Action buttons */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-base cursor-pointer"
                 >
-                  Hủy bỏ
+                  Hủy Bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={modalLoading}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 disabled:opacity-50"
+                  className="py-3 px-7 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-base shadow-md cursor-pointer"
                 >
-                  {modalLoading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
-                  <span>{editingSchedule ? 'Cập Nhật Lịch' : 'Tạo Lịch Dạy'}</span>
+                  {modalLoading ? 'Đang lưu lịch...' : 'Lưu Thời Khóa Biểu'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: THÊM LỚP HỌC MỚI TRỰC TIẾP TỪ TKB ──────────────────────── */}
+      {isQuickAddClassOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-lg shadow-2xl border border-slate-200 animate-scale-up space-y-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                  <School size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Tạo Lớp Học Mới</h3>
+                  <p className="text-xs font-semibold text-slate-500">Tạo lớp và đồng bộ ngay vào danh sách xếp lịch</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsQuickAddClassOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {quickClassError && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                <span>{quickClassError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleQuickAddClassSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                  Tên Lớp Học * (Không được trùng lặp)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickClassData.name}
+                  onChange={(e) => setQuickClassData({ ...quickClassData, name: e.target.value })}
+                  placeholder="Ví dụ: Rainbow Stars (4-5 tuổi)"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Độ Tuổi Giảng Dạy *
+                  </label>
+                  <select
+                    value={quickClassData.ageGroupCode}
+                    onChange={(e) => setQuickClassData({ ...quickClassData, ageGroupCode: e.target.value })}
+                    className="w-full px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold"
+                  >
+                    <option value="3-4">3–4 Tuổi (Mầm)</option>
+                    <option value="4-5">4–5 Tuổi (Chồi)</option>
+                    <option value="5-6">5–6 Tuổi (Lá)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Năm Học
+                  </label>
+                  <input
+                    type="text"
+                    value={quickClassData.academicYear}
+                    onChange={(e) => setQuickClassData({ ...quickClassData, academicYear: e.target.value })}
+                    className="w-full px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                  Giáo Viên Phụ Trách * (1 Giáo Viên - 1 Lớp)
+                </label>
+                <select
+                  required
+                  value={quickClassData.teacherId}
+                  onChange={(e) => setQuickClassData({ ...quickClassData, teacherId: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:outline-none focus:border-indigo-600"
+                >
+                  <option value="" disabled>
+                    -- Chọn giáo viên --
+                  </option>
+                  {teachers.map((t) => {
+                    const assigned = teacherClassMap.get(String(t._id));
+                    return (
+                      <option
+                        key={t._id}
+                        value={t._id}
+                        disabled={Boolean(assigned)}
+                        className={assigned ? 'text-slate-400 italic' : 'text-slate-900 font-bold'}
+                      >
+                        {t.name} {assigned ? `[Đã có lớp: ${assigned}]` : '✓ Sẵn sàng'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickAddClassOpen(false)}
+                  className="py-2.5 px-4 rounded-2xl bg-slate-100 text-slate-700 font-bold text-sm cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickClassSubmitting}
+                  className="py-2.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-sm cursor-pointer"
+                >
+                  {quickClassSubmitting ? 'Đang tạo...' : 'Tạo Lớp & Xếp Lịch'}
                 </button>
               </div>
             </form>

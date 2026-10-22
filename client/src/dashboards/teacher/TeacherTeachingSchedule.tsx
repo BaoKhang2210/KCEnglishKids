@@ -13,7 +13,8 @@ import {
   Flame,
   Clock,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 import { teacherApi, classroomSessionApi } from '../../services/api';
 import type { ClassroomSession, ClassSchedule } from '../../types';
@@ -23,89 +24,98 @@ interface ClassOption {
   name: string;
   ageGroupCode: string;
   studentCount?: number;
+  currentLesson?: any;
 }
 
 const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string; badge: string; dot: string; lightBg: string } } = {
   indigo: {
-    bg: 'bg-indigo-50/70 dark:bg-indigo-950/40',
-    border: 'border-indigo-200 dark:border-indigo-800/60',
-    text: 'text-indigo-900 dark:text-indigo-200',
-    badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300',
-    dot: 'bg-indigo-500',
+    bg: 'bg-indigo-50/80',
+    border: 'border-indigo-200',
+    text: 'text-indigo-900',
+    badge: 'bg-indigo-100 text-indigo-800',
+    dot: 'bg-indigo-600',
     lightBg: '#6366f1'
   },
   emerald: {
-    bg: 'bg-emerald-50/70 dark:bg-emerald-950/40',
-    border: 'border-emerald-200 dark:border-emerald-800/60',
-    text: 'text-emerald-900 dark:text-emerald-200',
-    badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300',
-    dot: 'bg-emerald-500',
+    bg: 'bg-emerald-50/80',
+    border: 'border-emerald-200',
+    text: 'text-emerald-900',
+    badge: 'bg-emerald-100 text-emerald-800',
+    dot: 'bg-emerald-600',
     lightBg: '#10b981'
   },
   amber: {
-    bg: 'bg-amber-50/70 dark:bg-amber-950/40',
-    border: 'border-amber-200 dark:border-amber-800/60',
-    text: 'text-amber-900 dark:text-amber-200',
-    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300',
-    dot: 'bg-amber-500',
+    bg: 'bg-amber-50/80',
+    border: 'border-amber-200',
+    text: 'text-amber-900',
+    badge: 'bg-amber-100 text-amber-900',
+    dot: 'bg-amber-600',
     lightBg: '#f59e0b'
   },
   rose: {
-    bg: 'bg-rose-50/70 dark:bg-rose-950/40',
-    border: 'border-rose-200 dark:border-rose-800/60',
-    text: 'text-rose-900 dark:text-rose-200',
-    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300',
-    dot: 'bg-rose-500',
+    bg: 'bg-rose-50/80',
+    border: 'border-rose-200',
+    text: 'text-rose-900',
+    badge: 'bg-rose-100 text-rose-800',
+    dot: 'bg-rose-600',
     lightBg: '#f43f5e'
   },
   purple: {
-    bg: 'bg-purple-50/70 dark:bg-purple-950/40',
-    border: 'border-purple-200 dark:border-purple-800/60',
-    text: 'text-purple-900 dark:text-purple-200',
-    badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300',
-    dot: 'bg-purple-500',
+    bg: 'bg-purple-50/80',
+    border: 'border-purple-200',
+    text: 'text-purple-900',
+    badge: 'bg-purple-100 text-purple-800',
+    dot: 'bg-purple-600',
     lightBg: '#a855f7'
   },
   sky: {
-    bg: 'bg-sky-50/70 dark:bg-sky-950/40',
-    border: 'border-sky-200 dark:border-sky-800/60',
-    text: 'text-sky-900 dark:text-sky-200',
-    badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-300',
-    dot: 'bg-sky-500',
+    bg: 'bg-sky-50/80',
+    border: 'border-sky-200',
+    text: 'text-sky-900',
+    badge: 'bg-sky-100 text-sky-800',
+    dot: 'bg-sky-600',
     lightBg: '#0ea5e9'
   },
   teal: {
-    bg: 'bg-teal-50/70 dark:bg-teal-950/40',
-    border: 'border-teal-200 dark:border-teal-800/60',
-    text: 'text-teal-900 dark:text-teal-200',
-    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300',
-    dot: 'bg-teal-500',
+    bg: 'bg-teal-50/80',
+    border: 'border-teal-200',
+    text: 'text-teal-900',
+    badge: 'bg-teal-100 text-teal-800',
+    dot: 'bg-teal-600',
     lightBg: '#14b8a6'
   },
   orange: {
-    bg: 'bg-orange-50/70 dark:bg-orange-950/40',
-    border: 'border-orange-200 dark:border-orange-800/60',
-    text: 'text-orange-900 dark:text-orange-200',
-    badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300',
-    dot: 'bg-orange-500',
+    bg: 'bg-orange-50/80',
+    border: 'border-orange-200',
+    text: 'text-orange-900',
+    badge: 'bg-orange-100 text-orange-900',
+    dot: 'bg-orange-600',
     lightBg: '#f97316'
   }
 };
 
 const DAY_LABELS: { [key: number]: string } = {
-  1: 'Thứ 2',
-  2: 'Thứ 3',
-  3: 'Thứ 4',
-  4: 'Thứ 5',
-  5: 'Thứ 6',
-  6: 'Thứ 7',
+  1: 'Thứ Hai',
+  2: 'Thứ Ba',
+  3: 'Thứ Tư',
+  4: 'Thứ Năm',
+  5: 'Thứ Sáu',
+  6: 'Thứ Bảy',
   0: 'Chủ Nhật'
 };
 
+// Helper: Vietnam timezone time (UTC+7)
+function getVietnamNow(): Date {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (7 * 3600000));
+}
+
 export const TeacherTeachingSchedule: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlClassId = searchParams.get('classroomId') || '';
+  const urlTab = (searchParams.get('tab') as 'calendar' | 'roadmap') || 'calendar';
 
   // State
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -116,10 +126,27 @@ export const TeacherTeachingSchedule: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Active Main Tab: 'calendar' (Thời khóa biểu tuần) | 'roadmap' (Lộ trình giáo trình)
-  const [activeTab, setActiveTab] = useState<'calendar' | 'roadmap'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'roadmap'>(urlTab);
+
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === 'calendar' || t === 'roadmap') {
+      setActiveTab(t);
+    }
+  }, [searchParams]);
 
   // Week navigation (offset 0 = current week, -1 = last week, +1 = next week)
   const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  // Live timer tick for real-time schedule gating
+  const [currentVnTime, setCurrentVnTime] = useState<Date>(getVietnamNow());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentVnTime(getVietnamNow());
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -137,6 +164,9 @@ export const TeacherTeachingSchedule: React.FC = () => {
         setClasses(clsList);
         if (urlClassId) {
           setSelectedClassId(urlClassId);
+        } else if (clsList.length === 1) {
+          // 1-1 teacher-to-class rule: auto-select their single assigned class
+          setSelectedClassId(String(clsList[0]._id));
         }
 
         const sList = Array.isArray(sessRes) ? sessRes : (sessRes?.data || sessRes?.sessions || []);
@@ -163,24 +193,16 @@ export const TeacherTeachingSchedule: React.FC = () => {
     return classes.find((c) => String(c._id) === String(selectedClassId)) || classes[0] || null;
   }, [classes, selectedClassId]);
 
-  // Target class for Roadmap (Each class has its own curriculum progress!)
-  const roadmapClass = useMemo(() => {
-    if (selectedClassId !== 'ALL') {
-      return classes.find((c) => String(c._id) === String(selectedClassId)) || classes[0] || null;
-    }
-    return classes[0] || null;
-  }, [classes, selectedClassId]);
-
-  const roadmapClassId = roadmapClass?._id || '';
+  const effectiveClassId = activeClass?._id || '';
 
   // Filtered sessions strictly for this class in Roadmap
   const roadmapSessions = useMemo(() => {
-    if (!roadmapClassId) return [];
+    if (!effectiveClassId) return sessions;
     return sessions.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
-      return cId === String(roadmapClassId);
+      return cId === String(effectiveClassId);
     });
-  }, [sessions, roadmapClassId]);
+  }, [sessions, effectiveClassId]);
 
   // Filtered sessions based on selected classroom
   const filteredSessions = useMemo(() => {
@@ -200,19 +222,18 @@ export const TeacherTeachingSchedule: React.FC = () => {
     });
   }, [mySchedules, selectedClassId]);
 
-  // Target book number based on roadmapClass ageGroupCode
+  // Target book number based on activeClass ageGroupCode
   const targetBookNumber = useMemo(() => {
-    const target = roadmapClass || activeClass;
-    if (!target?.ageGroupCode) return 1;
-    if (target.ageGroupCode === '3-4') return 1;
-    if (target.ageGroupCode === '4-5') return 2;
-    if (target.ageGroupCode === '5-6') return 3;
+    if (!activeClass?.ageGroupCode) return 1;
+    if (activeClass.ageGroupCode === '3-4') return 1;
+    if (activeClass.ageGroupCode === '4-5') return 2;
+    if (activeClass.ageGroupCode === '5-6') return 3;
     return 1;
-  }, [roadmapClass, activeClass]);
+  }, [activeClass]);
 
   // Calendar dates computation (Monday to Sunday for current weekOffset)
   const currentWeekDays = useMemo(() => {
-    const now = new Date();
+    const now = currentVnTime;
     const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7);
 
     // Find Monday (1)
@@ -222,7 +243,6 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
     const days = [];
     const dayNames = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'];
-    // Day of week numbers: 1 (Mon) to 6 (Sat), 0 (Sun)
     const dayNums = [1, 2, 3, 4, 5, 6, 0];
 
     for (let i = 0; i < 7; i++) {
@@ -232,8 +252,6 @@ export const TeacherTeachingSchedule: React.FC = () => {
         d.getMonth() === now.getMonth() &&
         d.getFullYear() === now.getFullYear();
 
-      const lastWeekSameDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7);
-
       days.push({
         dayIndex: i,
         dayNum: dayNums[i],
@@ -241,14 +259,12 @@ export const TeacherTeachingSchedule: React.FC = () => {
         date: d,
         dateString: d.toISOString().split('T')[0],
         formattedDate: `${d.getDate()}/${d.getMonth() + 1}`,
-        isToday,
-        lastWeekSameDay,
-        lastWeekDateString: lastWeekSameDay.toISOString().split('T')[0]
+        isToday
       });
     }
 
     return days;
-  }, [weekOffset]);
+  }, [weekOffset, currentVnTime]);
 
   // Map sessions to calendar dates
   const calendarDaySessions = useMemo(() => {
@@ -278,13 +294,108 @@ export const TeacherTeachingSchedule: React.FC = () => {
       });
     });
 
-    // Sort by startTime
     [1, 2, 3, 4, 5, 6, 0].forEach(d => {
       map[d].sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime));
     });
 
     return map;
   }, [filteredMySchedules]);
+
+  // ── Requirement 10: Strict Timetable Timing Evaluation ─────────────────────
+  const scheduleLiveTiming = useMemo(() => {
+    const currentDay = currentVnTime.getDay(); // 0 is Sun, 1 is Mon
+    const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
+
+    const relevantSchedules = selectedClassId && selectedClassId !== 'ALL'
+      ? mySchedules.filter((s: any) => {
+          const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
+          return String(cId) === String(selectedClassId);
+        })
+      : mySchedules;
+
+    if (relevantSchedules.length === 0) {
+      return {
+        canTeachNow: false,
+        activeSlot: null,
+        activeClassroom: null,
+        nextSlotText: null,
+        hasSchedule: false,
+        reason: 'Lớp học chưa có thời khóa biểu phân công từ Ban Quản Trị.'
+      };
+    }
+
+    let activeSlot: any = null;
+    let activeClassroom: any = null;
+    const upcomingList: Array<{ slot: any; schedule: any; distanceMinutes: number; dateStr: string }> = [];
+
+    for (const sch of relevantSchedules) {
+      for (const slot of sch.weeklySlots || []) {
+        const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
+        const [eH, eM] = (slot.endTime || '23:59').split(':').map(Number);
+        const startMin = sH * 60 + sM;
+        const endMin = eH * 60 + eM;
+
+        // Active slot window: 15 minutes before start up to 30 minutes after end
+        if (slot.dayOfWeek === currentDay && currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
+          activeSlot = slot;
+          activeClassroom = sch.classroom;
+        }
+
+        // Distance in future
+        let dayDiff = slot.dayOfWeek - currentDay;
+        if (dayDiff < 0 || (dayDiff === 0 && startMin < currentMinutes)) {
+          dayDiff += 7;
+        }
+        const distance = dayDiff * 24 * 60 + (startMin - currentMinutes);
+        const targetDate = new Date(currentVnTime);
+        targetDate.setDate(targetDate.getDate() + dayDiff);
+        const dateStr = `${targetDate.getDate()}/${targetDate.getMonth() + 1}`;
+
+        upcomingList.push({
+          slot,
+          schedule: sch,
+          distanceMinutes: distance,
+          dateStr
+        });
+      }
+    }
+
+    if (activeSlot) {
+      return {
+        canTeachNow: true,
+        activeSlot,
+        activeClassroom,
+        nextSlotText: null,
+        hasSchedule: true,
+        reason: `Đang trong khung giờ dạy (${activeSlot.startTime} - ${activeSlot.endTime})`
+      };
+    }
+
+    upcomingList.sort((a, b) => a.distanceMinutes - b.distanceMinutes);
+    const nextItem = upcomingList[0] || null;
+
+    let nextSlotText = null;
+    if (nextItem) {
+      const hours = Math.floor(nextItem.distanceMinutes / 60);
+      const mins = nextItem.distanceMinutes % 60;
+      const timeRemaining = hours > 24
+        ? `${Math.floor(hours / 24)} ngày ${hours % 24} giờ`
+        : `${hours} giờ ${mins} phút`;
+
+      nextSlotText = `${DAY_LABELS[nextItem.slot.dayOfWeek]} (ngày ${nextItem.dateStr}) lúc ${nextItem.slot.startTime} - ${nextItem.slot.endTime} (còn ${timeRemaining})`;
+    }
+
+    return {
+      canTeachNow: false,
+      activeSlot: null,
+      activeClassroom: null,
+      nextSlotText,
+      hasSchedule: true,
+      reason: nextSlotText
+        ? `Chưa đến giờ dạy theo thời khóa biểu. Buổi học kế tiếp: ${nextSlotText}`
+        : 'Không tìm thấy ca dạy tiếp theo.'
+    };
+  }, [currentVnTime, selectedClassId, mySchedules]);
 
   // Roadmap ordering: strict sequence according to book (Unit 1..9, Lesson displayOrder)
   const bookRoadmap = useMemo(() => {
@@ -340,13 +451,18 @@ export const TeacherTeachingSchedule: React.FC = () => {
     let completedCount = 0;
     let foundNextToTeach = false;
 
+    // Check if Admin assigned a specific currentLesson to activeClass
+    const adminCurrentLessonId = activeClass?.currentLesson?._id || activeClass?.currentLesson;
+
     const lessonsWithStatus = filteredLessons.map((l: any, idx: number) => {
       const stats = taughtLessonMap[l._id];
       const isCompleted = !!stats && stats.count > 0;
       if (isCompleted) completedCount++;
 
       let isNext = false;
-      if (!isCompleted && !foundNextToTeach) {
+      if (adminCurrentLessonId && String(l._id) === String(adminCurrentLessonId)) {
+        isNext = true;
+      } else if (!adminCurrentLessonId && !isCompleted && !foundNextToTeach) {
         isNext = true;
         foundNextToTeach = true;
       }
@@ -377,7 +493,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
         percent
       }
     };
-  }, [curriculumData, targetBookNumber, roadmapSessions]);
+  }, [curriculumData, targetBookNumber, roadmapSessions, activeClass]);
 
   const nextLessonToTeach = useMemo(() => {
     return bookRoadmap.lessons.find((l: any) => l.isNext) || bookRoadmap.lessons.find((l: any) => !l.isCompleted) || null;
@@ -388,88 +504,181 @@ export const TeacherTeachingSchedule: React.FC = () => {
     return taught.length > 0 ? taught[taught.length - 1] : null;
   }, [bookRoadmap]);
 
-  const effectiveClassId = roadmapClassId || (selectedClassId !== 'ALL' ? selectedClassId : (classes[0]?._id || ''));
-
   if (loading) {
     return (
-      <div className="py-24 text-center text-slate-500">
-        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />
-        Đang tải lịch giảng dạy và lộ trình học...
+      <div className="py-28 text-center text-slate-500">
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />
+        <p className="text-base font-bold text-slate-700">Đang tải lịch giảng dạy và lộ trình học…</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7 max-w-7xl mx-auto">
       {/* ── Top Header Controls & Class Selector ─────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-sm border border-slate-200">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 rounded-3xl bg-white p-7 shadow-sm border border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 border border-teal-200">
-              <Calendar size={14} className="text-teal-600" /> Sổ Lịch Giảng Dạy & Lộ Trình
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3.5 py-1 text-xs font-black text-teal-700 border border-teal-200">
+              <Calendar size={15} className="text-teal-600" /> Sổ Lịch Giảng Dạy & Thời Khóa Biểu
             </span>
           </div>
-          <h2 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-2 tracking-tight">
             Thời Khóa Biểu & Tiến Độ Giảng Dạy
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Theo dõi thời khóa biểu do Nhà trường phân công và tiến độ giáo trình theo từng lớp học.
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 mt-1 font-medium">
+            Theo dõi ca dạy cố định theo thời khóa biểu của trường và tiến độ bài học theo đúng giáo trình.
           </p>
         </div>
 
-        {/* Filter Classroom */}
+        {/* Filter Classroom & Teaching Action */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-200 shadow-xs">
-            <GraduationCap size={18} className="text-teal-600 shrink-0" />
+          <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200 shadow-xs">
+            <GraduationCap size={20} className="text-teal-600 shrink-0" />
             <select
               value={selectedClassId}
               onChange={(e) => setSelectedClassId(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer"
+              className="bg-transparent text-sm sm:text-base font-extrabold text-slate-800 outline-none cursor-pointer"
             >
-              <option value="ALL">🏫 Tất cả các lớp giảng dạy ({classes.length})</option>
+              {classes.length > 1 && (
+                <option value="ALL">🏫 Tất cả các lớp ({classes.length} lớp)</option>
+              )}
               {classes.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name} ({c.ageGroupCode} tuổi)
+                  {c.name} ({c.ageGroupCode} tuổi) {classes.length === 1 ? '• Lớp chủ nhiệm của tôi' : ''}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Quick Teach Button with Schedule Gate */}
           {effectiveClassId && (
-            <button
-              type="button"
-              onClick={() => {
-                if (nextLessonToTeach) {
-                  navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${nextLessonToTeach._id}`);
-                } else {
-                  navigate(`/teacher/classes/${effectiveClassId}/sessions/new`);
-                }
-              }}
-              className="inline-flex items-center gap-2 rounded-2xl bg-teal-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition-all shadow-sm cursor-pointer"
-            >
-              <Play size={16} /> Bắt đầu buổi dạy
-            </button>
+            scheduleLiveTiming.canTeachNow ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const activeLes = scheduleLiveTiming.activeSlot?.lesson;
+                  const targetLessonId =
+                    (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '')) ||
+                    nextLessonToTeach?._id;
+                  if (targetLessonId) {
+                    navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${targetLessonId}`);
+                  } else {
+                    navigate(`/teacher/classes/${effectiveClassId}/sessions/new`);
+                  }
+                }}
+                className="inline-flex items-center gap-2.5 rounded-2xl bg-emerald-600 px-6 py-3.5 text-sm sm:text-base font-black text-white hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer animate-pulse"
+              >
+                <Play size={18} className="fill-white" />
+                <span>Vào Lớp Dạy Ngay (Đang mở)</span>
+              </button>
+            ) : (
+              <div
+                title={scheduleLiveTiming.reason}
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 border border-slate-200 px-5 py-3 text-sm font-bold text-slate-400 cursor-not-allowed select-none"
+              >
+                <Lock size={16} />
+                <span>Chưa đến giờ dạy</span>
+              </div>
+            )
           )}
         </div>
       </div>
 
+      {/* ── Requirement 10: Real-Time Schedule Gate Alert Banner ──────────────── */}
+      {scheduleLiveTiming.canTeachNow ? (
+        <div className="rounded-2xl border-2 border-emerald-400 bg-emerald-50/90 p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white font-black shadow-sm">
+              <Play size={22} className="fill-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 rounded-full bg-emerald-500 animate-ping" />
+                <h3 className="text-base sm:text-lg font-black text-emerald-950">
+                  ĐANG TRONG KHUNG GIỜ GIẢNG DẠY THEO THỜI KHÓA BIỂU
+                </h3>
+              </div>
+              <p className="text-sm font-semibold text-emerald-800 mt-0.5">
+                Ca học: <strong>{DAY_LABELS[scheduleLiveTiming.activeSlot?.dayOfWeek]} ({scheduleLiveTiming.activeSlot?.startTime} - {scheduleLiveTiming.activeSlot?.endTime})</strong>
+                {scheduleLiveTiming.activeSlot?.room && ` • Phòng: ${scheduleLiveTiming.activeSlot.room}`}
+                {(scheduleLiveTiming.activeSlot?.lessonTitle || scheduleLiveTiming.activeSlot?.lessonNumber) && (
+                  <strong className="text-emerald-950 ml-1">
+                    • 🎯 {scheduleLiveTiming.activeSlot?.lessonNumber ? `Bài ${scheduleLiveTiming.activeSlot?.lessonNumber}: ` : ''}
+                    {scheduleLiveTiming.activeSlot?.lessonTitle || (typeof scheduleLiveTiming.activeSlot?.lesson === 'object' ? scheduleLiveTiming.activeSlot?.lesson?.title : '')}
+                  </strong>
+                )}
+                {' — '}Giáo viên có thể mở phòng học và điểm danh học sinh ngay bây giờ!
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (effectiveClassId) {
+                const activeLes = scheduleLiveTiming.activeSlot?.lesson;
+                const targetLessonId =
+                  (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '')) ||
+                  nextLessonToTeach?._id;
+                navigate(`/teacher/classes/${effectiveClassId}/sessions/new${targetLessonId ? `?lessonId=${targetLessonId}` : ''}`);
+              }
+            }}
+            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm px-6 py-3 shadow-md transition-all cursor-pointer"
+          >
+            <Play size={16} className="fill-white" /> Mở lớp dạy ngay
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white font-black shadow-sm">
+            <Lock size={22} />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-amber-200 text-amber-950 px-2 py-0.5 text-xs font-black uppercase tracking-wider">
+                Quy định giờ dạy
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-slate-900">
+                Phòng học sẽ mở đúng ngày và giờ theo Thời Khóa Biểu
+              </h3>
+            </div>
+            <p className="text-sm text-slate-700 mt-1">
+              {scheduleLiveTiming.nextSlotText ? (
+                <span>
+                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 15 phút để giáo viên chuẩn bị học cụ và điểm danh.
+                </span>
+              ) : (
+                <span>{scheduleLiveTiming.reason}</span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Navigation Tabs (Clean & Separated View) ───────────────────── */}
-      <div className="flex border-b border-slate-200 bg-white rounded-2xl px-3 pt-2 shadow-xs">
+      <div className="flex border-b border-slate-200 bg-white rounded-2xl px-4 pt-3 shadow-xs">
         <button
           type="button"
           id="tab-btn-calendar"
-          onClick={() => setActiveTab('calendar')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+          onClick={() => {
+            setActiveTab('calendar');
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('tab', 'calendar');
+              return next;
+            });
+          }}
+          className={`flex items-center gap-2 px-6 py-3.5 text-base font-extrabold border-b-2 transition-all cursor-pointer ${
             activeTab === 'calendar'
-              ? 'border-teal-600 text-teal-700'
+              ? 'border-teal-600 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
           }`}
         >
-          <CalendarDays size={18} />
-          <span>Thời Khóa Biểu & Lịch Dạy Tuần</span>
+          <CalendarDays size={20} />
+          <span>Thời Khóa Biểu Tuần</span>
           {mySchedules.length > 0 && (
-            <span className="ml-1 rounded-full bg-teal-100 text-teal-800 px-2 py-0.5 text-xs font-black">
-              {mySchedules.reduce((acc, s) => acc + (s.weeklySlots?.length || 0), 0)} buổi/tuần
+            <span className="ml-1.5 rounded-full bg-teal-100 text-teal-800 px-2.5 py-0.5 text-xs font-black">
+              {mySchedules.reduce((acc, s) => acc + (s.weeklySlots?.length || 0), 0)} ca/tuần
             </span>
           )}
         </button>
@@ -477,45 +686,53 @@ export const TeacherTeachingSchedule: React.FC = () => {
         <button
           type="button"
           id="tab-btn-roadmap"
-          onClick={() => setActiveTab('roadmap')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+          onClick={() => {
+            setActiveTab('roadmap');
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('tab', 'roadmap');
+              return next;
+            });
+          }}
+          className={`flex items-center gap-2 px-6 py-3.5 text-base font-extrabold border-b-2 transition-all cursor-pointer ${
             activeTab === 'roadmap'
-              ? 'border-teal-600 text-teal-700'
+              ? 'border-teal-600 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
           }`}
         >
-          <BookOpen size={18} />
-          <span>Lộ Trình & Tiến Độ Giáo Trình</span>
+          <BookOpen size={20} />
+          <span>Lộ Trình & Thứ Tự Giáo Trình</span>
           {activeClass && (
-            <span className="ml-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs font-black">
+            <span className="ml-1.5 rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5 text-xs font-black">
               {bookRoadmap.progress.percent}% Sách {targetBookNumber}
             </span>
           )}
         </button>
       </div>
 
+
       {/* ── TAB 1: WEEKLY CALENDAR & ADMIN TIMETABLE ─────────────────────────── */}
       {activeTab === 'calendar' && (
         <div className="space-y-6">
           {/* Admin Timetable Fixed Slots Banner */}
-          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-sky-50/50 p-5 shadow-xs">
+          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-white to-sky-50/50 p-6 shadow-xs">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white font-black shadow-sm">
-                  <Clock size={20} />
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white font-black shadow-sm">
+                  <Clock size={22} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900">
-                    Thời Khóa Biểu Cố Định (Do Ban Quản Trị Phân Bổ)
+                  <h3 className="font-black text-lg text-slate-900">
+                    Thời Khóa Biểu Cố Định (Do Nhà Trường Phân Bổ)
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    Các ca dạy đã được lên lịch hàng tuần cho giáo viên. Bấm vào ca để bắt đầu buổi dạy nhanh.
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    Các ca dạy hàng tuần của lớp. Khi đến giờ dạy, giáo viên có thể mở trực tiếp buổi học tại đây.
                   </p>
                 </div>
               </div>
 
               {filteredMySchedules.length === 0 && (
-                <div className="text-xs font-semibold text-slate-400 italic">
+                <div className="text-sm font-semibold text-slate-400 italic">
                   Chưa có lịch phân công cố định từ Admin cho lớp này
                 </div>
               )}
@@ -523,56 +740,95 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
             {/* List of scheduled slots */}
             {filteredMySchedules.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2.5">
+              <div className="mt-5 flex flex-wrap gap-3">
                 {filteredMySchedules.map((sch) => {
                   const theme = COLOR_THEMES[sch.colorTag] || COLOR_THEMES.indigo;
                   const cName = typeof sch.classroom === 'object' ? sch.classroom?.name : 'Lớp học';
                   const cId = typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom;
 
-                  return sch.weeklySlots?.map((slot, sIdx) => (
-                    <div
-                      key={`${sch._id}-${sIdx}`}
-                      onClick={() => navigate(`/teacher/classes/${cId}/sessions/new`)}
-                      className={`group flex items-center gap-2.5 rounded-xl border p-2.5 transition-all cursor-pointer hover:shadow-md active:scale-95 ${theme.bg} ${theme.border}`}
-                    >
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`inline-block h-2 w-2 rounded-full ${theme.dot}`} />
-                          <span className="text-xs font-black text-slate-900">{DAY_LABELS[slot.dayOfWeek]}</span>
-                          <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${theme.badge}`}>
-                            {slot.startTime} - {slot.endTime}
-                          </span>
-                        </div>
-                        <div className="text-xs font-bold text-slate-700 mt-0.5 flex items-center gap-1">
-                          <span>{cName}</span>
-                          {slot.room && <span className="text-[10px] text-slate-500">({slot.room})</span>}
-                        </div>
-                      </div>
+                  return sch.weeklySlots?.map((slot, sIdx) => {
+                    const isSlotNow = scheduleLiveTiming.canTeachNow && scheduleLiveTiming.activeSlot?.startTime === slot.startTime && scheduleLiveTiming.activeSlot?.dayOfWeek === slot.dayOfWeek;
 
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600 text-white rounded-lg p-1.5">
-                        <Play size={12} />
+                    return (
+                      <div
+                        key={`${sch._id}-${sIdx}`}
+                        onClick={() => {
+                          if (isSlotNow) {
+                            const slotLes = slot.lesson;
+                            const slotLessonId = typeof slotLes === 'object' && slotLes ? slotLes._id : (typeof slotLes === 'string' ? slotLes : '');
+                            const activeLes = scheduleLiveTiming.activeSlot?.lesson;
+                            const activeLessonId = typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '');
+                            const targetLessonId = slotLessonId || activeLessonId || nextLessonToTeach?._id;
+                            navigate(`/teacher/classes/${cId}/sessions/new${targetLessonId ? `?lessonId=${targetLessonId}` : ''}`);
+                          }
+                        }}
+                        className={`group flex items-center gap-3 rounded-2xl border-2 p-3.5 transition-all ${theme.bg} ${theme.border} ${
+                          isSlotNow
+                            ? 'ring-2 ring-emerald-500 shadow-md cursor-pointer hover:scale-102'
+                            : 'cursor-default'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-block h-2.5 w-2.5 rounded-full ${isSlotNow ? 'bg-emerald-500 animate-ping' : theme.dot}`} />
+                            <span className="text-sm font-black text-slate-900">{DAY_LABELS[slot.dayOfWeek]}</span>
+                            <span className={`rounded-lg px-2 py-0.5 text-xs font-black ${theme.badge}`}>
+                              {slot.startTime} - {slot.endTime}
+                            </span>
+                            {isSlotNow && (
+                              <span className="rounded-md bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.5 uppercase tracking-wide">
+                                Đang diễn ra
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-xs font-bold text-slate-700 mt-1 flex items-center gap-1.5">
+                            <span>{cName}</span>
+                            {slot.room && <span className="text-slate-500 font-semibold">• {slot.room}</span>}
+                          </div>
+
+                          {/* Attached Lesson Badge (Bài mấy) */}
+                          {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
+                            <div className="mt-1.5 px-2 py-0.5 rounded-lg bg-white/90 text-indigo-900 border border-indigo-200/80 font-black text-[11px] flex items-center gap-1 shadow-2xs">
+                              <span className="text-indigo-700 font-black">
+                                🎯 {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài'}:
+                              </span>
+                              <span className="truncate max-w-[170px]" title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}>
+                                {slot.lessonTitle
+                                  ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '')
+                                  : (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {isSlotNow && (
+                          <div className="bg-emerald-600 text-white rounded-xl p-2 shadow-xs group-hover:scale-110 transition-transform">
+                            <Play size={14} className="fill-white" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ));
+                    );
+                  });
                 })}
               </div>
             )}
           </div>
 
           {/* Week Navigation Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-xs border border-slate-200">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-xs border border-slate-200">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setWeekOffset((prev) => prev - 1)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <ChevronLeft size={16} /> Tuần trước
+                <ChevronLeft size={18} /> Tuần trước
               </button>
               <button
                 type="button"
                 onClick={() => setWeekOffset(0)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-sm font-black transition-colors cursor-pointer ${
                   weekOffset === 0
                     ? 'bg-teal-600 text-white shadow-xs'
                     : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
@@ -583,19 +839,19 @@ export const TeacherTeachingSchedule: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setWeekOffset((prev) => prev + 1)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                Tuần sau <ChevronRight size={16} />
+                Tuần sau <ChevronRight size={18} />
               </button>
             </div>
 
-            <div className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
-              <Calendar size={16} className="text-teal-600" />
+            <div className="flex items-center gap-2.5 text-base font-black text-slate-900">
+              <Calendar size={18} className="text-teal-600" />
               <span>
-                Tuần từ {currentWeekDays[0].formattedDate} đến {currentWeekDays[6].formattedDate}
+                Tuần từ ngày {currentWeekDays[0].formattedDate} đến {currentWeekDays[6].formattedDate}
               </span>
               {weekOffset !== 0 && (
-                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200">
                   {weekOffset < 0 ? `Đang xem ${Math.abs(weekOffset)} tuần trước` : `Đang xem ${weekOffset} tuần tới`}
                 </span>
               )}
@@ -603,7 +859,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
           </div>
 
           {/* 7-Days Timetable Grid (Optimized, no overlap) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5">
             {currentWeekDays.map((day) => {
               const daySessions = calendarDaySessions[day.dateString] || [];
               const dayFixedSlots = fixedTimetableByDay[day.dayNum] || [];
@@ -611,20 +867,20 @@ export const TeacherTeachingSchedule: React.FC = () => {
               return (
                 <div
                   key={day.dayIndex}
-                  className={`flex flex-col rounded-2xl border p-3.5 transition-all min-h-[360px] ${
+                  className={`flex flex-col rounded-2xl border p-4 transition-all min-h-[380px] ${
                     day.isToday
-                      ? 'border-teal-500 bg-teal-50/20 shadow-md ring-2 ring-teal-500/20'
+                      ? 'border-teal-500 bg-teal-50/30 shadow-md ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   {/* Day Header */}
-                  <div className="mb-3 border-b border-slate-100 pb-2.5 flex items-center justify-between">
+                  <div className="mb-3.5 border-b border-slate-100 pb-3 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-bold text-slate-500">{day.dayName}</p>
-                      <h4 className="text-base font-black text-slate-900">{day.formattedDate}</h4>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{day.dayName}</p>
+                      <h4 className="text-lg font-black text-slate-900">{day.formattedDate}</h4>
                     </div>
                     {day.isToday && (
-                      <span className="rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider">
+                      <span className="rounded-full bg-teal-600 px-2.5 py-0.5 text-[11px] font-black text-white uppercase tracking-wider">
                         Hôm nay
                       </span>
                     )}
@@ -633,8 +889,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
                   {/* Scheduled Fixed Slots for this day */}
                   {dayFixedSlots.length > 0 && (
                     <div className="mb-3 space-y-1.5">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Lịch Admin xếp:
+                      <div className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                        Ca xếp thời khóa biểu:
                       </div>
                       {dayFixedSlots.map(({ schedule, slot }, fIdx) => {
                         const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
@@ -642,10 +898,10 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         return (
                           <div
                             key={fIdx}
-                            className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${theme.bg} ${theme.text} ${theme.border} flex items-center justify-between`}
+                            className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} flex items-center justify-between shadow-2xs`}
                           >
                             <span className="truncate">{cName}</span>
-                            <span>{slot.startTime}</span>
+                            <span className="font-black text-slate-900">{slot.startTime}</span>
                           </div>
                         );
                       })}
@@ -653,15 +909,15 @@ export const TeacherTeachingSchedule: React.FC = () => {
                   )}
 
                   {/* Actual sessions conducted */}
-                  <div className="flex-1 space-y-2">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="flex-1 space-y-2.5">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-slate-400">
                       Buổi dạy thực tế ({daySessions.length}):
                     </div>
 
                     {daySessions.length === 0 ? (
-                      <div className="h-28 flex flex-col items-center justify-center text-center p-2 text-slate-300">
-                        <Calendar size={18} className="mb-1 opacity-40" />
-                        <span className="text-xs italic">Chưa mở buổi dạy</span>
+                      <div className="h-32 flex flex-col items-center justify-center text-center p-3 text-slate-300">
+                        <Calendar size={22} className="mb-1.5 opacity-40" />
+                        <span className="text-xs font-medium italic">Chưa mở buổi dạy</span>
                       </div>
                     ) : (
                       daySessions.map((s: any) => {
@@ -673,20 +929,20 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         return (
                           <div
                             key={s._id}
-                            className="rounded-xl border border-teal-100 bg-white p-2.5 shadow-xs hover:border-teal-300 transition-all"
+                            className="rounded-xl border border-teal-100 bg-white p-3 shadow-xs hover:border-teal-300 transition-all"
                           >
-                            <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">
+                            <div className="flex items-center justify-between gap-1 mb-1.5">
+                              <span className="text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
                                 {roomName}
                               </span>
-                              <span className="text-[10px] font-bold text-slate-400">
+                              <span className="text-xs font-bold text-slate-400">
                                 {s.startedAt ? new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Dạy'}
                               </span>
                             </div>
                             <h5 className="text-xs font-black text-slate-900 line-clamp-1" title={lessonTitle}>
                               {lessonTitle}
                             </h5>
-                            <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-600 border-t border-slate-50 pt-1">
+                            <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600 border-t border-slate-50 pt-1.5">
                               <span>👥 {scoreCount} bé</span>
                               {avg !== undefined && (
                                 <span className="font-bold text-amber-600">⭐ {avg}đ</span>
@@ -694,9 +950,9 @@ export const TeacherTeachingSchedule: React.FC = () => {
                             </div>
                             <Link
                               to={`/teacher/classroom-sessions/${s._id}/summary`}
-                              className="mt-1.5 block text-center rounded-lg bg-teal-50 py-1 text-[11px] font-bold text-teal-700 hover:bg-teal-100 transition-colors"
+                              className="mt-2 block text-center rounded-lg bg-teal-50 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors"
                             >
-                              Xem tổng kết
+                              Xem nhật ký buổi dạy
                             </Link>
                           </div>
                         );
@@ -714,46 +970,29 @@ export const TeacherTeachingSchedule: React.FC = () => {
       {activeTab === 'roadmap' && (
         <div className="space-y-6">
           {/* Unified Roadmap & Next Lesson Hero Card */}
-          <div className="rounded-3xl border border-teal-200/80 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-white p-6 shadow-sm">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div className="rounded-3xl border border-teal-200/90 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-white p-7 shadow-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-center">
               {/* Left: Overall Book Progress */}
-              <div className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-teal-200/60 pb-5 lg:pb-0 lg:pr-6">
+              <div className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-teal-200/60 pb-6 lg:pb-0 lg:pr-7">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-teal-700 uppercase tracking-wider">
-                    <BookOpen size={15} /> Giáo trình chuẩn • Quyển Sách {targetBookNumber}
-                    {roadmapClass && <span className="font-extrabold text-teal-900">• Lớp {roadmapClass.name}</span>}
+                  <div className="flex items-center gap-2 text-xs font-black text-teal-800 uppercase tracking-wider">
+                    <BookOpen size={16} /> Giáo trình chuẩn • Quyển Sách {targetBookNumber}
+                    {activeClass && <span className="text-teal-900">• Lớp {activeClass.name}</span>}
                   </div>
-                  {classes.length > 1 && (
-                    <div className="flex items-center gap-1.5 bg-white border border-teal-300 rounded-xl px-2.5 py-1 shadow-xs">
-                      <GraduationCap size={14} className="text-teal-600" />
-                      <span className="text-[11px] font-bold text-slate-500">Xem lớp:</span>
-                      <select
-                        value={roadmapClassId}
-                        onChange={(e) => setSelectedClassId(e.target.value)}
-                        className="bg-transparent text-xs font-black text-teal-900 outline-none cursor-pointer"
-                      >
-                        {classes.map((c) => (
-                          <option key={c._id} value={c._id}>
-                            {c.name} ({c.ageGroupCode} tuổi)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                 </div>
-                <h3 className="text-xl font-black text-slate-900">
+                <h2 className="text-2xl font-black text-slate-900 mt-1">
                   Đã hoàn thành {bookRoadmap.progress.completed} / {bookRoadmap.progress.total} bài học
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Tiến độ tuần tự theo cấu trúc giáo trình từ Unit 1 đến Unit 9 dành cho trẻ {roadmapClass?.ageGroupCode || activeClass?.ageGroupCode || 'mầm non'} tuổi.
+                </h2>
+                <p className="text-sm text-slate-600 mt-1 font-medium">
+                  Tiến độ tuần tự theo cấu trúc giáo trình từ Unit 1 đến Unit 9 dành cho trẻ {activeClass?.ageGroupCode || 'mầm non'} tuổi.
                 </p>
 
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs font-black mb-1.5">
-                    <span className="text-slate-600">Mức độ hoàn thành sách</span>
-                    <span className="text-teal-700 text-sm font-black">{bookRoadmap.progress.percent}%</span>
+                <div className="mt-5">
+                  <div className="flex items-center justify-between text-sm font-black mb-1.5">
+                    <span className="text-slate-700">Mức độ hoàn thành sách</span>
+                    <span className="text-teal-800 text-base font-black">{bookRoadmap.progress.percent}%</span>
                   </div>
-                  <div className="h-3 w-full rounded-full bg-slate-200/70 overflow-hidden">
+                  <div className="h-3.5 w-full rounded-full bg-slate-200/70 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-500"
                       style={{ width: `${bookRoadmap.progress.percent}%` }}
@@ -765,30 +1004,30 @@ export const TeacherTeachingSchedule: React.FC = () => {
               {/* Right: Last Taught & Next Lesson Guidance */}
               <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Last Taught Lesson */}
-                <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xs">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                    <History size={13} className="text-slate-400" /> Buổi vừa dạy gần nhất
+                <div className="rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-xs">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 uppercase tracking-wide">
+                    <History size={14} className="text-slate-400" /> Buổi vừa dạy gần nhất
                   </span>
                   {lastLessonTaught ? (
-                    <div className="mt-2">
+                    <div className="mt-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-black">
+                        <span className="rounded-md bg-emerald-100 text-emerald-900 px-2 py-0.5 text-xs font-black">
                           Bài {lastLessonTaught.bookOrderIndex}
                         </span>
-                        <span className="text-xs font-semibold text-slate-500">
+                        <span className="text-xs font-bold text-slate-600">
                           Unit {lastLessonTaught.unitNumber}
                         </span>
                       </div>
-                      <h4 className="text-sm font-black text-slate-900 mt-1 line-clamp-1" title={lastLessonTaught.title}>
+                      <h4 className="text-base font-black text-slate-900 mt-1.5 line-clamp-1" title={lastLessonTaught.title}>
                         {lastLessonTaught.title}
                       </h4>
                       {lastLessonTaught.vietnameseTitle && (
-                        <p className="text-xs text-slate-500 italic line-clamp-1">{lastLessonTaught.vietnameseTitle}</p>
+                        <p className="text-xs text-slate-500 italic line-clamp-1 mt-0.5">{lastLessonTaught.vietnameseTitle}</p>
                       )}
                       {lastLessonTaught.taughtStats && (
-                        <div className="mt-2.5 flex flex-col gap-1.5">
-                          <p className="text-[11px] text-emerald-700 font-bold">
-                            ✓ Đã dạy ngày {new Date(lastLessonTaught.taughtStats.lastDate).toLocaleDateString('vi-VN')}
+                        <div className="mt-3 flex flex-col gap-2">
+                          <p className="text-xs text-emerald-700 font-extrabold flex items-center gap-1">
+                            <Check size={14} /> Đã dạy ngày {new Date(lastLessonTaught.taughtStats.lastDate).toLocaleDateString('vi-VN')}
                           </p>
                           <button
                             type="button"
@@ -796,66 +1035,71 @@ export const TeacherTeachingSchedule: React.FC = () => {
                               if (lastLessonTaught.taughtStats?.lastSessionId) {
                                 navigate(`/teacher/classroom-sessions/${lastLessonTaught.taughtStats.lastSessionId}/summary`);
                               } else {
-                                navigate(`/teacher/classroom-sessions?search=${encodeURIComponent(lastLessonTaught.title)}&classroomId=${roadmapClassId}`);
+                                navigate(`/teacher/classroom-sessions?search=${encodeURIComponent(lastLessonTaught.title)}&classroomId=${effectiveClassId}`);
                               }
                             }}
-                            className="mt-1 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-1.5 px-3 text-xs font-bold text-white transition-colors cursor-pointer shadow-xs"
+                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2 px-3 text-xs font-black text-white transition-colors cursor-pointer shadow-xs"
                           >
-                            <History size={13} />
+                            <History size={14} />
                             <span>Xem nhật ký buổi dạy này</span>
                           </button>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 italic mt-3">Chưa có bài nào được dạy cho lớp này</p>
+                    <p className="text-sm text-slate-400 italic mt-3">Chưa có bài nào được dạy cho lớp này</p>
                   )}
                 </div>
 
                 {/* Next Lesson To Teach */}
-                <div className="rounded-2xl border-2 border-amber-400 bg-amber-50/70 p-4 shadow-sm relative overflow-hidden">
+                <div className="rounded-2xl border-2 border-amber-400 bg-amber-50/80 p-5 shadow-sm relative overflow-hidden">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-amber-900 uppercase tracking-wide">
-                      <Flame size={14} className="text-amber-600 animate-pulse" /> Bài tiếp theo cần dạy
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-950 uppercase tracking-wide">
+                      <Flame size={15} className="text-amber-600 animate-pulse" /> Bài tiếp theo cần dạy
                     </span>
-                    <span className="rounded-full bg-amber-400 text-amber-950 px-2 py-0.5 text-[10px] font-black">
+                    <span className="rounded-full bg-amber-400 text-amber-950 px-2.5 py-0.5 text-xs font-black">
                       Đề xuất chuẩn
                     </span>
                   </div>
 
                   {nextLessonToTeach ? (
-                    <div className="mt-2">
+                    <div className="mt-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-amber-200 text-amber-950 px-2 py-0.5 text-[10px] font-black">
+                        <span className="rounded-md bg-amber-200 text-amber-950 px-2 py-0.5 text-xs font-black">
                           Bài {nextLessonToTeach.bookOrderIndex}
                         </span>
-                        <span className="text-xs font-bold text-amber-800">
+                        <span className="text-xs font-bold text-amber-900">
                           Unit {nextLessonToTeach.unitNumber}
                         </span>
                       </div>
-                      <h4 className="text-sm font-black text-slate-900 mt-1 line-clamp-1" title={nextLessonToTeach.title}>
+                      <h4 className="text-base font-black text-slate-900 mt-1.5 line-clamp-1" title={nextLessonToTeach.title}>
                         {nextLessonToTeach.title}
                       </h4>
                       {nextLessonToTeach.vietnameseTitle && (
-                        <p className="text-xs text-slate-600 italic line-clamp-1">{nextLessonToTeach.vietnameseTitle}</p>
+                        <p className="text-xs text-slate-600 italic line-clamp-1 mt-0.5">{nextLessonToTeach.vietnameseTitle}</p>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (effectiveClassId) {
-                            navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${nextLessonToTeach._id}`);
-                          } else {
-                            navigate('/teacher/classroom-sessions');
-                          }
-                        }}
-                        className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 px-3 text-xs font-black text-white hover:bg-amber-600 transition-colors shadow-xs cursor-pointer"
-                      >
-                        <Play size={13} /> Dạy bài này ngay
-                      </button>
+                      {scheduleLiveTiming.canTeachNow ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (effectiveClassId) {
+                              navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${nextLessonToTeach._id}`);
+                            }
+                          }}
+                          className="mt-3.5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 px-3 text-sm font-black text-white hover:bg-amber-600 transition-colors shadow-xs cursor-pointer"
+                        >
+                          <Play size={15} className="fill-white" /> Dạy bài này ngay
+                        </button>
+                      ) : (
+                        <div className="mt-3.5 flex items-center justify-center gap-1.5 rounded-xl bg-amber-100 border border-amber-200 py-2 px-3 text-xs font-bold text-amber-900">
+                          <Lock size={13} />
+                          <span>Mở dạy khi đến ca học</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <p className="text-xs text-emerald-700 font-bold mt-3">🎉 Đã hoàn thành tất cả bài trong sách!</p>
+                    <p className="text-sm text-emerald-800 font-bold mt-4">🎉 Đã hoàn thành tất cả bài trong sách!</p>
                   )}
                 </div>
               </div>
@@ -863,9 +1107,9 @@ export const TeacherTeachingSchedule: React.FC = () => {
           </div>
 
           {/* Detailed Units & Lessons Roadmap List */}
-          <div className="space-y-4">
-            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-              <Layers size={18} className="text-teal-600" />
+          <div className="space-y-5">
+            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <Layers size={20} className="text-teal-600" />
               Chi Tiết Các Đơn Vị Bài Học Theo Sách {targetBookNumber}
             </h3>
 
@@ -878,28 +1122,28 @@ export const TeacherTeachingSchedule: React.FC = () => {
                 return (
                   <div
                     key={unit._id}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-teal-200"
+                    className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs transition hover:border-teal-200"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3.5 border-b border-slate-100">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-lg bg-teal-100 text-teal-800 px-2 py-0.5 text-xs font-black">
+                        <div className="flex items-center gap-2.5">
+                          <span className="rounded-lg bg-teal-100 text-teal-800 px-2.5 py-0.5 text-xs font-black">
                             Unit {unit.unitNumber}
                           </span>
-                          <h4 className="font-bold text-base text-slate-900">
+                          <h4 className="font-black text-lg text-slate-900">
                             {unit.title || unit.vietnameseTitle || `Unit ${unit.unitNumber}`}
                           </h4>
                         </div>
                         {unit.bigQuestion && (
-                          <p className="text-xs text-slate-500 mt-0.5">❓ Câu hỏi lớn: {unit.bigQuestion}</p>
+                          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">❓ Câu hỏi lớn: {unit.bigQuestion}</p>
                         )}
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-slate-500">
+                        <span className="text-xs sm:text-sm font-bold text-slate-600">
                           {unitCompletedCount}/{unitLessons.length} bài đã học
                         </span>
-                        <div className="w-24 h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="w-28 h-2.5 rounded-full bg-slate-100 overflow-hidden">
                           <div
                             className="h-full bg-teal-500 rounded-full"
                             style={{ width: `${unitPercent}%` }}
@@ -909,45 +1153,45 @@ export const TeacherTeachingSchedule: React.FC = () => {
                     </div>
 
                     {/* Lessons Grid within Unit */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
                       {unitLessons.map((lesson: any) => (
                         <div
                           key={`${unit._id}-${lesson._id}`}
-                          className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
+                          className={`rounded-2xl border p-4 transition-all flex flex-col justify-between ${
                             lesson.isCompleted
-                              ? 'border-emerald-200 bg-emerald-50/40 text-emerald-950'
+                              ? 'border-emerald-200 bg-emerald-50/50 text-emerald-950'
                               : lesson.isNext
-                              ? 'border-amber-400 bg-amber-50/60 shadow-sm ring-1 ring-amber-400/30'
-                              : 'border-slate-200 bg-slate-50/50 text-slate-600'
+                              ? 'border-amber-400 bg-amber-50/70 shadow-sm ring-1 ring-amber-400/40'
+                              : 'border-slate-200 bg-slate-50/60 text-slate-600'
                           }`}
                         >
                           <div>
-                            <div className="flex items-center justify-between gap-1 mb-1.5">
-                              <span className="text-[10px] font-black uppercase text-slate-400">
+                            <div className="flex items-center justify-between gap-1 mb-2">
+                              <span className="text-xs font-black uppercase text-slate-400">
                                 Bài {lesson.bookOrderIndex}
                               </span>
                               {lesson.isCompleted ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                                  <Check size={10} /> Đã dạy
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  <Check size={12} /> Đã dạy
                                 </span>
                               ) : lesson.isNext ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-200 px-1.5 py-0.5 rounded-full">
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
                                   ⚡ Tiếp theo
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-bold text-slate-400">Chưa dạy</span>
+                                <span className="text-xs font-semibold text-slate-400">Chưa dạy</span>
                               )}
                             </div>
 
-                            <h5 className="font-extrabold text-xs text-slate-900 line-clamp-1" title={lesson.title}>
+                            <h5 className="font-extrabold text-sm text-slate-900 line-clamp-1" title={lesson.title}>
                               {lesson.title}
                             </h5>
                             {lesson.vietnameseTitle && (
-                              <p className="text-[11px] text-slate-500 line-clamp-1 italic mt-0.5">{lesson.vietnameseTitle}</p>
+                              <p className="text-xs text-slate-500 line-clamp-1 italic mt-0.5">{lesson.vietnameseTitle}</p>
                             )}
                           </div>
 
-                          <div className="mt-3 pt-2 border-t border-black/5 flex items-center justify-between">
+                          <div className="mt-3.5 pt-2.5 border-t border-black/5 flex items-center justify-between">
                             {effectiveClassId && (
                               lesson.isCompleted ? (
                                 <div className="flex items-center justify-between w-full gap-2">
@@ -957,36 +1201,42 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                       if (lesson.taughtStats?.lastSessionId) {
                                         navigate(`/teacher/classroom-sessions/${lesson.taughtStats.lastSessionId}/summary`);
                                       } else {
-                                        navigate(`/teacher/classroom-sessions?search=${encodeURIComponent(lesson.title)}&classroomId=${roadmapClassId}`);
+                                        navigate(`/teacher/classroom-sessions?search=${encodeURIComponent(lesson.title)}&classroomId=${effectiveClassId}`);
                                       }
                                     }}
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                                    title="Mở xem lại nhật ký buổi dạy đã học"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100 hover:bg-emerald-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
                                   >
-                                    <History size={12} />
+                                    <History size={13} />
                                     <span>Xem nhật ký</span>
                                   </button>
 
+                                  {scheduleLiveTiming.canTeachNow && (
+                                    <button
+                                      type="button"
+                                      onClick={() => navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${lesson._id}`)}
+                                      className="text-xs font-bold text-slate-400 hover:text-slate-700 underline cursor-pointer"
+                                    >
+                                      Dạy lại
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                scheduleLiveTiming.canTeachNow ? (
                                   <button
                                     type="button"
                                     onClick={() => navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${lesson._id}`)}
-                                    className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 underline cursor-pointer"
-                                    title="Tạo thêm một buổi dạy mới cho bài học này"
+                                    className={`inline-flex items-center gap-1 text-xs font-extrabold cursor-pointer transition ${
+                                      lesson.isNext ? 'text-amber-800 hover:text-amber-950' : 'text-teal-700 hover:text-teal-900'
+                                    }`}
                                   >
-                                    Dạy lại
+                                    <span>Mở buổi dạy</span>
+                                    <ArrowRight size={13} />
                                   </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${lesson._id}`)}
-                                  className={`inline-flex items-center gap-1 text-[11px] font-bold cursor-pointer transition ${
-                                    lesson.isNext ? 'text-amber-700 hover:text-amber-800' : 'text-teal-700 hover:text-teal-800'
-                                  }`}
-                                >
-                                  <span>Mở buổi dạy</span>
-                                  <ArrowRight size={11} />
-                                </button>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                                    <Lock size={11} /> Theo lịch
+                                  </span>
+                                )
                               )
                             )}
                           </div>
@@ -1003,3 +1253,5 @@ export const TeacherTeachingSchedule: React.FC = () => {
     </div>
   );
 };
+
+export default TeacherTeachingSchedule;
