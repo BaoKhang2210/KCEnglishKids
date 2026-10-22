@@ -45,18 +45,20 @@ export const LessonDetailPage: React.FC = () => {
             if (progRes.success && progRes.data) {
               if (progRes.data.stage1Completed) {
                 localStorage.setItem(`kc_stage1_${childId}_${id}`, 'true');
+              } else {
+                localStorage.removeItem(`kc_stage1_${childId}_${id}`);
               }
               if (progRes.data.stage2Completed) {
                 localStorage.setItem(`kc_stage2_${childId}_${id}`, 'true');
+              } else {
+                localStorage.removeItem(`kc_stage2_${childId}_${id}`);
               }
             }
           } catch {
             /* offline fallback */
           }
 
-          const rawActs = res.data?.activities || [];
-          const hasCompletedAny = rawActs.some((a: any) => a.completed);
-          const savedStage1 = localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true' || hasCompletedAny;
+          const savedStage1 = localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
           const savedStage2 = localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
           const savedActive = localStorage.getItem(`kc_stage_active_${childId}_${id}`);
@@ -118,16 +120,13 @@ export const LessonDetailPage: React.FC = () => {
   );
 
   const isStage1Completed =
-    localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true' ||
-    completedCount > 0 ||
-    isAllCompleted;
+    localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
 
   const isStage2Completed =
-    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true' ||
-    isAllCompleted;
+    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
   const isStage3Completed =
-    finalGames.length === 0 || finalGames.every((a: any) => a.completed);
+    finalGames.length > 0 && finalGames.every((a: any) => a.completed);
 
   const completedGamesCount = finalGames.filter((a: any) => a.completed).length;
   const resumeGame = finalGames.find((a: any) => !a.completed) || finalGames[0];

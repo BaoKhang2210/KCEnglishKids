@@ -90,7 +90,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   return (
     <>
       {/* Compact ChildHeader: fixed slim height so 100dvh screens never overflow */}
-      <header className="bg-white/95 backdrop-blur-md border-b-2 sm:border-b-4 border-amber-200 px-3 sm:px-6 h-14 sm:h-16 sticky top-0 z-30 shadow-xs flex items-center overflow-x-auto no-scrollbar shrink-0">
+      <header className="mx-2 sm:mx-4 rounded-[22px] border border-amber-900/70 border-t-0 bg-[#13110e]/95 px-3 sm:px-6 h-14 sm:h-16 sticky top-0 z-30 shadow-[0_8px_24px_rgba(0,0,0,0.32)] outline-none ring-0 flex items-center overflow-x-auto no-scrollbar shrink-0">
         <div className="max-w-[1700px] min-w-max w-full mx-auto flex items-center justify-between gap-3 sm:gap-4">
           
           {/* Brand Logo & Mascot Mini */}
@@ -122,8 +122,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => handleNav('path')}
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isPathActive
-                    ? 'bg-amber-400 text-amber-950 shadow-[0_4px_0_#b45309] scale-105 translate-y-[-2px]'
-                    : 'text-slate-600 hover:bg-amber-50 hover:text-amber-900 border-2 border-transparent hover:border-amber-200 hover:shadow-sm'
+                    ? 'bg-amber-400 text-amber-950 shadow-[inset_0_-3px_0_#b45309]'
+                    : 'text-stone-300 hover:bg-amber-300/10 hover:text-amber-200 border-2 border-transparent hover:border-amber-800 hover:shadow-sm'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -135,8 +135,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => handleNav('topics')}
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isTopicsActive
-                    ? 'bg-emerald-500 text-white shadow-[0_4px_0_#047857] scale-105 translate-y-[-2px]'
-                    : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 border-2 border-transparent hover:border-emerald-200 hover:shadow-sm'
+                    ? 'bg-emerald-500 text-white shadow-[inset_0_-3px_0_#047857]'
+                    : 'text-stone-300 hover:bg-emerald-300/10 hover:text-emerald-200 border-2 border-transparent hover:border-emerald-800 hover:shadow-sm'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -148,8 +148,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => handleNav('vocab')}
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isVocabActive
-                    ? 'bg-rose-500 text-white shadow-[0_4px_0_#be123c] scale-105 translate-y-[-2px]'
-                    : 'text-slate-600 hover:bg-rose-50 hover:text-rose-900 border-2 border-transparent hover:border-rose-200 hover:shadow-sm'
+                    ? 'bg-rose-500 text-white shadow-[inset_0_-3px_0_#be123c]'
+                    : 'text-stone-300 hover:bg-rose-300/10 hover:text-rose-200 border-2 border-transparent hover:border-rose-800 hover:shadow-sm'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -161,8 +161,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => handleNav('games')}
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isGamesActive
-                    ? 'bg-sky-500 text-white shadow-[0_4px_0_#0369a1] scale-105 translate-y-[-2px]'
-                    : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900 border-2 border-transparent hover:border-sky-200 hover:shadow-sm'
+                    ? 'bg-sky-500 text-white shadow-[inset_0_-3px_0_#0369a1]'
+                    : 'text-stone-300 hover:bg-sky-300/10 hover:text-sky-200 border-2 border-transparent hover:border-sky-800 hover:shadow-sm'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -174,8 +174,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => handleNav('badges')}
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isBadgesActive
-                    ? 'bg-purple-500 text-white shadow-[0_4px_0_#6d28d9] scale-105 translate-y-[-2px]'
-                    : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900 border-2 border-transparent hover:border-purple-200 hover:shadow-sm'
+                    ? 'bg-purple-500 text-white shadow-[inset_0_-3px_0_#6d28d9]'
+                    : 'text-stone-300 hover:bg-purple-300/10 hover:text-purple-200 border-2 border-transparent hover:border-purple-800 hover:shadow-sm'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -187,18 +187,6 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
           <div className="flex items-center gap-2 sm:gap-3 2xl:gap-4 flex-shrink-0">
             {/* The assigned class is read-only: a child cannot switch books. */}
-            <div className="hidden lg:flex items-center gap-1.5 2xl:gap-2.5 bg-amber-50 border-[3px] border-amber-300 px-3 py-1.5 2xl:px-4 2xl:py-2.5 rounded-[20px] shadow-sm" title="Lớp học được giáo viên gán">
-                <BookOpen className="w-5 h-5 2xl:w-6 2xl:h-6 text-amber-600" />
-                <div className="text-left whitespace-nowrap">
-                  <span className="text-[14px] 2xl:text-[15px] font-black text-amber-950 block leading-tight" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
-                    {currentOption.book}
-                  </span>
-                  <span className="text-[10px] 2xl:text-[11px] font-bold text-amber-700 block mt-0.5">
-                    ({currentOption.ageLabel})
-                  </span>
-                </div>
-            </div>
-
             {/* User Info & Interactive Daily Streak Flame */}
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               {/* Daily Streak Flame Counter (Replaces Star Jar, opens DailyStreakModal) */}
@@ -219,7 +207,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                     sfx.playPop();
                     setShowBadgesModal(true);
                   }}
-                  className="hidden md:flex items-center gap-2 sm:gap-3 bg-slate-50 hover:bg-amber-50 border-[3px] border-slate-200 hover:border-amber-300 pl-1.5 pr-3 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-sm"
+                  className="hidden lg:flex items-center gap-2 sm:gap-3 bg-[#211d18] hover:bg-[#2b251d] border border-amber-900/80 hover:border-amber-600 pl-1.5 pr-3 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-sm"
+                  title={`Hồ sơ của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel}`}
                 >
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0">
                     {user.avatarUrl ? (
@@ -229,14 +218,17 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                         className="w-full h-full object-contain"
                       />
                     ) : (
-                      <span className="text-lg sm:text-xl">🦁</span>
+                      <span className="text-lg sm:text-xl" aria-hidden="true">🐼</span>
                     )}
                   </div>
-                  <span 
-                    className="font-black text-[15px] sm:text-[17px] text-slate-800 whitespace-nowrap"
-                    style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
-                  >
-                    {user.name}
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="font-black text-[15px] sm:text-[17px] text-white whitespace-nowrap" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
+                      {user.name}
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-300 whitespace-nowrap">
+                      <BookOpen className="h-3 w-3" aria-hidden="true" />
+                      {currentOption.book} <span className="text-amber-100/80">· {currentOption.ageLabel}</span>
+                    </span>
                   </span>
                 </button>
               )}
@@ -271,7 +263,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 }}
                 title="Đổi mật khẩu của bé"
                 aria-label="Đổi mật khẩu của bé"
-                className="p-2 sm:p-3.5 rounded-[18px] bg-slate-50 hover:bg-amber-100 text-slate-500 hover:text-amber-700 border-[3px] border-slate-200 hover:border-amber-300 shadow-sm transition-colors cursor-pointer flex-shrink-0"
+                className="p-2 sm:p-3.5 rounded-[18px] bg-[#211d18] hover:bg-[#332819] text-slate-300 hover:text-amber-200 border border-slate-700 hover:border-amber-700 shadow-sm transition-colors cursor-pointer flex-shrink-0"
               >
                 <KeyRound className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
@@ -281,7 +273,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={handleLogout}
                 title="Đổi tài khoản bé"
                 aria-label="Đăng xuất"
-                className="p-2 sm:p-3.5 rounded-[18px] bg-slate-50 hover:bg-rose-100 text-slate-400 hover:text-rose-600 border-[3px] border-slate-200 hover:border-rose-300 shadow-sm transition-colors cursor-pointer flex-shrink-0"
+                className="p-2 sm:p-3.5 rounded-[18px] bg-[#211d18] hover:bg-[#351d1d] text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-700 shadow-sm transition-colors cursor-pointer flex-shrink-0"
               >
                 <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>

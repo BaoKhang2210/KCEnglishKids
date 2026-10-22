@@ -561,7 +561,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
           <X className="w-5 h-5 stroke-[2.5]" />
         </button>
 
-        <div className="flex items-center gap-2 flex-1 mx-3 max-w-xs">
+        <div className="flex items-center gap-2 flex-1 mx-3 max-w-sm">
           <span className="text-base select-none">⭐</span>
           <div className="flex-1 h-3.5 bg-white/15 rounded-full overflow-hidden border border-white/10 p-0.5">
             <div
@@ -569,8 +569,14 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
               style={{ width: `${Math.max(6, progressRatio)}%` }}
             />
           </div>
-          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-amber-300 shrink-0">
-            {currentQ.turn === 'bonus' ? 'Ôn tập' : `Vòng ${currentQ.turn}/3`}
+          <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-black text-amber-300 shrink-0 tracking-wide">
+            {currentQ.turn === 1
+              ? 'Vòng 1: Nhận biết'
+              : currentQ.turn === 2
+              ? 'Vòng 2: Kết nối'
+              : currentQ.turn === 3
+              ? 'Vòng 3: Ứng dụng'
+              : 'Ôn tập'}
           </span>
         </div>
 

@@ -200,125 +200,131 @@ export function buildPracticeQuestions(
   const limits = getAgeOptionsLimits(ageGroup);
   const questions: PracticeQuestion[] = [];
 
-  for (let round = 1; round <= roundsCount; round++) {
-    const currentTurn = (round === 1 ? 1 : round === 2 ? 2 : 3) as 1 | 2 | 3;
+  // Traverse in sequential order: Word 1 -> Word N for each round
+  // ROUND 1: RECOGNIZE (LT - Listen & Choose)
+  words.forEach((word) => {
+    const wordId = word._id || (word as any).id || word.english;
+    const stat = vocabStats[wordId];
+    const confusions = stat?.confusions;
+    const isNewUnseen = seenWordIds ? !seenWordIds.has(wordId) : false;
 
-    // Traverse strictly in sequential order: Word 1 -> Word 2 -> ... -> Word N
-    words.forEach((word) => {
-      const wordId = word._id || (word as any).id || word.english;
-      const stat = vocabStats[wordId];
-      const confusions = stat?.confusions;
+    const lt1DistractorCount = Math.min(limits.ltStart - 1, words.length - 1);
+    const ltDistractors = pickDistractors(word, words, lt1DistractorCount, confusions);
+    const ltTotalRaw = [word, ...ltDistractors];
+    const ltTotal = ltTotalRaw.length % 2 !== 0 ? ltTotalRaw.slice(0, ltTotalRaw.length - 1) : ltTotalRaw;
+    const ltOptions = shuffle(ltTotal.length >= 2 ? ltTotal : [word, ltDistractors[0] ?? word]);
 
-      if (currentTurn === 1) {
-        // --- ROUND 1: LT (Listen & Tap) ---
-        const isNewUnseen = seenWordIds ? !seenWordIds.has(wordId) : false;
-        const lt1DistractorCount = Math.min(limits.ltStart - 1, words.length - 1);
-        const ltDistractors = pickDistractors(word, words, lt1DistractorCount, confusions);
-        const ltTotalRaw = [word, ...ltDistractors];
-        const ltTotal = ltTotalRaw.length % 2 !== 0 ? ltTotalRaw.slice(0, ltTotalRaw.length - 1) : ltTotalRaw;
-        const ltOptions = shuffle(ltTotal.length >= 2 ? ltTotal : [word, ltDistractors[0] ?? word]);
-
-        questions.push({
-          id: `t1_${wordId}`,
-          wordId,
-          targetVocab: word,
-          type: 'LT',
-          turn: 1,
-          options: ltOptions,
-          optionsCount: ltOptions.length,
-          isIntroCard: isNewUnseen,
-        });
-      } else if (currentTurn === 2) {
-        // --- ROUND 2: GK (Give to Koko) ---
-        const t2DistractorCount = Math.min(limits.gkCount - 1, words.length - 1);
-        const t2Distractors = pickDistractors(word, words, t2DistractorCount, confusions);
-        const t2Raw = [word, ...t2Distractors];
-        const t2Total = t2Raw.length % 2 !== 0 ? t2Raw.slice(0, t2Raw.length - 1) : t2Raw;
-        const t2Options = shuffle(t2Total.length >= 2 ? t2Total : [word, t2Distractors[0] ?? word]);
-
-        questions.push({
-          id: `t2_${wordId}`,
-          wordId,
-          targetVocab: word,
-          type: 'GK',
-          turn: 2,
-          options: t2Options,
-          optionsCount: t2Options.length,
-        });
-      } else {
-        // --- ROUND 3: YN (Yes/No), SS (Starting Sound), or advanced LT ---
-        let turn3Type: ActivityType = 'LT';
-        if (limits.allowsYN && (!limits.allowsSS || Math.random() > 0.5)) {
-          turn3Type = 'YN';
-        } else if (limits.allowsSS) {
-          turn3Type = 'SS';
-        }
-
-        if (turn3Type === 'YN') {
-          const isTrueClaim = Math.random() > 0.5;
-          let claimedWord = word.english;
-          if (!isTrueClaim) {
-            const dist = pickDistractors(word, words, 1, confusions)[0];
-            claimedWord = dist ? dist.english : 'pencil';
-          }
-          questions.push({
-            id: `t3_${wordId}`,
-            wordId,
-            targetVocab: word,
-            type: 'YN',
-            turn: 3,
-            options: [word],
-            optionsCount: 2,
-            isTrueClaim,
-            claimedWord,
-          });
-        } else if (turn3Type === 'SS') {
-          const targetSound = getStartingSound(word.english);
-          const otherWordsWithDiffSound = words.filter(
-            (v) => getStartingSound(v.english).letter !== targetSound.letter
-          );
-          const ssDistractorCount = Math.min(limits.ltStart - 1, words.length - 1);
-          const ssDistractors = pickDistractors(
-            word,
-            otherWordsWithDiffSound.length > 0 ? otherWordsWithDiffSound : words,
-            ssDistractorCount,
-            confusions
-          );
-          const ssRaw = [word, ...ssDistractors];
-          const ssTotal = ssRaw.length % 2 !== 0 ? ssRaw.slice(0, ssRaw.length - 1) : ssRaw;
-          const ssOptions = shuffle(ssTotal.length >= 2 ? ssTotal : [word, ssDistractors[0] ?? word]);
-
-          questions.push({
-            id: `t3_${wordId}`,
-            wordId,
-            targetVocab: word,
-            type: 'SS',
-            turn: 3,
-            options: ssOptions,
-            optionsCount: ssOptions.length,
-            startingSound: targetSound,
-          });
-        } else {
-          // LT advanced
-          const t3DistractorCount = Math.min(limits.ltMax - 1, words.length - 1);
-          const t3Distractors = pickDistractors(word, words, t3DistractorCount, confusions);
-          const t3Raw = [word, ...t3Distractors];
-          const t3Total = t3Raw.length % 2 !== 0 ? t3Raw.slice(0, t3Raw.length - 1) : t3Raw;
-          const t3Options = shuffle(t3Total.length >= 2 ? t3Total : [word, t3Distractors[0] ?? word]);
-
-          questions.push({
-            id: `t3_${wordId}`,
-            wordId,
-            targetVocab: word,
-            type: 'LT',
-            turn: 3,
-            options: t3Options,
-            optionsCount: t3Options.length,
-          });
-        }
-      }
+    questions.push({
+      id: `t1_${wordId}`,
+      wordId,
+      targetVocab: word,
+      type: 'LT',
+      turn: 1,
+      options: ltOptions,
+      optionsCount: ltOptions.length,
+      isIntroCard: isNewUnseen,
     });
-  }
+  });
+
+  // ROUND 2: CONNECT (GK - Give to Koko / FS)
+  words.forEach((word) => {
+    const wordId = word._id || (word as any).id || word.english;
+    const stat = vocabStats[wordId];
+    const confusions = stat?.confusions;
+
+    const t2DistractorCount = Math.min(limits.gkCount - 1, words.length - 1);
+    const t2Distractors = pickDistractors(word, words, t2DistractorCount, confusions);
+    const t2Raw = [word, ...t2Distractors];
+    const t2Total = t2Raw.length % 2 !== 0 ? t2Raw.slice(0, t2Raw.length - 1) : t2Raw;
+    const t2Options = shuffle(t2Total.length >= 2 ? t2Total : [word, t2Distractors[0] ?? word]);
+
+    questions.push({
+      id: `t2_${wordId}`,
+      wordId,
+      targetVocab: word,
+      type: 'GK',
+      turn: 2,
+      options: t2Options,
+      optionsCount: t2Options.length,
+    });
+  });
+
+  // ROUND 3: USE (Puppet claim YN, SS, or contextual choice)
+  words.forEach((word) => {
+    const wordId = word._id || (word as any).id || word.english;
+    const stat = vocabStats[wordId];
+    const confusions = stat?.confusions;
+
+    let turn3Type: ActivityType = 'LT';
+    if (limits.allowsYN && (!limits.allowsSS || Math.random() > 0.5)) {
+      turn3Type = 'YN';
+    } else if (limits.allowsSS) {
+      turn3Type = 'SS';
+    }
+
+    if (turn3Type === 'YN') {
+      const isTrueClaim = Math.random() > 0.5;
+      let claimedWord = word.english;
+      if (!isTrueClaim) {
+        const dist = pickDistractors(word, words, 1, confusions)[0];
+        claimedWord = dist ? dist.english : 'pencil';
+      }
+      questions.push({
+        id: `t3_${wordId}`,
+        wordId,
+        targetVocab: word,
+        type: 'YN',
+        turn: 3,
+        options: [word],
+        optionsCount: 2,
+        isTrueClaim,
+        claimedWord,
+      });
+    } else if (turn3Type === 'SS') {
+      const targetSound = getStartingSound(word.english);
+      const otherWordsWithDiffSound = words.filter(
+        (v) => getStartingSound(v.english).letter !== targetSound.letter
+      );
+      const ssDistractorCount = Math.min(limits.ltStart - 1, words.length - 1);
+      const ssDistractors = pickDistractors(
+        word,
+        otherWordsWithDiffSound.length > 0 ? otherWordsWithDiffSound : words,
+        ssDistractorCount,
+        confusions
+      );
+      const ssRaw = [word, ...ssDistractors];
+      const ssTotal = ssRaw.length % 2 !== 0 ? ssRaw.slice(0, ssRaw.length - 1) : ssRaw;
+      const ssOptions = shuffle(ssTotal.length >= 2 ? ssTotal : [word, ssDistractors[0] ?? word]);
+
+      questions.push({
+        id: `t3_${wordId}`,
+        wordId,
+        targetVocab: word,
+        type: 'SS',
+        turn: 3,
+        options: ssOptions,
+        optionsCount: ssOptions.length,
+        startingSound: targetSound,
+      });
+    } else {
+      // Advanced LT
+      const t3DistractorCount = Math.min(limits.ltMax - 1, words.length - 1);
+      const t3Distractors = pickDistractors(word, words, t3DistractorCount, confusions);
+      const t3Raw = [word, ...t3Distractors];
+      const t3Total = t3Raw.length % 2 !== 0 ? t3Raw.slice(0, t3Raw.length - 1) : t3Raw;
+      const t3Options = shuffle(t3Total.length >= 2 ? t3Total : [word, t3Distractors[0] ?? word]);
+
+      questions.push({
+        id: `t3_${wordId}`,
+        wordId,
+        targetVocab: word,
+        type: 'LT',
+        turn: 3,
+        options: t3Options,
+        optionsCount: t3Options.length,
+      });
+    }
+  });
 
   return {
     questions,
