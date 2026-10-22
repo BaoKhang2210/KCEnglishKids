@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Lock
-} from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { lessonsApi, stageProgressApi } from '../../services/api';
 import type { Lesson } from '../../types';
@@ -13,6 +10,7 @@ import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2Practice
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer';
 import { Stage3ArcadeHub } from '../../components/child/lesson/Stage3ArcadeHub';
+import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
 
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +20,9 @@ export const LessonDetailPage: React.FC = () => {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState<1 | 2 | 3>(1);
-  const [lockNotice, setLockNotice] = useState<string | null>(null);
+  const [lockedStage, setLockedStage] = useState<1 | 2 | 3 | null>(null);
+  const lockedStageTriggerRef = useRef<HTMLElement | null>(null);
+  const stageButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [showParentDrawer, setShowParentDrawer] = useState(false);
 
   const childId = user?._id || user?.id || 'child_guest';
@@ -137,45 +137,24 @@ export const LessonDetailPage: React.FC = () => {
     navigate(`/activities/${activityId}`);
   };
 
-  const lockNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const speakKokoReminder = (text: string) => {
-    try {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'vi-VN';
-      utter.rate = 0.95;
-      window.speechSynthesis.speak(utter);
-    } catch {
-      /* speech synthesis unavailable */
-    }
-  };
-
-  const showKokoLockNotice = (message: string, spoken: string) => {
-    sfx.playGentleWrong();
-    setLockNotice(message);
-    speakKokoReminder(spoken);
-    if (lockNoticeTimer.current) clearTimeout(lockNoticeTimer.current);
-    lockNoticeTimer.current = setTimeout(() => setLockNotice(null), 5000);
+  const closeLockedStage = () => {
+    setLockedStage(null);
+    window.setTimeout(() => lockedStageTriggerRef.current?.focus(), 0);
   };
 
   const handleSelectStage = (stage: 1 | 2 | 3) => {
     if (stage >= 2 && !isStage1Completed) {
-      showKokoLockNotice(
-        'Bé hãy khám phá hết các thẻ từ ở Chặng 1 trước đã nhé! 🔍',
-        'Bé ơi, hãy khám phá hết các từ ở Chặng 1 trước đã nhé!'
-      );
+      lockedStageTriggerRef.current = stageButtonRefs.current[stage - 1];
+      setLockedStage(stage);
       return;
     }
     if (stage >= 3 && !isStage2Completed) {
-      showKokoLockNotice(
-        'Bé hoàn thành bài Luyện tập Chặng 2 thì mở được Thử thách Game nha! 🎯',
-        'Bé ơi, hoàn thành bài luyện tập ở Chặng 2 đã rồi chơi game nhé!'
-      );
+      lockedStageTriggerRef.current = stageButtonRefs.current[stage - 1];
+      setLockedStage(stage);
       return;
     }
     sfx.playPop();
-    setLockNotice(null);
+    setLockedStage(null);
     setActiveStage(stage);
     localStorage.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
   };
@@ -252,6 +231,7 @@ export const LessonDetailPage: React.FC = () => {
           return (
             <button
               key={stage}
+              ref={(element) => { stageButtonRefs.current[stage - 1] = element; }}
               onClick={() => handleSelectStage(stage as 1 | 2 | 3)}
               aria-label={`Chặng ${stage}: ${info.name}${done ? ' — Đã xong' : locked ? ' — Đang khóa' : isActive ? ' — Đang học' : ''}`}
               title={`Chặng ${stage}: ${info.name}`}
@@ -291,15 +271,8 @@ export const LessonDetailPage: React.FC = () => {
         })}
       </div>
 
-      {/* RIGHT: Lock notice + Parent button */}
+      {/* RIGHT: Parent button */}
       <div className="flex items-center gap-2 shrink-0">
-        {lockNotice && (
-          <div className="hidden lg:flex items-center gap-1.5 bg-amber-400 text-amber-950 text-xs font-black px-2.5 py-1.5 rounded-xl shadow-xs shrink-0 max-w-[150px]">
-            <Lock className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{lockNotice}</span>
-          </div>
-        )}
-
         <button
           onClick={() => { sfx.playPop(); setShowParentDrawer(true); }}
           aria-label="Thông tin phụ huynh"
@@ -311,14 +284,6 @@ export const LessonDetailPage: React.FC = () => {
       </div>
     </div>
   );
-
-  // Lock notice toast for mobile (below title bar)
-  const lockToastMobile = lockNotice ? (
-    <div className="sm:hidden shrink-0 flex items-center gap-1.5 bg-amber-400 text-amber-950 text-sm font-black px-3 py-1.5 rounded-xl shadow-xs mx-1">
-      <Lock className="w-3.5 h-3.5 shrink-0" />
-      <span>{lockNotice}</span>
-    </div>
-  ) : null;
 
   return (
     <>
@@ -339,8 +304,6 @@ export const LessonDetailPage: React.FC = () => {
         </div>
       ) : (
         <div className="w-full h-full min-h-0 flex flex-col gap-2 overflow-hidden">
-          {/* Mobile lock toast */}
-          {lockToastMobile}
           {/* ACTIVE STAGE CONTENT — fills all space */}
           <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             {/* STAGE 1: KHÁM PHÁ */}
@@ -402,6 +365,18 @@ export const LessonDetailPage: React.FC = () => {
       activeStage={activeStage}
       games={finalGames}
     />
+    {lockedStage !== null && (
+      <LockedStageDialog
+        currentStage={isStage1Completed ? (isStage2Completed ? 3 : 2) : 1}
+        onContinue={() => {
+          const target = isStage1Completed ? (isStage2Completed ? 3 : 2) : 1;
+          closeLockedStage();
+          setActiveStage(target);
+          localStorage.setItem(`kc_stage_active_${childId}_${id}`, target.toString());
+        }}
+        onClose={closeLockedStage}
+      />
+    )}
     </>
   );
 };
