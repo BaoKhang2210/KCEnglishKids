@@ -18,8 +18,8 @@ const getCurriculumPath = async (req, res, next) => {
 
     // 2. Find lessons for these units
     const lessons = await Lesson.find({ curriculumUnits: { $in: unitIds }, status: 'ACTIVE' })
-      .populate('topic', 'englishName vietnameseName colorCode icon slug')
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl')
+      .populate('topic', 'englishName vietnameseName colorCode icon slug imageUrl')
+      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType')
       .sort({ displayOrder: 1, lessonNumber: 1 })
       .lean();
 
@@ -148,11 +148,11 @@ const getLessonById = async (req, res, next) => {
     const { id } = req.params;
     const childId = (req.user && req.user.role === 'CHILD') ? req.user._id : req.query.childId;
 
-    const lesson = await Lesson.findById(id)
-      .populate('topic', 'englishName vietnameseName colorCode icon slug')
+    const lesson = await Lesson.findOne({ _id: id, status: 'ACTIVE' })
+      .populate('topic', 'englishName vietnameseName colorCode icon slug imageUrl')
       .populate('curriculumUnits', 'unitNumber bigQuestion storyTitle')
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl exampleSentence exampleSentenceVietnamese')
-      .populate('languageContents', 'contentType english vietnamese pronunciation difficulty');
+      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType exampleSentence exampleSentenceVietnamese')
+      .populate({ path: 'languageContents', select: 'contentType english vietnamese pronunciation difficulty imageMedia', match: { status: 'ACTIVE' }, populate: { path: 'imageMedia', select: 'url altText' } });
 
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Lesson not found.' });
@@ -210,6 +210,7 @@ const getLessonById = async (req, res, next) => {
 const getLessonActivities = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!await Lesson.exists({ _id: id, status: 'ACTIVE' })) return res.status(404).json({ success: false, message: 'Lesson not found.' });
 
     const activities = await Activity.find({ lesson: id, status: 'ACTIVE' })
       .sort({ order: 1 });

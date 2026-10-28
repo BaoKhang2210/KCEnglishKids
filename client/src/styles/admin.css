@@ -1,0 +1,79 @@
+.admin-workspace {
+  --staff-body: 1.05rem;
+  --staff-small: .95rem;
+  --admin-accent: #4338ca;
+  min-height: 100dvh;
+  background: #f5f6fa;
+  color: #1e293b;
+  font-size: var(--staff-body);
+  display: flex;
+  align-items: flex-start;
+}
+.admin-sidebar { position: sticky; top: 0; display: flex; flex-direction: column; width: 17rem; height: 100dvh; flex-shrink: 0; background: #fff; border-right: 1px solid #e2e8f0; z-index: 45; }
+.admin-brand { display: flex; align-items: center; gap: .75rem; padding: 1.5rem 1.25rem; border-bottom: 1px solid #edf0f5; }
+.admin-brand-mark { display: grid; place-items: center; background: #4338ca; color: #fff; border-radius: 12px; width: 42px; height: 42px; flex-shrink: 0; }
+.admin-brand strong { display: block; font-size: 1.05rem; color: #0f172a; }
+.admin-brand p { font-size: .85rem; color: #64748b; margin-top: .15rem; }
+.admin-nav { flex: 1; overflow-y: auto; padding: 1rem .8rem; }
+.admin-nav-group + .admin-nav-group { margin-top: 1.5rem; }
+.admin-nav-heading { color: #64748b; font-size: .8rem; font-weight: 650; padding: 0 .8rem .5rem; }
+.admin-nav-link { display: flex; align-items: center; gap: .75rem; padding: .65rem .8rem; margin: .2rem 0; color: #475569; border-radius: 9px; font-size: .98rem; font-weight: 550; text-decoration: none; }
+.admin-nav-link:hover { background: #f5f6fa; color: #0f172a; }
+.admin-nav-link[aria-current="page"] { background: #eef2ff; color: #3730a3; font-weight: 700; }
+.admin-sidebar-footer { padding: 1rem; border-top: 1px solid #e2e8f0; background: #fff; }
+.admin-profile { display: flex; align-items: center; gap: .7rem; margin-bottom: .6rem; }
+.admin-avatar { width: 38px; height: 38px; border-radius: 50%; background: #eef2ff; color: #3730a3; display: grid; place-items: center; font-weight: 750; flex-shrink: 0; }
+.admin-profile strong { display: block; color: #0f172a; font-size: .95rem; }
+.admin-profile small { display: block; color: #64748b; font-size: .8rem !important; overflow-wrap: anywhere; }
+.admin-profile button { margin-left: auto; padding: .5rem; color: #64748b; border-radius: 8px; }
+.admin-profile button:hover { color: #be123c; background: #fff1f2; }
+.admin-portal-link { display: flex; align-items: center; justify-content: space-between; padding: .5rem .2rem; color: #64748b; font-size: .85rem; }
+.admin-content { flex: 1; min-width: 0; width: 100%; }
+.admin-topbar { min-height: 78px; display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; padding: 1rem 2rem; background: #fff; border-bottom: 1px solid #e2e8f0; }
+.admin-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; color: #64748b; font-size: .9rem; }
+.admin-breadcrumb strong { color: #334155; font-weight: 650; }
+.admin-school { color: #64748b; font-size: .85rem; }
+.admin-main { max-width: 1600px; margin: auto; padding: 2rem; min-height: calc(100dvh - 78px); }
+.admin-main > div > :first-child:where(.flex) { margin-bottom: 1.5rem; }
+.admin-main h1 { color: #0f172a; font-weight: 750; font-size: clamp(1.5rem, 2.2vw, 1.9rem); letter-spacing: -.025em; }
+.admin-main h2, .admin-main h3, .admin-main h4 { color: #1e293b; }
+.admin-main :is(.rounded-3xl, .recognition-panel) { border-radius: 1rem; }
+.admin-main :is(.font-black, .font-extrabold) { font-weight: 700; }
+.admin-main :where(input, select, textarea) { background: #fff; border-color: #cbd5e1; }
+.admin-main :where(input, select, textarea):focus { border-color: #6366f1; }
+.admin-main :where(table) { border-collapse: collapse; }
+.admin-main :where(th) { background: #f8fafc; color: #475569; font-weight: 650; }
+.admin-main :where(th, td) { padding: .9rem 1rem; }
+.admin-main :where(tbody tr) { background: #fff; }
+.admin-main :where(button, a) { transition: background-color .15s, border-color .15s, color .15s; }
+.admin-main button:is(.bg-amber-700, .bg-teal-700, .bg-purple-700, .bg-emerald-700) { background-color: #4338ca; color: white; }
+.admin-main button:is(.bg-amber-700, .bg-teal-700, .bg-purple-700, .bg-emerald-700):hover { background-color: #3730a3; }
+.admin-mobile-toggle, .admin-mobile-close { display: none; }
+.admin-book-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.admin-book-tab { display: flex; flex-direction: column; gap: .6rem; padding: 1.25rem; border: 1px solid #dce1eb; border-radius: 14px; background: #fff !important; text-align: left; color: #1e293b !important; position: relative; }
+.admin-book-tab:hover { border-color: #a5b4fc; }
+.admin-book-tab[aria-pressed="true"] { border: 2px solid #6366f1; padding: calc(1.25rem - 1px); background: #fff !important; }
+.admin-book-tab-top { display: flex; align-items: center; gap: .7rem; }
+.admin-book-icon { color: #4f46e5; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #e0e7ff; border-radius: 10px; background: #f8faff; }
+.admin-book-age { color: #475569; font-size: .9rem; }
+.admin-book-check { margin-left: auto; color: #4f46e5; }
+.admin-book-title { font-size: 1.05rem; font-weight: 750; color: #0f172a !important; }
+.admin-book-description { color: #64748b !important; font-size: .95rem; line-height: 1.55; }
+.admin-curriculum-grid { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 2.3fr); gap: 1.5rem; align-items: start; }
+.admin-unit-list { display: grid; gap: .65rem; }
+.admin-unit-list > div { border-radius: 12px; background: #fff; border-color: #e2e8f0; padding: 1rem; }
+.admin-unit-list > div[data-selected="true"] { border-color: #818cf8; background: #fff; border-left: 4px solid #6366f1; }
+.admin-unit-list h3 { white-space: normal; overflow: visible; line-height: 1.5; }
+.admin-workspace .admin-book-tabs :is(span, p) { text-shadow: none; }
+.admin-page-error { border: 1px solid #fecdd3; background: #fff1f2; color: #9f1239; border-radius: 12px; padding: 1rem; }
+@media(max-width: 1200px) { .admin-main { padding: 1.5rem; } .admin-topbar { padding: 1rem 1.5rem; } .admin-sidebar { width: 15.5rem; } .admin-curriculum-grid { grid-template-columns: minmax(210px, 1fr) minmax(0, 1.8fr); } }
+@media(max-width: 1023px) {
+  .admin-sidebar { position: fixed; left: 0; top: 0; width: min(19rem, 90vw); transform: translateX(-100%); transition: transform .2s; }
+  .admin-sidebar[data-open="true"] { transform: translateX(0); }
+  .admin-mobile-toggle, .admin-mobile-close { display: inline-flex; align-items: center; justify-content: center; padding: .5rem; }
+  .admin-mobile-close { margin-left: auto; }
+  .admin-school { display: none; }
+  .admin-curriculum-grid { grid-template-columns: 1fr; }
+  .admin-unit-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media(max-width: 640px) { .admin-main { padding: 1rem; } .admin-topbar { padding: .75rem 1rem; min-height: 64px; } .admin-book-tabs, .admin-unit-list { grid-template-columns: 1fr; } .admin-book-tab { padding: 1rem; } .admin-book-tab[aria-pressed="true"] { padding: calc(1rem - 1px); } }

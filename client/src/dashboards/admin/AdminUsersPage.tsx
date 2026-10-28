@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { StaffPasswordDialog } from '../../components/staff/StaffPasswordDialog';
+import { IssuedCredentialsDialog } from '../../components/staff/IssuedCredentialsDialog';
+import type { IssuedCredential } from '../../components/staff/IssuedCredentialsDialog';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Users,
   UserPlus,
@@ -28,6 +32,10 @@ import { adminApi } from '../../services/api';
 import { StudentCompetencyModal } from '../../components/teacher/StudentCompetencyModal';
 
 export const AdminUsersPage: React.FC = () => {
+  const { user: currentUser, logout } = useAuth();
+  const requestVersion = useRef(0);
+  const [passwordUser, setPasswordUser] = useState<any>(null);
+  const [issuedCredentials, setIssuedCredentials] = useState<IssuedCredential[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +119,7 @@ export const AdminUsersPage: React.FC = () => {
   };
 
   const loadUsers = async () => {
+    const version = ++requestVersion.current;
     try {
       setLoading(true);
       const res = await adminApi.getUsers({
@@ -119,19 +128,25 @@ export const AdminUsersPage: React.FC = () => {
         role: roleFilter !== 'ALL' ? roleFilter : undefined,
         search: search.trim() || undefined
       });
-      if (res.success) {
+      if (version === requestVersion.current && res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         setUsers(res.data);
         setTotalPages(res.pages || 1);
         setTotalCount(res.total || 0);
       }
     } catch (err: any) {
-      showAlert('error', err?.message || 'Không thể tải danh sách tài khoản.');
+      if (version === requestVersion.current) showAlert('error', err?.message || 'Không thể tải danh sách tài khoản.');
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
   // ── CREATE TEACHER ────────────────────────────────────────────────────────
+  const openCompetency = async (student: any) => {
+    try { const response = await adminApi.getStudentCompetency(student._id); setCompetencyStudent({ ...student, ...response.data }); }
+    catch (error: any) { showAlert('error', error.message || 'Không tải được hồ sơ năng lực.'); }
+  };
+
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teacherForm.name || !teacherForm.username || !teacherForm.email || !teacherForm.password) {
@@ -141,6 +156,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       const res = await adminApi.createTeacher(teacherForm);
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', `Đã tạo tài khoản Giáo viên ${teacherForm.name} thành công!`);
         setCreateTeacherModal(false);
         setTeacherForm({ name: '', username: '', email: '', password: '', contact: '', assignedClass: '' });
@@ -165,6 +181,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       const res = await adminApi.createChild(childForm);
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', `Đã tạo tài khoản Học sinh ${childForm.name} thành công!`);
         setCreateChildModal(false);
         setChildForm({ name: '', username: '', pin: '', ageGroupCode: '3-4', assignedClass: '', contact: '' });
@@ -195,6 +212,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       const res = await adminApi.updateUser(editUserModal._id, editForm);
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', res.message || 'Cập nhật tài khoản thành công!');
         setEditUserModal(null);
         loadUsers();
@@ -214,6 +232,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       const res = await adminApi.resetChildPin(resetPinModal._id, newPin);
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', res.message || 'Đặt lại mã PIN thành công!');
         setResetPinModal(null);
         setNewPin('');
@@ -229,6 +248,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       const res = await adminApi.toggleUserStatus(user._id);
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', res.message || 'Thay đổi trạng thái tài khoản thành công!');
         loadUsers();
       }
@@ -243,6 +263,7 @@ export const AdminUsersPage: React.FC = () => {
     try {
       const res = await adminApi.deleteUser(user._id);
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', res.message || 'Đã hủy tài khoản.');
         loadUsers();
       }
@@ -254,11 +275,11 @@ export const AdminUsersPage: React.FC = () => {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'ADMIN':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-400 border border-rose-500/20">ADMIN</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-800 border border-rose-500/20">ADMIN</span>;
       case 'TEACHER':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">GIÁO VIÊN</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">GIÁO VIÊN</span>;
       default:
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">HỌC SINH</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-800 border border-indigo-500/20">HỌC SINH</span>;
     }
   };
 
@@ -381,6 +402,7 @@ export const AdminUsersPage: React.FC = () => {
       });
 
       if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', res.message || `Đã tạo thành công ${validRows.length} tài khoản học sinh!`);
         setBulkImportModalOpen(false);
         setBulkExcelRows([]);
@@ -396,13 +418,15 @@ export const AdminUsersPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {passwordUser && <StaffPasswordDialog user={passwordUser} isSelf={passwordUser.role === 'ADMIN'} onClose={() => setPasswordUser(null)} onSaved={() => { setPasswordUser(null); if (passwordUser.role === 'ADMIN') logout(); else showAlert('success', 'Đã đổi mật khẩu giáo viên.'); }} />}
+      <IssuedCredentialsDialog credentials={issuedCredentials} onClose={() => setIssuedCredentials([])} />
       {/* Alert toast notification */}
       {alert && (
         <div
-          className={`fixed top-5 right-5 z-50 p-4 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-bold border transition-all ${
+          className={`fixed top-5 right-5 z-50 p-4 rounded-2xl flex items-center gap-3 text-sm font-bold border transition-all ${
             alert.type === 'success'
-              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40'
-              : 'bg-rose-950/90 text-rose-200 border-rose-500/40'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-500/40'
+              : 'bg-rose-50 text-rose-800 border-rose-500/40'
           }`}
         >
           {alert.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
@@ -413,11 +437,11 @@ export const AdminUsersPage: React.FC = () => {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2.5">
-            <Users className="text-purple-400" size={26} />
+          <h1 className="text-2xl font-black text-inherit flex items-center gap-2.5">
+            <Users className="text-purple-800" size={26} />
             <span>Quản Lý Tài Khoản Người Dùng</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Quản trị viên khởi tạo tài khoản giáo viên, trẻ em, phân lớp và đặt lại mã PIN bảo mật.
           </p>
         </div>
@@ -430,7 +454,7 @@ export const AdminUsersPage: React.FC = () => {
               setBulkExcelFileName('');
               setBulkImportModalOpen(true);
             }}
-            className="px-3.5 py-2 rounded-2xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold text-xs shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 rounded-2xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-800 border border-indigo-500/30 font-bold text-xs  flex items-center gap-1.5 transition-all"
             title="Nạp danh sách học sinh từ file Excel"
           >
             <FileSpreadsheet size={16} />
@@ -439,7 +463,7 @@ export const AdminUsersPage: React.FC = () => {
           <button
             id="btn-create-teacher"
             onClick={() => setCreateTeacherModal(true)}
-            className="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 rounded-2xl bg-emerald-700 hover:bg-emerald-700 text-white font-bold text-xs  flex items-center gap-1.5 transition-all"
           >
             <UserPlus size={16} />
             <span>Tạo Giáo Viên</span>
@@ -447,7 +471,7 @@ export const AdminUsersPage: React.FC = () => {
           <button
             id="btn-create-child"
             onClick={() => setCreateChildModal(true)}
-            className="px-3.5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs  flex items-center gap-1.5 transition-all"
           >
             <UserPlus size={16} />
             <span>Tạo Học Sinh</span>
@@ -456,10 +480,10 @@ export const AdminUsersPage: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-3xl space-y-3">
+      <div className="bg-white border border-slate-200 p-4 rounded-3xl space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="relative w-full md:w-96">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
             <input
               type="text"
               value={search}
@@ -468,19 +492,19 @@ export const AdminUsersPage: React.FC = () => {
                 setPage(1);
               }}
               placeholder="Tìm theo tên, email hoặc tên đăng nhập..."
-              className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              className="w-full pl-10 pr-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm text-inherit placeholder-slate-500 focus:outline-none focus:border-purple-500"
             />
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>Tổng cộng:</span>
-            <span className="font-black text-purple-400 text-sm">{totalCount} tài khoản</span>
+            <span className="font-black text-purple-800 text-sm">{totalCount} tài khoản</span>
           </div>
         </div>
 
         {/* Role Pills */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80 overflow-x-auto pb-1">
-          <span className="text-xs font-bold text-slate-400 whitespace-nowrap">Vai trò:</span>
+        <div className="flex items-center gap-2 pt-2 border-t border-slate-200 overflow-x-auto pb-1">
+          <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Vai trò:</span>
           {[
             { id: 'ALL', label: 'Tất cả' },
             { id: 'TEACHER', label: 'Giáo viên' },
@@ -495,8 +519,8 @@ export const AdminUsersPage: React.FC = () => {
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 roleFilter === r.id
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-                  : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                  ? 'bg-purple-700 text-white '
+                  : 'bg-white text-slate-600 hover:text-inherit border border-slate-200'
               }`}
             >
               {r.label}
@@ -511,17 +535,17 @@ export const AdminUsersPage: React.FC = () => {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
         </div>
       ) : users.length === 0 ? (
-        <div className="py-16 text-center bg-slate-900/50 rounded-3xl border border-slate-800">
+        <div className="py-16 text-center bg-white rounded-3xl border border-slate-200">
           <Users size={40} className="mx-auto text-slate-600 mb-3" />
-          <p className="text-sm font-bold text-slate-300">Không tìm thấy tài khoản nào</p>
-          <p className="text-xs text-slate-500 mt-1">Hãy thay đổi từ khóa tìm kiếm hoặc vai trò lọc.</p>
+          <p className="text-sm font-bold text-slate-700">Không tìm thấy tài khoản nào</p>
+          <p className="text-xs text-slate-600 mt-1">Hãy thay đổi từ khóa tìm kiếm hoặc vai trò lọc.</p>
         </div>
       ) : (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/50 text-slate-400 uppercase tracking-wider font-bold text-[11px]">
+                <tr className="border-b border-slate-200 bg-white text-slate-600 uppercase tracking-wider font-bold text-[11px]">
                   <th className="py-3.5 px-4">Tài khoản</th>
                   <th className="py-3.5 px-4">Vai trò</th>
                   <th className="py-3.5 px-4">Lớp đang theo học / Phụ trách</th>
@@ -529,12 +553,12 @@ export const AdminUsersPage: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 font-medium">
+              <tbody className="divide-y divide-slate-200 font-medium">
                 {users.map((u) => (
-                  <tr key={u._id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={u._id} className="hover:bg-slate-100 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl overflow-hidden bg-slate-800 flex items-center justify-center font-bold text-xs text-purple-300 shrink-0">
+                        <div className="h-9 w-9 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center font-bold text-xs text-purple-800 shrink-0">
                           {u.avatarUrl ? (
                             <img src={u.avatarUrl} alt="" className="h-full w-full object-cover" />
                           ) : (
@@ -542,8 +566,8 @@ export const AdminUsersPage: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-white">{u.name}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                          <p className="font-bold text-inherit">{u.name}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-600">
                             <span>@{u.username || 'N/A'}</span>
                             {u.email && <span>• {u.email}</span>}
                           </div>
@@ -557,12 +581,12 @@ export const AdminUsersPage: React.FC = () => {
 
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {u.assignedClass ? (
-                        <div className="flex items-center gap-1.5 text-xs text-indigo-300 font-bold">
-                          <School size={14} className="text-indigo-400" />
+                        <div className="flex items-center gap-1.5 text-xs text-indigo-800 font-bold">
+                          <School size={14} className="text-indigo-800" />
                           <span>{u.assignedClass.name || 'Lớp học'}</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500 italic">Chưa xếp lớp</span>
+                        <span className="text-xs text-slate-600 italic">Chưa xếp lớp</span>
                       )}
                     </td>
 
@@ -570,8 +594,8 @@ export const AdminUsersPage: React.FC = () => {
                       <span
                         className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           u.status === 'ACTIVE'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            ? 'bg-emerald-500/10 text-emerald-800 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-800 border border-rose-500/20'
                         }`}
                       >
                         {u.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}
@@ -580,11 +604,12 @@ export const AdminUsersPage: React.FC = () => {
 
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
+                        {(u.role === 'TEACHER' || u.role === 'ADMIN' && String(u._id) === String(currentUser?.id || currentUser?._id)) && <button type="button" title="Đổi mật khẩu" onClick={() => setPasswordUser(u)} className="p-1.5 rounded-xl text-indigo-800 hover:bg-indigo-50"><Key size={16} /></button>}
                         {u.role === 'CHILD' && (
                           <>
                             <button
-                              onClick={() => setCompetencyStudent(u)}
-                              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-600/30 text-teal-300 transition-all cursor-pointer"
+                              onClick={() => openCompetency(u)}
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-teal-600/30 text-teal-800 transition-all cursor-pointer"
                               title="Xem Hồ sơ năng lực 3 trụ cột (Passport)"
                             >
                               <Brain size={14} />
@@ -594,7 +619,7 @@ export const AdminUsersPage: React.FC = () => {
                                 setResetPinModal(u);
                                 setNewPin('');
                               }}
-                              className="p-1.5 rounded-xl bg-slate-800 hover:bg-indigo-600/30 text-indigo-300 transition-all cursor-pointer"
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-indigo-600/30 text-indigo-800 transition-all cursor-pointer"
                               title="Đặt lại mã PIN 4 số"
                             >
                               <Key size={14} />
@@ -603,14 +628,14 @@ export const AdminUsersPage: React.FC = () => {
                         )}
                         <button
                           onClick={() => handleToggleStatus(u)}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 transition-all"
                           title={u.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                         >
                           {u.status === 'ACTIVE' ? <Lock size={14} /> : <Unlock size={14} />}
                         </button>
                         <button
                           onClick={() => handleOpenEdit(u)}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all"
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 hover:text-inherit transition-all"
                           title="Sửa thông tin"
                         >
                           <Edit size={14} />
@@ -618,7 +643,7 @@ export const AdminUsersPage: React.FC = () => {
                         {u.role !== 'ADMIN' && (
                           <button
                             onClick={() => handleDeleteUser(u)}
-                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-400 transition-all"
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-800 transition-all"
                             title="Hủy tài khoản"
                           >
                             <Trash2 size={14} />
@@ -634,13 +659,13 @@ export const AdminUsersPage: React.FC = () => {
 
           {/* Pagination bar */}
           {totalPages > 1 && (
-            <div className="p-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
               <span>Trang {page} / {totalPages}</span>
               <div className="flex items-center gap-2">
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 disabled:opacity-40 text-inherit font-bold flex items-center gap-1"
                 >
                   <ChevronLeft size={14} />
                   <span>Trước</span>
@@ -648,7 +673,7 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage(page + 1)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 disabled:opacity-40 text-inherit font-bold flex items-center gap-1"
                 >
                   <span>Sau</span>
                   <ChevronRight size={14} />
@@ -662,20 +687,20 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: CREATE TEACHER ────────────────────────────────────────────── */}
       {createTeacherModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Award className="text-emerald-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <Award className="text-emerald-800" size={20} />
                 <span>Tạo Tài Khoản Giáo Viên Mới</span>
               </h2>
-              <button onClick={() => setCreateTeacherModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setCreateTeacherModal(false)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleCreateTeacher} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Họ và tên giáo viên *
                 </label>
                 <input
@@ -684,13 +709,13 @@ export const AdminUsersPage: React.FC = () => {
                   value={teacherForm.name}
                   onChange={(e) => setTeacherForm({ ...teacherForm, name: e.target.value })}
                   placeholder="Ví dụ: Cô Nguyễn Mai Phương"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Tên đăng nhập *
                   </label>
                   <input
@@ -699,12 +724,12 @@ export const AdminUsersPage: React.FC = () => {
                     value={teacherForm.username}
                     onChange={(e) => setTeacherForm({ ...teacherForm, username: e.target.value })}
                     placeholder="maiphuong"
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Email *
                   </label>
                   <input
@@ -713,13 +738,13 @@ export const AdminUsersPage: React.FC = () => {
                     value={teacherForm.email}
                     onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })}
                     placeholder="maiphuong@kcenglishkids.edu.vn"
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Mật khẩu khởi tạo *
                 </label>
                 <input
@@ -728,18 +753,18 @@ export const AdminUsersPage: React.FC = () => {
                   value={teacherForm.password}
                   onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Phân công lớp phụ trách ban đầu
                 </label>
                 <select
                   value={teacherForm.assignedClass}
                   onChange={(e) => setTeacherForm({ ...teacherForm, assignedClass: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-emerald-500 focus:outline-none"
                 >
                   <option value="">-- Chưa gán lớp --</option>
                   {classrooms.map((c) => (
@@ -754,13 +779,13 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCreateTeacherModal(false)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30"
+                  className="px-5 py-2 rounded-2xl bg-emerald-700 hover:bg-emerald-700 text-white font-bold text-xs "
                 >
                   Tạo Giáo Viên
                 </button>
@@ -773,20 +798,20 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: CREATE CHILD ──────────────────────────────────────────────── */}
       {createChildModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Users className="text-indigo-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <Users className="text-indigo-800" size={20} />
                 <span>Tạo Tài Khoản Học Sinh Mới</span>
               </h2>
-              <button onClick={() => setCreateChildModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setCreateChildModal(false)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleCreateChild} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Tên của bé *
                 </label>
                 <input
@@ -795,13 +820,13 @@ export const AdminUsersPage: React.FC = () => {
                   value={childForm.name}
                   onChange={(e) => setChildForm({ ...childForm, name: e.target.value })}
                   placeholder="Ví dụ: Bé An An, Minh Khôi"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Mã đăng nhập (Username)
                   </label>
                   <input
@@ -809,12 +834,12 @@ export const AdminUsersPage: React.FC = () => {
                     value={childForm.username}
                     onChange={(e) => setChildForm({ ...childForm, username: e.target.value })}
                     placeholder="Để trống tự động tạo"
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Mã PIN 4 số (Bé đăng nhập) *
                   </label>
                   <input
@@ -824,20 +849,20 @@ export const AdminUsersPage: React.FC = () => {
                     value={childForm.pin}
                     onChange={(e) => setChildForm({ ...childForm, pin: e.target.value })}
                     placeholder="1234"
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm font-mono tracking-widest focus:border-indigo-500 focus:outline-none text-center"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm font-mono tracking-widest focus:border-indigo-500 focus:outline-none text-center"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Độ tuổi *
                   </label>
                   <select
                     value={childForm.ageGroupCode}
                     onChange={(e) => setChildForm({ ...childForm, ageGroupCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                   >
                     <option value="3-4">3-4 Tuổi (Mầm)</option>
                     <option value="4-5">4-5 Tuổi (Chồi)</option>
@@ -846,13 +871,13 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Lớp học xếp ban đầu
                   </label>
                   <select
                     value={childForm.assignedClass}
                     onChange={(e) => setChildForm({ ...childForm, assignedClass: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                   >
                     <option value="">-- Chưa xếp lớp --</option>
                     {classrooms.map((c) => (
@@ -865,7 +890,7 @@ export const AdminUsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Số điện thoại Phụ huynh (Liên hệ)
                 </label>
                 <input
@@ -873,7 +898,7 @@ export const AdminUsersPage: React.FC = () => {
                   value={childForm.contact}
                   onChange={(e) => setChildForm({ ...childForm, contact: e.target.value })}
                   placeholder="0912345678"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -881,13 +906,13 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCreateChildModal(false)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30"
+                  className="px-5 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs "
                 >
                   Tạo Học Sinh
                 </button>
@@ -900,20 +925,20 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: EDIT USER ─────────────────────────────────────────────────── */}
       {editUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Edit className="text-purple-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <Edit className="text-purple-800" size={20} />
                 <span>Chỉnh Sửa Tài Khoản ({editUserModal.role})</span>
               </h2>
-              <button onClick={() => setEditUserModal(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setEditUserModal(null)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Họ và tên *
                 </label>
                 <input
@@ -921,32 +946,32 @@ export const AdminUsersPage: React.FC = () => {
                   required
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-purple-500 focus:outline-none"
                 />
               </div>
 
               {editUserModal.role !== 'CHILD' && (
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Email
                   </label>
                   <input
                     type="email"
                     value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-purple-500 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-purple-500 focus:outline-none"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Lớp học phân bổ
                 </label>
                 <select
                   value={editForm.assignedClass}
                   onChange={(e) => setEditForm({ ...editForm, assignedClass: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-purple-500 focus:outline-none"
                 >
                   <option value="">-- Chưa gán lớp --</option>
                   {classrooms.map((c) => (
@@ -958,14 +983,14 @@ export const AdminUsersPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Liên hệ / SĐT
                 </label>
                 <input
                   type="text"
                   value={editForm.contact}
                   onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-purple-500 focus:outline-none"
                 />
               </div>
 
@@ -973,13 +998,13 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEditUserModal(null)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30"
+                  className="px-5 py-2 rounded-2xl bg-purple-700 hover:bg-purple-700 text-white font-bold text-xs "
                 >
                   Lưu Thay Đổi
                 </button>
@@ -992,24 +1017,24 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: RESET PIN ─────────────────────────────────────────────────── */}
       {resetPinModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-sm shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-sm animate-scale-up">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Key className="text-indigo-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <Key className="text-indigo-800" size={20} />
                 <span>Đặt Lại Mã PIN Bé</span>
               </h2>
-              <button onClick={() => setResetPinModal(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setResetPinModal(null)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400 mb-4">
-              Học sinh: <span className="text-white font-bold">{resetPinModal.name}</span>
+            <p className="text-xs text-slate-600 mb-4">
+              Học sinh: <span className="text-inherit font-bold">{resetPinModal.name}</span>
             </p>
 
             <form onSubmit={handleResetPinSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-center">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 text-center">
                   Nhập mã PIN 4 chữ số mới
                 </label>
                 <input
@@ -1020,7 +1045,7 @@ export const AdminUsersPage: React.FC = () => {
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value)}
                   placeholder="••••"
-                  className="w-full px-4 py-3 rounded-2xl bg-slate-950 border border-slate-800 text-white text-xl font-mono tracking-widest text-center focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-inherit text-xl font-mono tracking-widest text-center focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -1028,13 +1053,13 @@ export const AdminUsersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setResetPinModal(null)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30"
+                  className="px-5 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs "
                 >
                   Xác Nhận Đổi PIN
                 </button>
@@ -1047,22 +1072,22 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: BULK CREATE CHILDREN FROM EXCEL ──────────────────────── */}
       {bulkImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl animate-scale-up">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-3xl max-h-[92vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-md">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-500/20 text-indigo-800 flex items-center justify-center">
                   <FileSpreadsheet size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-white">Tạo Hàng Loạt Học Sinh Từ File Excel</h2>
-                  <p className="text-xs text-slate-400">
+                  <h2 className="text-lg font-black text-inherit">Tạo Hàng Loạt Học Sinh Từ File Excel</h2>
+                  <p className="text-xs text-slate-600">
                     Tải danh sách học sinh từ file (.xlsx, .xls, .csv), tự sinh tài khoản và mã PIN đăng nhập
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setBulkImportModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-600 hover:text-inherit"
               >
                 <X size={20} />
               </button>
@@ -1070,15 +1095,15 @@ export const AdminUsersPage: React.FC = () => {
 
             <form onSubmit={handleBulkSubmit} className="flex-1 overflow-y-auto pr-1 py-4 space-y-4">
               {/* Top Configuration Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/70 p-4 rounded-2xl border border-slate-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-4 rounded-2xl border border-slate-200">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Xếp vào lớp học (Tùy chọn)
                   </label>
                   <select
                     value={bulkTargetClass}
                     onChange={(e) => setBulkTargetClass(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-inherit focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">-- Để trống (Chưa xếp lớp) --</option>
                     {classrooms.map((c) => (
@@ -1090,13 +1115,13 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Độ tuổi mặc định nếu file thiếu
                   </label>
                   <select
                     value={bulkDefaultAgeGroup}
                     onChange={(e) => setBulkDefaultAgeGroup(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-inherit focus:outline-none focus:border-indigo-500"
                   >
                     <option value="3-4">3-4 Tuổi (Mầm)</option>
                     <option value="4-5">4-5 Tuổi (Chồi)</option>
@@ -1106,11 +1131,11 @@ export const AdminUsersPage: React.FC = () => {
               </div>
 
               {/* Upload & Sample Template Box */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-3">
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <span className="text-xs font-bold text-white block">Chọn file Excel học sinh</span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-xs font-bold text-inherit block">Chọn file Excel học sinh</span>
+                    <span className="text-[11px] text-slate-600">
                       Hỗ trợ cột: "Họ và tên", "Ngày sinh", "Mã PIN", "SĐT Phụ huynh", "Nhóm tuổi"
                     </span>
                   </div>
@@ -1118,19 +1143,19 @@ export const AdminUsersPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={downloadSampleExcelTemplate}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 shadow-sm"
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-indigo-800 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0"
                   >
                     <Download size={13} />
                     <span>Tải file Excel mẫu (.xlsx)</span>
                   </button>
                 </div>
 
-                <label className="border-2 border-dashed border-slate-800 hover:border-indigo-500/60 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-900/40 group">
-                  <UploadCloud size={32} className="text-slate-500 group-hover:text-indigo-400 transition-colors mb-1.5" />
-                  <span className="text-xs font-bold text-slate-300 group-hover:text-white">
+                <label className="border-2 border-dashed border-slate-200 hover:border-indigo-500/60 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer transition-colors bg-white group">
+                  <UploadCloud size={32} className="text-slate-600 group-hover:text-indigo-800 transition-colors mb-1.5" />
+                  <span className="text-xs font-bold text-slate-700 group-hover:text-inherit">
                     {bulkExcelFileName ? bulkExcelFileName : 'Nhấp để chọn file Excel (.xlsx, .xls, .csv)'}
                   </span>
-                  <span className="text-[11px] text-slate-500 mt-0.5">Dung lượng tối đa 10MB</span>
+                  <span className="text-[11px] text-slate-600 mt-0.5">Dung lượng tối đa 10MB</span>
                   <input
                     type="file"
                     accept=".xlsx,.xls,.csv"
@@ -1142,22 +1167,22 @@ export const AdminUsersPage: React.FC = () => {
 
               {/* Preview Table */}
               {bulkExcelRows.length > 0 && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileText size={15} className="text-indigo-400" />
-                      <span className="text-xs font-bold text-slate-200">
+                      <FileText size={15} className="text-indigo-800" />
+                      <span className="text-xs font-bold text-slate-700">
                         Danh sách học sinh xem trước ({bulkExcelRows.length} em)
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
                         <CheckCircle2 size={11} />
                         {bulkExcelRows.filter((r) => r.isValid).length} hợp lệ
                       </span>
                       {bulkExcelRows.some((r) => !r.isValid) && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-800 border border-rose-500/20">
                           <AlertTriangle size={11} />
                           {bulkExcelRows.filter((r) => !r.isValid).length} lỗi
                         </span>
@@ -1165,9 +1190,9 @@ export const AdminUsersPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-800">
+                  <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-900 sticky top-0 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                      <thead className="bg-white sticky top-0 text-[10px] uppercase font-bold text-slate-600 border-b border-slate-200">
                         <tr>
                           <th className="py-2 px-2.5">#</th>
                           <th className="py-2 px-2.5">Họ và tên *</th>
@@ -1178,38 +1203,38 @@ export const AdminUsersPage: React.FC = () => {
                           <th className="py-2 px-2.5 text-center">Xóa</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 font-medium">
+                      <tbody className="divide-y divide-slate-200 font-medium">
                         {bulkExcelRows.map((row) => (
                           <tr
                             key={row.id}
-                            className={!row.isValid ? 'bg-rose-950/20 text-rose-300' : 'hover:bg-slate-900/50 text-slate-300'}
+                            className={!row.isValid ? 'bg-rose-50 text-rose-800' : 'hover:bg-white text-slate-700'}
                           >
-                            <td className="py-2 px-2.5 text-slate-500 font-mono text-[11px]">{row.index}</td>
-                            <td className="py-2 px-2.5 font-bold text-white">
+                            <td className="py-2 px-2.5 text-slate-600 font-mono text-[11px]">{row.index}</td>
+                            <td className="py-2 px-2.5 font-bold text-inherit">
                               {row.name || '(Trống)'}
                               {!row.isValid && (
-                                <span className="ml-1 px-1 py-0.5 rounded text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                                <span className="ml-1 px-1 py-0.5 rounded text-[9px] bg-rose-500/20 text-rose-800 border border-rose-500/30">
                                   {row.error}
                                 </span>
                               )}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-400 font-mono text-[11px]">{row.dob || '—'}</td>
+                            <td className="py-2 px-2.5 text-slate-600 font-mono text-[11px]">{row.dob || '—'}</td>
                             <td className="py-2 px-2.5 font-mono text-[11px]">
                               {row.pin ? (
-                                <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-800 border border-indigo-500/20">
                                   {row.pin}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-slate-500 italic">Tự sinh 4 số</span>
+                                <span className="text-[10px] text-slate-600 italic">Tự sinh 4 số</span>
                               )}
                             </td>
-                            <td className="py-2 px-2.5 font-bold text-slate-400 text-[11px]">{row.ageGroupCode}</td>
-                            <td className="py-2 px-2.5 text-slate-400 text-[11px]">{row.contact || '—'}</td>
+                            <td className="py-2 px-2.5 font-bold text-slate-600 text-[11px]">{row.ageGroupCode}</td>
+                            <td className="py-2 px-2.5 text-slate-600 text-[11px]">{row.contact || '—'}</td>
                             <td className="py-2 px-2.5 text-center">
                               <button
                                 type="button"
                                 onClick={() => setBulkExcelRows(bulkExcelRows.filter((r) => r.id !== row.id))}
-                                className="p-1 rounded-lg text-slate-500 hover:text-rose-400 transition-colors"
+                                className="p-1 rounded-lg text-slate-600 hover:text-rose-800 transition-colors"
                                 title="Xóa dòng này"
                               >
                                 <X size={13} />
@@ -1224,7 +1249,7 @@ export const AdminUsersPage: React.FC = () => {
               )}
 
               <div className="flex items-center justify-between pt-2">
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-600">
                   {bulkExcelRows.filter((r) => r.isValid).length > 0
                     ? `Sẵn sàng tạo ${bulkExcelRows.filter((r) => r.isValid).length} tài khoản học sinh`
                     : 'Chưa có dòng dữ liệu hợp lệ'}
@@ -1235,18 +1260,18 @@ export const AdminUsersPage: React.FC = () => {
                     type="button"
                     disabled={isSubmittingBulk}
                     onClick={() => setBulkImportModalOpen(false)}
-                    className="px-4 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+                    className="px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-100 text-slate-700 font-bold text-xs"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
                     disabled={bulkExcelRows.filter((r) => r.isValid).length === 0 || isSubmittingBulk}
-                    className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs shadow-lg shadow-indigo-600/30 flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-2xl bg-indigo-700 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs  flex items-center gap-2"
                   >
                     {isSubmittingBulk ? (
                       <>
-                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="h-4 w-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
                         <span>Đang xử lý tạo tài khoản...</span>
                       </>
                     ) : (
@@ -1270,6 +1295,7 @@ export const AdminUsersPage: React.FC = () => {
           onClose={() => setCompetencyStudent(null)}
           student={competencyStudent}
           stats={competencyStudent.stats}
+          competencyReport={competencyStudent.competencyReport}
         />
       )}
     </div>

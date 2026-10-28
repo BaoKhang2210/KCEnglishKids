@@ -1,5 +1,6 @@
+import { vietnamDate, vietnamWallClock } from '../../utils/vietnamTime';
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   ChevronRight,
@@ -37,16 +38,13 @@ const DAY_LABELS: Record<number, string> = {
 };
 
 // Helper: Vietnam timezone time (UTC+7)
-function getVietnamNow(): Date {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (7 * 3600000));
-}
+const getVietnamNow = vietnamWallClock;
 
 export const ClassroomSessionSetup: React.FC = () => {
   const { classId: routeClassId = '' } = useParams<{ classId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const preparedPlan = useLocation().state?.lessonPlan;
 
   const [activeClassId, setActiveClassId] = useState<string>(
     routeClassId || searchParams.get('classroomId') || ''
@@ -74,10 +72,10 @@ export const ClassroomSessionSetup: React.FC = () => {
   const [title, setTitle] = useState('');
 
   // Pre-Session Attendance Check-in State
-  const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [attendanceDate, setAttendanceDate] = useState(() => vietnamDate());
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [attendanceNote, setAttendanceNote] = useState('');
-  const [_loadingAttendance, setLoadingAttendance] = useState(false);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   // Filters & Schedule Table
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,22 +109,24 @@ export const ClassroomSessionSetup: React.FC = () => {
 
   useEffect(() => {
     if (!activeClassId) return;
-    const todayStr = attendanceDate || new Date().toISOString().split('T')[0];
+    let cancelled = false;
+    const todayStr = attendanceDate || vietnamDate();
     setLoadingAttendance(true);
 
     Promise.all([
       teacherApi.getClassDetail(activeClassId),
       teacherApi.getContent(),
       classroomSessionApi.getSessions({ classroomId: activeClassId }),
-      teacherApi.getClassAttendance(activeClassId, todayStr).catch(() => ({ data: null })),
-      teacherApi.getMySchedule().catch(() => ({ data: [] }))
+      teacherApi.getClassAttendance(activeClassId, todayStr),
+      teacherApi.getMySchedule()
     ])
       .then(([cls, cnt, prevSess, attRes, schedRes]) => {
+        if (cancelled) return;
         const classData = cls.data;
         setClassroom(classData);
         setContent(cnt.data);
         const list = (prevSess.data || []) as any[];
-        setPreviousSessions(list);
+        setPreviousSessions(list.filter(item => item.status === 'COMPLETED'));
         const maxPrev = list.reduce((m: number, s: any) => Math.max(m, Number(s.sessionNumber) || 0), 0);
         const nextNum = maxPrev > 0 ? maxPrev + 1 : (list.length + 1);
         setSessionNumber(nextNum);
@@ -181,8 +181,9 @@ export const ClassroomSessionSetup: React.FC = () => {
         setAttendanceRecords(merged);
         if (attRes?.data?.note) setAttendanceNote(attRes.data.note);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoadingAttendance(false));
+      .catch((e) => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoadingAttendance(false); });
+    return () => { cancelled = true; };
   }, [activeClassId, attendanceDate]);
 
   // ── Requirement 10: Strict Timetable Timing Evaluation ─────────────────────
@@ -319,7 +320,7 @@ export const ClassroomSessionSetup: React.FC = () => {
   };
 
   const handleCreate = async () => {
-    if (!activeClassId) return;
+    if (!activeClassId || loadingAttendance || creating) return;
 
     // Strict timetable verification
     if (!scheduleLiveTiming.canTeachNow) {
@@ -330,20 +331,6 @@ export const ClassroomSessionSetup: React.FC = () => {
     setCreating(true);
     setError('');
     try {
-      // 1. Sync attendance to server Attendance collection
-      if (attendanceRecords.length > 0) {
-        try {
-          await teacherApi.saveClassAttendance(activeClassId, {
-            date: attendanceDate,
-            records: attendanceRecords,
-            note: attendanceNote
-          });
-        } catch (attErr) {
-          console.warn('Auto-save attendance check warning:', attErr);
-        }
-      }
-
-      // 2. Create session with initialized attendance records
       const res = await classroomSessionApi.createSession({
         classroomId: activeClassId,
         lessonId: selectedLessonId || undefined,
@@ -352,6 +339,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         plannedDuration: duration,
         sessionNumber: Number(sessionNumber) || 1,
         includeWarmup: includeWarmup,
+        lessonPlan: preparedPlan,
         attendanceRecords,
         attendanceDate,
         attendanceNote
@@ -407,6 +395,8 @@ export const ClassroomSessionSetup: React.FC = () => {
         .map(String)
     );
 
+    (classroom.completedLessons || []).forEach((id: any) => taughtLessonIds.add(String(id?._id || id)));
+
     // Identify last taught session
     const pastSessionsWithLesson = [...previousSessions]
       .filter((s: any) => {
@@ -445,7 +435,7 @@ export const ClassroomSessionSetup: React.FC = () => {
 
     // Find the next lesson in book order that hasn't been taught
     const nextUntaughtLesson = sorted.find((l: any) => !taughtLessonIds.has(String(l._id))) || sorted[0];
-    const nextLessonId = adminCurrentId || (nextUntaughtLesson ? String(nextUntaughtLesson._id) : null);
+    const nextLessonId = (adminCurrentId && !taughtLessonIds.has(adminCurrentId) ? adminCurrentId : null) || (nextUntaughtLesson ? String(nextUntaughtLesson._id) : null);
 
     return sorted.map((lesson: any, index: number) => {
       const unitId = Array.isArray(lesson.curriculumUnits)
@@ -461,7 +451,7 @@ export const ClassroomSessionSetup: React.FC = () => {
 
       const isTaught = taughtLessonIds.has(String(lesson._id));
       const isLastTaught = String(lesson._id) === lastTaughtLessonId;
-      const isAdminAssigned = adminCurrentId && String(lesson._id) === adminCurrentId;
+      const isAdminAssigned = !isTaught && adminCurrentId && String(lesson._id) === adminCurrentId;
       const isNextToTeach = String(lesson._id) === nextLessonId;
       const lastSessionId = taughtSessionMap.get(String(lesson._id));
 
@@ -514,6 +504,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     });
   }, [scheduleItems, selectedUnitFilter, searchQuery]);
 
+  if (error && (!classroom || !content)) return <div className="p-8"><div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div><button className="teacher-button mt-4" onClick={() => navigate('/teacher/classes')}>Về lớp phụ trách</button></div>;
   if (!classroom || !content) return <Loader />;
 
   const ageLabel: Record<string, string> = {
@@ -527,37 +518,37 @@ export const ClassroomSessionSetup: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen py-8 bg-[#f8fafc] text-slate-900">
+    <div className="staff-workspace min-h-screen py-8 bg-[#f8fafc] text-slate-900">
       <div className="mx-auto w-full max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 space-y-6">
         {/* Back button */}
         <button
           onClick={() => navigate(activeClassId ? `/teacher/classes/${activeClassId}` : '/teacher/classes')}
-          className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-teal-700 transition-colors cursor-pointer"
+          className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-teal-800 transition-colors cursor-pointer"
         >
           <ArrowLeft size={18} /> Quay lại {classroom?.name ? `lớp ${classroom.name}` : 'danh sách lớp'}
         </button>
 
         {/* Main Page Title with Teacher Name and Class Age */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 bg-white p-7 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 bg-white p-7 rounded-3xl border border-slate-200">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="rounded-full bg-teal-100 px-3.5 py-1 text-xs font-black text-teal-800">
                 {ageLabel[classroom.ageGroupCode] || classroom.ageGroupCode}
               </span>
-              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs text-slate-600">•</span>
               <span className="text-xs font-bold text-slate-600">
                 {classroom.students?.length || 0} học sinh
               </span>
-              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs text-slate-600">•</span>
               <span className="text-xs font-black text-indigo-800 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
-                👩‍🏫 Giáo viên: {classroom.teacher?.name || 'Cô giáo'}
+                👩‍🏫 Giáo viên: {classroom.teacher?.name || 'Giáo viên phụ trách'}
               </span>
-              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs text-slate-600">•</span>
               <span className="text-xs font-black text-amber-900 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
                 Đã dạy {previousSessions.length} buổi
               </span>
               {allClasses.length > 1 && (
-                <div className="flex items-center gap-1.5 bg-slate-50 border border-teal-200 rounded-xl px-3 py-1 shadow-2xs ml-1">
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-teal-200 rounded-xl px-3 py-1 ml-1">
                   <span className="text-xs font-bold text-teal-800">Đổi lớp:</span>
                   <select
                     value={activeClassId}
@@ -589,13 +580,13 @@ export const ClassroomSessionSetup: React.FC = () => {
           {/* Quick Schedule Status Tag */}
           <div className="shrink-0">
             {scheduleLiveTiming.canTeachNow ? (
-              <span className="inline-flex items-center gap-2 rounded-2xl bg-emerald-100 px-4 py-2 text-xs font-black text-emerald-900 border border-emerald-300 shadow-xs">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="inline-flex items-center gap-2 rounded-2xl bg-emerald-100 px-4 py-2 text-xs font-black text-emerald-900 border border-emerald-300">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-700 animate-ping" />
                 Đang trong ca dạy
               </span>
             ) : (
-              <span className="inline-flex items-center gap-2 rounded-2xl bg-amber-100 px-4 py-2 text-xs font-black text-amber-950 border border-amber-300 shadow-xs">
-                <Lock size={14} className="text-amber-700" />
+              <span className="inline-flex items-center gap-2 rounded-2xl bg-amber-100 px-4 py-2 text-xs font-black text-amber-950 border border-amber-300">
+                <Lock size={14} className="text-amber-800" />
                 Chưa đến ca dạy
               </span>
             )}
@@ -604,8 +595,8 @@ export const ClassroomSessionSetup: React.FC = () => {
 
         {/* ── Requirement 10 Alert Banner: Timetable Schedule Lock Warning ──────── */}
         {!scheduleLiveTiming.canTeachNow && (
-          <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 shadow-xs flex items-start gap-4">
-            <div className="p-2.5 rounded-xl bg-amber-500 text-white shrink-0 mt-0.5 shadow-xs">
+          <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 flex items-start gap-4">
+            <div className="p-2.5 rounded-xl bg-amber-700 text-white shrink-0 mt-0.5">
               <Lock size={22} />
             </div>
             <div>
@@ -631,7 +622,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         )}
 
         {/* Step Indicator */}
-        <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200">
           {[
             { num: 1, label: 'Chọn bài học theo lộ trình' },
             { num: 2, label: 'Cấu hình trò chơi & tùy chọn' },
@@ -650,15 +641,15 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-xl text-base font-black transition-all ${
                     step >= s.num
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-400'
+                      ? 'bg-teal-700 text-white'
+                      : 'bg-slate-100 text-slate-600'
                   }`}
                 >
                   {s.num}
                 </div>
                 <span
                   className={`hidden sm:inline text-sm font-extrabold ${
-                    step >= s.num ? 'text-teal-900' : 'text-slate-400'
+                    step >= s.num ? 'text-teal-900' : 'text-slate-600'
                   }`}
                 >
                   {s.label}
@@ -667,7 +658,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               {i < 2 && (
                 <div
                   className={`mx-2 h-1 flex-1 rounded-full transition-colors ${
-                    step > s.num ? 'bg-teal-600' : 'bg-slate-200'
+                    step > s.num ? 'bg-teal-700' : 'bg-slate-200'
                   }`}
                 />
               )}
@@ -677,18 +668,18 @@ export const ClassroomSessionSetup: React.FC = () => {
 
         {error && (
           <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border-2 border-rose-200 flex items-center gap-3">
-            <AlertTriangle size={20} className="text-rose-600 shrink-0" />
+            <AlertTriangle size={20} className="text-rose-800 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* ── Step 1: Syllabus Schedule & Choose Lesson ────────────────────────── */}
         {step === 1 && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 space-y-6">
             {/* Header of Step 1 */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div className="flex items-center gap-3.5">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-teal-100 text-teal-800 shadow-xs">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-teal-100 text-teal-800">
                   <Calendar size={24} />
                 </div>
                 <div>
@@ -713,7 +704,7 @@ export const ClassroomSessionSetup: React.FC = () => {
             {/* Filters Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
               <div className="relative sm:col-span-5">
-                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -725,9 +716,9 @@ export const ClassroomSessionSetup: React.FC = () => {
 
               {/* Book Badge */}
               <div className="sm:col-span-4 flex items-center gap-2.5 rounded-2xl bg-teal-50 border border-teal-200 px-4 py-2.5">
-                <BookOpen size={20} className="text-teal-700 shrink-0" />
+                <BookOpen size={20} className="text-teal-800 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black text-teal-700 uppercase tracking-wider">Giáo trình chuẩn của lớp</p>
+                  <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Giáo trình chuẩn của lớp</p>
                   <p className="text-sm font-black text-teal-950 truncate">
                     {targetBookTitle}
                   </p>
@@ -755,8 +746,8 @@ export const ClassroomSessionSetup: React.FC = () => {
             </div>
 
             {/* Schedule Table View */}
-            <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-xs">
-              <div className="max-h-[480px] overflow-y-auto">
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-xs font-black text-slate-700 uppercase tracking-wider">
                     <tr>
@@ -772,7 +763,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {filteredSchedule.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-10 text-center text-slate-500 text-sm font-semibold">
+                        <td colSpan={7} className="py-10 text-center text-slate-600 text-sm font-semibold">
                           Không tìm thấy bài học nào phù hợp với bộ lọc trong {targetBookTitle}.
                         </td>
                       </tr>
@@ -811,7 +802,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                               <div className="font-extrabold text-slate-900 text-sm">
                                 Unit {item.unit?.unitNumber || 1}
                               </div>
-                              <div className="text-slate-500 font-medium">
+                              <div className="text-slate-600 font-medium">
                                 {item.unit?.title || 'Chủ đề mầm non'}
                               </div>
                             </td>
@@ -821,7 +812,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 <p className="font-extrabold text-slate-900 text-base">{item.title}</p>
                                 {item.isAdminAssigned && (
-                                  <span className="rounded-full bg-amber-400 text-amber-950 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider">
+                                  <span className="rounded-full bg-amber-700 text-white px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider">
                                     🎯 Kế hoạch Admin
                                   </span>
                                 )}
@@ -832,7 +823,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                                 )}
                               </div>
                               {item.vietnameseTitle && (
-                                <p className="text-xs text-slate-500 italic mt-0.5">{item.vietnameseTitle}</p>
+                                <p className="text-xs text-slate-600 italic mt-0.5">{item.vietnameseTitle}</p>
                               )}
                             </td>
 
@@ -853,7 +844,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                             {/* Status */}
                             <td className="py-4 px-4 text-center">
                               {isSelected ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-teal-600 px-3 py-1 text-xs font-black text-white shadow-xs">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-teal-700 px-3 py-1 text-xs font-black text-white">
                                   Đang chọn
                                 </span>
                               ) : item.isAdminAssigned ? (
@@ -866,14 +857,14 @@ export const ClassroomSessionSetup: React.FC = () => {
                                 </span>
                               ) : item.isLastTaught ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900 border border-emerald-300">
-                                  <CheckCircle2 size={13} className="text-emerald-600" /> Vừa dạy gần nhất
+                                  <CheckCircle2 size={13} className="text-emerald-800" /> Vừa dạy gần nhất
                                 </span>
                               ) : item.isTaught ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                                  <CheckCircle2 size={13} className="text-slate-400" /> Đã dạy
+                                  <CheckCircle2 size={13} className="text-slate-600" /> Đã dạy
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500 border border-slate-200">
+                                <span className="inline-flex items-center rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
                                   Chưa dạy
                                 </span>
                               )}
@@ -893,7 +884,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                                         navigate(`/teacher/classroom-sessions?search=${encodeURIComponent(item.title)}&classroomId=${activeClassId}`);
                                       }
                                     }}
-                                    className="rounded-xl px-3 py-1.5 text-xs font-black bg-emerald-100 text-emerald-900 hover:bg-emerald-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                    className="rounded-xl px-3 py-1.5 text-xs font-black bg-emerald-100 text-emerald-900 hover:bg-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer"
                                   >
                                     <History size={13} />
                                     <span>Xem nhật ký</span>
@@ -906,8 +897,8 @@ export const ClassroomSessionSetup: React.FC = () => {
                                     }}
                                     className={`rounded-xl px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
                                       isSelected
-                                        ? 'bg-teal-600 text-white'
-                                        : 'text-slate-500 hover:text-slate-800 underline'
+                                        ? 'bg-teal-700 text-white'
+                                        : 'text-inherit hover:text-slate-800 underline'
                                     }`}
                                   >
                                     {isSelected ? 'Đã chọn' : 'Dạy lại'}
@@ -922,10 +913,10 @@ export const ClassroomSessionSetup: React.FC = () => {
                                   }}
                                   className={`rounded-xl px-4 py-2 text-xs font-black transition-all cursor-pointer ${
                                     isSelected
-                                      ? 'bg-teal-600 text-white shadow-sm'
+                                      ? 'bg-teal-700 text-white'
                                       : item.isAdminAssigned || item.isNextToTeach
-                                      ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
-                                      : 'border border-slate-200 bg-white text-slate-700 hover:border-teal-500 hover:text-teal-700'
+                                      ? 'bg-amber-700 text-white hover:bg-amber-700'
+                                      : 'border border-slate-200 bg-white text-slate-700 hover:border-teal-500 hover:text-teal-800'
                                   }`}
                                 >
                                   {isSelected ? 'Đã chọn ✓' : item.isAdminAssigned ? 'Chọn bài này 🎯' : 'Chọn bài'}
@@ -946,7 +937,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               <div className="text-sm">
                 {selectedLesson ? (
                   <div className="flex items-center gap-2.5 text-slate-800">
-                    <CheckCircle2 size={20} className="text-teal-600 shrink-0" />
+                    <CheckCircle2 size={20} className="text-teal-800 shrink-0" />
                     <span>
                       Đang chọn bài:{' '}
                       <strong className="text-slate-900 font-black text-base">{selectedLesson.title}</strong>{' '}
@@ -954,7 +945,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                     </span>
                   </div>
                 ) : (
-                  <p className="text-amber-700 font-bold">⚠️ Vui lòng nhấp chọn 1 bài học ở trên để tiếp tục</p>
+                  <p className="text-amber-800 font-bold">⚠️ Vui lòng nhấp chọn 1 bài học ở trên để tiếp tục</p>
                 )}
               </div>
 
@@ -963,9 +954,9 @@ export const ClassroomSessionSetup: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/teacher/lesson-planner?classroomId=${activeClassId}&lessonId=${selectedLessonId}`)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-950 hover:bg-amber-100 transition-all shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
                   >
-                    <Sparkles size={16} className="text-amber-600" />
+                    <Sparkles size={16} className="text-amber-800" />
                     Xem gợi ý giáo án AI
                   </button>
                 )}
@@ -973,7 +964,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <button
                   disabled={!selectedLessonId}
                   onClick={() => setStep(2)}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-7 py-3 text-sm font-black text-white shadow-sm hover:bg-teal-700 disabled:opacity-40 transition-all cursor-pointer"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-teal-700 px-7 py-3 text-sm font-black text-white hover:bg-teal-700 disabled:opacity-40 transition-all cursor-pointer"
                 >
                   Tiếp tục bước 2 <ChevronRight size={18} />
                 </button>
@@ -984,9 +975,9 @@ export const ClassroomSessionSetup: React.FC = () => {
 
         {/* ── Step 2: Choose Activities & Session Options ───────────────────────── */}
         {step === 2 && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 space-y-6">
             <div className="flex items-center gap-3.5 border-b border-slate-100 pb-5">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-100 text-violet-800 shadow-xs">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-100 text-violet-800">
                 <CheckSquare size={24} />
               </div>
               <div>
@@ -1002,7 +993,7 @@ export const ClassroomSessionSetup: React.FC = () => {
             {/* Configuration Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Auto-Assigned Session Number Card */}
-              <div className="rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-emerald-50/60 p-5 flex items-center justify-between">
+              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-black text-teal-800 uppercase tracking-wider block">
                     Tiến độ buổi dạy (Tự động gán)
@@ -1011,7 +1002,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                     <span className="text-2xl font-black text-slate-900">
                       BUỔI HỌC SỐ {sessionNumber}
                     </span>
-                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-teal-600 text-white shadow-xs uppercase">
+                    <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-teal-700 text-white uppercase">
                       Tự động tiếp nối
                     </span>
                   </div>
@@ -1021,7 +1012,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                       : 'Buổi học đầu tiên của lớp học'}
                   </p>
                 </div>
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-teal-600 font-black text-white text-xl shadow-sm">
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-teal-700 font-black text-white text-xl">
                   #{sessionNumber}
                 </div>
               </div>
@@ -1038,14 +1029,14 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <div className="flex items-start gap-3.5">
                   <div className="mt-0.5">
                     {includeWarmup ? (
-                      <CheckSquare size={22} className="text-amber-600" />
+                      <CheckSquare size={22} className="text-amber-800" />
                     ) : (
-                      <Square size={22} className="text-slate-400" />
+                      <Square size={22} className="text-slate-600" />
                     )}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 font-black text-slate-900 text-base">
-                      <Flame size={18} className="text-amber-500 fill-amber-500" />
+                      <Flame size={18} className="text-amber-800 fill-amber-500" />
                       Kích hoạt pha &quot;Ôn Cũ Học Mới&quot; (Warm-up)
                     </div>
                     <p className="mt-1 text-xs sm:text-sm text-slate-600 font-medium">
@@ -1071,18 +1062,18 @@ export const ClassroomSessionSetup: React.FC = () => {
                         : lessonActivities.map((a: any) => a._id)
                     )
                   }
-                  className="text-xs font-bold text-teal-700 hover:underline cursor-pointer"
+                  className="text-xs font-bold text-teal-800 hover:underline cursor-pointer"
                 >
                   {selectedActivityIds.length === lessonActivities.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
                 </button>
               </div>
 
               {lessonActivities.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 font-medium">
+                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 font-medium">
                   Bài học này chưa cấu hình trò chơi tương tác riêng. Buổi học vẫn diễn ra đầy đủ với phần thẻ từ vựng trực quan, dạy phát âm và ôn cũ học mới.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3  pr-1">
                   {lessonActivities.map((a: any) => {
                     const checked = selectedActivityIds.includes(a._id);
                     return (
@@ -1092,18 +1083,18 @@ export const ClassroomSessionSetup: React.FC = () => {
                         onClick={() => toggleActivity(a._id)}
                         className={`flex items-center gap-3.5 rounded-2xl border-2 p-4 text-left transition-all cursor-pointer ${
                           checked
-                            ? 'border-violet-500 bg-violet-50 shadow-xs'
+                            ? 'border-violet-500 bg-violet-50'
                             : 'border-slate-200 hover:border-violet-300 bg-white'
                         }`}
                       >
                         {checked ? (
-                          <CheckSquare size={20} className="text-violet-600 shrink-0" />
+                          <CheckSquare size={20} className="text-violet-800 shrink-0" />
                         ) : (
-                          <Square size={20} className="text-slate-400 shrink-0" />
+                          <Square size={20} className="text-slate-600 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="font-extrabold text-slate-900 text-sm truncate">{a.title}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-600 mt-0.5">
                             Dạng: {a.activityType?.replace(/_/g, ' ')} · {a.questionCount || 5} câu hỏi
                           </p>
                         </div>
@@ -1127,7 +1118,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                     onClick={() => setDuration(d)}
                     className={`rounded-2xl px-5 py-2.5 text-sm font-black transition-all cursor-pointer ${
                       duration === d
-                        ? 'bg-teal-600 text-white shadow-xs'
+                        ? 'bg-teal-700 text-white'
                         : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -1150,7 +1141,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="flex items-center gap-2 rounded-2xl bg-teal-600 px-7 py-3 text-sm font-black text-white shadow-sm hover:bg-teal-700 transition-all cursor-pointer"
+                className="flex items-center gap-2 rounded-2xl bg-teal-700 px-7 py-3 text-sm font-black text-white hover:bg-teal-700 transition-all cursor-pointer"
               >
                 Tiếp tục bước 3 (Điểm danh) <ChevronRight size={18} />
               </button>
@@ -1162,10 +1153,10 @@ export const ClassroomSessionSetup: React.FC = () => {
         {step === 3 && (
           <div className="space-y-6">
             {/* Attendance Check-in Card */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div className="flex items-center gap-3.5">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-xs">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-800">
                     <CheckCircle2 size={24} />
                   </div>
                   <div>
@@ -1179,7 +1170,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-bold text-slate-500">Ngày dạy:</span>
+                  <span className="text-xs font-bold text-slate-600">Ngày dạy:</span>
                   <input
                     type="date"
                     value={attendanceDate}
@@ -1194,11 +1185,11 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <div className="flex items-center gap-2 text-xs sm:text-sm font-black text-slate-700">
                   <span>Sĩ số: {attendanceRecords.length} học sinh</span>
                   <span>•</span>
-                  <span className="text-emerald-700">
+                  <span className="text-emerald-800">
                     {attendanceRecords.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length} có mặt
                   </span>
                   <span>•</span>
-                  <span className="text-rose-700">
+                  <span className="text-rose-800">
                     {attendanceRecords.filter((r) => r.status === 'ABSENT' || r.status === 'EXCUSED').length} vắng
                   </span>
                 </div>
@@ -1207,7 +1198,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => markAllStatus('PRESENT')}
-                    className="rounded-xl bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-black hover:bg-emerald-700 transition cursor-pointer shadow-xs"
+                    className="rounded-xl bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-black hover:bg-emerald-700 transition cursor-pointer"
                   >
                     ✓ Cả lớp có mặt
                   </button>
@@ -1222,7 +1213,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               </div>
 
               {/* Student Attendance List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[440px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5  pr-1">
                 {attendanceRecords.map((r) => {
                   const st = r.student || {};
                   const sId = String(st._id || st);
@@ -1247,7 +1238,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <h4 className="font-extrabold text-base text-slate-900 truncate">{sName}</h4>
-                          <span className="text-xs font-semibold text-slate-400">
+                          <span className="text-xs font-semibold text-slate-600">
                             {st.username ? `@${st.username}` : `Mã: ${sId.slice(-4)}`}
                           </span>
                         </div>
@@ -1260,7 +1251,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                           onClick={() => setStudentStatus(sId, 'PRESENT')}
                           className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                             r.status === 'PRESENT'
-                              ? 'bg-emerald-600 text-white shadow-xs'
+                              ? 'bg-emerald-700 text-white'
                               : 'bg-white text-slate-700 hover:bg-emerald-50 border border-slate-200'
                           }`}
                         >
@@ -1271,7 +1262,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                           onClick={() => setStudentStatus(sId, 'LATE')}
                           className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                             r.status === 'LATE'
-                              ? 'bg-amber-500 text-white shadow-xs'
+                              ? 'bg-amber-700 text-white'
                               : 'bg-white text-slate-700 hover:bg-amber-50 border border-slate-200'
                           }`}
                         >
@@ -1282,7 +1273,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                           onClick={() => setStudentStatus(sId, 'EXCUSED')}
                           className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                             r.status === 'EXCUSED'
-                              ? 'bg-sky-500 text-white shadow-xs'
+                              ? 'bg-sky-700 text-white'
                               : 'bg-white text-slate-700 hover:bg-sky-50 border border-slate-200'
                           }`}
                         >
@@ -1293,7 +1284,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                           onClick={() => setStudentStatus(sId, 'ABSENT')}
                           className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                             r.status === 'ABSENT'
-                              ? 'bg-rose-600 text-white shadow-xs'
+                              ? 'bg-rose-700 text-white'
                               : 'bg-white text-slate-700 hover:bg-rose-50 border border-slate-200'
                           }`}
                         >
@@ -1306,7 +1297,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                         placeholder="Ghi chú (ốm, đón sớm…)"
                         value={r.note || ''}
                         onChange={(e) => setStudentNote(sId, e.target.value)}
-                        className="w-full text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none"
+                        className="w-full text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
                       />
                     </div>
                   );
@@ -1323,15 +1314,15 @@ export const ClassroomSessionSetup: React.FC = () => {
                   value={attendanceNote}
                   onChange={(e) => setAttendanceNote(e.target.value)}
                   placeholder="Ví dụ: Ôn tập phát âm từ vựng bài trước; các bé phản xạ hào hứng…"
-                  className="w-full rounded-2xl border border-slate-200 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-slate-200 p-3 text-sm text-slate-900 placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
                 />
               </div>
             </div>
 
             {/* Session Summary & Launch Card */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 space-y-6">
               <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <Sparkles size={20} className="text-amber-500" />
+                <Sparkles size={20} className="text-amber-800" />
                 <span>Xác Nhận Thông Tin & Khởi Tạo Buổi Dạy Trực Tiếp</span>
               </h3>
 
@@ -1351,35 +1342,35 @@ export const ClassroomSessionSetup: React.FC = () => {
               {/* Summary Details */}
               <div className="space-y-3 rounded-2xl bg-slate-50 p-6 border border-slate-200">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-semibold">Lớp học:</span>
+                  <span className="text-slate-600 font-semibold">Lớp học:</span>
                   <span className="font-black text-slate-900 text-base">{classroom.name}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-semibold">Tiến độ buổi dạy:</span>
+                  <span className="text-slate-600 font-semibold">Tiến độ buổi dạy:</span>
                   <span className="font-black text-teal-800 text-base">Buổi số #{sessionNumber}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-semibold">Bài học giáo trình:</span>
+                  <span className="text-slate-600 font-semibold">Bài học giáo trình:</span>
                   <span className="font-black text-slate-900">{selectedLesson?.title || '(Chưa chọn)'} - {selectedLesson?.vietnameseTitle || ''}</span>
                 </div>
                 {selectedUnit && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500 font-semibold">Chủ đề & Unit:</span>
+                    <span className="text-slate-600 font-semibold">Chủ đề & Unit:</span>
                     <span className="font-extrabold text-slate-800">Unit {selectedUnit.unitNumber}: {selectedUnit.title} (Sách {selectedUnit.bookNumber})</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-semibold">Kích hoạt Ôn Cũ Học Mới:</span>
+                  <span className="text-slate-600 font-semibold">Kích hoạt Ôn Cũ Học Mới:</span>
                   <span className="font-bold text-amber-900">
                     {includeWarmup ? '🔥 Có (Ôn lại từ vựng bài trước)' : 'Không'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-semibold">Trò chơi tương tác:</span>
+                  <span className="text-slate-600 font-semibold">Trò chơi tương tác:</span>
                   <span className="font-bold text-violet-800">{selectedActivityIds.length} trò chơi</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-semibold">Sĩ số có mặt hôm nay:</span>
+                  <span className="text-slate-600 font-semibold">Sĩ số có mặt hôm nay:</span>
                   <span className="font-black text-emerald-800 text-base">
                     {attendanceRecords.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length} / {attendanceRecords.length} học sinh
                   </span>
@@ -1389,7 +1380,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               {/* Requirement 10: Timetable Lock Status Notification before Launch */}
               {!scheduleLiveTiming.canTeachNow && (
                 <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-950 flex items-center gap-3">
-                  <Lock size={20} className="text-amber-700 shrink-0" />
+                  <Lock size={20} className="text-amber-800 shrink-0" />
                   <div>
                     <p className="font-black text-amber-900">Nút "Bắt đầu buổi dạy" hiện đang tạm khóa:</p>
                     <p className="text-xs font-semibold text-slate-700 mt-0.5">
@@ -1412,16 +1403,16 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={creating || !scheduleLiveTiming.canTeachNow}
+                  disabled={creating || loadingAttendance || !scheduleLiveTiming.canTeachNow}
                   className={`w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl px-9 py-4 text-base font-black transition-all ${
                     scheduleLiveTiming.canTeachNow
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 active:scale-95 cursor-pointer animate-pulse'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                      ? 'bg-emerald-700 hover:bg-emerald-700 text-white  active:scale-95 cursor-pointer animate-pulse'
+                      : 'bg-slate-200 text-inherit cursor-not-allowed border border-slate-300'
                   }`}
                 >
                   {creating ? (
                     <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
                       <span>Đang lưu điểm danh & khởi tạo phòng học…</span>
                     </>
                   ) : !scheduleLiveTiming.canTeachNow ? (

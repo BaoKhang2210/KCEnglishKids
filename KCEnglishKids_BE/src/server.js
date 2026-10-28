@@ -4,6 +4,7 @@ const app = require('./app');
 
 // Load environment variables
 dotenv.config();
+require('./config/auth').jwtSecret();
 
 // Connect to Database
 connectDB();

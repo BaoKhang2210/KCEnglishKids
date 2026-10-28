@@ -14,15 +14,15 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Always lock both Teacher and Admin to 'dark' mode as requested
-  const teacherTheme: Theme = 'dark';
-  const adminTheme: Theme = 'dark';
+  // Staff workspaces share the fixed, high-contrast light palette.
+  const teacherTheme: Theme = 'light';
+  const adminTheme: Theme = 'light';
 
   useEffect(() => {
     try {
-      localStorage.setItem('kc_teacher_theme', 'dark');
-      localStorage.setItem('kc_admin_theme', 'dark');
-    } catch (e) {
+      localStorage.setItem('kc_teacher_theme', 'light');
+      localStorage.setItem('kc_admin_theme', 'light');
+    } catch {
       // ignore
     }
   }, []);

@@ -4,12 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/*.test.js",
     "test:ai": "node --test tests/ai.test.js",
+    "test:recognitions": "node --test tests/recognitionRules.test.js tests/recognitionApi.test.js",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node src/seeds/index.js",
-    "migrate:atlas": "node scripts/migrate_to_atlas.js"
+    "seed": "node src/seeds/index.js && node scripts/install_learning_assets.js --apply",
+    "audit:db": "node scripts/audit_database.js",
+    "repair:db": "node scripts/repair_database.js",
+    "assets:build": "node scripts/build_learning_assets.js",
+    "assets:install": "node scripts/install_learning_assets.js",
+    "migrate:atlas": "node scripts/migrate_to_atlas.js",
+    "test:admin": "node --test tests/admin*.test.js tests/system*.test.js",
+    "backup:restore": "node scripts/restore_system_backup.js"
   },
   "keywords": [],
   "author": "",

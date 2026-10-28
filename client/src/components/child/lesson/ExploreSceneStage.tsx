@@ -520,7 +520,7 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
               <div className="relative z-20 flex-1 min-h-0 w-full flex items-center justify-center p-3">
                 {hasImage ? (
                   <img
-                    src={currentWord.imageUrl}
+                    src={currentWord.animationUrl || currentWord.imageUrl}
                     alt={currentWord.english}
                     onError={() => {
                       setImageErrorMap(prev => ({

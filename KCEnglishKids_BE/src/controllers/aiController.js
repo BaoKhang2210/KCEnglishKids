@@ -100,6 +100,7 @@ function createAiController({ db = models, rewards = computeRewards } = {}) {
         if (!validId(classroomId)) return fail(res, 400, 'Invalid classroomId format.');
         const classroom = await db.ClassRoom.findOne({
           _id: classroomId,
+          deletionPending: { $ne: true },
           ...(admin ? {} : { teacher: req.user._id })
         }).select('ageGroupCode name');
         if (!classroom) return fail(res, 403, 'You do not have access to this classroom.');
@@ -108,11 +109,12 @@ function createAiController({ db = models, rewards = computeRewards } = {}) {
 
       if (lessonId) {
         if (!validId(lessonId)) return fail(res, 400, 'Invalid lessonId format.');
-        const lesson = await db.Lesson.findOne({ _id: lessonId, status: { $ne: 'DELETED' } })
+        const lesson = await db.Lesson.findOne({ _id: lessonId, status: 'ACTIVE' })
           .populate('vocabularyItems', 'english vietnamese pronunciation')
-          .populate('languageContents', 'english vietnamese')
+          .populate({ path: 'languageContents', select: 'english vietnamese', match: { status: 'ACTIVE' } })
           .populate('topic', 'englishName vietnameseName title name');
         if (!lesson) return fail(res, 404, 'Lesson not found.');
+        if (classroomId && lesson.ageGroupCode && lesson.ageGroupCode !== targetAge) return fail(res, 400, 'Lesson age group does not match the classroom.');
 
         title = lesson.title;
         if (lesson.topic) {

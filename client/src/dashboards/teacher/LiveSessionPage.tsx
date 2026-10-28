@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   CheckCircle2,
   XCircle,
@@ -128,6 +128,8 @@ export const LiveSessionPage: React.FC = () => {
 
   const [session, setSession] = useState<ClassroomSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState('');
+  const scoringRef = useRef(false);
   const [ending, setEnding] = useState(false);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [scoringStudent, setScoringStudent] = useState<StudentSessionScore | null>(null);
@@ -149,7 +151,6 @@ export const LiveSessionPage: React.FC = () => {
 
   // Auto-end Overtime Logic (Prevent sessions from running indefinitely)
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
-  const [overtimeCountdown, setOvertimeCountdown] = useState<number>(45);
   const [overtimeSnoozeUntil, setOvertimeSnoozeUntil] = useState<number>(0);
 
   // Exit / End Session Modal state
@@ -307,6 +308,8 @@ export const LiveSessionPage: React.FC = () => {
     try {
       const res = await classroomSessionApi.getSession(sessionId);
       const s: ClassroomSession = res.data;
+      setPageError('');
+      if (s.status === 'COMPLETED') { navigate(`/teacher/classroom-sessions/${sessionId}/summary`, { replace: true }); return; }
       setSession(s);
 
       // Auto-activate warm-up tab on initial start if configured
@@ -349,7 +352,7 @@ export const LiveSessionPage: React.FC = () => {
             const prevSessRes = await classroomSessionApi.getSessions({ classroomId: cId });
             const list = (prevSessRes.data || []) as any[];
             const validPastSessions = list
-              .filter((ps: any) => ps._id !== s._id && ps.lesson)
+              .filter((ps: any) => ps._id !== s._id && ps.lesson && ps.status === 'COMPLETED')
               .sort((a: any, b: any) => (Number(b.sessionNumber) || 0) - (Number(a.sessionNumber) || 0));
 
             const priorSession = validPastSessions.find((ps: any) =>
@@ -436,12 +439,12 @@ export const LiveSessionPage: React.FC = () => {
         initialAnswers[sid] = 'NOT_ANSWERED';
       });
       setAnswers((prev) => ({ ...initialAnswers, ...prev }));
-    } catch {
-      // silently handle fetch errors
+    } catch (e: any) {
+      setPageError(e.message || 'Không thể tải buổi dạy.');
     } finally {
       setLoading(false);
     }
-  }, [sessionId, loadSentencePatterns]);
+  }, [sessionId, loadSentencePatterns, navigate]);
 
   useEffect(() => {
     void load();
@@ -456,22 +459,6 @@ export const LiveSessionPage: React.FC = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [session?.startedAt]);
 
-  // Overtime countdown timer (auto ends when countdown reaches 0)
-  useEffect(() => {
-    if (!isOvertimeModalOpen) return;
-    const interval = setInterval(() => {
-      setOvertimeCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          void handleAutoEnd();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isOvertimeModalOpen]);
-
   // Check if session has exceeded planned duration
   useEffect(() => {
     if (!session || session.status === 'COMPLETED' || isOvertimeModalOpen) return;
@@ -482,7 +469,6 @@ export const LiveSessionPage: React.FC = () => {
     // If running over planned + 15 mins and not snoozed, trigger auto-end prompt modal
     if (elapsed >= planned + 15 && Date.now() > overtimeSnoozeUntil) {
       setIsOvertimeModalOpen(true);
-      setOvertimeCountdown(45);
     }
   }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen]);
 
@@ -557,27 +543,20 @@ export const LiveSessionPage: React.FC = () => {
 
   // ── Question result submission ─────────────────────────────────────────────
   const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '') => {
-    if (!session) return;
-    const studentAnswers = Object.entries(answers).map(([studentId, result]) => ({
-      studentId,
-      result
-    }));
-    await classroomSessionApi.recordQuestionResult(sessionId, {
-      activityId,
-      questionIndex: qIndex,
-      promptText,
-      studentAnswers
-    });
-    sfx.playCorrect();
-    showToast('✓ Đã lưu kết quả câu hỏi vào tiến trình học!');
-    // Reset answers for next question
-    const reset: AnswerMap = {};
-    session.studentScores.forEach((sc) => {
-      const sid = typeof sc.student === 'string' ? sc.student : (sc.student as User)._id || '';
-      reset[sid] = 'NOT_ANSWERED';
-    });
-    setAnswers(reset);
-    void load();
+    if (!session || scoringRef.current) return;
+    scoringRef.current = true;
+    try {
+      const activity = session.activities?.find(item => item._id === activityId);
+      const linkedActivity = activity?.questions?.[qIndex] ? activityId : undefined;
+      const studentAnswers = Object.entries(answers).filter(([studentId]) => session.studentScores.some(row => {
+        const id = typeof row.student === 'string' ? row.student : row.student._id;
+        return id === studentId && !['ABSENT', 'EXCUSED'].includes(row.attendance || '');
+      })).map(([studentId, result]) => ({ studentId, result }));
+      await classroomSessionApi.recordQuestionResult(sessionId, { activityId: linkedActivity, questionIndex: qIndex, promptText, studentAnswers });
+      showToast('Đã lưu câu trả lời. Lưu lại cùng câu hỏi sẽ cập nhật kết quả.');
+      await load();
+    } catch (e: any) { showToast(e.message || 'Chưa lưu được câu trả lời. Vui lòng thử lại.'); }
+    finally { scoringRef.current = false; }
   };
 
   // ── Per-student scoring with Joyous Celebration & Instant Real-time Feedback ──────
@@ -587,150 +566,37 @@ export const LiveSessionPage: React.FC = () => {
     actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
     customMessage?: string
   ) => {
-    // 1. Optimistic update to session scores list
-    setSession((prev) => {
-      if (!prev || !prev.studentScores) return prev;
-      const updated = prev.studentScores.map((sc) => {
-        const sid = typeof sc.student === 'string' ? sc.student : (sc.student as User)?._id;
-        if (sid !== studentId) return sc;
-        return {
-          ...sc,
-          stars: (sc.stars || 0) + (opts.stars || 0),
-          points: (sc.points || 0) + (opts.points || 0),
-          correctCount: (sc.correctCount || 0) + (opts.correctDelta || 0),
-          incorrectCount: (sc.incorrectCount || 0) + (opts.incorrectDelta || 0)
-        };
-      });
-      return { ...prev, studentScores: updated };
-    });
-
-    // 2. Optimistic update to spotlightStudent (so modal counters change live)
-    setSpotlightStudent((prev) => {
-      if (!prev) return null;
-      const sid = typeof prev.student === 'string' ? prev.student : (prev.student as User)?._id;
-      if (sid !== studentId) return prev;
-      return {
-        ...prev,
-        stars: (prev.stars || 0) + (opts.stars || 0),
-        points: (prev.points || 0) + (opts.points || 0),
-        correctCount: (prev.correctCount || 0) + (opts.correctDelta || 0),
-        incorrectCount: (prev.incorrectCount || 0) + (opts.incorrectDelta || 0)
-      };
-    });
-
-    // 3. Optimistic update to scoringStudent if active
-    setScoringStudent((prev) => {
-      if (!prev) return null;
-      const sid = typeof prev.student === 'string' ? prev.student : (prev.student as User)?._id;
-      if (sid !== studentId) return prev;
-      return {
-        ...prev,
-        stars: (prev.stars || 0) + (opts.stars || 0),
-        points: (prev.points || 0) + (opts.points || 0),
-        correctCount: (prev.correctCount || 0) + (opts.correctDelta || 0),
-        incorrectCount: (prev.incorrectCount || 0) + (opts.incorrectDelta || 0)
-      };
-    });
-
-    const sc = session?.studentScores?.find((item) => {
-      const sid = typeof item.student === 'string' ? item.student : (item.student as User)._id || '';
-      return sid === studentId;
-    });
-    const sName = sc ? ((sc.student as User)?.name || 'Bé yêu') : 'Bé yêu';
-
-    // 4. Trigger fun sound effects & festive celebration banners
-    if (actionType === 'applause') {
-      sfx.playApplause();
-      setCelebrationEffect({
-        show: true,
-        type: 'points',
-        message: customMessage || `👏 Cả lớp vỗ tay hoan hô ${sName}! +${opts.points || 5} điểm!`,
-        studentName: sName,
-        count: opts.points || 5
-      });
-    } else if (actionType === 'loud_clear') {
-      sfx.playSpeakingBravo();
-      setCelebrationEffect({
-        show: true,
-        type: 'stars',
-        message: customMessage || `🗣️ ${sName} nói to, rõ ràng và rất tự tin! +${opts.stars || 1} ⭐ (+${opts.points || 10}đ)`,
-        studentName: sName,
-        count: opts.stars || 1
-      });
-    } else if (actionType === 'excellent_pronunciation') {
-      sfx.playCheerFanfare();
-      setCelebrationEffect({
-        show: true,
-        type: 'stars',
-        message: customMessage || `🌟 Xuất sắc! ${sName} phát âm cực kỳ chuẩn! +${opts.stars || 3} ⭐ (+${opts.points || 15}đ)`,
-        studentName: sName,
-        count: opts.stars || 3
-      });
-    } else if (actionType === 'correct' || (opts.correctDelta && opts.correctDelta > 0)) {
-      sfx.playCorrect();
-      setCelebrationEffect({
-        show: true,
-        type: 'correct',
-        message: customMessage || `🎯 Trả lời chính xác! Hoan hô ${sName}! 🎉`,
-        studentName: sName
-      });
-    } else if (opts.stars && opts.stars > 0) {
-      sfx.playStarFanfare();
-      setCelebrationEffect({
-        show: true,
-        type: 'stars',
-        message: customMessage || `+${opts.stars} Ngôi sao vàng tặng ${sName}! ⭐`,
-        studentName: sName,
-        count: opts.stars
-      });
-    } else if (opts.points && opts.points > 0) {
-      sfx.playApplause();
-      setCelebrationEffect({
-        show: true,
-        type: 'points',
-        message: customMessage || `+${opts.points} Điểm thưởng cho ${sName}! 👏`,
-        studentName: sName,
-        count: opts.points
-      });
-    } else {
-      sfx.playPop();
-    }
-
-    setTimeout(() => {
-      setCelebrationEffect(null);
-    }, 2800);
-
+    if (scoringRef.current) return;
+    scoringRef.current = true;
     try {
       await classroomSessionApi.scoreStudent(sessionId, { studentId, ...opts });
-    } catch (e) {
-      console.warn('Could not persist student score:', e);
-    }
+      const update = (row: StudentSessionScore) => ({ ...row, stars: Math.max(0, row.stars + (opts.stars || 0)), points: Math.max(0, row.points + (opts.points || 0)), correctCount: Math.max(0, row.correctCount + (opts.correctDelta || 0)), incorrectCount: Math.max(0, row.incorrectCount + (opts.incorrectDelta || 0)) });
+      const matches = (row: StudentSessionScore) => (typeof row.student === 'string' ? row.student : row.student._id) === studentId;
+      setSession(prev => prev ? { ...prev, studentScores: prev.studentScores.map(row => matches(row) ? update(row) : row) } : prev);
+      setSpotlightStudent(prev => prev && matches(prev) ? update(prev) : prev);
+      setScoringStudent(prev => prev && matches(prev) ? update(prev) : prev);
+      const row = session?.studentScores.find(matches);
+      const name = row && typeof row.student === 'object' ? row.student.name : 'bé';
+      if (actionType === 'applause') sfx.playApplause(); else sfx.playStarFanfare();
+      setCelebrationEffect({ show: true, type: 'stars', message: customMessage || 'Hoan hô ' + name + '! Cùng tiếp tục cố gắng nhé.', studentName: name, count: opts.stars || 0 });
+      setTimeout(() => setCelebrationEffect(null), 2800);
+    } catch (e: any) { showToast(e.message || 'Chưa xác nhận được việc lưu điểm. Vui lòng kiểm tra lại.'); await load(); }
+    finally { scoringRef.current = false; }
   };
-
-  // ── Multi-Student & Bulk Scoring ──────────────────────────────────────────
   const applyBulkScore = async (
     studentIds: string[],
     opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
     successMsg?: string
   ) => {
-    if (studentIds.length === 0) return;
+    if (!studentIds.length || scoringRef.current) return;
+    scoringRef.current = true;
     try {
-      sfx.playStarFanfare();
-      setCelebrationEffect({
-        show: true,
-        type: 'all',
-        message: successMsg || `Hoan hô cả lớp! Thưởng lớn cho ${studentIds.length} học sinh! 🌟`,
-        count: studentIds.length
-      });
-      setTimeout(() => setCelebrationEffect(null), 3000);
-
       await classroomSessionApi.scoreBulk(sessionId, { studentIds, ...opts });
-      showToast(successMsg || `🎉 Đã cộng điểm thành công cho ${studentIds.length} học sinh!`);
-      void load();
-    } catch {
-      await Promise.all(studentIds.map(sid => classroomSessionApi.scoreStudent(sessionId, { studentId: sid, ...opts })));
-      void load();
-    }
+      sfx.playStarFanfare();
+      showToast(successMsg || 'Đã lưu điểm động viên cho học sinh.');
+      await load();
+    } catch (e: any) { showToast(e.message || 'Chưa lưu được điểm. Vui lòng kiểm tra lại.'); await load(); }
+    finally { scoringRef.current = false; }
   };
 
   // 1. Chấm điểm tất cả các bé đang có trạng thái Đúng (✓)
@@ -746,7 +612,7 @@ export const LiveSessionPage: React.FC = () => {
 
     void applyBulkScore(
       correctStudentIds,
-      { stars, points, correctDelta: 1 },
+      { stars, points },
       `⭐ Đã thưởng +${stars} Sao & +${points}đ cho ${correctStudentIds.length} bé trả lời đúng!`
     );
   };
@@ -759,8 +625,8 @@ export const LiveSessionPage: React.FC = () => {
     ).filter(Boolean);
 
     const message = stars > 0
-      ? `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được thưởng +${stars} Sao vàng (+${points} điểm)!`
-      : `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được khen thưởng +${points} điểm!`;
+      ? `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được thưởng +${stars} sao!`
+      : `🌟 Hoan hô cả lớp! Tất cả ${allIds.length} bạn đều được khen thưởng!`;
 
     void applyBulkScore(
       allIds,
@@ -809,18 +675,16 @@ export const LiveSessionPage: React.FC = () => {
 
   // ── 1. Hoàn tất tiết học & Xuất báo cáo (chuyển sang trang summary) ────────
   const handleCompleteAndExit = async () => {
-    setIsExitModalOpen(false);
+    if (ending || scoringRef.current) return;
     setEnding(true);
     try {
       await classroomSessionApi.endSession(sessionId);
-    } catch (err) {
-      console.warn('Could not call endSession API (session may already be ended):', err);
-    } finally {
       navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
-    }
+    } catch (e: any) { showToast(e.message || 'Chưa lưu được tổng kết. Vui lòng thử lại.'); }
+    finally { setEnding(false); }
   };
 
-  // ── 2. Tạm dừng & Thoát ra danh sách buổi dạy ─────────────────────────────
+  // ── 2. Rời buổi dạy & Thoát ra danh sách buổi dạy ─────────────────────────────
   const handlePauseAndExit = () => {
     setIsExitModalOpen(false);
     navigate('/teacher/classroom-sessions');
@@ -833,17 +697,9 @@ export const LiveSessionPage: React.FC = () => {
   };
 
   // ── Auto end session when overtime expires ────────────────────────────────
-  const handleAutoEnd = async () => {
-    setIsOvertimeModalOpen(false);
-    setEnding(true);
-    try {
-      await classroomSessionApi.endSession(sessionId);
-    } catch (err) {
-      console.warn('Auto end session warning:', err);
-    } finally {
-      navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
-    }
-  };
+  const handleAutoEnd = handleCompleteAndExit;
+
+  if (pageError && !session) return <div className="min-h-screen p-8"><div className="teacher-error" role="alert">{pageError}<button onClick={() => void load()}>Thử lại</button></div><Link to="/teacher/classroom-sessions" className="teacher-button mt-5">Về nhật ký buổi dạy</Link></div>;
 
   if (loading || !session) {
     return (
@@ -854,19 +710,19 @@ export const LiveSessionPage: React.FC = () => {
     );
   }
 
-  const scores = session.studentScores || [];
+  if (session.status === 'SCHEDULED') return <div className="min-h-screen bg-slate-50 p-8"><div className="teacher-panel mx-auto max-w-xl"><p className="teacher-eyebrow">KẾ HOẠCH ĐÃ LƯU</p><h1 className="text-2xl font-bold">{session.title}</h1><p className="my-4">Buổi học chưa bắt đầu. Hãy kiểm tra danh sách trước khi mở lớp.</p><p className="text-sm text-slate-500 mb-5">{session.studentScores.length} học sinh · {session.plannedDuration} phút</p>{pageError && <p role="alert" className="text-red-700 mb-4">{pageError}</p>}<div className="flex flex-wrap gap-3"><button className="teacher-button primary" disabled={ending} onClick={async () => { setEnding(true); try { await classroomSessionApi.startSession(sessionId); await load(); } catch(e: any) { setPageError(e.message); } finally { setEnding(false); } }}>Bắt đầu buổi dạy</button><Link className="teacher-button" to="/teacher/classroom-sessions">Về nhật ký</Link></div></div></div>;
+
+  const scores = (session.studentScores || []).filter(row => !['ABSENT', 'EXCUSED'].includes(row.attendance || ''));
   const currentAct = session.activities?.[session.currentActivityIndex] || null;
   const correct = scores.reduce((n, s) => n + s.correctCount, 0);
   const totalStars = scores.reduce((n, s) => n + s.stars, 0);
-  const topPerformers = [...scores]
-    .sort((a, b) => (b.stars || 0) - (a.stars || 0) || (b.points || 0) - (a.points || 0))
-    .slice(0, 3);
+  const celebratedStudents = scores.map(row => typeof row.student === 'object' ? row.student : { _id: row.student, name: 'Học sinh' });
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-white select-none">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-sm sm:text-base px-6 py-3 rounded-full shadow-2xl border-2 border-white flex items-center gap-2 animate-bounce-short">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-sm sm:text-base px-6 py-3 rounded-full border-2 border-white flex items-center gap-2 animate-bounce-short">
           <Sparkles className="w-5 h-5 text-yellow-200" />
           <span>{toastMessage}</span>
         </div>
@@ -875,7 +731,7 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Top bar: Header & Master Status ───────────────────────────────────────── */}
       <header className="flex items-center justify-between border-b border-white/10 px-5 py-3 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-xl shadow-md text-amber-950 font-black">
+          <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-xl text-amber-950 font-black">
             🏫
           </div>
           <div>
@@ -896,7 +752,7 @@ export const LiveSessionPage: React.FC = () => {
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-amber-300">
                 {session.classroom?.name || 'Mầm non'}
               </span>
-              <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-200 border border-teal-500/30 flex items-center gap-1 shadow-xs">
+              <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-200 border border-teal-500/30 flex items-center gap-1">
                 👩‍🏫 Cô: {(typeof session.teacher === 'object' && (session.teacher as any)?.name) || (session.classroom as any)?.teacher?.name || user?.name || 'Giáo viên'}
               </span>
             </h1>
@@ -904,13 +760,13 @@ export const LiveSessionPage: React.FC = () => {
         </div>
 
         {/* View Mode Switcher Tabs (Desktop / Laptop) */}
-        <div className="hidden lg:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15 shadow-inner">
+        <div className="hidden lg:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15">
           <button
             type="button"
             onClick={() => setActiveTab('warmup')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'warmup'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md scale-105 ring-2 ring-orange-300'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white scale-105 ring-2 ring-orange-300'
                 : 'text-amber-300 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -923,7 +779,7 @@ export const LiveSessionPage: React.FC = () => {
             onClick={() => setActiveTab('presentation')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'presentation'
-                ? 'bg-amber-400 text-amber-950 shadow-md scale-105'
+                ? 'bg-amber-400 text-amber-950 scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -936,7 +792,7 @@ export const LiveSessionPage: React.FC = () => {
             onClick={() => setActiveTab('sentences')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'sentences'
-                ? 'bg-teal-400 text-teal-950 shadow-md scale-105'
+                ? 'bg-teal-400 text-teal-950 scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -949,7 +805,7 @@ export const LiveSessionPage: React.FC = () => {
             onClick={() => setActiveTab('games')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'games'
-                ? 'bg-purple-500 text-white shadow-md scale-105'
+                ? 'bg-purple-500 text-white scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -962,7 +818,7 @@ export const LiveSessionPage: React.FC = () => {
             onClick={() => setActiveTab('wrapup')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'wrapup'
-                ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md scale-105'
+                ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 scale-105'
                 : 'text-amber-300 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -975,7 +831,7 @@ export const LiveSessionPage: React.FC = () => {
             onClick={() => setActiveTab('grid')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'grid'
-                ? 'bg-sky-500 text-white shadow-md scale-105'
+                ? 'bg-sky-500 text-white scale-105'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -1008,7 +864,7 @@ export const LiveSessionPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setCopilotOpen(!copilotOpen)}
-            className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md ${
+            className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black transition-all cursor-pointer ${
               copilotOpen
                 ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 scale-105'
                 : 'bg-white/10 hover:bg-white/20 text-amber-300 border border-amber-400/40'
@@ -1023,7 +879,7 @@ export const LiveSessionPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsExitModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black text-slate-200 border border-white/15 transition-all cursor-pointer shadow-xs active:scale-95"
+            className="flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black text-slate-200 border border-white/15 transition-all cursor-pointer active:scale-95"
             title="Thoát hoặc tạm dừng buổi dạy"
           >
             <LogOut size={15} className="text-amber-300" />
@@ -1034,7 +890,7 @@ export const LiveSessionPage: React.FC = () => {
             type="button"
             onClick={handleEnd}
             disabled={ending}
-            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-black text-white shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-black text-white active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             title="Kết thúc hoặc dừng buổi dạy"
           >
             <StopCircle size={15} />
@@ -1115,12 +971,12 @@ export const LiveSessionPage: React.FC = () => {
         {activeTab === 'warmup' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Left 8 Cols: Giant Warm-up Review Flashcard & Projection */}
-            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-orange-950/20 to-slate-900 rounded-4xl border-3 border-orange-400/50 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-orange-950/20 to-slate-900 rounded-4xl border-3 border-orange-400/50 p-5 sm:p-8 relative overflow-hidden">
               {/* Header badge & controls */}
               <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5 shadow-md">
+                    <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5">
                       <Flame size={16} className="fill-white" />
                       Ôn Cũ Học Mới: Bài học ngay trước đó
                     </span>
@@ -1145,7 +1001,7 @@ export const LiveSessionPage: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                   {/* Switcher Vocab vs Patterns vs Freeze Dance */}
-                  <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-white/15 shadow-inner">
+                  <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-white/15">
                     <button
                       type="button"
                       onClick={() => {
@@ -1154,7 +1010,7 @@ export const LiveSessionPage: React.FC = () => {
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                         warmupSection === 'vocab'
-                          ? 'bg-orange-500 text-white shadow-xs'
+                          ? 'bg-orange-500 text-white'
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -1168,7 +1024,7 @@ export const LiveSessionPage: React.FC = () => {
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                         warmupSection === 'patterns'
-                          ? 'bg-teal-500 text-white shadow-xs'
+                          ? 'bg-teal-500 text-white'
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -1182,7 +1038,7 @@ export const LiveSessionPage: React.FC = () => {
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                         warmupSection === 'freeze-dance'
-                          ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-xs'
+                          ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
                           : 'text-cyan-300 hover:text-white'
                       }`}
                     >
@@ -1252,18 +1108,18 @@ export const LiveSessionPage: React.FC = () => {
               {warmupSection === 'vocab' && currentWarmupVocab && (
                 <div className="flex flex-col items-center text-center my-auto w-full">
                   {/* Card Image */}
-                  <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-4xl bg-white p-4 shadow-2xl border-4 border-orange-400 mb-5 flex items-center justify-center relative group">
+                  <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-4xl bg-white p-4 border-4 border-orange-400 mb-5 flex items-center justify-center relative group">
                     <img
                       src={currentWarmupVocab.imageUrl}
                       alt={currentWarmupVocab.english}
-                      className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform"
+                      className="w-full h-full object-contain filter group-hover:scale-105 transition-transform"
                     />
                     <button
                       onClick={() => {
                         sfx.playPop();
                         playWordAudio(currentWarmupVocab.english, currentWarmupVocab.audioUrl);
                       }}
-                      className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 hover:from-orange-400 hover:to-amber-300 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-6 ring-orange-300/40"
+                      className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 hover:from-orange-400 hover:to-amber-300 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-6 ring-orange-300/40"
                       title="Phát âm từ này"
                     >
                       <Volume2 size={26} />
@@ -1271,7 +1127,7 @@ export const LiveSessionPage: React.FC = () => {
                   </div>
 
                   {/* Word title */}
-                  <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-orange-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
+                  <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-orange-400 font-display tracking-wide uppercase mb-2">
                     {currentWarmupVocab.english}
                   </h2>
 
@@ -1317,16 +1173,14 @@ export const LiveSessionPage: React.FC = () => {
               {warmupSection === 'patterns' && currentWarmupPattern && (
                 <div className="flex flex-col items-center text-center my-auto w-full">
                   {/* Pattern Illustration Frame */}
-                  <div className="w-44 h-44 sm:w-56 sm:h-56 rounded-4xl bg-white/10 p-4 shadow-2xl border-4 border-amber-400/60 mb-5 flex items-center justify-center relative">
-                    <span className="text-7xl sm:text-8xl filter drop-shadow">
-                      {getSentenceIllustration(currentWarmupPattern.english)}
-                    </span>
+                  <div className="w-44 h-44 sm:w-56 sm:h-56 rounded-4xl bg-white/10 p-4 border-4 border-amber-400/60 mb-5 flex items-center justify-center relative">
+                    <img src={getSentenceIllustration(currentWarmupPattern.english)} alt="" className="w-full h-full object-contain" />
                     <button
                       onClick={() => {
                         sfx.playPop();
                         playWordAudio(currentWarmupPattern.english, currentWarmupPattern.audioUrl || undefined);
                       }}
-                      className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 hover:from-amber-400 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-4 ring-amber-300/40"
+                      className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 hover:from-amber-400 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-4 ring-amber-300/40"
                       title="Nghe phát âm mẫu câu này"
                     >
                       <Volume2 size={24} />
@@ -1334,7 +1188,7 @@ export const LiveSessionPage: React.FC = () => {
                   </div>
 
                   {/* Sentence English Text */}
-                  <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-amber-300 font-display tracking-wide uppercase drop-shadow-md mb-2 max-w-2xl">
+                  <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-amber-300 font-display tracking-wide uppercase mb-2 max-w-2xl">
                     &ldquo;{currentWarmupPattern.english}&rdquo;
                   </h2>
 
@@ -1397,7 +1251,7 @@ export const LiveSessionPage: React.FC = () => {
                     {freezeState === 'dancing' && (
                       <div className="flex flex-col items-center gap-3">
                         <div className="relative">
-                          <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center text-7xl sm:text-8xl shadow-2xl animate-pulse ring-8 ring-cyan-300/40">
+                          <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center text-7xl sm:text-8xl animate-pulse ring-8 ring-cyan-300/40">
                             💃
                           </div>
                           <span className="absolute -top-2 -right-2 text-4xl animate-bounce">🎵</span>
@@ -1415,7 +1269,7 @@ export const LiveSessionPage: React.FC = () => {
 
                     {freezeState === 'frozen' && (
                       <div className="flex flex-col items-center gap-3 animate-bounce-short">
-                        <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-tr from-blue-300 to-cyan-500 flex items-center justify-center text-7xl sm:text-8xl shadow-2xl ring-8 ring-cyan-200">
+                        <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-gradient-to-tr from-blue-300 to-cyan-500 flex items-center justify-center text-7xl sm:text-8xl ring-8 ring-cyan-200">
                           🧊
                         </div>
                         <h2 className="text-4xl sm:text-6xl font-black text-cyan-200 font-display uppercase tracking-wider drop-shadow-[0_0_25px_rgba(56,189,248,0.8)]">
@@ -1434,7 +1288,7 @@ export const LiveSessionPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleStartFreezeDance}
-                        className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-base sm:text-lg px-8 py-4 rounded-3xl shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-cyan-300/30"
+                        className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-base sm:text-lg px-8 py-4 rounded-3xl active:scale-95 transition-all cursor-pointer ring-4 ring-cyan-300/30"
                       >
                         <Play size={22} className="fill-white" />
                         <span>Bắt Đầu Nhảy (Play Dance Music) 🎵</span>
@@ -1446,7 +1300,7 @@ export const LiveSessionPage: React.FC = () => {
                           setFreezeState('frozen');
                           sfx.playFreezeSound();
                         }}
-                        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 text-white font-black text-base sm:text-lg px-8 py-4 rounded-3xl shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-blue-300/40"
+                        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 text-white font-black text-base sm:text-lg px-8 py-4 rounded-3xl active:scale-95 transition-all cursor-pointer ring-4 ring-blue-300/40"
                       >
                         <span>🧊 BẤM FREEZE NGAY!</span>
                       </button>
@@ -1458,7 +1312,7 @@ export const LiveSessionPage: React.FC = () => {
                             handleAwardWholeClass(1, 5);
                             showToast('⭐ Cả lớp đứng im xuất sắc! +1 sao cho tất cả các bé!');
                           }}
-                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-6 py-3.5 rounded-2xl shadow-xl active:scale-95 transition-all cursor-pointer"
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-6 py-3.5 rounded-2xl active:scale-95 transition-all cursor-pointer"
                         >
                           <Star size={20} className="fill-slate-950" />
                           <span>Thưởng Cả Lớp +1 ⭐</span>
@@ -1466,7 +1320,7 @@ export const LiveSessionPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleStartFreezeDance}
-                          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm sm:text-base px-6 py-3.5 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer"
+                          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm sm:text-base px-6 py-3.5 rounded-2xl active:scale-95 transition-all cursor-pointer"
                         >
                           <RotateCcw size={18} />
                           <span>Chơi Vòng Nữa 🔄</span>
@@ -1490,7 +1344,7 @@ export const LiveSessionPage: React.FC = () => {
                     setActiveTab('presentation');
                     showToast('🚀 Ôn bài cũ hoàn tất! Bắt đầu Giảng dạy bài mới!');
                   }}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-sm sm:text-base px-6 py-3 rounded-2xl shadow-xl active:scale-95 transition-all cursor-pointer"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-sm sm:text-base px-6 py-3 rounded-2xl active:scale-95 transition-all cursor-pointer"
                 >
                   <span>Hoàn thành Ôn Bài Cũ ➔ Giảng Bài Mới</span>
                   <ArrowRight size={18} />
@@ -1501,7 +1355,7 @@ export const LiveSessionPage: React.FC = () => {
             {/* Right 4 Cols: Warm-up Rewards, Spotlight Student, Vocab/Pattern Quick Jump */}
             <div className="lg:col-span-4 flex flex-col gap-4">
               {/* Quick Whole-Class & Random Call Actions */}
-              <div className="bg-slate-900/90 rounded-3xl border border-white/10 p-5 shadow-xl">
+              <div className="bg-slate-900/90 rounded-3xl border border-white/10 p-5">
                 <h3 className="text-xs font-black text-orange-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Flame size={15} /> Thưởng sao ôn bài cũ
                 </h3>
@@ -1509,7 +1363,7 @@ export const LiveSessionPage: React.FC = () => {
                 <div className="space-y-2.5">
                   <button
                     onClick={() => handleAwardWholeClass(1, 5)}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-sm py-3 px-4 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-sm py-3 px-4 rounded-2xl active:scale-95 transition-all cursor-pointer"
                   >
                     <Star size={18} className="fill-white" />
                     <span>Thưởng Sao Cả Lớp (+1 ⭐ / bé)</span>
@@ -1518,7 +1372,7 @@ export const LiveSessionPage: React.FC = () => {
                   <button
                     onClick={pickRandomStudent}
                     disabled={isPickingRandom}
-                    className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-sm py-2.5 px-4 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-sm py-2.5 px-4 rounded-2xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                   >
                     <Shuffle size={16} />
                     <span>{isPickingRandom ? 'Đang quay chọn…' : '🎲 Gọi 1 bé ngẫu nhiên lên ôn bài'}</span>
@@ -1528,7 +1382,7 @@ export const LiveSessionPage: React.FC = () => {
 
               {/* Spotlight student display if picked */}
               {spotlightStudent && (
-                <div className="bg-gradient-to-br from-purple-950/70 to-slate-900 rounded-3xl border-2 border-purple-400 p-4 shadow-xl animate-fade-in">
+                <div className="bg-gradient-to-br from-purple-950/70 to-slate-900 rounded-3xl border-2 border-purple-400 p-4 animate-fade-in">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-extrabold text-purple-300 uppercase">Bé được gọi</span>
                     <button
@@ -1558,7 +1412,7 @@ export const LiveSessionPage: React.FC = () => {
                           showToast(`⭐ Đã thưởng sao cho ${(spotlightStudent.student as User)?.name}!`);
                         }
                       }}
-                      className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-black px-3 py-2 rounded-xl text-xs flex items-center gap-1 shadow-md active:scale-90 transition-all cursor-pointer"
+                      className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-black px-3 py-2 rounded-xl text-xs flex items-center gap-1 active:scale-90 transition-all cursor-pointer"
                     >
                       <Star size={14} className="fill-amber-950" /> +1 Sao
                     </button>
@@ -1567,7 +1421,7 @@ export const LiveSessionPage: React.FC = () => {
               )}
 
               {/* Quick Jump List: Vocab or Patterns of preceding lesson */}
-              <div className="bg-slate-900/90 rounded-3xl border border-white/10 p-4 shadow-xl flex-1 flex flex-col">
+              <div className="bg-slate-900/90 rounded-3xl border border-white/10 p-4 flex-1 flex flex-col">
                 <div className="flex items-center justify-between mb-2 pb-1 border-b border-white/10">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     {warmupSection === 'vocab'
@@ -1593,7 +1447,7 @@ export const LiveSessionPage: React.FC = () => {
                           }}
                           className={`flex items-center gap-2 p-2 rounded-xl text-left transition-all ${
                             isCur
-                              ? 'bg-orange-500 text-white font-bold shadow-md ring-2 ring-orange-300'
+                              ? 'bg-orange-500 text-white font-bold ring-2 ring-orange-300'
                               : 'bg-white/5 hover:bg-white/10 text-slate-300'
                           }`}
                         >
@@ -1625,11 +1479,11 @@ export const LiveSessionPage: React.FC = () => {
                             }}
                             className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all ${
                               isCur
-                                ? 'bg-teal-600 text-white font-bold shadow-md ring-2 ring-teal-300'
+                                ? 'bg-teal-600 text-white font-bold ring-2 ring-teal-300'
                                 : 'bg-white/5 hover:bg-white/10 text-slate-300'
                             }`}
                           >
-                            <span className="text-lg shrink-0">{getSentenceIllustration(pat.english)}</span>
+                            <img src={getSentenceIllustration(pat.english)} alt="" className="w-9 h-9 object-contain shrink-0" />
                             <div className="truncate min-w-0 flex-1">
                               <p className="text-xs font-bold truncate">{pat.english}</p>
                               <p className="text-[10px] opacity-75 truncate">{pat.vietnamese}</p>
@@ -1651,7 +1505,7 @@ export const LiveSessionPage: React.FC = () => {
         {activeTab === 'presentation' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Left Col (8 cols): Giant Presentation Flashcard for classroom display */}
-            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 to-slate-800 rounded-4xl border-3 border-amber-400/40 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 to-slate-800 rounded-4xl border-3 border-amber-400/40 p-5 sm:p-8 relative overflow-hidden">
               <div className="w-full flex items-center justify-between mb-4">
                 <span className="bg-amber-400/20 border border-amber-400/40 text-amber-300 font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5">
                   <Sparkles size={14} />
@@ -1685,27 +1539,16 @@ export const LiveSessionPage: React.FC = () => {
               {/* Giant Flashcard Content */}
               <div className="flex flex-col items-center text-center my-auto w-full">
                 {/* Visual Image Frame */}
-                <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-4xl bg-white p-4 shadow-2xl border-4 border-amber-300 mb-6 flex items-center justify-center relative group">
+                <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-4xl bg-white p-4 border-4 border-amber-300 mb-6 flex items-center justify-center relative group">
                   <img
                     src={currentVocab.imageUrl}
                     alt={currentVocab.english}
-                    className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform"
+                    className="w-full h-full object-contain filter group-hover:scale-105 transition-transform"
                   />
-                  {/* Pronounce Speaker on Card */}
-                  <button
-                    onClick={() => {
-                      sfx.playPop();
-                      playWordAudio(currentVocab.english, currentVocab.audioUrl);
-                    }}
-                    className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-6 ring-amber-300/50"
-                    title="Cô bấm để phát âm chuẩn"
-                  >
-                    <Volume2 size={26} />
-                  </button>
                 </div>
 
                 {/* English Word */}
-                <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-amber-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
+                <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-amber-400 font-display tracking-wide uppercase mb-2">
                   {currentVocab.english}
                 </h2>
 
@@ -1723,8 +1566,8 @@ export const LiveSessionPage: React.FC = () => {
 
                 {/* Physical TPR Mime Action Callout from Lesson Plan */}
                 {currentTprGesture && (
-                  <div className="w-full max-w-xl mx-auto my-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-amber-500/25 border-2 border-amber-400/50 flex items-center gap-3.5 shadow-lg backdrop-blur-sm">
-                    <div className="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-2xl shrink-0 shadow-md">
+                  <div className="w-full max-w-xl mx-auto my-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-amber-500/25 border-2 border-amber-400/50 flex items-center gap-3.5 backdrop-blur-sm">
+                    <div className="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-2xl shrink-0">
                       🤸
                     </div>
                     <div className="text-left">
@@ -1748,15 +1591,15 @@ export const LiveSessionPage: React.FC = () => {
                     className="flex items-center gap-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/40 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm cursor-pointer active:scale-95 transition-all"
                   >
                     <Volume2 size={18} />
-                    <span>Cả lớp đồng thanh đọc</span>
+                    <span>Nghe mẫu</span>
                   </button>
 
                   <button
                     onClick={pickRandomStudent}
-                    className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-5 sm:px-6 py-2.5 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer text-xs sm:text-sm"
+                    className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-5 sm:px-6 py-2.5 rounded-2xl active:scale-95 transition-all cursor-pointer text-xs sm:text-sm"
                   >
                     <Mic size={18} />
-                    <span>Mời 1 bé đọc từ này 🎲</span>
+                    <span>Gọi bé đọc</span>
                   </button>
                 </div>
               </div>
@@ -1791,11 +1634,11 @@ export const LiveSessionPage: React.FC = () => {
             </div>
 
             {/* Right Col: Quick Grading on the Spot */}
-            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-4 sm:p-5 shadow-xl">
+            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-4 sm:p-5">
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
                   <Award size={18} className="text-amber-400" />
-                  <h3 className="font-black text-base text-white">Chấm Điểm Nhanh</h3>
+                  <h3 className="font-black text-base text-white">Gọi đọc & Thưởng sao</h3>
                 </div>
                 <span className="text-xs font-bold text-slate-400">{scores.length} học sinh</span>
               </div>
@@ -1804,17 +1647,17 @@ export const LiveSessionPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <button
                   onClick={() => handleAwardWholeClass(1, 5)}
-                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all shadow-sm"
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <Star size={14} className="fill-amber-400" />
                   <span>Cả lớp +1 ⭐</span>
                 </button>
                 <button
                   onClick={() => handleAwardWholeClass(0, 5)}
-                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-300 hover:bg-sky-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all shadow-sm"
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-300 hover:bg-sky-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <ThumbsUp size={14} />
-                  <span>Khen cả lớp +5đ</span>
+                  <span>Khen cả lớp</span>
                 </button>
               </div>
 
@@ -1828,7 +1671,7 @@ export const LiveSessionPage: React.FC = () => {
                   return (
                     <div
                       key={sid}
-                      className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors"
+                      className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="relative w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 border border-white/20 group cursor-pointer">
@@ -1838,38 +1681,38 @@ export const LiveSessionPage: React.FC = () => {
                             initials(sName)
                           )}
                           <div
-                            className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-white shadow-xs font-bold"
+                            className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-white font-bold"
                             title="Ý kiến phụ huynh: Bé chăm ngoan!"
                           >
                             💬
                           </div>
                         </div>
                         <div className="truncate">
-                          <p className="text-xs font-bold text-white truncate">{sName}</p>
+                          <p className="text-base font-bold text-white truncate">{sName}</p>
                           <p className="text-[11px] text-amber-300 flex items-center gap-1 font-semibold">
                             <Star size={10} className="fill-amber-400 text-amber-400" />
-                            {sc.stars} sao &bull; {sc.points}đ
+                            {sc.stars} sao
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-2">
                         <button
                           onClick={() => {
                             void applyScore(sid, { stars: 1, points: 5 });
                             showToast(`⭐ +1 Sao cho ${sName}!`);
                           }}
-                          className="px-2 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs cursor-pointer active:scale-95 shadow-xs"
+                          className="min-h-11 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-sm cursor-pointer active:scale-95"
                           title="Thưởng 1 sao"
                         >
                           +1 ⭐
                         </button>
                         <button
                           onClick={() => setSpotlightStudent(sc)}
-                          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95"
+                          className="flex min-h-11 items-center gap-1.5 px-3 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-950 font-bold text-sm cursor-pointer active:scale-95"
                           title="Mời bé phát biểu"
                         >
-                          <Mic size={13} />
+                          <Mic size={18} /><span>Gọi đọc</span>
                         </button>
                       </div>
                     </div>
@@ -1886,7 +1729,7 @@ export const LiveSessionPage: React.FC = () => {
         {activeTab === 'sentences' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Left Col (8 cols): Giant Presentation for Sentence Patterns */}
-            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-indigo-950/40 to-slate-900 rounded-4xl border-3 border-teal-400/40 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+            <div className="lg:col-span-8 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 via-indigo-950/40 to-slate-900 rounded-4xl border-3 border-teal-400/40 p-5 sm:p-8 relative overflow-hidden">
               {/* Top bar in sentence presentation */}
               <div className="w-full flex items-center justify-between mb-4">
                 <span className="bg-teal-400/20 border border-teal-400/40 text-teal-300 font-black px-4 py-1.5 rounded-full text-xs sm:text-sm flex items-center gap-1.5">
@@ -1949,7 +1792,7 @@ export const LiveSessionPage: React.FC = () => {
                   return (
                     <div className="flex flex-col items-center text-center my-auto w-full max-w-2xl">
                       {/* Question or Lead Sentence Card */}
-                      <div className="relative w-full rounded-3xl bg-white/10 border-2 border-teal-300/40 p-5 sm:p-7 shadow-xl backdrop-blur-xs mb-5">
+                      <div className="relative w-full rounded-3xl bg-white/10 border-2 border-teal-300/40 p-5 sm:p-7 backdrop-blur-xs mb-5">
                         <div className="flex items-center justify-between mb-4">
                           <span className="text-[11px] font-black uppercase tracking-wider text-teal-300 bg-teal-950/60 px-3 py-1 rounded-full border border-teal-400/30">
                             {currentPattern.contentType === 'QUESTION' ? '❓ Câu hỏi tương tác' : '💬 Mẫu câu đàm thoại'}
@@ -1961,7 +1804,7 @@ export const LiveSessionPage: React.FC = () => {
                               sfx.playPop();
                               playWordAudio(currentPattern.english, currentPattern.audioUrl || undefined);
                             }}
-                            className="w-12 h-12 rounded-2xl bg-teal-500 hover:bg-teal-400 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer ring-4 ring-teal-400/30"
+                            className="w-12 h-12 rounded-2xl bg-teal-500 hover:bg-teal-400 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-4 ring-teal-400/30"
                             title="Cô bấm để phát âm câu hỏi"
                           >
                             <Volume2 size={24} />
@@ -1969,16 +1812,16 @@ export const LiveSessionPage: React.FC = () => {
                         </div>
 
                         {/* Question Visual Illustration Frame */}
-                        <div className="relative mx-auto mb-4 w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 rounded-4xl bg-white p-3 shadow-2xl border-4 border-teal-300 flex items-center justify-center group">
+                        <div className="relative mx-auto mb-4 w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 rounded-4xl bg-white p-3 border-4 border-teal-300 flex items-center justify-center group">
                           <img
                             src={getSentenceIllustration(currentPattern.english, currentPattern.imageUrl, false)}
                             alt={currentPattern.english}
-                            className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform"
+                            className="w-full h-full object-contain filter group-hover:scale-105 transition-transform"
                           />
                         </div>
 
                         {/* Big Question Text */}
-                        <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white font-display tracking-wide drop-shadow-md mb-3 leading-tight">
+                        <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white font-display tracking-wide mb-3 leading-tight">
                           {currentPattern.english}
                         </h2>
 
@@ -2005,13 +1848,13 @@ export const LiveSessionPage: React.FC = () => {
                               sfx.playCorrect();
                               setIsAnswerRevealed(true);
                             }}
-                            className="w-full py-4 sm:py-5 px-6 rounded-3xl border-2 border-dashed border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 font-black text-base sm:text-xl flex items-center justify-center gap-3 transition-all cursor-pointer group active:scale-98 shadow-md"
+                            className="w-full py-4 sm:py-5 px-6 rounded-3xl border-2 border-dashed border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 font-black text-base sm:text-xl flex items-center justify-center gap-3 transition-all cursor-pointer group active:scale-98"
                           >
                             <HelpCircle size={24} className="group-hover:rotate-12 transition-transform text-amber-400" />
                             <span>Bấm để lật mở câu trả lời cho bé ✨</span>
                           </button>
                         ) : (
-                          <div className="w-full rounded-3xl bg-gradient-to-r from-emerald-950/70 via-teal-900/60 to-emerald-950/70 border-2 border-emerald-400 p-5 sm:p-6 shadow-xl relative animate-pop-in">
+                          <div className="w-full rounded-3xl bg-gradient-to-r from-emerald-950/70 via-teal-900/60 to-emerald-950/70 border-2 border-emerald-400 p-5 sm:p-6 relative animate-pop-in">
                             <div className="flex items-center justify-between mb-3">
                               <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-400/30">
                                 ✨ Câu trả lời của bé
@@ -2032,7 +1875,7 @@ export const LiveSessionPage: React.FC = () => {
                                     sfx.playPop();
                                     playWordAudio(ansText, ansAudio || undefined);
                                   }}
-                                  className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
+                                  className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
                                   title="Phát âm câu trả lời"
                                 >
                                   <Volume2 size={20} />
@@ -2050,7 +1893,7 @@ export const LiveSessionPage: React.FC = () => {
                                   key={ans._id || aIdx}
                                   className="flex flex-col sm:flex-row items-center justify-center gap-4 bg-white/5 rounded-2xl p-3 border border-emerald-400/30"
                                 >
-                                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-1.5 shadow-md border-2 border-emerald-300 shrink-0 flex items-center justify-center">
+                                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-1.5 border-2 border-emerald-300 shrink-0 flex items-center justify-center">
                                     <img
                                       src={getSentenceIllustration(ans.english, ans.imageUrl, true)}
                                       alt={ans.english}
@@ -2058,7 +1901,7 @@ export const LiveSessionPage: React.FC = () => {
                                     />
                                   </div>
                                   <div className="text-center sm:text-left min-w-0">
-                                    <p className="text-2xl sm:text-3xl md:text-4xl font-black text-amber-300 font-display drop-shadow-sm leading-tight">
+                                    <p className="text-2xl sm:text-3xl md:text-4xl font-black text-amber-300 font-display leading-tight">
                                       {ans.english}
                                     </p>
                                     {ans.vietnamese && (
@@ -2095,7 +1938,7 @@ export const LiveSessionPage: React.FC = () => {
                         {/* Random student picker */}
                         <button
                           onClick={pickRandomStudent}
-                          className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl shadow-lg active:scale-95 transition-all cursor-pointer text-xs sm:text-sm"
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl active:scale-95 transition-all cursor-pointer text-xs sm:text-sm"
                         >
                           <span>Mời 1 bé trả lời 🎲</span>
                         </button>
@@ -2115,7 +1958,7 @@ export const LiveSessionPage: React.FC = () => {
                   </p>
                   <button
                     onClick={() => navigate('/teacher/sentences')}
-                    className="px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black text-sm shadow-lg active:scale-95 transition-all cursor-pointer"
+                    className="px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black text-sm active:scale-95 transition-all cursor-pointer"
                   >
                     Xem ngân hàng mẫu câu 🚀
                   </button>
@@ -2154,7 +1997,7 @@ export const LiveSessionPage: React.FC = () => {
             </div>
 
             {/* Right Col: Quick Grading Panel */}
-            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-4 sm:p-5 shadow-xl">
+            <div className="lg:col-span-4 flex flex-col bg-slate-900/80 rounded-4xl border border-white/15 p-4 sm:p-5">
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
                   <Award size={18} className="text-teal-400" />
@@ -2167,14 +2010,14 @@ export const LiveSessionPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <button
                   onClick={() => handleAwardWholeClass(1, 5)}
-                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all shadow-sm"
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <Star size={14} className="fill-amber-400" />
                   <span>Cả lớp +1 ⭐</span>
                 </button>
                 <button
                   onClick={() => handleAwardWholeClass(0, 5)}
-                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 hover:bg-teal-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all shadow-sm"
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 hover:bg-teal-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <ThumbsUp size={14} />
                   <span>Khen nói hay +5đ</span>
@@ -2216,7 +2059,7 @@ export const LiveSessionPage: React.FC = () => {
                             void applyScore(sid, { stars: 1, points: 5 });
                             showToast(`⭐ +1 Sao cho ${sName}!`);
                           }}
-                          className="px-2 py-1 rounded-lg bg-teal-400 hover:bg-teal-300 text-teal-950 font-black text-xs cursor-pointer active:scale-95 shadow-xs"
+                          className="px-2 py-1 rounded-lg bg-teal-400 hover:bg-teal-300 text-teal-950 font-black text-xs cursor-pointer active:scale-95"
                           title="Thưởng 1 sao"
                         >
                           +1 ⭐
@@ -2241,11 +2084,11 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 2: CLASSROOM INTERACTIVE GAMES (Trò chơi lớp học)                     */}
         {/* ========================================================================= */}
         {activeTab === 'games' && (
-          <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-purple-500/40 p-6 sm:p-8 shadow-2xl">
+          <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-purple-500/40 p-6 sm:p-8">
             {/* Game Header & Mode selection */}
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500 flex items-center justify-center text-2xl shadow-lg">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500 flex items-center justify-center text-2xl">
                   🎮
                 </div>
                 <div>
@@ -2261,7 +2104,7 @@ export const LiveSessionPage: React.FC = () => {
                 <button
                   onClick={() => setClassroomGameMode('mystery-box')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                    classroomGameMode === 'mystery-box' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 shadow font-black' : 'text-slate-400 hover:text-white'
+                    classroomGameMode === 'mystery-box' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   🎁 Hộp Bí Mật
@@ -2269,7 +2112,7 @@ export const LiveSessionPage: React.FC = () => {
                 <button
                   onClick={() => setClassroomGameMode('listen-choose')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                    classroomGameMode === 'listen-choose' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                    classroomGameMode === 'listen-choose' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   🎧 Nghe & Chọn
@@ -2277,7 +2120,7 @@ export const LiveSessionPage: React.FC = () => {
                 <button
                   onClick={() => setClassroomGameMode('true-false')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                    classroomGameMode === 'true-false' ? 'bg-emerald-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                    classroomGameMode === 'true-false' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   👍 Đúng hay Sai
@@ -2285,7 +2128,7 @@ export const LiveSessionPage: React.FC = () => {
                 <button
                   onClick={() => setClassroomGameMode('animal-sound')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                    classroomGameMode === 'animal-sound' ? 'bg-orange-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                    classroomGameMode === 'animal-sound' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   🐾 Tiếng kêu con vật
@@ -2309,12 +2152,12 @@ export const LiveSessionPage: React.FC = () => {
                       {/* Bouncing Gift Box */}
                       <div
                         onClick={handleOpenMysteryBox}
-                        className={`w-48 h-48 sm:w-60 sm:h-60 rounded-4xl bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-300 p-6 flex flex-col items-center justify-center shadow-2xl border-4 border-amber-200 cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                        className={`w-48 h-48 sm:w-60 sm:h-60 rounded-4xl bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-300 p-6 flex flex-col items-center justify-center border-4 border-amber-200 cursor-pointer transition-all hover:scale-105 active:scale-95 ${
                           isMysteryShaking ? 'animate-bounce' : 'hover:animate-pulse'
                         }`}
                       >
-                        <span className="text-7xl sm:text-8xl filter drop-shadow-lg">🎁</span>
-                        <span className="text-slate-950 font-black text-sm sm:text-base mt-2 bg-white/90 px-3 py-1 rounded-full shadow-xs">
+                        <span className="text-7xl sm:text-8xl filter">🎁</span>
+                        <span className="text-slate-950 font-black text-sm sm:text-base mt-2 bg-white/90 px-3 py-1 rounded-full">
                           {isMysteryShaking ? 'Đang mở hộp… 🥁' : 'BẤM ĐỂ MỞ HỘP'}
                         </span>
                       </div>
@@ -2331,7 +2174,7 @@ export const LiveSessionPage: React.FC = () => {
                           type="button"
                           onClick={handleOpenMysteryBox}
                           disabled={isMysteryShaking}
-                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl shadow-xl active:scale-95 cursor-pointer disabled:opacity-50"
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl active:scale-95 cursor-pointer disabled:opacity-50"
                         >
                           <Sparkles size={18} />
                           <span>Mở Hộp Ngay!</span>
@@ -2349,18 +2192,18 @@ export const LiveSessionPage: React.FC = () => {
                   ) : (
                     <div className="flex flex-col items-center animate-fade-in w-full">
                       {/* Revealed Card Frame */}
-                      <div className="w-52 h-52 sm:w-64 sm:h-64 rounded-4xl bg-white p-4 shadow-2xl border-4 border-amber-300 mb-4 flex items-center justify-center relative ring-8 ring-amber-400/30">
+                      <div className="w-52 h-52 sm:w-64 sm:h-64 rounded-4xl bg-white p-4 border-4 border-amber-300 mb-4 flex items-center justify-center relative ring-8 ring-amber-400/30">
                         <img
                           src={currentMysteryVocab.imageUrl}
                           alt={currentMysteryVocab.english}
-                          className="w-full h-full object-contain filter drop-shadow-md animate-scale-up"
+                          className="w-full h-full object-contain filter animate-scale-up"
                         />
                         <button
                           onClick={() => {
                             sfx.playPop();
                             playWordAudio(currentMysteryVocab.english, currentMysteryVocab.audioUrl);
                           }}
-                          className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-xl active:scale-90 cursor-pointer ring-4 ring-amber-300/40"
+                          className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center active:scale-90 cursor-pointer ring-4 ring-amber-300/40"
                           title="Phát âm từ"
                         >
                           <Volume2 size={24} />
@@ -2368,7 +2211,7 @@ export const LiveSessionPage: React.FC = () => {
                       </div>
 
                       {/* English Word & Meaning */}
-                      <h2 className="text-4xl sm:text-6xl font-black text-amber-400 font-display tracking-wide uppercase drop-shadow-md mb-2">
+                      <h2 className="text-4xl sm:text-6xl font-black text-amber-400 font-display tracking-wide uppercase mb-2">
                         {currentMysteryVocab.english}
                       </h2>
                       <div className="flex items-center gap-2 text-slate-300 text-base sm:text-lg font-bold mb-4">
@@ -2402,7 +2245,7 @@ export const LiveSessionPage: React.FC = () => {
                             handleAwardWholeClass(1, 5);
                             showToast(`⭐ Cả lớp gọi đúng "${currentMysteryVocab.english}"! +1 sao!`);
                           }}
-                          className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-white font-black text-sm px-6 py-3 rounded-2xl shadow-lg active:scale-95 cursor-pointer"
+                          className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-white font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer"
                         >
                           <Star size={18} className="fill-white" />
                           <span>Bé / Cả lớp đoán đúng (+1 ⭐)</span>
@@ -2410,7 +2253,7 @@ export const LiveSessionPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleOpenMysteryBox}
-                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl shadow-lg active:scale-95 cursor-pointer"
+                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer"
                         >
                           <Gift size={18} />
                           <span>Hộp Tiếp Theo ➔</span>
@@ -2427,7 +2270,7 @@ export const LiveSessionPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => playWordAudio(currentVocab.english, currentVocab.audioUrl)}
-                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 text-white flex items-center justify-center shadow-2xl active:scale-95 cursor-pointer ring-8 ring-sky-400/30 animate-pulse hover:scale-105 transition-all"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-sky-400 to-blue-600 text-white flex items-center justify-center active:scale-95 cursor-pointer ring-8 ring-sky-400/30 animate-pulse hover:scale-105 transition-all"
                       title="Bấm để nghe phát âm"
                     >
                       <Volume2 size={40} />
@@ -2472,19 +2315,19 @@ export const LiveSessionPage: React.FC = () => {
                               sfx.playGentleWrong();
                             }
                           }}
-                          className={`rounded-3xl border-3 p-4 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 shadow-lg relative group ${borderClass}`}
+                          className={`rounded-3xl border-3 p-4 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 relative group ${borderClass}`}
                         >
                           {listenPickSelectedId && isCorrectAnswer && (
-                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg font-black text-sm animate-bounce">
+                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-sm animate-bounce">
                               ✓
                             </div>
                           )}
                           {isChosen && !isCorrectAnswer && (
-                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg font-black text-sm">
+                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-black text-sm">
                               ✕
                             </div>
                           )}
-                          <div className="w-24 h-24 sm:w-28 sm:h-28 mb-3 flex items-center justify-center p-2 bg-white rounded-2xl shadow-inner group-hover:scale-105 transition-transform">
+                          <div className="w-24 h-24 sm:w-28 sm:h-28 mb-3 flex items-center justify-center p-2 bg-white rounded-2xl group-hover:scale-105 transition-transform">
                             <img src={v.imageUrl} alt="" className="w-full h-full object-contain" />
                           </div>
                           <span className="font-black text-base text-white tracking-wide">{v.english}</span>
@@ -2509,7 +2352,7 @@ export const LiveSessionPage: React.FC = () => {
                             handleAwardWholeClass(1, 5);
                             showToast(`⭐ Thưởng cả lớp trả lời đúng câu hỏi!`);
                           }}
-                          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
                         >
                           <Star size={16} className="fill-amber-950" /> Thưởng cả lớp (+1 ⭐)
                         </button>
@@ -2522,7 +2365,7 @@ export const LiveSessionPage: React.FC = () => {
                             setCurrentVocabIndex((prev) => (prev + 1) % activeVocabList.length);
                             setGameQuestionIdx((prev) => prev + 1);
                           }}
-                          className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
                         >
                           <span>Câu tiếp theo ➔</span>
                         </button>
@@ -2563,12 +2406,12 @@ export const LiveSessionPage: React.FC = () => {
                       Bé hãy quan sát hình ảnh và cho cô biết câu hỏi dưới đây là ĐÚNG hay SAI:
                     </p>
 
-                    <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-3xl bg-white p-3 border-4 border-amber-300 shadow-2xl mb-4 flex items-center justify-center relative group">
-                      <img src={currentVocab.imageUrl} alt="" className="w-full h-full object-contain filter drop-shadow group-hover:scale-105 transition-transform" />
+                    <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-3xl bg-white p-3 border-4 border-amber-300 mb-4 flex items-center justify-center relative group">
+                      <img src={currentVocab.imageUrl} alt="" className="w-full h-full object-contain filter group-hover:scale-105 transition-transform" />
                       <button
                         type="button"
                         onClick={() => playWordAudio(displayedVocab.english)}
-                        className="absolute bottom-2 right-2 w-11 h-11 rounded-full bg-amber-400 hover:bg-amber-300 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer"
+                        className="absolute bottom-2 right-2 w-11 h-11 rounded-full bg-amber-400 hover:bg-amber-300 text-amber-950 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
                         title="Nghe phát âm từ"
                       >
                         <Volume2 size={20} />
@@ -2593,7 +2436,7 @@ export const LiveSessionPage: React.FC = () => {
                             sfx.playGentleWrong();
                           }
                         }}
-                        className={`py-4 px-8 rounded-2xl border-3 font-black text-lg sm:text-xl flex items-center gap-3 shadow-xl transition-all active:scale-95 cursor-pointer ${
+                        className={`py-4 px-8 rounded-2xl border-3 font-black text-lg sm:text-xl flex items-center gap-3 transition-all active:scale-95 cursor-pointer ${
                           tfSelectedResult === 'correct' && isMatch === true
                             ? 'bg-emerald-500 text-white border-emerald-300 ring-4 ring-emerald-400/50 scale-105'
                             : 'bg-emerald-500/20 border-emerald-400 text-emerald-300 hover:bg-emerald-500/30'
@@ -2615,7 +2458,7 @@ export const LiveSessionPage: React.FC = () => {
                             sfx.playGentleWrong();
                           }
                         }}
-                        className={`py-4 px-8 rounded-2xl border-3 font-black text-lg sm:text-xl flex items-center gap-3 shadow-xl transition-all active:scale-95 cursor-pointer ${
+                        className={`py-4 px-8 rounded-2xl border-3 font-black text-lg sm:text-xl flex items-center gap-3 transition-all active:scale-95 cursor-pointer ${
                           tfSelectedResult === 'correct' && isMatch === false
                             ? 'bg-rose-500 text-white border-rose-300 ring-4 ring-rose-400/50 scale-105'
                             : 'bg-rose-500/20 border-rose-400 text-rose-300 hover:bg-rose-500/30'
@@ -2645,7 +2488,7 @@ export const LiveSessionPage: React.FC = () => {
                               handleAwardWholeClass(1, 5);
                               showToast(`⭐ Thưởng cả lớp trả lời đúng!`);
                             }}
-                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
                           >
                             <Star size={16} className="fill-amber-950" /> Thưởng cả lớp (+1 ⭐)
                           </button>
@@ -2658,7 +2501,7 @@ export const LiveSessionPage: React.FC = () => {
                               setCurrentVocabIndex((prev) => (prev + 1) % activeVocabList.length);
                               setGameQuestionIdx((prev) => prev + 1);
                             }}
-                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
                           >
                             <span>Câu tiếp theo ➔</span>
                           </button>
@@ -2700,7 +2543,7 @@ export const LiveSessionPage: React.FC = () => {
                           sfx.playPop();
                           sfx.playAnimal(currentAnimal.id);
                         }}
-                        className="px-8 py-4 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-lg sm:text-xl flex items-center gap-3 shadow-2xl active:scale-95 transition-all ring-6 ring-amber-300/30 animate-pulse cursor-pointer"
+                        className="px-8 py-4 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-lg sm:text-xl flex items-center gap-3 active:scale-95 transition-all ring-6 ring-amber-300/30 animate-pulse cursor-pointer"
                       >
                         <Volume2 size={28} />
                         <span>BẤM NGHE TIẾNG KÊU BÍ ẨN 🎵</span>
@@ -2745,19 +2588,19 @@ export const LiveSessionPage: React.FC = () => {
                                 sfx.playGentleWrong();
                               }
                             }}
-                            className={`rounded-3xl border-3 p-5 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 shadow-lg relative group ${borderClass}`}
+                            className={`rounded-3xl border-3 p-5 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 relative group ${borderClass}`}
                           >
                             {animalSelectedChoiceId && isCorrectAnswer && (
-                              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg font-black text-sm animate-bounce">
+                              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-sm animate-bounce">
                                 ✓
                               </div>
                             )}
                             {isChosen && !isCorrectAnswer && (
-                              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg font-black text-sm">
+                              <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-black text-sm">
                                 ✕
                               </div>
                             )}
-                            <span className="text-6xl sm:text-7xl mb-3 filter drop-shadow group-hover:scale-110 transition-transform">
+                            <span className="text-6xl sm:text-7xl mb-3 filter group-hover:scale-110 transition-transform">
                               {a.emoji}
                             </span>
                             <span className="font-black text-lg text-white tracking-wide">{a.name}</span>
@@ -2784,7 +2627,7 @@ export const LiveSessionPage: React.FC = () => {
                               handleAwardWholeClass(1, 5);
                               showToast(`⭐ Thưởng cả lớp trả lời đúng con vật!`);
                             }}
-                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
                           >
                             <Star size={16} className="fill-amber-950" /> Thưởng cả lớp (+1 ⭐)
                           </button>
@@ -2796,7 +2639,7 @@ export const LiveSessionPage: React.FC = () => {
                               setAnimalResultStatus(null);
                               setAnimalGameIndex((prev) => prev + 1);
                             }}
-                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
                           >
                             <span>Con vật tiếp theo ➔</span>
                           </button>
@@ -2899,7 +2742,7 @@ export const LiveSessionPage: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
                 <button
                   onClick={() => handleAwardAllCorrect(1, 5)}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm sm:text-base shadow-xl active:scale-95 cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm sm:text-base active:scale-95 cursor-pointer"
                 >
                   <Star size={18} className="fill-yellow-200 text-yellow-200" />
                   <span>⭐ Thưởng tất cả các bé đúng (+1 Sao & +5đ)</span>
@@ -2936,11 +2779,11 @@ export const LiveSessionPage: React.FC = () => {
         {/* TAB 4: WRAP-UP & CELEBRATION (Tổng Kết & Lễ Trao Thưởng Sao Vàng)        */}
         {/* ========================================================================= */}
         {activeTab === 'wrapup' && (
-          <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-amber-400/50 p-6 sm:p-8 shadow-2xl space-y-7">
+          <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-amber-400/50 p-6 sm:p-8 space-y-7">
             {/* Celebration Header */}
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-2xl shadow-lg text-slate-950 font-black">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-2xl text-slate-950 font-black">
                   🏆
                 </div>
                 <div>
@@ -2957,47 +2800,16 @@ export const LiveSessionPage: React.FC = () => {
                   sfx.playBadgeChime();
                   showToast('🎉 Cả lớp vỗ tay hoan hô thật to nào các con! 👏👏👏');
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm cursor-pointer shadow-md active:scale-95 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm cursor-pointer active:scale-95 transition-all"
               >
                 <span>👏 Cả lớp vỗ tay chúc mừng!</span>
               </button>
             </div>
 
-            {/* Top Star Performers Podium */}
-            <div className="bg-slate-950/70 rounded-3xl border-2 border-amber-400/30 p-6 sm:p-8">
-              <div className="text-center mb-6">
-                <span className="text-xs font-black uppercase tracking-widest text-amber-400 bg-amber-400/10 border border-amber-400/30 px-4 py-1 rounded-full inline-block">
-                  ⭐ BẢNG VINH DANH NGÔI SAO TIẾT HỌC ⭐
-                </span>
-                <h3 className="text-xl sm:text-2xl font-black text-white mt-2">
-                  Những Bạn Nhỏ Tích Cực Nhất Hôm Nay
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-                {topPerformers.map((st, idx) => {
-                  const s = st as any;
-                  const rankBadge = idx === 0 ? '🥇 Hạng Nhất' : idx === 1 ? '🥈 Hạng Nhì' : '🥉 Hạng Ba';
-                  const borderCol = idx === 0 ? 'border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/40' : idx === 1 ? 'border-slate-300 bg-slate-500/10' : 'border-amber-700 bg-amber-700/10';
-                  return (
-                    <div
-                      key={s.studentId || idx}
-                      className={`flex flex-col items-center rounded-3xl border-2 p-5 text-center relative ${borderCol}`}
-                    >
-                      <span className="text-xs font-black text-amber-300 mb-2">{rankBadge}</span>
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black text-xl mb-3 shadow-md">
-                        {initials(s.name)}
-                      </div>
-                      <div className="text-base font-extrabold text-white">{s.name}</div>
-                      <div className="flex items-center gap-1.5 mt-2 text-amber-400 font-black text-sm">
-                        <Star size={16} className="fill-amber-400" />
-                        <span>{s.stars || 0} sao ({s.points || 0} điểm)</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <section className="rounded-3xl border border-teal-400/30 bg-teal-950/30 p-6 sm:p-8">
+              <div className="text-center mb-6"><p className="text-teal-300 text-sm font-bold">MỖI NỖ LỰC ĐỀU ĐÁNG ĐƯỢC GHI NHẬN</p><h3 className="text-xl sm:text-2xl font-bold text-white mt-2">Cảm ơn các bé đã cùng học hôm nay!</h3></div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{celebratedStudents.map(student => <div key={student._id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-teal-300/20 text-teal-200 font-bold mb-3">{initials(student.name)}</div><strong className="text-sm text-white">{student.name}</strong><p className="text-xs text-teal-200 mt-2">Hẹn gặp bé ở buổi học tới 🌱</p></div>)}</div>
+            </section>
 
             {/* Goodbye Song Card */}
             <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 space-y-4">
@@ -3036,7 +2848,7 @@ export const LiveSessionPage: React.FC = () => {
                 type="button"
                 onClick={handleEnd}
                 disabled={ending}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl shadow-xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
                 <StopCircle size={18} />
                 <span>{ending ? 'Đang hoàn tất…' : 'Hoàn Tất Tiết Học & Xuất Báo Cáo'}</span>
@@ -3051,7 +2863,7 @@ export const LiveSessionPage: React.FC = () => {
         {activeTab === 'grid' && (
           <div className="flex-1 flex flex-col w-full max-w-[2200px] 2xl:max-w-none mx-auto">
             {/* Top Toolbar: Bulk Grading & Multi-Select Controls */}
-            <div className="bg-slate-900/90 rounded-3xl border border-white/15 p-4 sm:p-5 shadow-xl mb-6">
+            <div className="bg-slate-900/90 rounded-3xl border border-white/15 p-4 sm:p-5 mb-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 {/* Left: Section Header & Mode Toggle */}
                 <div className="flex items-center gap-3">
@@ -3079,7 +2891,7 @@ export const LiveSessionPage: React.FC = () => {
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black border transition-all cursor-pointer ${
                       isMultiSelectMode
-                        ? 'bg-purple-600 border-purple-400 text-white ring-2 ring-purple-400/50 shadow-md'
+                        ? 'bg-purple-600 border-purple-400 text-white ring-2 ring-purple-400/50'
                         : 'bg-white/5 border-white/15 text-slate-300 hover:text-white hover:bg-white/10'
                     }`}
                   >
@@ -3090,7 +2902,7 @@ export const LiveSessionPage: React.FC = () => {
                   {/* Award all correct button */}
                   <button
                     onClick={() => handleAwardAllCorrect(1, 5)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm shadow-md active:scale-95 cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm active:scale-95 cursor-pointer"
                   >
                     <Star size={15} className="fill-yellow-200 text-yellow-200" />
                     <span>Thưởng tất cả bé đúng (✓)</span>
@@ -3109,7 +2921,7 @@ export const LiveSessionPage: React.FC = () => {
                   <button
                     onClick={pickRandomStudent}
                     disabled={isPickingRandom}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black text-xs sm:text-sm shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black text-xs sm:text-sm active:scale-95 cursor-pointer disabled:opacity-50"
                   >
                     <Mic size={15} className={isPickingRandom ? 'animate-bounce' : ''} />
                     <span>Mời phát biểu 🎲</span>
@@ -3192,7 +3004,7 @@ export const LiveSessionPage: React.FC = () => {
 
             {/* Floating Bulk Action Bar when multi-selection is active */}
             {isMultiSelectMode && selectedStudentIds.length > 0 && (
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 border-2 border-purple-400 p-3 sm:p-4 rounded-3xl shadow-2xl flex flex-wrap items-center gap-3 animate-fade-in text-white backdrop-blur-md">
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 border-2 border-purple-400 p-3 sm:p-4 rounded-3xl flex flex-wrap items-center gap-3 animate-fade-in text-white backdrop-blur-md">
                 <span className="text-xs sm:text-sm font-black bg-purple-600 px-3 py-1.5 rounded-xl">
                   Đã chọn {selectedStudentIds.length} bé
                 </span>
@@ -3305,13 +3117,13 @@ export const LiveSessionPage: React.FC = () => {
                 ? '🎯🎉✨'
                 : '🏆👏🥳'}
             </div>
-            <h3 className="text-2xl sm:text-3xl font-black text-amber-300 tracking-wide font-display drop-shadow-md">
+            <h3 className="text-2xl sm:text-3xl font-black text-amber-300 tracking-wide font-display">
               {celebrationEffect.studentName || 'Hoan Hô Cả Lớp!'}
             </h3>
             <p className="mt-1 text-base sm:text-lg font-black text-white">
               {celebrationEffect.message}
             </p>
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 text-amber-950 px-4 py-1 text-xs font-black uppercase tracking-wider shadow-lg">
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 text-amber-950 px-4 py-1 text-xs font-black uppercase tracking-wider">
               <span>🎉 THƯỞNG THÀNH TÍCH VUI NHỘN</span>
             </div>
           </div>
@@ -3321,18 +3133,14 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Overtime Auto-End Prompt Modal ──────────────────────────────────── */}
       {isOvertimeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-amber-400 p-6 shadow-2xl text-center">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-amber-400 p-6 text-center">
             <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-amber-400/20 text-amber-400">
               <Clock size={28} className="animate-spin" />
             </div>
             <h3 className="text-xl font-black text-white">Buổi dạy đã quá giờ dự kiến!</h3>
             <p className="text-sm text-slate-300 mt-2">
-              Thời gian học dự kiến ({session.plannedDuration || 35} phút) đã kết thúc. Để đảm bảo dữ liệu buổi học được bảo toàn và không bị treo phòng học, hệ thống sẽ tự động tổng kết sau:
+              Thời gian học dự kiến ({session.plannedDuration || 35} phút) đã kết thúc. Để đảm bảo dữ liệu buổi học được bảo toàn và không bị treo phòng học, bạn có thể kết thúc và lưu tổng kết khi đã sẵn sàng.
             </p>
-
-            <div className="my-4 text-4xl font-black text-amber-400 font-mono animate-pulse">
-              {overtimeCountdown}s
-            </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -3348,7 +3156,7 @@ export const LiveSessionPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAutoEnd}
-                className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-xs font-black text-white transition-all shadow-md cursor-pointer"
+                className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-xs font-black text-white transition-all cursor-pointer"
               >
                 Kết thúc & Lưu ngay
               </button>
@@ -3360,7 +3168,7 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Modal Xác Nhận Kết Thúc Hoặc Thoát Buổi Học ────────────────── */}
       {isExitModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-lg bg-slate-900 border-2 border-white/20 rounded-3xl p-6 shadow-2xl text-white space-y-5 animate-pop-in">
+          <div className="relative w-full max-w-lg bg-slate-900 border-2 border-white/20 rounded-3xl p-6 text-white space-y-5 animate-pop-in">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -3487,7 +3295,7 @@ const StudentCard = ({
     );
 
   const borderColor = isSelected
-    ? 'border-purple-400 bg-purple-500/20 ring-4 ring-purple-400/40 scale-102 shadow-lg'
+    ? 'border-purple-400 bg-purple-500/20 ring-4 ring-purple-400/40 scale-102'
     : answer === 'CORRECT'
     ? 'border-emerald-500/60 bg-emerald-500/10 shadow-emerald-500/5'
     : answer === 'INCORRECT'
@@ -3539,7 +3347,7 @@ const StudentCard = ({
 
       {/* Avatar & Student Name */}
       <div className="text-center">
-        <div className="mx-auto mb-2 h-14 w-14 flex items-center justify-center rounded-2xl bg-slate-800 text-base font-black overflow-hidden border-2 border-white/20 shadow-md">
+        <div className="mx-auto mb-2 h-14 w-14 flex items-center justify-center rounded-2xl bg-slate-800 text-base font-black overflow-hidden border-2 border-white/20">
           {student?.avatarUrl ? (
             <img src={student.avatarUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
@@ -3622,83 +3430,71 @@ const SpotlightModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-      <div className="w-full max-w-md rounded-4xl bg-gradient-to-b from-amber-500/20 via-slate-900 to-slate-950 border-4 border-amber-400 p-6 sm:p-8 shadow-[0_0_50px_rgba(251,191,36,0.5)] text-center relative overflow-hidden animate-pop-in">
-        {/* Glow effects */}
-        <div className="absolute -top-12 -right-12 w-44 h-44 bg-amber-400/30 rounded-full blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute -bottom-12 -left-12 w-44 h-44 bg-yellow-400/30 rounded-full blur-3xl pointer-events-none animate-pulse" />
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md">
+      <div role="dialog" aria-modal="true" aria-labelledby="spotlight-name" className="w-full max-w-3xl max-h-[92dvh] overflow-y-auto rounded-3xl bg-white text-slate-900 border-4 border-amber-400 p-5 sm:p-8 text-center relative">
         {/* Highlighted Gold Callout Badge */}
-        <div className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 text-amber-950 px-6 py-2 font-black text-sm uppercase tracking-wider mb-5 shadow-xl border-2 border-white animate-bounce">
-          <Mic size={18} className="animate-pulse text-amber-950" />
-          <span>📢 GIÁO VIÊN MỜI BÉ ĐỌC TO! 🌟</span>
+        <div className="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 text-amber-950 px-6 py-2 font-black text-sm uppercase tracking-wider mb-5 border-2 border-amber-200">
+          <Mic size={18} className="text-amber-950" />
+          <span>Mời bé đọc</span>
         </div>
 
-        {/* Animated Avatar Box with Golden Ring */}
-        <div className="relative mx-auto mb-4 h-32 w-32 rounded-3xl ring-8 ring-amber-400/90 shadow-2xl overflow-hidden flex items-center justify-center bg-slate-800 border-4 border-white animate-pulse">
+        {/* Student avatar */}
+        <div className="relative mx-auto mb-4 h-24 w-24 sm:h-28 sm:w-28 rounded-3xl ring-8 ring-amber-400/90 overflow-hidden flex items-center justify-center bg-amber-50 border-4 border-white">
           {student?.avatarUrl ? (
             <img src={student.avatarUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-5xl font-black text-amber-300">{initials(name)}</span>
+            <span className="text-4xl font-black text-amber-900">{initials(name)}</span>
           )}
         </div>
 
         {/* Student name */}
-        <h3 className="text-4xl font-black text-amber-300 tracking-wide font-display drop-shadow-md">{name}</h3>
+        <h3 id="spotlight-name" className="break-words text-3xl sm:text-5xl font-black text-slate-900 leading-tight">{name}</h3>
 
         {vocabPrompt && (
-          <div className="my-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-400/60 px-6 py-2.5 rounded-2xl inline-block shadow-inner">
-            <span className="text-xs text-amber-200 font-extrabold uppercase tracking-wider block mb-0.5">
-              Bé hãy đọc thật to từ này nhé 🎤:
+          <div className="my-5 bg-sky-50 border-2 border-sky-200 px-4 py-5 sm:py-7 rounded-3xl">
+            <span className="text-base text-sky-800 font-extrabold uppercase tracking-wider block mb-0.5">
+              Bé đọc to nhé!
             </span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-300 uppercase font-display tracking-widest drop-shadow-lg">
+            <span className="break-words text-5xl sm:text-7xl font-black text-sky-950 leading-tight">
               &ldquo;{vocabPrompt}&rdquo;
             </span>
           </div>
         )}
 
-        {/* Live Reactive Score Display with Floating Award Bubble */}
-        <div className="relative my-3 inline-flex items-center justify-center gap-3 bg-white/10 px-5 py-2 rounded-2xl border border-white/15">
+        {/* Star reward and feedback */}
+        <div className="my-3 flex flex-col items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
           {recentAward && (
             <div
               key={awardKey}
-              className="absolute -top-7 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 text-amber-950 font-black text-xs shadow-xl animate-bounce border border-white pointer-events-none"
+              role="status" className="text-base font-black text-emerald-800"
             >
               {recentAward}
             </div>
           )}
-          <span className="flex items-center gap-1.5 text-sm sm:text-base font-black text-amber-300">
+          <span className="flex items-center gap-1.5 text-xl font-black text-amber-900">
             <Star size={16} className="fill-amber-400 text-amber-400" />
             {score.stars || 0} sao
-          </span>
-          <span className="text-slate-500 font-bold">&bull;</span>
-          <span className="text-sm sm:text-base font-black text-teal-300">
-            🏆 {score.points || 0} điểm
-          </span>
-          <span className="text-slate-500 font-bold">&bull;</span>
-          <span className="text-sm sm:text-base font-black text-emerald-300">
-            ✓ {score.correctCount || 0} đúng
           </span>
         </div>
 
         {/* Reward buttons with sound & joy */}
-        <div className="mt-4 grid grid-cols-2 gap-3 text-left">
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           <button
             type="button"
             onClick={() =>
               handleReward(
                 { points: 5 },
                 'applause',
-                '+5 Điểm 👏',
-                `👏 Cả lớp vỗ tay hoan hô ${name}! +5 điểm!`
+                '👏 Hoan hô!',
+                `👏 Cả lớp vỗ tay hoan hô ${name}!`
               )
             }
-            className="flex items-center gap-3 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-3 hover:bg-sky-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-sky-500/40 bg-sky-50 p-3 hover:bg-sky-100 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
-            <span className="text-2xl">👏</span>
+            <span className="text-3xl">👏</span>
             <div>
-              <p className="text-xs font-bold text-sky-200">Vỗ tay khen ngợi</p>
-              <p className="text-[11px] text-sky-400">+5 điểm</p>
+              <p className="text-sm font-bold text-sky-950">Vỗ tay khen ngợi</p>
+
             </div>
           </button>
 
@@ -3708,16 +3504,16 @@ const SpotlightModal = ({
               handleReward(
                 { stars: 1, points: 10 },
                 'loud_clear',
-                '+1 ⭐ (+10đ) 🗣️',
-                `🗣️ ${name} nói to, rõ ràng và rất tự tin! +1 ⭐ (+10đ)`
+                '+1 ⭐ 🗣️',
+                `🗣️ ${name} nói to, rõ ràng và rất tự tin! +1 ⭐`
               )
             }
-            className="flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 hover:bg-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-amber-500/40 bg-amber-50 p-3 hover:bg-amber-100 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
-            <span className="text-2xl">🗣️</span>
+            <span className="text-3xl">🗣️</span>
             <div>
-              <p className="text-xs font-bold text-amber-200">Nói to rõ ràng</p>
-              <p className="text-[11px] text-amber-400">+1 ⭐ (+10đ)</p>
+              <p className="text-sm font-bold text-amber-950">Nói to rõ ràng</p>
+              <p className="text-sm font-bold text-amber-800">+1 ⭐</p>
             </div>
           </button>
 
@@ -3727,16 +3523,16 @@ const SpotlightModal = ({
               handleReward(
                 { stars: 3, points: 15, correctDelta: 1 },
                 'excellent_pronunciation',
-                '+3 ⭐ (+15đ) 🌟',
-                `🌟 Tuyệt vời! ${name} phát âm cực kỳ chuẩn! +3 ⭐ (+15đ)`
+                '+3 ⭐ 🌟',
+                `🌟 Tuyệt vời! ${name} phát âm cực kỳ chuẩn! +3 ⭐`
               )
             }
-            className="flex items-center gap-3 rounded-2xl border border-violet-500/40 bg-violet-500/10 p-3 hover:bg-violet-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-violet-500/40 bg-violet-50 p-3 hover:bg-violet-100 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
-            <span className="text-2xl">🌟</span>
+            <span className="text-3xl">🌟</span>
             <div>
-              <p className="text-xs font-bold text-violet-200">Phát âm xuất sắc</p>
-              <p className="text-[11px] text-violet-400">+3 ⭐ (+15đ)</p>
+              <p className="text-sm font-bold text-violet-950">Phát âm xuất sắc</p>
+              <p className="text-sm font-bold text-violet-800">+3 ⭐</p>
             </div>
           </button>
 
@@ -3746,16 +3542,16 @@ const SpotlightModal = ({
               handleReward(
                 { correctDelta: 1, points: 5 },
                 'correct',
-                '+1 Đúng (+5đ) 🎯',
-                `🎯 Hoan hô! ${name} trả lời hoàn toàn chính xác! +5đ`
+                '🎯 Trả lời đúng!',
+                `🎯 Hoan hô! ${name} trả lời hoàn toàn chính xác!`
               )
             }
-            className="flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-3 hover:bg-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-emerald-500/40 bg-emerald-50 p-3 hover:bg-emerald-100 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
-            <span className="text-2xl">✓</span>
+            <span className="text-3xl">✓</span>
             <div>
-              <p className="text-xs font-bold text-emerald-200">Trả lời đúng</p>
-              <p className="text-[11px] text-emerald-400">+1 đúng (+5đ)</p>
+              <p className="text-sm font-bold text-emerald-950">Trả lời đúng</p>
+
             </div>
           </button>
         </div>
@@ -3765,14 +3561,14 @@ const SpotlightModal = ({
           <button
             type="button"
             onClick={onPickAnother}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-black text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl border-2 border-slate-300 bg-slate-100 py-3 text-base font-black text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer"
           >
             <Shuffle size={16} /> Đổi bé khác
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-sm font-black text-white transition-colors cursor-pointer shadow-lg"
+            className="flex-1 rounded-2xl bg-teal-700 hover:bg-teal-800 py-3 text-base font-black text-white transition-colors cursor-pointer"
           >
             Hoàn tất
           </button>
@@ -3815,7 +3611,7 @@ const ScoringModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm rounded-3xl bg-slate-900 border-2 border-white/20 p-6 shadow-2xl relative">
+      <div className="w-full max-w-sm rounded-3xl bg-slate-900 border-2 border-white/20 p-6 relative">
         {/* Header */}
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/20 border border-teal-500/40 text-lg font-black text-teal-300">
@@ -3825,7 +3621,7 @@ const ScoringModal = ({
             {recentAward && (
               <div
                 key={awardKey}
-                className="absolute -top-5 left-0 px-2.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-black text-[10px] shadow-md animate-bounce pointer-events-none"
+                className="absolute -top-5 left-0 px-2.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-black text-[10px] animate-bounce pointer-events-none"
               >
                 {recentAward}
               </div>

@@ -1,668 +1,192 @@
-const mongoose = require('mongoose');
-const {
-  ClassroomSession,
-  ClassRoom,
-  User,
-  Lesson,
-  Activity,
-  VocabularyMastery,
-  Attendance
-} = require('../models');
-const aiService = require('../services/aiService');
-
-const validId = (id) => mongoose.isValidObjectId(id);
-const bad = (res, msg) => res.status(400).json({ success: false, message: msg });
-const notFound = (res, msg = 'Not found.') =>
-  res.status(404).json({ success: false, message: msg });
-const forbidden = (res, msg = 'Access denied.') =>
-  res.status(403).json({ success: false, message: msg });
-
-// Helper — ensure teacher owns this session
-const ownSession = async (req, sessionId) => {
-  if (!validId(sessionId)) return null;
-  const query =
-    req.user.role === 'ADMIN'
-      ? { _id: sessionId }
-      : { _id: sessionId, teacher: req.user._id };
-  return ClassroomSession.findOne(query);
-};
-
-// Helper — get class and verify teacher owns it
-const ownClass = async (req, classId) => {
-  if (!validId(classId)) return null;
-  const query =
-    req.user.role === 'ADMIN'
-      ? { _id: classId }
-      : { _id: classId, teacher: req.user._id };
-  return ClassRoom.findOne(query);
-};
-
-// Helper — verify that classroom session can only be opened/started when scheduled day & time arrive
-const checkScheduledTiming = async (classroomId, userRole) => {
-  if (userRole === 'ADMIN') return { allowed: true };
-
-  const Schedule = mongoose.models.Schedule || require('../models/Schedule');
-  const schedule = await Schedule.findOne({ classroom: classroomId, isActive: true });
-  if (!schedule || !Array.isArray(schedule.weeklySlots) || schedule.weeklySlots.length === 0) {
-    return { allowed: true };
-  }
-
-  // Get current day of week and current time in Vietnam GMT+7
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const vnNow = new Date(utc + 7 * 3600000);
-  const currentDayOfWeek = vnNow.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const currentMinutes = vnNow.getHours() * 60 + vnNow.getMinutes();
-
-  const dayLabels = {
-    1: 'Thứ 2',
-    2: 'Thứ 3',
-    3: 'Thứ 4',
-    4: 'Thứ 5',
-    5: 'Thứ 6',
-    6: 'Thứ 7',
-    0: 'Chủ Nhật'
-  };
-
-  let isCurrentlyActive = false;
-  let activeSlot = null;
-  const slotList = [];
-
-  for (const slot of schedule.weeklySlots) {
-    const [startH, startM] = (slot.startTime || '00:00').split(':').map(Number);
-    const [endH, endM] = (slot.endTime || '23:59').split(':').map(Number);
-    const startMin = startH * 60 + startM;
-    const endMin = endH * 60 + endM;
-
-    // Check if slot matches today and current time is within slot (allowing 15m early buffer and 30m after end)
-    if (slot.dayOfWeek === currentDayOfWeek) {
-      if (currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
-        isCurrentlyActive = true;
-        activeSlot = slot;
-        break;
-      }
-    }
-    slotList.push(`${dayLabels[slot.dayOfWeek] || 'Ngày'} (${slot.startTime} - ${slot.endTime})`);
-  }
-
-  if (isCurrentlyActive) {
-    return { allowed: true, activeSlot };
-  }
-
-  return {
-    allowed: false,
-    message: `Chưa đến giờ dạy theo thời khóa biểu! Lớp học này được lên lịch vào: ${slotList.join(', ')}. Khi đến đúng ngày và giờ học thì giáo viên mới có thể mở lớp và bắt đầu dạy (hệ thống cho phép mở trước 15 phút).`
-  };
-};
-
-const computeSessionSummary = (session) => {
-  const scores = session.studentScores || [];
-  const participated = scores.filter(
-    (s) => s.correctCount + s.incorrectCount > 0
-  );
-  const totalAnswered = participated.reduce(
-    (n, s) => n + s.correctCount + s.incorrectCount,
-    0
-  );
-  const totalCorrect = participated.reduce(
-    (n, s) => n + s.correctCount,
-    0
-  );
-  const avgAccuracy =
-    totalAnswered > 0
-      ? Math.round((totalCorrect / totalAnswered) * 100)
-      : 0;
-
-  const needsPractice = scores
-    .filter((s) => {
-      const ans = s.correctCount + s.incorrectCount;
-      if (ans === 0) return true;
-      return s.correctCount / ans < 0.5;
-    })
-    .map((s) => s.student);
-
-  const top = [...scores]
-    .sort((a, b) => b.stars - a.stars || b.points - a.points)
-    .slice(0, 3)
-    .map((s) => s.student);
-
-  session.summary = {
-    participationCount: participated.length,
-    averageAccuracy: avgAccuracy,
-    totalStars: scores.reduce((n, s) => n + s.stars, 0),
-    totalPoints: scores.reduce((n, s) => n + s.points, 0),
-    studentsNeedingPractice: needsPractice,
-    topPerformers: top
-  };
-
-  for (const s of session.studentScores) {
-    const ans = s.correctCount + s.incorrectCount;
-    if (ans === 0) {
-      s.status = 'ACTIVE';
-    } else {
-      const acc = s.correctCount / ans;
-      s.status = acc >= 0.8 ? 'COMPLETED' : acc < 0.5 ? 'NEEDS_PRACTICE' : 'ACTIVE';
+const { ClassroomSession, ClassRoom, Lesson, Activity, Attendance, Schedule } = require('../models');
+const access = require('../services/teacherAccess');
+const rules = require('../services/teacherRules');
+const { activeScheduleFilter } = require('../services/scheduleRules');
+const ai = require('../services/aiService');
+const { idOf, validId, fail } = rules;
+const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
+const wrap = handler => async (req, res, next) => { try { await handler(req, res); } catch (error) { next(error); } };
+async function sessionFor(req, writing = false, active = true) {
+  if (!validId(req.params.id)) fail('Mã buổi học không hợp lệ.');
+  const query = ClassroomSession.findOne({ _id: req.params.id, ...scope(req) });
+  const item = await (writing ? query.select('+appliedOperations') : query);
+  if (!item) fail('Không tìm thấy buổi học được phân công.', 404);
+  if (writing) await access.classroom(req, item.classroom, active);
+  return item;
+}
+async function saveSession(req, mutate, closing = false) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const item = await sessionFor(req, true, !closing);
+    const changed = await mutate(item);
+    if (changed === false) return item;
+    try { await item.save(); return item; }
+    catch (error) {
+      if (error.code === 11000) fail('Lớp hoặc giáo viên đã có một buổi học đang diễn ra.', 409);
+      if (error.name !== 'VersionError') throw error;
     }
   }
-};
-
-const autoEndOverdueLiveSessions = async (teacherFilter = {}) => {
-  try {
-    const now = Date.now();
-    const liveSessions = await ClassroomSession.find({
-      status: 'LIVE',
-      ...teacherFilter
-    });
-
-    for (const session of liveSessions) {
-      const plannedMin = Number(session.plannedDuration) || 45;
-      // Allow plannedDuration + 30 minutes leeway, max 90 minutes
-      const maxAllowedMs = Math.max(plannedMin + 30, 75) * 60 * 1000;
-      const startMs = new Date(session.startedAt || session.createdAt).getTime();
-
-      if (now - startMs > maxAllowedMs) {
-        session.status = 'COMPLETED';
-        session.endedAt = new Date(startMs + plannedMin * 60 * 1000);
-        computeSessionSummary(session);
-        await session.save();
-      }
+  fail('Buổi học vừa được cập nhật ở thiết bị khác. Vui lòng tải lại.', 409);
+}
+async function checkTiming(req, classroom) {
+  if (req.user.role === 'ADMIN') return;
+  const schedules = await Schedule.find({ classroom, teacher: req.user._id, ...activeScheduleFilter() });
+  const slots = schedules.flatMap(item => item.weeklySlots || []);
+  // Classes without a timetable support an ad-hoc lesson; preparation is always allowed.
+  if (!slots.length) {
+    if (await Schedule.exists({ classroom, teacher: req.user._id, isActive: true })) fail('Thời khóa biểu của lớp chưa có hiệu lực hoặc đã hết hiệu lực. Vui lòng kiểm tra với quản trị viên.', 409);
+    return;
+  }
+  const clock = rules.vnClock();
+  const mins = value => value.split(':').reduce((n, part) => n * 60 + Number(part), 0);
+  if (!slots.some(slot => slot.dayOfWeek === clock.day && clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= mins(slot.endTime) + 30)) {
+    fail('Chưa đến giờ dạy theo thời khóa biểu. Bạn có thể chuẩn bị trước và mở lớp từ 15 phút trước giờ học.', 409);
+  }
+}
+async function populateSession(item, summary = false) {
+  await item.populate('classroom', 'name ageGroupCode teacher');
+  await item.populate('teacher', 'name avatar avatarUrl');
+  await item.populate({ path: 'lesson', select: 'title vietnameseTitle description vocabularyItems languageContents topic curriculumUnits', populate: [
+    { path: 'vocabularyItems', select: 'english vietnamese pronunciation audioUrl imageUrl category' },
+    { path: 'languageContents', match: { status: 'ACTIVE' } },
+    { path: 'curriculumUnits', select: 'unitNumber bookNumber bigQuestion title' },
+    { path: 'topic', select: 'englishName vietnameseName' }
+  ] });
+  await item.populate('activities', 'title activityType questionCount questions status');
+  await item.populate('studentScores.student', 'name avatar avatarUrl ageGroupCode');
+  if (summary) {
+    await item.populate('summary.studentsNeedingPractice', 'name avatar avatarUrl');
+    await item.populate('summary.topPerformers', 'name avatar avatarUrl');
+  }
+  return item;
+}
+exports.getSessions = wrap(async (req, res) => {
+  const query = scope(req);
+  if (req.query.status) {
+    if (!['SCHEDULED', 'LIVE', 'COMPLETED'].includes(req.query.status)) fail('Trạng thái buổi học không hợp lệ.');
+    query.status = req.query.status;
+  }
+  if (req.query.classroomId) { await access.classroom(req, req.query.classroomId); query.classroom = req.query.classroomId; }
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 100));
+  const [data, total] = await Promise.all([
+    ClassroomSession.find(query).populate('classroom', 'name ageGroupCode teacher').populate('teacher', 'name avatar avatarUrl')
+      .populate({ path: 'lesson', select: 'title vietnameseTitle displayOrder curriculumUnits', populate: { path: 'curriculumUnits', select: 'bookNumber unitNumber title vietnameseTitle theme' } })
+      .sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit),
+    ClassroomSession.countDocuments(query)
+  ]);
+  for (const item of data) if (item.status === 'COMPLETED') rules.summarize(item);
+  res.json({ success: true, count: data.length, total, page, pages: Math.ceil(total / limit), data });
+});
+exports.createSession = wrap(async (req, res) => {
+  const body = req.body;
+  const room = await access.classroom(req, body.classroomId || body.classRoomId, true);
+  const duration = body.plannedDuration ?? 25;
+  if (!Number.isInteger(duration) || duration < 10 || duration > 120) fail('Thời lượng buổi học phải từ 10 đến 120 phút.');
+  const number = body.sessionNumber ?? 1;
+  if (!Number.isInteger(number) || number < 1 || number > 10000) fail('Số buổi học không hợp lệ.');
+  let lesson = null;
+  if (body.lessonId) {
+    if (!validId(body.lessonId)) fail('Mã bài học không hợp lệ.');
+    lesson = await Lesson.findOne({ _id: body.lessonId, status: 'ACTIVE' }).populate('vocabularyItems').populate({ path: 'languageContents', match: { status: 'ACTIVE' } }).populate('topic');
+    if (!lesson) fail('Bài học đã bị ẩn hoặc không tồn tại.');
+    if (lesson.ageGroupCode && room.ageGroupCode && lesson.ageGroupCode !== room.ageGroupCode) fail('Bài học không phù hợp nhóm tuổi của lớp.');
+    if (room.curriculumBook && !(await require('../models').CurriculumUnit.exists({ book: room.curriculumBook, _id: { $in: lesson.curriculumUnits || [] }, status: 'ACTIVE' }))) fail('Bài học không thuộc giáo trình được phân cho lớp.');
+  }
+  const activityIds = body.activityIds ?? [];
+  if (!Array.isArray(activityIds) || activityIds.some(id => !validId(id)) || new Set(activityIds).size !== activityIds.length) fail('Danh sách hoạt động không hợp lệ.');
+  if (activityIds.length && !lesson) fail('Vui lòng chọn bài học trước khi chọn hoạt động.');
+  const activities = activityIds.length ? await Activity.find({ _id: { $in: activityIds }, lesson: lesson._id, status: 'ACTIVE' }).select('_id') : [];
+  if (activities.length !== activityIds.length) fail('Hoạt động đã bị ẩn hoặc không thuộc bài học.');
+  let records = null;
+  if (body.attendanceRecords !== undefined) records = rules.attendanceRecords(body.attendanceRecords, room.students);
+  const date = rules.attendanceDate(body.attendanceDate);
+  if (records && date !== rules.vnDate()) fail('Điểm danh buổi dạy mới phải là ngày hôm nay (giờ Việt Nam).');
+  const roster = room.students;
+  const map = new Map((records || []).map(row => [row.student, row.status]));
+  let plan = body.lessonPlan || null;
+  if (plan && (typeof plan !== 'object' || Array.isArray(plan) || JSON.stringify(plan).length > 200000)) fail('Giáo án không hợp lệ.');
+  if (plan && lesson && (plan.meta?.lessonTitle !== lesson.title || plan.meta?.ageGroup !== room.ageGroupCode || plan.meta?.durationMinutes !== duration)) plan = null;
+  if (!plan && lesson) plan = await ai.generateLessonPlan({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
+  const session = await ClassroomSession.create({ classroom: room._id, teacher: req.user._id, lesson: lesson?._id || null,
+    title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
+    status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,
+    activities: activityIds, lessonPlan: plan,
+    studentScores: roster.map(student => ({ student, attendance: map.get(idOf(student)) || 'PRESENT' }))
+  });
+  if (records) {
+    try {
+      await Attendance.findOneAndUpdate({ classroom: room._id, date }, { classroom: room._id, teacher: req.user._id, date, records, note: rules.text(body.attendanceNote) }, { upsert: true, new: true, runValidators: true });
+    } catch (error) { await ClassroomSession.deleteOne({ _id: session._id, status: 'SCHEDULED' }); throw error; }
+  }
+  res.status(201).json({ success: true, data: await populateSession(session) });
+});
+exports.getSession = wrap(async (req, res) => res.json({ success: true, data: await populateSession(await sessionFor(req)) }));
+exports.startSession = wrap(async (req, res) => {
+  const item = await saveSession(req, async session => {
+    if (session.status === 'LIVE') return false;
+    if (session.status !== 'SCHEDULED') fail('Buổi học đã kết thúc.', 409);
+    await checkTiming(req, session.classroom);
+    const room = await access.classroom(req, session.classroom, true);
+    const attendance = await Attendance.findOne({ classroom: room._id, date: rules.vnDate() });
+    if (!attendance) fail('Vui lòng hoàn tất điểm danh hôm nay ở phần chuẩn bị buổi dạy trước khi mở lớp.');
+    const records = rules.attendanceRecords(attendance.records, room.students);
+    session.studentScores = room.students.map(student => ({ student, attendance: records.find(row => row.student === idOf(student)).status }));
+    const other = await ClassroomSession.exists({ _id: { $ne: session._id }, status: 'LIVE', $or: [{ classroom: session.classroom }, { teacher: session.teacher }] });
+    if (other) fail('Vui lòng kết thúc buổi dạy đang mở trước khi mở buổi mới.', 409);
+    if (session.lesson && !await Lesson.exists({ _id: session.lesson, status: 'ACTIVE' })) fail('Bài học đã bị ẩn. Vui lòng tạo lại kế hoạch.');
+    if (session.activities.length && await Activity.countDocuments({ _id: { $in: session.activities }, lesson: session.lesson, status: 'ACTIVE' }) !== session.activities.length) fail('Một hoạt động đã thay đổi hoặc bị ẩn. Vui lòng chuẩn bị lại buổi dạy.', 409);
+    session.status = 'LIVE'; session.startedAt = new Date();
+  });
+  res.json({ success: true, data: item });
+});
+exports.endSession = wrap(async (req, res) => {
+  const item = await saveSession(req, session => {
+    if (session.status === 'COMPLETED') return false;
+    rules.requireLive(session);
+    session.status = 'COMPLETED'; session.endedAt = new Date(); rules.summarize(session);
+  }, true);
+  // Idempotent progress update is also retried when the end request is repeated.
+  if (item.lesson) await ClassRoom.updateOne({ _id: item.classroom, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: item.lesson } });
+  res.json({ success: true, data: await populateSession(item, true) });
+});
+exports.scoreStudent = wrap(async (req, res) => {
+  const item = await saveSession(req, session => rules.applyScore(session, req.body, [req.body.studentId]));
+  res.json({ success: true, data: item });
+});
+exports.scoreBulk = wrap(async (req, res) => {
+  const item = await saveSession(req, session => rules.applyScore(session, req.body, req.body.studentIds));
+  res.json({ success: true, data: item });
+});
+exports.recordQuestionResult = wrap(async (req, res) => {
+  const item = await saveSession(req, async session => {
+    if (req.body.activityId) {
+      const activity = await Activity.findOne({ _id: req.body.activityId, status: 'ACTIVE' }).select('questions questionCount');
+      const count = activity?.questions?.length || activity?.questionCount || 0;
+      if (!activity || !Number.isInteger(req.body.questionIndex ?? 0) || (req.body.questionIndex ?? 0) >= count) fail('Câu hỏi không tồn tại trong hoạt động.');
     }
-  } catch (err) {
-    console.warn('Auto-end overdue sessions warning:', err);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/teacher/classroom-sessions
-// List sessions for the logged-in teacher (or all for ADMIN)
-// ─────────────────────────────────────────────────────────────────────────────
-exports.getSessions = async (req, res, next) => {
-  try {
-    const teacherFilter = req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
-
-    // Auto cleanup stale/inactive sessions and auto-complete overdue LIVE sessions
-    await autoEndOverdueLiveSessions(teacherFilter);
-
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const deleteFilter = {
-      status: 'SCHEDULED',
-      updatedAt: { $lt: twentyFourHoursAgo },
-      ...teacherFilter
-    };
-    await ClassroomSession.deleteMany(deleteFilter);
-
-    const q = req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
-    if (req.query.status) q.status = req.query.status;
-    if (req.query.classroomId) q.classroom = req.query.classroomId;
-
-    const sessions = await ClassroomSession.find(q)
-      .populate('classroom', 'name ageGroupCode teacher')
-      .populate('teacher', 'name avatar avatarUrl')
-      .populate({
-        path: 'lesson',
-        select: 'title vietnameseTitle displayOrder curriculumUnits',
-        populate: {
-          path: 'curriculumUnits',
-          select: 'bookNumber unitNumber title vietnameseTitle theme'
-        }
-      })
-      .sort({ createdAt: -1 })
-      .limit(100);
-
-    res.json({ success: true, count: sessions.length, data: sessions });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/teacher/classroom-sessions
-// Create a new classroom session (status = SCHEDULED)
-// Body: { classroomId, lessonId?, title?, activityIds?, plannedDuration? }
-// ─────────────────────────────────────────────────────────────────────────────
-exports.createSession = async (req, res, next) => {
-  try {
-    const classroomId = req.body.classroomId || req.body.classRoomId;
-    const { lessonId, title, activityIds, plannedDuration, sessionNumber, includeWarmup, lessonPlan } = req.body;
-
-    if (!validId(classroomId))
-      return bad(res, 'Valid classroomId is required.');
-
-    const classroom = await ownClass(req, classroomId);
-    if (!classroom)
-      return forbidden(res, 'You do not have access to this classroom.');
-
-    // Verify scheduled timing: can only create/open class when it's the scheduled day & hour
-    const timingCheck = await checkScheduledTiming(classroomId, req.user.role);
-    if (!timingCheck.allowed) {
-      return res.status(400).json({
-        success: false,
-        timingLocked: true,
-        message: timingCheck.message
-      });
-    }
-
-    // Verify lesson exists (optional)
-    let lesson = null;
-    let initialPlan = lessonPlan || null;
-    if (lessonId) {
-      if (!validId(lessonId)) return bad(res, 'Invalid lessonId.');
-      lesson = await Lesson.findOne({ _id: lessonId, status: 'ACTIVE' })
-        .populate('vocabularyItems', 'english vietnamese pronunciation')
-        .populate('languageContents', 'english vietnamese')
-        .populate('topic', 'englishName vietnameseName title name');
-      if (!lesson) return bad(res, 'Lesson not found or inactive.');
-
-      if (!initialPlan) {
-        try {
-          const topicName = lesson.topic?.englishName || lesson.topic?.vietnameseName || lesson.topic?.title || 'General';
-          initialPlan = aiService.generateLessonPlan({
-            ageGroup: classroom.ageGroupCode || lesson.ageGroupCode || '3-4',
-            lessonTitle: lesson.title,
-            targetTopic: topicName,
-            durationMinutes: plannedDuration === 15 ? 15 : plannedDuration === 35 ? 35 : 25,
-            vocabularyList: lesson.vocabularyItems || [],
-            sentencePatterns: lesson.languageContents || [],
-            teachingStyle: 'active_tpr'
-          });
-        } catch (err) {
-          console.warn('Could not auto-generate plan for session:', err);
-        }
-      }
-    }
-
-    // Validate activity IDs (optional)
-    let resolvedActivities = [];
-    if (Array.isArray(activityIds) && activityIds.length > 0) {
-      const validIds = activityIds.filter(validId);
-      resolvedActivities = await Activity.find({
-        _id: { $in: validIds },
-        status: 'ACTIVE'
-      }).select('_id');
-      resolvedActivities = resolvedActivities.map((a) => a._id);
-    }
-
-    // Initialise per-student score rows with attendance from pre-session check-in
-    const attendanceMap = new Map();
-    if (Array.isArray(req.body.attendanceRecords) && req.body.attendanceRecords.length > 0) {
-      req.body.attendanceRecords.forEach((r) => {
-        const sId = String(r.student?._id || r.student || r.studentId || '');
-        if (sId) {
-          attendanceMap.set(sId, ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'].includes(r.status) ? r.status : 'PRESENT');
-        }
-      });
-
-      // Also persist to Attendance collection for today
-      try {
-        const todayStr = req.body.attendanceDate || new Date().toISOString().split('T')[0];
-        const validRecs = req.body.attendanceRecords.map((r) => ({
-          student: r.student?._id || r.student || r.studentId,
-          status: ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'].includes(r.status) ? r.status : 'PRESENT',
-          note: String(r.note || '').trim()
-        }));
-        await Attendance.findOneAndUpdate(
-          { classroom: classroomId, date: todayStr },
-          {
-            classroom: classroomId,
-            teacher: req.user._id,
-            date: todayStr,
-            records: validRecs,
-            note: req.body.attendanceNote || ''
-          },
-          { upsert: true, new: true, runValidators: true }
-        );
-      } catch (attErr) {
-        console.warn('Could not auto-sync attendance on session create:', attErr);
-      }
-    }
-
-    const studentScores = classroom.students.map((s) => {
-      const sId = String(s._id || s);
-      const att = attendanceMap.get(sId) || 'PRESENT';
-      return {
-        student: s,
-        points: 0,
-        stars: 0,
-        correctCount: 0,
-        incorrectCount: 0,
-        notAnswered: 0,
-        attendance: att,
-        status: 'ACTIVE'
-      };
-    });
-
-    const session = await ClassroomSession.create({
-      classroom: classroomId,
-      teacher: req.user._id,
-      lesson: lessonId || null,
-      title: title || (lesson ? lesson.title : 'Classroom Session'),
-      ageGroup: classroom.ageGroupCode || '5-6',
-      status: 'SCHEDULED',
-      plannedDuration: plannedDuration || 45,
-      sessionNumber: Number(sessionNumber) || 1,
-      includeWarmup: includeWarmup !== false,
-      activities: resolvedActivities,
-      currentActivityIndex: 0,
-      lessonPlan: initialPlan,
-      studentScores
-    });
-
-    await session.populate('classroom', 'name ageGroupCode students');
-    await session.populate('lesson', 'title');
-
-    res.status(201).json({ success: true, data: session });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/teacher/classroom-sessions/:id
-// ─────────────────────────────────────────────────────────────────────────────
-exports.getSession = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-
-    // Auto-complete if session was LIVE and has exceeded maximum allowed duration
-    if (session.status === 'LIVE') {
-      const plannedMin = Number(session.plannedDuration) || 45;
-      const maxAllowedMs = Math.max(plannedMin + 30, 75) * 60 * 1000;
-      const startMs = new Date(session.startedAt || session.createdAt).getTime();
-      if (Date.now() - startMs > maxAllowedMs) {
-        session.status = 'COMPLETED';
-        session.endedAt = new Date(startMs + plannedMin * 60 * 1000);
-        computeSessionSummary(session);
-        await session.save();
-      }
-    }
-
-    await session.populate('classroom', 'name ageGroupCode');
-    await session.populate('teacher', 'name avatar avatarUrl');
-    await session.populate({
-      path: 'lesson',
-      select: 'title vietnameseTitle description vocabularyItems topic curriculumUnits',
-      populate: [
-        {
-          path: 'vocabularyItems',
-          select: 'word english vietnamese pronunciation audioUrl imageUrl category'
-        },
-        {
-          path: 'curriculumUnits',
-          select: 'unitNumber bookNumber bigQuestion title'
-        },
-        {
-          path: 'topic',
-          select: 'englishName vietnameseName'
-        }
-      ]
-    });
-    await session.populate('activities', 'title activityType questionCount questions');
-    await session.populate('studentScores.student', 'name avatar avatarUrl ageGroupCode');
-
-    res.json({ success: true, data: session });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/teacher/classroom-sessions/:id/start
-// Set status → LIVE, record startedAt
-// ─────────────────────────────────────────────────────────────────────────────
-exports.startSession = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-    if (session.status === 'COMPLETED')
-      return bad(res, 'This session has already ended.');
-
-    // Verify scheduled timing
-    const timingCheck = await checkScheduledTiming(session.classroom, req.user.role);
-    if (!timingCheck.allowed) {
-      return res.status(400).json({
-        success: false,
-        timingLocked: true,
-        message: timingCheck.message
-      });
-    }
-
-    session.status = 'LIVE';
-    if (!session.startedAt) session.startedAt = new Date();
-    await session.save();
-
-    res.json({ success: true, data: session });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/teacher/classroom-sessions/:id/end
-// Set status → COMPLETED, generate summary
-// ─────────────────────────────────────────────────────────────────────────────
-exports.endSession = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-    if (session.status === 'COMPLETED') {
-      await session.populate('studentScores.student', 'name avatar avatarUrl');
-      await session.populate('summary.studentsNeedingPractice', 'name avatar');
-      await session.populate('summary.topPerformers', 'name avatar');
-      return res.json({ success: true, data: session, message: 'Session is already completed.' });
-    }
-
-    session.status = 'COMPLETED';
-    session.endedAt = new Date();
-
-    computeSessionSummary(session);
-    await session.save();
-
-    await session.populate('studentScores.student', 'name avatar avatarUrl');
-    await session.populate('summary.studentsNeedingPractice', 'name avatar');
-    await session.populate('summary.topPerformers', 'name avatar');
-
-    res.json({ success: true, data: session });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/teacher/classroom-sessions/:id/score-student
-// Give points / stars to a student in the session
-// Body: { studentId, points?, stars?, correctDelta?, incorrectDelta? }
-// ─────────────────────────────────────────────────────────────────────────────
-exports.scoreStudent = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-    if (session.status === 'COMPLETED')
-      return bad(res, 'Cannot score students after session ends.');
-
-    const { studentId, points = 0, stars = 0, correctDelta = 0, incorrectDelta = 0 } =
-      req.body;
-    if (!validId(studentId)) return bad(res, 'Valid studentId is required.');
-
-    const scoreRow = session.studentScores.find(
-      (s) => String(s.student) === String(studentId)
-    );
-    if (!scoreRow) return bad(res, 'Student is not in this session.');
-
-    // Apply deltas
-    if (points) scoreRow.points = Math.max(0, scoreRow.points + Number(points));
-    if (stars) scoreRow.stars = Math.max(0, scoreRow.stars + Number(stars));
-    if (correctDelta) scoreRow.correctCount = Math.max(0, scoreRow.correctCount + Number(correctDelta));
-    if (incorrectDelta) scoreRow.incorrectCount = Math.max(0, scoreRow.incorrectCount + Number(incorrectDelta));
-
-    // Mark session as modified (nested array)
-    session.markModified('studentScores');
-    await session.save();
-
-    res.json({
-      success: true,
-      data: {
-        studentId,
-        points: scoreRow.points,
-        stars: scoreRow.stars,
-        correctCount: scoreRow.correctCount,
-        incorrectCount: scoreRow.incorrectCount
-      }
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/teacher/classroom-sessions/:id/score-bulk
-// Give points / stars to multiple students at once
-// Body: { studentIds: string[], points?, stars?, correctDelta?, incorrectDelta? }
-// ─────────────────────────────────────────────────────────────────────────────
-exports.scoreBulk = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-    if (session.status === 'COMPLETED')
-      return bad(res, 'Cannot score students after session ends.');
-
-    const { studentIds = [], points = 0, stars = 0, correctDelta = 0, incorrectDelta = 0 } = req.body;
-    if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return bad(res, 'studentIds array is required.');
-    }
-
-    const updated = [];
-    studentIds.forEach((sid) => {
-      const scoreRow = session.studentScores.find(
-        (s) => String(s.student._id || s.student) === String(sid)
-      );
-      if (scoreRow) {
-        if (points) scoreRow.points = Math.max(0, scoreRow.points + Number(points));
-        if (stars) scoreRow.stars = Math.max(0, scoreRow.stars + Number(stars));
-        if (correctDelta) scoreRow.correctCount = Math.max(0, scoreRow.correctCount + Number(correctDelta));
-        if (incorrectDelta) scoreRow.incorrectCount = Math.max(0, scoreRow.incorrectCount + Number(incorrectDelta));
-        updated.push({
-          studentId: sid,
-          points: scoreRow.points,
-          stars: scoreRow.stars,
-          correctCount: scoreRow.correctCount
-        });
-      }
-    });
-
-    session.markModified('studentScores');
-    await session.save();
-
-    res.json({
-      success: true,
-      count: updated.length,
-      data: updated
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/teacher/classroom-sessions/:id/question-result
-// Record answer results for a question (for the student grid view)
-// Body: { activityId, questionIndex, promptText?, promptImageUrl?,
-//         studentAnswers: [{ studentId, result: 'CORRECT'|'INCORRECT'|'NOT_ANSWERED' }] }
-// ─────────────────────────────────────────────────────────────────────────────
-exports.recordQuestionResult = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-
-    const {
-      activityId,
-      questionIndex = 0,
-      promptText = '',
-      promptImageUrl = '',
-      studentAnswers = []
-    } = req.body;
-
-    const qResult = {
-      activityId: validId(activityId) ? activityId : null,
-      questionIndex,
-      promptText,
-      promptImageUrl,
-      studentAnswers: studentAnswers
-        .filter((a) => validId(a.studentId))
-        .map((a) => ({
-          student: a.studentId,
-          result: ['CORRECT', 'INCORRECT', 'NOT_ANSWERED'].includes(a.result)
-            ? a.result
-            : 'NOT_ANSWERED'
-        }))
-    };
-
-    // Update per-student score counters based on answers
-    for (const ans of qResult.studentAnswers) {
-      const row = session.studentScores.find(
-        (s) => String(s.student) === String(ans.student)
-      );
-      if (!row) continue;
-      if (ans.result === 'CORRECT') row.correctCount += 1;
-      else if (ans.result === 'INCORRECT') row.incorrectCount += 1;
-      else row.notAnswered += 1;
-    }
-
-    session.questionResults.push(qResult);
-    session.markModified('studentScores');
-    session.markModified('questionResults');
-    await session.save();
-
-    res.json({ success: true, data: qResult });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/teacher/classroom-sessions/:id/summary
-// ─────────────────────────────────────────────────────────────────────────────
-exports.getSessionSummary = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-
-    await session.populate('classroom', 'name ageGroupCode');
-    await session.populate('lesson', 'title');
-    await session.populate(
-      'studentScores.student',
-      'name avatar avatarUrl ageGroupCode'
-    );
-    await session.populate(
-      'summary.studentsNeedingPractice',
-      'name avatar avatarUrl'
-    );
-    await session.populate('summary.topPerformers', 'name avatar avatarUrl');
-
-    res.json({ success: true, data: session });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/teacher/classroom-sessions/:id/activity-index
-// Teacher moves to next/prev activity
-// Body: { index: number }
-// ─────────────────────────────────────────────────────────────────────────────
-exports.updateActivityIndex = async (req, res, next) => {
-  try {
-    const session = await ownSession(req, req.params.id);
-    if (!session) return notFound(res, 'Session not found.');
-
-    const idx = Number(req.body.index);
-    if (isNaN(idx) || idx < 0) return bad(res, 'Valid index required.');
-
-    session.currentActivityIndex = idx;
-    await session.save();
-
-    res.json({ success: true, data: { currentActivityIndex: session.currentActivityIndex } });
-  } catch (e) {
-    next(e);
-  }
-};
+    rules.recordQuestion(session, req.body);
+  });
+  res.json({ success: true, data: item });
+});
+exports.updateActivityIndex = wrap(async (req, res) => {
+  const item = await saveSession(req, session => {
+    rules.requireLive(session);
+    const index = req.body.index;
+    if (!Number.isInteger(index) || index < 0 || index >= session.activities.length) fail('Vị trí hoạt động không hợp lệ.');
+    session.currentActivityIndex = index;
+  });
+  res.json({ success: true, data: item });
+});
+exports.getSessionSummary = wrap(async (req, res) => {
+  const item = await sessionFor(req);
+  if (item.status !== 'COMPLETED') fail('Vui lòng kết thúc buổi dạy trước khi xem tổng kết.', 409);
+  rules.summarize(item);
+  res.json({ success: true, data: await populateSession(item, true) });
+});
+exports.deleteDraft = wrap(async (req, res) => {
+  const item = await sessionFor(req, true, false);
+  if (item.status !== 'SCHEDULED' || item.startedAt || item.questionResults?.length || item.studentScores.some(row => row.stars || row.points || row.correctCount || row.incorrectCount)) fail('Chỉ xóa được kế hoạch chưa bắt đầu và chưa có kết quả học tập.', 409);
+  const result = await ClassroomSession.deleteOne({ _id: item._id, status: 'SCHEDULED', __v: item.__v });
+  if (!result.deletedCount) fail('Kế hoạch vừa thay đổi. Vui lòng tải lại.', 409);
+  res.json({ success: true });
+});

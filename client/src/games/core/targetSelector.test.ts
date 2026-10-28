@@ -14,8 +14,9 @@ describe('Stage 3 vocabulary selection', () => {
     expect(getWordType(vocab('custom', { wordType: 'adjective' }))).toBe('adjective');
   });
 
-  it('recognizes transparent image formats and explicit overrides', () => {
-    expect(isTransparentImage(vocab('cat', { imageUrl: '/cat.png?size=2' }))).toBe(true);
+  it('uses verified transparency metadata rather than guessing from an extension', () => {
+    expect(isTransparentImage(vocab('cat', { imageUrl: '/cat.png?size=2' }))).toBe(false);
+    expect(isTransparentImage(vocab('cat', { imageUrl: '/images/vocabulary/cat-v1.svg' }))).toBe(true);
     expect(isTransparentImage(vocab('photo', { imageUrl: '/photo.jpg' }))).toBe(false);
     expect(isTransparentImage(vocab('photo', { imageUrl: '/photo.jpg', isTransparent: true }))).toBe(true);
   });

@@ -19,8 +19,8 @@ import { classroomSessionApi, teacherApi } from '../../services/api';
 import type { ClassroomSession } from '../../types';
 
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
-  SCHEDULED: { label: 'Đã lên lịch', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
-  LIVE: { label: '● Đang dạy', color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500 animate-pulse' },
+  SCHEDULED: { label: 'Đã lên lịch', color: 'bg-blue-100 text-blue-800', dot: 'bg-blue-700' },
+  LIVE: { label: '● Đang dạy', color: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-700 animate-pulse' },
   COMPLETED: { label: 'Đã kết thúc', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' }
 };
 
@@ -36,6 +36,7 @@ export const ClassroomSessionsList: React.FC = () => {
   const [sessions, setSessions] = useState<ClassroomSession[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const { classId } = useParams<{ classId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -64,6 +65,7 @@ export const ClassroomSessionsList: React.FC = () => {
         setSessions(sessRes.data || []);
         setClasses(classRes.data || []);
       })
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [selectedClassFilter]);
 
@@ -115,10 +117,11 @@ export const ClassroomSessionsList: React.FC = () => {
   const past = filteredSessions.filter((s) => s.status === 'COMPLETED');
   const upcoming = filteredSessions.filter((s) => s.status === 'SCHEDULED');
 
+  if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div>;
   if (loading) {
     return (
       <div className="flex h-60 items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-teal-600" />
+        <Loader2 className="h-7 w-7 animate-spin text-teal-800" />
         <span className="ml-3 text-slate-600">Đang tải nhật ký buổi dạy…</span>
       </div>
     );
@@ -129,21 +132,21 @@ export const ClassroomSessionsList: React.FC = () => {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-xs sm:text-sm font-bold text-teal-700 uppercase tracking-wider flex items-center gap-1.5">
+          <p className="text-xs sm:text-sm font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
             <History size={16} />
             <span>Nhật ký giảng dạy trên lớp</span>
           </p>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-0.5">
             Nhật Ký Các Buổi Dạy
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          <p className="mt-1 text-xs sm:text-sm text-slate-600">
             Xem lại lịch sử mọi buổi học đã diễn ra, tổng kết kết quả của học sinh và kế hoạch bài giảng.
           </p>
         </div>
 
         <Link
           to="/teacher/classroom-sessions/new"
-          className="inline-flex items-center gap-2 rounded-2xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-teal-600/20 transition self-start sm:self-auto shrink-0 cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-2xl bg-teal-700 hover:bg-teal-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white  transition self-start sm:self-auto shrink-0 cursor-pointer"
         >
           <Plus size={16} />
           <span>Tạo buổi dạy mới</span>
@@ -151,11 +154,11 @@ export const ClassroomSessionsList: React.FC = () => {
       </div>
 
       {/* Filter toolbar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Search Input */}
           <div className="md:col-span-6 relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
             <input
               type="text"
               placeholder="Tìm theo tên bài học, lớp học, buổi dạy..."
@@ -167,7 +170,7 @@ export const ClassroomSessionsList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-600"
               >
                 <X size={14} />
               </button>
@@ -204,7 +207,7 @@ export const ClassroomSessionsList: React.FC = () => {
               onClick={() => setSelectedStatusTab('ALL')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedStatusTab === 'ALL'
-                  ? 'bg-teal-600 text-white shadow-xs'
+                  ? 'bg-teal-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -215,7 +218,7 @@ export const ClassroomSessionsList: React.FC = () => {
               onClick={() => setSelectedStatusTab('COMPLETED')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedStatusTab === 'COMPLETED'
-                  ? 'bg-teal-600 text-white shadow-xs'
+                  ? 'bg-teal-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -226,7 +229,7 @@ export const ClassroomSessionsList: React.FC = () => {
               onClick={() => setSelectedStatusTab('LIVE')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedStatusTab === 'LIVE'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -239,7 +242,7 @@ export const ClassroomSessionsList: React.FC = () => {
         {(search || selectedClassFilter || initialLessonId) && (
           <div className="flex items-center justify-between text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 p-2.5 rounded-xl">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <CheckCircle2 size={14} className="text-teal-600 shrink-0" />
+              <CheckCircle2 size={14} className="text-teal-800 shrink-0" />
               <span>
                 Đang lọc buổi dạy
                 {selectedClassFilter && (
@@ -261,7 +264,7 @@ export const ClassroomSessionsList: React.FC = () => {
                 setSelectedClassFilter('');
                 setSearchParams({});
               }}
-              className="text-xs text-teal-700 hover:text-teal-900 underline cursor-pointer shrink-0 ml-2"
+              className="text-xs text-teal-800 hover:text-teal-900 underline cursor-pointer shrink-0 ml-2"
             >
               Xem tất cả các lớp
             </button>
@@ -273,7 +276,7 @@ export const ClassroomSessionsList: React.FC = () => {
       {live.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-base font-black text-emerald-800">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-700 animate-pulse" />
             <span>Đang diễn ra trên lớp ({live.length})</span>
           </h2>
           <div className="space-y-3">
@@ -288,7 +291,7 @@ export const ClassroomSessionsList: React.FC = () => {
       {past.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-base font-black text-slate-800">
-            <Clock size={18} className="text-teal-600" />
+            <Clock size={18} className="text-teal-800" />
             <span>Các buổi dạy đã kết thúc ({past.length})</span>
           </h2>
           <div className="space-y-3">
@@ -303,12 +306,12 @@ export const ClassroomSessionsList: React.FC = () => {
       {upcoming.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-base font-black text-blue-800">
-            <Calendar size={18} className="text-blue-600" />
+            <Calendar size={18} className="text-blue-800" />
             <span>Đã lên lịch ({upcoming.length})</span>
           </h2>
           <div className="space-y-3">
             {upcoming.map((s) => (
-              <SessionCard key={s._id} session={s} />
+              <div key={s._id} className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><SessionCard session={s} /></div><button className="teacher-button text-rose-700" onClick={async () => { if (!window.confirm('Xóa kế hoạch chưa bắt đầu này?')) return; try { await classroomSessionApi.deleteDraft(s._id); setSessions(items => items.filter(item => item._id !== s._id)); } catch(e: any) { alert(e.message); } }}>Xóa kế hoạch</button></div>
             ))}
           </div>
         </section>
@@ -316,10 +319,10 @@ export const ClassroomSessionsList: React.FC = () => {
 
       {/* Empty State */}
       {filteredSessions.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-500 shadow-xs">
-          <LayoutGrid size={44} className="mx-auto mb-3 text-slate-300" />
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-600">
+          <LayoutGrid size={44} className="mx-auto mb-3 text-slate-700" />
           <p className="font-bold text-slate-800 text-base">Không tìm thấy buổi dạy nào.</p>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-md mx-auto">
             {search || selectedClassFilter
               ? 'Thử thay đổi từ khóa hoặc xóa bộ lọc để xem các buổi dạy khác.'
               : 'Hãy vào mục Lớp học và bắt đầu buổi dạy để tự động lưu vào nhật ký.'}
@@ -333,14 +336,14 @@ export const ClassroomSessionsList: React.FC = () => {
                 setSelectedStatusTab('ALL');
                 setSearchParams({});
               }}
-              className="mt-4 px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 transition"
+              className="mt-4 px-4 py-2 rounded-xl bg-slate-100 text-inherit text-xs font-bold hover:bg-slate-100 transition"
             >
               Đặt lại bộ lọc
             </button>
           ) : (
             <Link
               to="/teacher/classes"
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition"
             >
               <School size={16} /> Xem các lớp học
             </Link>
@@ -357,7 +360,7 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
   const classroom = s.classroom as any;
   const lesson = s.lesson as any;
   const link =
-    s.status === 'LIVE'
+    s.status !== 'COMPLETED'
       ? `/teacher/classroom-sessions/${s._id}/live`
       : `/teacher/classroom-sessions/${s._id}/summary`;
 
@@ -366,16 +369,16 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
   return (
     <Link
       to={link}
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all group"
+      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 hover:border-teal-400 transition-all group"
     >
       <div className="flex items-center gap-3.5 min-w-0">
         <div
-          className={`h-11 w-11 flex-shrink-0 rounded-2xl grid place-items-center shadow-xs ${
+          className={`h-11 w-11 flex-shrink-0 rounded-2xl grid place-items-center ${
             s.status === 'LIVE'
-              ? 'bg-emerald-100 text-emerald-700'
+              ? 'bg-emerald-100 text-emerald-800'
               : s.status === 'SCHEDULED'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-teal-50 text-teal-700'
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-teal-50 text-teal-800'
           }`}
         >
           {s.status === 'LIVE' ? (
@@ -397,11 +400,11 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
             </span>
           </div>
 
-          <p className="font-extrabold text-slate-900 truncate text-sm sm:text-base group-hover:text-teal-700 transition-colors">
+          <p className="font-extrabold text-slate-900 truncate text-sm sm:text-base group-hover:text-teal-800 transition-colors">
             {s.title}
           </p>
 
-          <p className="text-xs text-slate-500 truncate mt-0.5">
+          <p className="text-xs text-slate-600 truncate mt-0.5">
             {lesson?.title ? `Bài học: ${lesson.title}` : 'Buổi dạy tự do'} · {fmt(s.startedAt || s.createdAt)}
             {dur !== null && ` · ${dur} phút`}
           </p>
@@ -409,22 +412,22 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
       </div>
 
       <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-        {s.summary && (
+        {s.status === 'COMPLETED' && s.summary && (
           <div className="flex items-center gap-3 text-xs font-semibold text-slate-600">
             <span title="Số bé tham gia">👥 {s.summary.participationCount || (Array.isArray((s as any).scores) ? (s as any).scores.length : 0)} bé</span>
             {s.summary.totalStars !== undefined && (
-              <span className="text-amber-600" title="Tổng số sao">⭐ {s.summary.totalStars}</span>
+              <span className="text-amber-800" title="Tổng số sao">⭐ {s.summary.totalStars}</span>
             )}
-            {avg !== undefined && (
-              <span className="font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+            {s.summary.participationCount > 0 && avg !== undefined && (
+              <span className="font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
                 🎯 {avg}%
               </span>
             )}
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 text-xs font-bold text-teal-700 group-hover:translate-x-0.5 transition-transform">
-          <span>Xem tổng kết</span>
+        <div className="flex items-center gap-1.5 text-xs font-bold text-teal-800 group-hover:translate-x-0.5 transition-transform">
+          <span>{s.status === 'LIVE' ? 'Tiếp tục dạy' : s.status === 'SCHEDULED' ? 'Mở kế hoạch' : 'Xem tổng kết'}</span>
           <ChevronRight size={15} />
         </div>
       </div>

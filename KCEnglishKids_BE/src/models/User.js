@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       trim: true
     },
+    importKey: { type: String, unique: true, sparse: true, select: false },
+    authVersion: { type: Number, default: 0 },
     email: {
       type: String,
       unique: true,

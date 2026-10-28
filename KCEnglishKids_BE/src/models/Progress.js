@@ -24,6 +24,11 @@ const progressSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    completionSnapshot: {
+      source: { type: String, enum: ['LEGACY_PROGRESS', 'CURRENT_ACTIVITIES'] },
+      recordedAt: Date,
+      activityIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Activity' }]
+    },
     stars: {
       type: Number,
       default: 0,

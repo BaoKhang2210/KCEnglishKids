@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { activitiesApi, learningApi } from '../../services/api';
+import { activitiesApi, learningApi, adminApi } from '../../services/api';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import type { Activity, ActivityQuestion, ActivityOption } from '../../types';
 import { ResultModal } from '../../components/child/ResultModal';
@@ -26,6 +26,7 @@ export const ActivityPlayPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const isPreview = user?.role === 'ADMIN' || user?.role === 'TEACHER';
   const childId = user?.id || (user as any)?._id || 'guest';
 
   const [activity, setActivity] = useState<Activity | null>(null);
@@ -59,7 +60,7 @@ export const ActivityPlayPage: React.FC = () => {
         setIsFinished(false);
         setResultData(null);
 
-        const res = await activitiesApi.getActivityById(id);
+        const res = await (user.role === 'ADMIN' ? adminApi.getActivityById(id) : activitiesApi.getActivityById(id));
         if (res.success) {
           setActivity(res.data);
           startTimeRef.current = Date.now();
@@ -121,7 +122,7 @@ export const ActivityPlayPage: React.FC = () => {
 
     // §1.3.3 — every arcade answer feeds the Vocabulary Notebook (Sổ từ vựng):
     // 2 correct game reps solidify a word into MASTERED.
-    if (currentQuestion.vocabulary) {
+    if (!isPreview && currentQuestion.vocabulary) {
       vocabMasteryService.recordGameResult(childId, currentQuestion.vocabulary, isCorrect);
     }
 
@@ -177,7 +178,7 @@ export const ActivityPlayPage: React.FC = () => {
     }));
     // §1.3.3 — every matched memory pair counts as a correct rep for that word
     (activity.questions || []).forEach(q => {
-      if (q.vocabulary) vocabMasteryService.recordGameResult(childId, q.vocabulary, true);
+      if (!isPreview && q.vocabulary) vocabMasteryService.recordGameResult(childId, q.vocabulary, true);
     });
     await handleCompleteActivity(allAnswers);
   };

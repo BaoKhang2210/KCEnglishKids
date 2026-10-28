@@ -359,9 +359,9 @@ export const SentenceTeachingPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-3 py-1 text-xs font-bold text-teal-800">
-              <Sparkles size={14} className="text-teal-600" /> Công cụ trình chiếu sư phạm
+              <Sparkles size={14} className="text-teal-800" /> Công cụ trình chiếu sư phạm
             </span>
-            <span className="text-xs text-slate-400 font-medium">Mongo languagecontents</span>
+            <span className="text-xs text-slate-600 font-medium">Mongo languagecontents</span>
           </div>
           <h1 className="mt-1 text-3xl font-black text-slate-900 tracking-tight">
             Mẫu Câu & Hỏi Đáp Tương Tác
@@ -374,7 +374,7 @@ export const SentenceTeachingPage: React.FC = () => {
         <button
           onClick={() => setMode('classroom')}
           disabled={!rows.length}
-          className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-teal-600/25 hover:from-teal-500 hover:to-emerald-500 active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
+          className="flex items-center gap-2 rounded-2xl bg-teal-700 px-6 py-3.5 text-base font-bold text-white  hover:bg-teal-700 active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
         >
           <Play size={18} /> Bắt đầu học mẫu câu ({rows.length} câu)
         </button>
@@ -382,19 +382,19 @@ export const SentenceTeachingPage: React.FC = () => {
 
       {/* Active Lesson Filter Banner */}
       {lessonId && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200/80 p-4 text-teal-900 shadow-xs">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-teal-50 border border-teal-200/80 p-4 text-teal-900">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white font-black text-sm shadow-xs">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white font-black text-sm">
               🎯
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-wider text-teal-700">
+              <p className="text-[11px] font-black uppercase tracking-wider text-teal-800">
                 Đang dạy mẫu câu theo bài học
               </p>
               <h2 className="text-base font-bold text-slate-900 truncate">
                 {activeLesson?.title || (rows[0]?.lesson?.title) || 'Bài học được chọn từ lớp'}
                 {(activeLesson?.vietnameseTitle || rows[0]?.lesson?.vietnameseTitle) && (
-                  <span className="font-normal text-slate-500 ml-1.5 text-xs">
+                  <span className="font-normal text-slate-600 ml-1.5 text-xs">
                     ({activeLesson?.vietnameseTitle || rows[0]?.lesson?.vietnameseTitle})
                   </span>
                 )}
@@ -403,7 +403,7 @@ export const SentenceTeachingPage: React.FC = () => {
           </div>
           <button
             onClick={clearLessonFilter}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-teal-800 border border-teal-300 hover:bg-teal-100 transition-colors shadow-xs cursor-pointer active:scale-95 shrink-0"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-teal-800 border border-teal-300 hover:bg-teal-100 transition-colors cursor-pointer active:scale-95 shrink-0"
           >
             <X size={15} /> Xem tất cả bài học
           </button>
@@ -411,7 +411,7 @@ export const SentenceTeachingPage: React.FC = () => {
       )}
 
       {/* Responsive Filter Bar */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
         {/* Left Side: Age Groups & Content Types */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Age Groups */}
@@ -422,7 +422,7 @@ export const SentenceTeachingPage: React.FC = () => {
                 onClick={() => setAge(a)}
                 className={`rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                   age === a
-                    ? 'bg-teal-600 text-white shadow-xs'
+                    ? 'bg-teal-700 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -441,7 +441,7 @@ export const SentenceTeachingPage: React.FC = () => {
                 onClick={() => setType(v)}
                 className={`rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                   type === v
-                    ? 'bg-slate-900 text-white shadow-xs'
+                    ? 'bg-white text-inherit'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -469,7 +469,7 @@ export const SentenceTeachingPage: React.FC = () => {
 
           {/* Search */}
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus-within:border-teal-500 focus-within:bg-white transition-colors">
-            <Search size={14} className="text-slate-400 shrink-0" />
+            <Search size={14} className="text-slate-600 shrink-0" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -482,7 +482,7 @@ export const SentenceTeachingPage: React.FC = () => {
 
       {/* Error state */}
       {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700 mb-6">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800 mb-6">
           {error}{' '}
           <button
             className="font-semibold underline ml-2 cursor-pointer"
@@ -495,7 +495,7 @@ export const SentenceTeachingPage: React.FC = () => {
 
       {/* Loading state */}
       {!error && loading && (
-        <div className="py-24 text-center text-slate-500">
+        <div className="py-24 text-center text-slate-600">
           <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />
           Đang tải dữ liệu mẫu câu & hỏi đáp tương tác…
         </div>
@@ -503,14 +503,14 @@ export const SentenceTeachingPage: React.FC = () => {
 
       {/* Empty state */}
       {!error && !loading && !rows.length && (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 sm:p-14 text-center text-slate-500 max-w-lg mx-auto my-6 shadow-xs">
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 sm:p-14 text-center text-slate-600 max-w-lg mx-auto my-6">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 text-3xl">
             💬
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">
             Không tìm thấy mẫu câu phù hợp
           </h3>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-slate-600 mb-6">
             {lessonId
               ? 'Bài học này chưa có mẫu câu được liên kết riêng hoặc bộ lọc hiện tại chưa khớp.'
               : 'Hãy thử xóa bộ lọc tìm kiếm hoặc chọn độ tuổi/chủ đề khác.'}
@@ -519,7 +519,7 @@ export const SentenceTeachingPage: React.FC = () => {
             {lessonId && (
               <button
                 onClick={clearLessonFilter}
-                className="rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer transition-all"
+                className="rounded-xl bg-teal-700 hover:bg-teal-700 px-4 py-2 text-xs font-bold text-white cursor-pointer transition-all"
               >
                 Xem toàn bộ ngân hàng mẫu câu
               </button>
@@ -532,7 +532,7 @@ export const SentenceTeachingPage: React.FC = () => {
                 setSearch('');
                 clearLessonFilter();
               }}
-              className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 shadow-xs cursor-pointer transition-all"
+              className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 cursor-pointer transition-all"
             >
               Đặt lại tất cả bộ lọc
             </button>
@@ -546,19 +546,19 @@ export const SentenceTeachingPage: React.FC = () => {
           {grouped.map((g) => (
             <section
               key={g.unit?._id || 'none'}
-              className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs"
+              className="rounded-3xl border border-slate-200 bg-white p-6"
             >
               {/* Unit header */}
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-teal-700">
+                  <p className="text-xs font-black uppercase tracking-wider text-teal-800">
                     {g.unit ? `Sách ${g.unit.bookNumber} · Unit ${g.unit.unitNumber}` : 'Chương trình học'}
                   </p>
                   <h2 className="text-xl font-black text-slate-900 mt-0.5">
                     {g.unit?.bigQuestion || 'Mẫu câu bài học'}
                   </h2>
                 </div>
-                <span className="rounded-full bg-teal-50 px-3.5 py-1 text-xs font-bold text-teal-700 border border-teal-200">
+                <span className="rounded-full bg-teal-50 px-3.5 py-1 text-xs font-bold text-teal-800 border border-teal-200">
                   {g.count} mẫu câu / hỏi đáp
                 </span>
               </div>
@@ -569,10 +569,10 @@ export const SentenceTeachingPage: React.FC = () => {
                   <div key={gl.lesson?._id || 'none'}>
                     {gl.lesson && (
                       <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <span className="h-2 w-2 rounded-full bg-teal-500" />
+                        <span className="h-2 w-2 rounded-full bg-teal-700" />
                         {gl.lesson.title}
                         {gl.lesson.vietnameseTitle && (
-                          <span className="font-normal text-slate-400">
+                          <span className="font-normal text-slate-600">
                             ({gl.lesson.vietnameseTitle})
                           </span>
                         )}
@@ -587,7 +587,7 @@ export const SentenceTeachingPage: React.FC = () => {
                         return (
                           <div
                             key={item._id}
-                            className="group flex flex-col justify-between rounded-2xl border-2 border-slate-100 bg-slate-50/70 p-4.5 hover:border-teal-300 hover:bg-white hover:shadow-md transition-all"
+                            className="group flex flex-col justify-between rounded-2xl border-2 border-slate-100 bg-slate-50/70 p-4.5 hover:border-teal-300 hover:bg-white transition-all"
                           >
                             <div>
                               {/* Card Meta & Action */}
@@ -601,14 +601,14 @@ export const SentenceTeachingPage: React.FC = () => {
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => playWordAudio(item.english, item.audioUrl || undefined)}
-                                    className="rounded-lg p-1.5 text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors cursor-pointer"
+                                    className="rounded-lg p-1.5 text-slate-600 hover:bg-teal-50 hover:text-teal-800 transition-colors cursor-pointer"
                                     title="Nghe phát âm câu hỏi"
                                   >
                                     <Volume2 size={16} />
                                   </button>
                                   <button
                                     onClick={() => jumpToSlide(globalIdx)}
-                                    className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-100 transition-colors cursor-pointer"
+                                    className="rounded-lg p-1.5 text-teal-800 hover:bg-teal-100 transition-colors cursor-pointer"
                                     title="Chiếu câu này lên máy chiếu"
                                   >
                                     <Play size={15} />
@@ -618,7 +618,7 @@ export const SentenceTeachingPage: React.FC = () => {
 
                               {/* Question / Main text with Visual Thumbnail */}
                               <div className="flex items-start gap-3 mt-1">
-                                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white p-1 border-2 border-slate-200/80 shadow-xs shrink-0 flex items-center justify-center group-hover:scale-105 group-hover:border-teal-300 transition-all overflow-hidden">
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white p-1 border-2 border-slate-200/80 shrink-0 flex items-center justify-center group-hover:scale-105 group-hover:border-teal-300 transition-all overflow-hidden">
                                   <img
                                     src={getSentenceIllustration(item.english, item.imageUrl, false)}
                                     alt={item.english}
@@ -631,12 +631,12 @@ export const SentenceTeachingPage: React.FC = () => {
                                     {item.english}
                                   </p>
                                   {item.vietnamese && (
-                                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                                    <p className="mt-0.5 text-xs font-semibold text-slate-600">
                                       {item.vietnamese}
                                     </p>
                                   )}
                                   {item.pronunciation && (
-                                    <p className="mt-0.5 text-[11px] italic text-slate-400 font-mono">
+                                    <p className="mt-0.5 text-[11px] italic text-slate-600 font-mono">
                                       /{item.pronunciation}/
                                     </p>
                                   )}
@@ -647,13 +647,13 @@ export const SentenceTeachingPage: React.FC = () => {
                               {item.answers && item.answers.length > 0 && (
                                 <div className="mt-3.5 rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-2.5 text-xs space-y-1.5">
                                   <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
-                                    <MessageCircle size={12} className="text-emerald-600" />
+                                    <MessageCircle size={12} className="text-emerald-800" />
                                     Câu trả lời tương ứng:
                                   </p>
                                   {item.answers.map((ans, aIdx) => (
                                     <div
                                       key={ans._id || aIdx}
-                                      className="flex items-center justify-between gap-2 rounded-lg bg-white/80 p-1.5 border border-emerald-100"
+                                      className="flex items-center justify-between gap-2 rounded-lg bg-slate-100 p-1.5 border border-emerald-100"
                                     >
                                       <div className="flex items-center gap-2 min-w-0">
                                         <div className="w-8 h-8 rounded-lg bg-white p-0.5 border border-emerald-200 shrink-0 flex items-center justify-center overflow-hidden">
@@ -669,7 +669,7 @@ export const SentenceTeachingPage: React.FC = () => {
                                             {ans.english}
                                           </b>
                                           {ans.vietnamese && (
-                                            <span className="text-[11px] text-emerald-700 font-medium block truncate">
+                                            <span className="text-[11px] text-emerald-800 font-medium block truncate">
                                               {ans.vietnamese}
                                             </span>
                                           )}
@@ -680,7 +680,7 @@ export const SentenceTeachingPage: React.FC = () => {
                                           e.stopPropagation();
                                           playWordAudio(ans.english, ans.audioUrl || undefined);
                                         }}
-                                        className="shrink-0 p-1 text-emerald-700 hover:text-emerald-900"
+                                        className="shrink-0 p-1 text-emerald-800 hover:text-emerald-900"
                                         title="Nghe câu trả lời này"
                                       >
                                         <Volume2 size={13} />
@@ -692,7 +692,7 @@ export const SentenceTeachingPage: React.FC = () => {
                             </div>
 
                             {/* Card Footer */}
-                            <div className="mt-4 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                            <div className="mt-4 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-600 font-medium">
                               <span>
                                 {item.answers?.length
                                   ? `${item.answers.length} câu trả lời`
@@ -700,7 +700,7 @@ export const SentenceTeachingPage: React.FC = () => {
                               </span>
                               <button
                                 onClick={() => jumpToSlide(globalIdx)}
-                                className="font-bold text-teal-700 hover:underline inline-flex items-center gap-1"
+                                className="font-bold text-teal-800 hover:underline inline-flex items-center gap-1"
                               >
                                 Chiếu slide <ChevronRight size={13} />
                               </button>
@@ -803,7 +803,7 @@ export const SentenceTeachingPage: React.FC = () => {
             {/* Top Category Badge */}
             <div className="flex items-center gap-2 mb-2">
               <span
-                className={`rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider border shadow-sm ${
+                className={`rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider border ${
                   typeMeta(current.contentType).cls
                 }`}
               >
@@ -819,22 +819,22 @@ export const SentenceTeachingPage: React.FC = () => {
             {/* ── QUESTION CARD (Top Half) ───────────────────────────────── */}
             <div className="w-full flex flex-col items-center my-auto py-2">
               {/* Question Visual Illustration Frame */}
-              <div className="relative mx-auto mb-5 w-40 h-40 sm:w-52 sm:h-52 md:w-60 md:h-60 rounded-4xl bg-white p-3.5 shadow-2xl border-4 border-teal-300 flex items-center justify-center group animate-in zoom-in-95 duration-200">
+              <div className="relative mx-auto mb-5 w-40 h-40 sm:w-52 sm:h-52 md:w-60 md:h-60 rounded-4xl bg-white p-3.5 border-4 border-teal-300 flex items-center justify-center group animate-in zoom-in-95 duration-200">
                 <img
                   src={getSentenceIllustration(current.english, current.imageUrl, false)}
                   alt={current.english}
-                  className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform"
+                  className="w-full h-full object-contain filter group-hover:scale-105 transition-transform"
                 />
                 <button
                   onClick={() => playWordAudio(current.english, current.audioUrl || undefined)}
-                  className="absolute -bottom-3 -right-3 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-white flex items-center justify-center shadow-xl active:scale-90 transition-transform cursor-pointer ring-4 ring-teal-300/40"
+                  className="absolute -bottom-3 -right-3 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-4 ring-teal-300/40"
                   title="Nghe phát âm câu hỏi"
                 >
                   <Volume2 size={24} />
                 </button>
               </div>
 
-              <p className="max-w-4xl text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight tracking-tight text-white drop-shadow-md">
+              <p className="max-w-4xl text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight tracking-tight text-white">
                 {current.english}
               </p>
 
@@ -854,7 +854,7 @@ export const SentenceTeachingPage: React.FC = () => {
               <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => playWordAudio(current.english, current.audioUrl || undefined)}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 font-bold text-base shadow-lg shadow-teal-900/40 active:scale-95 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 font-bold text-base  active:scale-95 transition-all cursor-pointer"
                 >
                   <Volume2 size={20} /> Nghe câu hỏi
                 </button>
@@ -890,14 +890,14 @@ export const SentenceTeachingPage: React.FC = () => {
 
                       <button
                         onClick={toggleRevealCurrent}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 px-8 py-3.5 font-black text-base shadow-xl shadow-amber-500/25 active:scale-95 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 px-8 py-3.5 font-black text-base  active:scale-95 transition-all cursor-pointer"
                       >
                         <Sparkles size={18} /> Lật mở câu trả lời (Phím Space)
                       </button>
                     </div>
                   ) : (
                     /* State 2: Answer is REVEALED (Pedagogical Display) */
-                    <div className="w-full max-w-4xl mx-auto rounded-3xl border-2 border-emerald-400/50 bg-gradient-to-b from-emerald-950/40 via-slate-900/80 to-slate-900/90 p-5 sm:p-7 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+                    <div className="w-full max-w-4xl mx-auto rounded-3xl border-2 border-emerald-400/50 bg-gradient-to-b from-emerald-950/40 via-slate-900/80 to-slate-900/90 p-5 sm:p-7 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
                       <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
                         <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-400 uppercase tracking-wider">
                           <CheckCircle2 size={16} /> Câu trả lời tương ứng
@@ -914,11 +914,11 @@ export const SentenceTeachingPage: React.FC = () => {
                       {current.answers.length === 1 ? (
                         /* Single Answer View with Visual Illustration */
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-8 py-2">
-                          <div className="w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-3xl bg-white p-2.5 shadow-xl border-3 border-emerald-300 shrink-0 flex items-center justify-center">
+                          <div className="w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-3xl bg-white p-2.5 border-3 border-emerald-300 shrink-0 flex items-center justify-center">
                             <img
                               src={getSentenceIllustration(current.answers[0].english, current.answers[0].imageUrl, true)}
                               alt={current.answers[0].english}
-                              className="w-full h-full object-contain filter drop-shadow-sm"
+                              className="w-full h-full object-contain filter"
                             />
                           </div>
 

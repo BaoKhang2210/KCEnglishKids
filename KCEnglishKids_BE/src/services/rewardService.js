@@ -1,4 +1,4 @@
-const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession } = require('../models');
+const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment } = require('../models');
 const { calculateLessonStars } = require('./starService');
 
 /**
@@ -136,7 +136,7 @@ const computeRewards = async (childId) => {
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
-    ClassroomSession.find({ 'studentScores.student': childId }).select('studentScores')
+    ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores')
   ]);
 
   const completedLessonIds = progressDocs.filter((p) => p.completed).map((p) => p.lesson).filter(Boolean);
@@ -178,7 +178,7 @@ const computeRewards = async (childId) => {
   let classroomStars = 0;
   for (const cs of classroomSessions) {
     const row = (cs.studentScores || []).find((s) => String(s.student) === String(childId));
-    if (row && row.stars) classroomStars += row.stars;
+    if (row && !['ABSENT', 'EXCUSED'].includes(row.attendance) && row.stars) classroomStars += row.stars;
   }
 
   let bonusStars = 0;
@@ -209,7 +209,10 @@ const computeRewards = async (childId) => {
     });
   }
 
-  const totalStars = earnedStars + bonusStars + classroomStars;
+  const reviewedAssignments = await Assignment.find({ 'reviews.child': childId }).select('reviews');
+  const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
+    .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
+  const totalStars = earnedStars + bonusStars + classroomStars + teacherStars;
 
   let explorerLevel = {
     level: 1,
@@ -258,6 +261,7 @@ const computeRewards = async (childId) => {
 
   return {
     totalStars,
+    teacherStars,
     earnedStars,
     bonusStars,
     classroomStars,

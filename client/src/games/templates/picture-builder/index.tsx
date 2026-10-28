@@ -4,11 +4,6 @@ import { GamePrompt } from '../../shared/GamePrompt';
 import { shuffleArray } from '../../core/targetSelector';
 import { useManagedTimeout } from '../../shared/useManagedTimeout';
 
-interface Piece {
-  id: number;
-  placed: boolean;
-}
-
 export const PictureBuilderGame: React.FC<GameComponentProps> = ({
   config,
   targetVocab,

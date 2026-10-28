@@ -1,5 +1,6 @@
 import type { Vocabulary } from '../types';
 import { vocabMasteryApi } from './api';
+import { wordArt } from '../utils/learningArt';
 
 let syncTimeout: any = null;
 
@@ -66,6 +67,10 @@ export const vocabMasteryService = {
       if (!parsed.masteredIds) parsed.masteredIds = [];
       if (!parsed.reviewIds) parsed.reviewIds = [];
       if (!parsed.vocabDetails) parsed.vocabDetails = {};
+      for (const detail of Object.values(parsed.vocabDetails) as WordMasteryDetail[]) {
+        const art = wordArt(detail.english || '');
+        if (art && (!detail.imageUrl || detail.imageUrl.startsWith('data:image/svg+xml'))) detail.imageUrl = art.url;
+      }
       return parsed;
     } catch (e) {
       console.warn('Failed to parse vocab mastery data:', e);
@@ -90,7 +95,7 @@ export const vocabMasteryService = {
               correctCount: (v.rememberCount || 0) + (v.gamesCorrectCount || 0),
               wrongCount: (v.reviewCount || 0) + Math.max(0, (v.gamesPlayedCount || 0) - (v.gamesCorrectCount || 0)),
               attemptCount: (v.rememberCount || 0) + (v.reviewCount || 0) + (v.gamesPlayedCount || 0),
-              streak: v.status === 'MASTERED' ? 3 : (v.rememberCount > 0 ? 1 : 0)
+              streak: Math.min((v.rememberCount || 0) + (v.gamesCorrectCount || 0), v.status === 'MASTERED' ? 3 : (v.rememberCount > 0 ? 1 : 0))
             }));
           if (records.length > 0) {
             vocabMasteryApi.syncMastery(childId, records).catch((err) => {
@@ -134,8 +139,8 @@ export const vocabMasteryService = {
             status: sr.masteryLevel >= 3 ? 'MASTERED' : sr.masteryLevel >= 2 ? 'LEARNING' : 'REVIEW',
             rememberCount: sr.correctCount || 0,
             reviewCount: sr.wrongCount || 0,
-            gamesPlayedCount: sr.attemptCount || 0,
-            gamesCorrectCount: sr.correctCount || 0,
+            gamesPlayedCount: 0,
+            gamesCorrectCount: 0,
             lastPracticedAt: sr.lastReviewedAt ? new Date(sr.lastReviewedAt).getTime() : Date.now(),
             masteryScore: sr.masteryLevel >= 3 ? 90 : Math.round(((sr.correctCount || 0) / Math.max(1, sr.attemptCount || 1)) * 100),
             source: 'TOPIC'

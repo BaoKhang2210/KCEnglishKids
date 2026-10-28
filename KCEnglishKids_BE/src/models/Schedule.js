@@ -71,4 +71,7 @@ const scheduleSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+scheduleSchema.pre('validate', function () {
+  require('../services/scheduleRules').validateSlots(this.weeklySlots, this.effectiveFrom, this.effectiveTo);
+});
 module.exports = mongoose.model('Schedule', scheduleSchema);

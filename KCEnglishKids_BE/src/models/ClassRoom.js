@@ -8,6 +8,8 @@ const classRoomSchema = new mongoose.Schema(
       trim: true,
       unique: true
     },
+    deletionPending: { type: Boolean, default: false },
+    deletionStudentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     description: {
       type: String,
       trim: true,
@@ -61,4 +63,5 @@ const classRoomSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+classRoomSchema.index({ teacher: 1 }, { name: 'one_teacher_per_active_class', unique: true, partialFilterExpression: { status: { $in: ['ACTIVE', 'UPCOMING', 'COMPLETED'] } } });
 module.exports = mongoose.model('ClassRoom', classRoomSchema);

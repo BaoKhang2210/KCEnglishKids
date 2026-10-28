@@ -1,10 +1,11 @@
+const { jwtSecret } = require('../config/auth');
 const jwt = require('jsonwebtoken');
 const { User, AgeGroup } = require('../models');
 
 const generateToken = (id, role, extra = {}) => {
   return jwt.sign(
     { id, role, ...extra },
-    process.env.JWT_SECRET || 'kcenglishkids_jwt_secret_key_2026',
+    jwtSecret(),
     { expiresIn: '30d' }
   );
 };
@@ -77,6 +78,7 @@ const childLogin = async (req, res, next) => {
 
       const token = generateToken(child._id, child.role, {
         name: child.name,
+        authVersion: child.authVersion || 0,
         ageGroupCode: child.ageGroupCode
       });
 
@@ -138,6 +140,7 @@ const childLogin = async (req, res, next) => {
 
     const token = generateToken(child._id, child.role, {
       name: child.name,
+      authVersion: child.authVersion || 0,
       ageGroupCode: child.ageGroupCode
     });
 
@@ -193,7 +196,7 @@ const adminLogin = async (req, res, next) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = generateToken(user._id, user.role, { name: user.name, email: user.email });
+    const token = generateToken(user._id, user.role, { name: user.name, email: user.email, authVersion: user.authVersion || 0 });
 
     res.status(200).json({
       success: true,
@@ -246,7 +249,7 @@ const teacherLogin = async (req, res, next) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = generateToken(user._id, user.role, { name: user.name, email: user.email });
+    const token = generateToken(user._id, user.role, { name: user.name, email: user.email, authVersion: user.authVersion || 0 });
 
     res.status(200).json({
       success: true,
@@ -345,6 +348,7 @@ const childRegister = async (req, res, next) => {
 
     const token = generateToken(child._id, child.role, {
       name: child.name,
+      authVersion: child.authVersion || 0,
       ageGroupCode: child.ageGroupCode
     });
 

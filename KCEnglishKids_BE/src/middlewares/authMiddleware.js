@@ -1,3 +1,4 @@
+const { jwtSecret } = require('../config/auth');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -7,13 +8,14 @@ const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'kcenglishkids_jwt_secret_key_2026');
+      const decoded = jwt.verify(token, jwtSecret());
       const user = await User.findById(decoded.id).select('-password -pin');
 
       if (!user) {
         return res.status(401).json({ success: false, message: 'User not found or account removed.' });
       }
 
+      if ((decoded.authVersion || 0) !== (user.authVersion || 0)) return res.status(401).json({ success: false, message: 'Mật khẩu đã thay đổi. Vui lòng đăng nhập lại.' });
       if (user.status !== 'ACTIVE') {
         return res.status(403).json({ success: false, message: 'Account is deactivated or locked.' });
       }
@@ -46,8 +48,9 @@ const optionalProtect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       const token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'kcenglishkids_jwt_secret_key_2026');
-      req.user = await User.findById(decoded.id).select('-password -pin');
+      const decoded = jwt.verify(token, jwtSecret());
+      const user = await User.findById(decoded.id).select('-password -pin');
+      if (user?.status === 'ACTIVE' && (decoded.authVersion || 0) === (user.authVersion || 0)) req.user = user;
     } catch (err) {
       // ignore invalid token in optional mode
     }

@@ -1,0 +1,23 @@
+{
+  "readOnly": true,
+  "requests": 419,
+  "passed": 419,
+  "failures": [],
+  "curriculum": [
+    {
+      "path": "/api/lessons/curriculum-path?ageGroup=3-4",
+      "units": 9,
+      "lessons": 36
+    },
+    {
+      "path": "/api/lessons/curriculum-path?ageGroup=4-5",
+      "units": 9,
+      "lessons": 36
+    },
+    {
+      "path": "/api/lessons/curriculum-path?ageGroup=5-6",
+      "units": 9,
+      "lessons": 36
+    }
+  ]
+}

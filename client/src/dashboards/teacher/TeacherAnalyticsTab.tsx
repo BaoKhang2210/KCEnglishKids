@@ -216,7 +216,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="py-24 text-center text-slate-400 font-bold bg-white rounded-3xl border border-slate-200">
+      <div className="py-24 text-center text-slate-600 font-bold bg-white rounded-3xl border border-slate-200">
         <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
         Đang tổng hợp báo cáo tiến độ học sinh theo từng lớp…
       </div>
@@ -227,23 +227,23 @@ export const TeacherAnalyticsTab: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="bg-emerald-50 border-2 border-emerald-300 text-emerald-800 px-4 py-3 rounded-2xl font-bold text-xs flex items-center gap-2 shadow-xs animate-pop-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="bg-emerald-50 border-2 border-emerald-300 text-emerald-800 px-4 py-3 rounded-2xl font-bold text-xs flex items-center gap-2 animate-pop-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-800 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-teal-700 uppercase tracking-wider block mb-1">
+          <span className="text-xs font-bold text-teal-800 uppercase tracking-wider block mb-1">
             Trung Tâm Phân Tích Sư Phạm Mầm Non • KCEnglishKids
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-7 h-7 text-teal-600" />
+            <TrendingUp className="w-7 h-7 text-teal-800" />
             <span>Báo Cáo & Phân Tích Tiến Độ Theo Lớp Học</span>
           </h2>
-          <p className="text-xs font-semibold text-slate-500 mt-1">
+          <p className="text-xs font-semibold text-slate-600 mt-1">
             Dữ liệu được phân chia độc lập theo từng lớp học để giáo viên đánh giá chính xác năng lực, chuyên cần và can thiệp kịp thời.
           </p>
         </div>
@@ -255,7 +255,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
             onClick={() => setViewMode('CLASS')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
               viewMode === 'CLASS'
-                ? 'bg-white text-teal-800 shadow-xs'
+                ? 'bg-white text-teal-800'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -266,7 +266,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
             onClick={() => setViewMode('COMPARE')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
               viewMode === 'COMPARE'
-                ? 'bg-white text-teal-800 shadow-xs'
+                ? 'bg-white text-teal-800'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -278,11 +278,11 @@ export const TeacherAnalyticsTab: React.FC = () => {
       {/* ─── Classroom Selection Bar (Request 2: Phân chia theo lớp) ───────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-            <GraduationCap size={14} className="text-teal-600" />
+          <span className="text-xs font-black uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
+            <GraduationCap size={14} className="text-teal-800" />
             <span>Chọn lớp học để xem phân tích:</span>
           </span>
-          <span className="text-xs font-bold text-slate-400">
+          <span className="text-xs font-bold text-slate-600">
             Giáo viên phụ trách {classes.length} lớp học
           </span>
         </div>
@@ -301,8 +301,8 @@ export const TeacherAnalyticsTab: React.FC = () => {
                 }}
                 className={`text-left p-4 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? 'border-teal-500 bg-teal-50/40 ring-4 ring-teal-500/10 shadow-md scale-[1.01]'
-                    : 'border-slate-200 bg-white hover:border-teal-300 hover:bg-slate-50/60 shadow-2xs'
+                    ? 'border-teal-500 bg-teal-50/40 ring-4 ring-teal-500/10 scale-[1.01]'
+                    : 'border-slate-200 bg-white hover:border-teal-300 hover:bg-slate-50/60'
                 }`}
               >
                 <div>
@@ -311,11 +311,11 @@ export const TeacherAnalyticsTab: React.FC = () => {
                       🏫
                     </span>
                     {isSelected ? (
-                      <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-black uppercase tracking-wider">
+                      <span className="px-2 py-0.5 rounded-full bg-teal-700 text-white text-[10px] font-black uppercase tracking-wider">
                         Đang xem
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
                         {cs.ageGroupCode} tuổi
                       </span>
                     )}
@@ -324,23 +324,23 @@ export const TeacherAnalyticsTab: React.FC = () => {
                   <h3 className="font-black text-slate-900 text-base mt-2 leading-tight">
                     {cs.name}
                   </h3>
-                  <span className="inline-block text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/50 mt-1">
+                  <span className="inline-block text-[11px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/50 mt-1">
                     {cs.bookTitle}
                   </span>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-1 text-center">
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-400">Sĩ số</span>
+                    <span className="block text-[10px] font-bold text-slate-600">Sĩ số</span>
                     <b className="text-xs font-black text-slate-800">{cs.studentsCount} bé</b>
                   </div>
                   <div className="border-x border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400">Độ đúng</span>
-                    <b className="text-xs font-black text-emerald-600">{cs.avgScore}%</b>
+                    <span className="block text-[10px] font-bold text-slate-600">Độ đúng</span>
+                    <b className="text-xs font-black text-emerald-800">{cs.avgScore}%</b>
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-400">Tổng sao</span>
-                    <b className="text-xs font-black text-amber-500 flex items-center justify-center gap-0.5">
+                    <span className="block text-[10px] font-bold text-slate-600">Tổng sao</span>
+                    <b className="text-xs font-black text-amber-800 flex items-center justify-center gap-0.5">
                       ⭐ {cs.totalStars}
                     </b>
                   </div>
@@ -355,17 +355,17 @@ export const TeacherAnalyticsTab: React.FC = () => {
       {viewMode === 'CLASS' && currentClass && (
         <div className="space-y-6">
           {/* Class Spotlight Banner with Quick Links */}
-          <div className="rounded-3xl border border-teal-200 bg-gradient-to-r from-teal-50 via-emerald-50/50 to-white p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="rounded-3xl border border-teal-200 bg-teal-50 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="rounded-md bg-teal-600 px-2.5 py-0.5 text-xs font-bold text-white shadow-2xs">
+                <span className="rounded-md bg-teal-700 px-2.5 py-0.5 text-xs font-bold text-white">
                   {currentClass.name}
                 </span>
-                <span className="text-xs text-slate-400">•</span>
+                <span className="text-xs text-slate-600">•</span>
                 <span className="text-xs font-bold text-teal-800 bg-white px-2.5 py-0.5 rounded-md border border-teal-200">
                   {currentClass.ageGroupCode === '3-4' ? 'Sách 1 (Mầm 3–4 tuổi)' : currentClass.ageGroupCode === '4-5' ? 'Sách 2 (Chồi 4–5 tuổi)' : 'Sách 3 (Lá 5–6 tuổi)'}
                 </span>
-                <span className="text-xs text-slate-400">•</span>
+                <span className="text-xs text-slate-600">•</span>
                 <span className="text-xs font-semibold text-slate-600">
                   👩‍🏫 Cô giáo phụ trách: <b>{currentClass.teacher?.name || 'Giáo viên phụ trách'}</b>
                 </span>
@@ -373,7 +373,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
               <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 Hồ Sơ Năng Lực & Tiến Độ Học Tập — {currentClass.name}
               </h3>
-              <p className="text-xs font-medium text-slate-500 mt-0.5">
+              <p className="text-xs font-medium text-slate-600 mt-0.5">
                 Toàn bộ biểu đồ, điểm danh và chỉ số bên dưới áp dụng riêng cho <b>{currentClassStudents.length} học sinh</b> của lớp này.
               </p>
             </div>
@@ -381,14 +381,14 @@ export const TeacherAnalyticsTab: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 to={`/teacher/classroom-sessions/new?classroomId=${currentClass._id}`}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all"
                 title="Điểm danh và bắt đầu buổi dạy trực tiếp cho lớp này"
               >
                 <Play size={14} className="fill-white" /> Điểm danh & Dạy ngay
               </Link>
               <Link
                 to={`/teacher/classes/${currentClass._id}`}
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 flex items-center gap-1.5 shadow-2xs transition-all"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 flex items-center gap-1.5 transition-all"
                 title="Xem sổ lớp và hồ sơ học sinh"
               >
                 <Users size={14} /> Sổ lớp
@@ -398,64 +398,64 @@ export const TeacherAnalyticsTab: React.FC = () => {
 
           {/* 4 KPI Metrics for this specific class */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Sĩ số lớp này</span>
-                <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                <span className="text-xs font-bold text-slate-600 uppercase">Sĩ số lớp này</span>
+                <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
                   <Users size={16} />
                 </div>
               </div>
               <div className="text-3xl font-black text-slate-900">{currentClassStudents.length}</div>
-              <p className="text-[11px] font-semibold text-slate-500 mt-1">Bé theo học chính thức</p>
+              <p className="text-[11px] font-semibold text-slate-600 mt-1">Bé theo học chính thức</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Điểm TB của lớp</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                <span className="text-xs font-bold text-slate-600 uppercase">Điểm TB của lớp</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
                   <BarChart3 size={16} />
                 </div>
               </div>
-              <div className="text-3xl font-black text-emerald-600">{avgClassScore}%</div>
-              <p className="text-[11px] font-semibold text-slate-500 mt-1">
+              <div className="text-3xl font-black text-emerald-800">{avgClassScore}%</div>
+              <p className="text-[11px] font-semibold text-slate-600 mt-1">
                 {avgClassScore >= 80 ? '🌟 Mức độ tiếp thu xuất sắc' : avgClassScore >= 65 ? '👍 Mức độ tiếp thu tốt' : '📖 Cần tăng cường ôn tập'}
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Tổng sao của lớp</span>
-                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
+                <span className="text-xs font-bold text-slate-600 uppercase">Tổng sao của lớp</span>
+                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
                   <Star size={16} />
                 </div>
               </div>
-              <div className="text-3xl font-black text-amber-500">{totalStarsAccumulated} ⭐</div>
-              <p className="text-[11px] font-semibold text-slate-500 mt-1">Tích lũy từ bài học & thưởng</p>
+              <div className="text-3xl font-black text-amber-800">{totalStarsAccumulated} ⭐</div>
+              <p className="text-[11px] font-semibold text-slate-600 mt-1">Tích lũy từ bài học & thưởng</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Bé cần cô hỗ trợ</span>
-                <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                <span className="text-xs font-bold text-slate-600 uppercase">Bé cần cô hỗ trợ</span>
+                <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center font-bold">
                   <AlertTriangle size={16} />
                 </div>
               </div>
-              <div className="text-3xl font-black text-rose-600">{needingAttention.length}</div>
-              <p className="text-[11px] font-semibold text-rose-600 mt-1">Điểm &lt;70% trong lớp này</p>
+              <div className="text-3xl font-black text-rose-800">{needingAttention.length}</div>
+              <p className="text-[11px] font-semibold text-rose-800 mt-1">Điểm &lt;70% trong lớp này</p>
             </div>
           </section>
 
           {/* Leaderboard & Class Student Table */}
           <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
             {/* Top 5 Leaderboard OF THIS CLASS */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs lg:col-span-1 flex flex-col justify-between">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 lg:col-span-1 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                   <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                    <Award className="w-5 h-5 text-amber-500" />
+                    <Award className="w-5 h-5 text-amber-800" />
                     <span>Top Sao Lớp {currentClass.name}</span>
                   </h3>
-                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                     Bảng vinh danh
                   </span>
                 </div>
@@ -480,10 +480,10 @@ export const TeacherAnalyticsTab: React.FC = () => {
                             <span className="text-2xl select-none">{avatarIcon}</span>
                             <div>
                               <p className="font-bold text-slate-900 text-xs truncate max-w-[110px]">{st.name}</p>
-                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mt-0.5">
                                 <span>{stats.averageScore ?? 0}% TB</span>
                                 <span>•</span>
-                                <span className="flex items-center text-amber-600 font-bold">
+                                <span className="flex items-center text-amber-800 font-bold">
                                   <Flame className="w-3 h-3 fill-amber-500" /> {streak} ngày
                                 </span>
                               </div>
@@ -491,13 +491,13 @@ export const TeacherAnalyticsTab: React.FC = () => {
                           </div>
 
                           <div className="text-right">
-                            <span className="font-black text-amber-500 text-xs block">
+                            <span className="font-black text-amber-800 text-xs block">
                               {stats.totalStars ?? 0} ⭐
                             </span>
                             <button
                               type="button"
                               onClick={() => setSelectedStudentForNote(item)}
-                              className="text-[10px] font-bold text-teal-700 hover:underline cursor-pointer"
+                              className="text-[10px] font-bold text-teal-800 hover:underline cursor-pointer"
                             >
                               Khen ngợi
                             </button>
@@ -506,7 +506,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
                       );
                     })
                   ) : (
-                    <div className="py-12 text-center text-slate-400 text-xs font-bold">
+                    <div className="py-12 text-center text-slate-600 text-xs font-bold">
                       Chưa có dữ liệu học tập cho lớp này.
                     </div>
                   )}
@@ -516,7 +516,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
               {/* At-Risk Warning Box for this class */}
               {needingAttention.length > 0 && (
                 <div className="mt-5 p-3.5 rounded-2xl border border-rose-200 bg-rose-50/60 text-rose-800 text-xs space-y-2">
-                  <div className="flex items-center gap-2 font-black text-rose-700">
+                  <div className="flex items-center gap-2 font-black text-rose-800">
                     <AlertTriangle size={15} />
                     <span>{needingAttention.length} bé trong lớp cần kèm thêm:</span>
                   </div>
@@ -525,7 +525,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
                       <span
                         key={na._id}
                         onClick={() => setSelectedStudentForNote(na)}
-                        className="bg-white text-rose-700 px-2 py-0.5 rounded-lg border border-rose-200 font-bold text-[11px] cursor-pointer hover:bg-rose-100 transition-colors"
+                        className="bg-white text-rose-800 px-2 py-0.5 rounded-lg border border-rose-200 font-bold text-[11px] cursor-pointer hover:bg-rose-100 transition-colors"
                         title="Bấm để gửi lời dặn dò cho phụ huynh bé"
                       >
                         {na.name} ({na.stats?.averageScore || 0}%) ✉️
@@ -537,14 +537,14 @@ export const TeacherAnalyticsTab: React.FC = () => {
             </div>
 
             {/* Detailed Class Student Progress Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs lg:col-span-2 2xl:col-span-3">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 lg:col-span-2 2xl:col-span-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-teal-600" />
+                    <Sparkles className="w-5 h-5 text-teal-800" />
                     <span>Danh Sách Học Sinh — Lớp {currentClass.name}</span>
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  <p className="text-[11px] text-slate-600 font-medium mt-0.5">
                     Hiển thị {filteredStudents.length} / {currentClassStudents.length} bé trong lớp
                   </p>
                 </div>
@@ -553,13 +553,13 @@ export const TeacherAnalyticsTab: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Search box */}
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
-                    <Search size={14} className="text-slate-400" />
+                    <Search size={14} className="text-slate-600" />
                     <input
                       type="text"
                       placeholder="Tìm tên bé trong lớp…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-transparent outline-none text-xs text-slate-800 placeholder:text-slate-400 w-32 sm:w-40"
+                      className="bg-transparent outline-none text-xs text-slate-800 placeholder:text-slate-600 w-32 sm:w-40"
                     />
                   </div>
 
@@ -580,7 +580,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
               {filteredStudents.length > 0 ? (
                 <div className="overflow-x-auto border border-slate-200 rounded-2xl">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-black">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-black">
                       <tr>
                         <th className="py-3 px-3.5">Học sinh</th>
                         <th className="py-3 px-3.5 text-center">Chuỗi Streak</th>
@@ -604,25 +604,25 @@ export const TeacherAnalyticsTab: React.FC = () => {
                               <span className="text-xl select-none">{avatarIcon}</span>
                               <div>
                                 <span>{st.name}</span>
-                                <span className="text-[10px] text-slate-400 block font-normal">
+                                <span className="text-[10px] text-slate-600 block font-normal">
                                   {st.username ? `@${st.username}` : `Mã: ${st._id.slice(-4)}`}
                                 </span>
                               </div>
                             </td>
 
                             <td className="py-3 px-3.5 text-center font-bold">
-                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px]">
                                 <Flame className="w-3 h-3 fill-amber-500" /> {streak} ngày
                               </span>
                             </td>
 
                             <td className="py-3 px-3.5 text-center font-black">
-                              <span className={avg >= 80 ? 'text-emerald-600' : avg >= 65 ? 'text-amber-600' : 'text-rose-600'}>
+                              <span className={avg >= 80 ? 'text-emerald-800' : avg >= 65 ? 'text-amber-800' : 'text-rose-800'}>
                                 {avg}%
                               </span>
                             </td>
 
-                            <td className="py-3 px-3.5 text-center font-black text-amber-500">
+                            <td className="py-3 px-3.5 text-center font-black text-amber-800">
                               {stats.totalStars ?? 0} ⭐
                             </td>
 
@@ -658,7 +658,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
                   </table>
                 </div>
               ) : (
-                <div className="py-12 text-center text-slate-400 text-xs font-bold border border-dashed border-slate-200 rounded-2xl">
+                <div className="py-12 text-center text-slate-600 text-xs font-bold border border-dashed border-slate-200 rounded-2xl">
                   Không tìm thấy học sinh nào phù hợp trong lớp {currentClass.name}.
                 </div>
               )}
@@ -670,18 +670,18 @@ export const TeacherAnalyticsTab: React.FC = () => {
       {/* ─── Mode 2: Multi-Class Cross Comparison ─────────────────────────── */}
       {viewMode === 'COMPARE' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6">
             <h3 className="text-lg font-black text-slate-900 mb-2 flex items-center gap-2">
-              <Layers className="text-teal-600" />
+              <Layers className="text-teal-800" />
               <span>Bảng Đối Sánh Chất Lượng Giữa Các Lớp Học</span>
             </h3>
-            <p className="text-xs text-slate-500 mb-6">
+            <p className="text-xs text-slate-600 mb-6">
               So sánh mức độ tiếp thu, chuyên cần và sĩ số giữa các lớp để giáo viên cân đối giáo án và kế hoạch phụ đạo.
             </p>
 
             <div className="overflow-x-auto border border-slate-200 rounded-2xl">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-black">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-black">
                   <tr>
                     <th className="py-3 px-4">Lớp học</th>
                     <th className="py-3 px-4 text-center">Độ tuổi & Sách</th>
@@ -709,20 +709,20 @@ export const TeacherAnalyticsTab: React.FC = () => {
                         {cs.studentsCount} bé
                       </td>
                       <td className="py-3 px-4 text-center font-black">
-                        <span className={cs.avgScore >= 80 ? 'text-emerald-600' : cs.avgScore >= 65 ? 'text-amber-600' : 'text-rose-600'}>
+                        <span className={cs.avgScore >= 80 ? 'text-emerald-800' : cs.avgScore >= 65 ? 'text-amber-800' : 'text-rose-800'}>
                           {cs.avgScore}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center font-black text-amber-500">
+                      <td className="py-3 px-4 text-center font-black text-amber-800">
                         ⭐ {cs.totalStars}
                       </td>
                       <td className="py-3 px-4 text-center">
                         {cs.needingHelp > 0 ? (
-                          <span className="text-rose-600 font-black bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                          <span className="text-rose-800 font-black bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
                             {cs.needingHelp} bé
                           </span>
                         ) : (
-                          <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                          <span className="text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
                             0 bé
                           </span>
                         )}
@@ -749,7 +749,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
                             setSelectedClassId(String(cs._id));
                             setViewMode('CLASS');
                           }}
-                          className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                          className="px-3 py-1 bg-teal-700 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
                         >
                           Xem lớp này →
                         </button>
@@ -765,19 +765,19 @@ export const TeacherAnalyticsTab: React.FC = () => {
 
       {/* Quick Parent Notification Modal */}
       {selectedStudentForNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-pop-in">
-            <div className="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 overflow-hidden animate-pop-in">
+            <div className="bg-teal-700 px-6 py-5 text-white flex items-center justify-between">
               <div>
                 <h3 className="font-black text-lg">Gửi Nhận Xét & Thưởng Sao</h3>
-                <p className="text-xs text-teal-100">
+                <p className="text-xs text-inherit">
                   Gửi về Sổ liên lạc của bé <b>{selectedStudentForNote.student?.name || selectedStudentForNote.name}</b>
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedStudentForNote(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer text-white font-bold"
+                className="w-8 h-8 rounded-full bg-black/10 hover:bg-black/10 flex items-center justify-center cursor-pointer text-inherit font-bold"
               >
                 ✕
               </button>
@@ -796,7 +796,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
                       onClick={() => setBonusStars(s)}
                       className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         bonusStars === s
-                          ? 'bg-amber-400 text-amber-950 font-black shadow-xs ring-2 ring-amber-300'
+                          ? 'bg-amber-700 text-white font-black ring-2 ring-amber-300'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -823,7 +823,7 @@ export const TeacherAnalyticsTab: React.FC = () => {
                 />
 
                 <div className="mt-2 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400">Gợi ý câu mẫu nhanh:</span>
+                  <span className="text-[10px] font-bold text-slate-600">Gợi ý câu mẫu nhanh:</span>
                   <div className="flex flex-wrap gap-1">
                     {[
                       'Bé phát âm rất to rõ và đạt điểm cao tuần này! 🌟',
@@ -848,14 +848,14 @@ export const TeacherAnalyticsTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedStudentForNote(null)}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={sendingNote}
-                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2.5 bg-teal-700 hover:bg-teal-700 text-white rounded-xl text-xs font-black cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{sendingNote ? 'Đang gửi…' : 'Gửi tới Sổ liên lạc'}</span>

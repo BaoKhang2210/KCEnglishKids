@@ -1,3 +1,5 @@
+require('dotenv').config();
+if (!process.env.SEED_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD.length < 12) throw new Error('Set SEED_ADMIN_PASSWORD (at least 12 characters) before seeding.');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
@@ -125,6 +127,12 @@ const createCardSvg = (text, bg, emoji) => {
 async function seedDatabase() {
   try {
     await connectDB();
+    // Full seeding is only safe in an empty database. Preserve operational history.
+    for (const collection of await mongoose.connection.db.listCollections().toArray()) {
+      if (!collection.name.startsWith('system.') && await mongoose.connection.db.collection(collection.name).estimatedDocumentCount()) {
+        throw new Error('Seed refused: database is not empty. Use a new empty database or an explicit, backed-up migration.');
+      }
+    }
     console.log('==================================================');
     console.log('[Seed] Connected to MongoDB. Starting full learning content dataset...');
     console.log('==================================================');
@@ -459,7 +467,7 @@ async function seedDatabase() {
       role: 'ADMIN',
       username: 'admin',
       email: 'admin@kcenglishkids.com',
-      password: 'Admin@123',
+      password: process.env.SEED_ADMIN_PASSWORD,
       name: 'System Administrator',
       avatar: 'bear',
       avatarUrl: createCardSvg('Admin', '#D7CCC8', '🐻'),

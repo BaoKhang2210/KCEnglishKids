@@ -1,5 +1,6 @@
 import type { Vocabulary } from '../../types';
 import type { WordType } from './types';
+import { wordArt } from '../../utils/learningArt';
 
 const NUMBER_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const COLOR_WORDS = ['red', 'blue', 'yellow', 'green', 'orange', 'purple', 'pink', 'black', 'white', 'brown', 'gray', 'grey'];
@@ -28,8 +29,10 @@ export function getWordType(v: Vocabulary): WordType {
 
 export function isTransparentImage(v: Vocabulary): boolean {
   if (typeof v.isTransparent === 'boolean') return v.isTransparent;
-  const url = (v.imageUrl || '').split('?')[0].toLowerCase();
-  return /\.(png|svg|webp)$/.test(url);
+  const known = wordArt(v.english);
+  if (known && (!v.imageUrl || v.imageUrl === known.url || v.imageUrl.startsWith('data:image/svg+xml'))) return known.isTransparent;
+  // A filename extension cannot certify an alpha channel.
+  return false;
 }
 
 export function isCountable(v: Vocabulary): boolean {

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('node:path');
 
 const authRoutes = require('./routes/authRoutes');
 const topicRoutes = require('./routes/topicRoutes');
@@ -20,8 +21,9 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/images', express.static(path.resolve(__dirname, '../../client/public/images'), { maxAge: '30d', immutable: true }));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -35,6 +37,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/auth', authRoutes);
+app.use('/api/recognitions', require('./routes/recognitionRoutes'));
 app.use('/api/topics', topicRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/activities', activityRoutes);

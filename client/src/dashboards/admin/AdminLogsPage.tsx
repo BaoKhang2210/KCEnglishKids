@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useTransition } from 'react';
+import { fetchAllPages } from '../../services/adminPagination';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ClipboardList,
   Search,
@@ -19,9 +20,10 @@ import * as XLSX from 'xlsx';
 import { adminApi } from '../../services/api';
 
 export const AdminLogsPage: React.FC = () => {
-  const [, startTransition] = useTransition();
+  const requestVersion = useRef(0);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -42,13 +44,15 @@ export const AdminLogsPage: React.FC = () => {
 
   useEffect(() => {
     loadLogs();
-  }, [page, limit, actionFilter, targetTypeFilter, startDate, endDate]);
+  }, [page, limit, actionFilter, targetTypeFilter, startDate, endDate, search]);
 
-  const loadLogs = async (customSearch?: string) => {
+  const loadLogs = async (customSearch?: string, customPage = page) => {
+    const version = ++requestVersion.current;
     try {
       setLoading(true);
+      setError('');
       const res = await adminApi.getAuditLogs({
-        page,
+        page: customPage,
         limit,
         action: actionFilter || undefined,
         targetType: targetTypeFilter || undefined,
@@ -56,28 +60,28 @@ export const AdminLogsPage: React.FC = () => {
         startDate: startDate || undefined,
         endDate: endDate || undefined
       });
-      if (res.success) {
+      if (version === requestVersion.current && res.success) {
         setLogs(res.data);
         setTotalPages(res.pages || 1);
         setTotalCount(res.total || 0);
       }
-    } catch (e) {
-      console.warn('Could not load audit logs', e);
+    } catch (e: any) {
+      if (version === requestVersion.current) setError(e.message || 'Không tải được nhật ký. Vui lòng thử lại.');
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    loadLogs(search.trim());
+    loadLogs(search.trim(), 1);
   };
 
   const handleApplyPreset = (preset: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH') => {
     setDatePreset(preset);
     setPage(1);
-    const now = new Date();
+    const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
     if (preset === 'ALL') {
       setStartDate('');
       setEndDate('');
@@ -86,13 +90,13 @@ export const AdminLogsPage: React.FC = () => {
       setStartDate(todayStr);
       setEndDate(todayStr);
     } else if (preset === 'WEEK') {
-      const past7 = new Date();
-      past7.setDate(now.getDate() - 7);
+      const past7 = new Date(now);
+      past7.setUTCDate(now.getUTCDate() - 6);
       setStartDate(past7.toISOString().slice(0, 10));
       setEndDate(now.toISOString().slice(0, 10));
     } else if (preset === 'MONTH') {
-      const past30 = new Date();
-      past30.setDate(now.getDate() - 30);
+      const past30 = new Date(now);
+      past30.setUTCDate(now.getUTCDate() - 29);
       setStartDate(past30.toISOString().slice(0, 10));
       setEndDate(now.toISOString().slice(0, 10));
     }
@@ -106,9 +110,7 @@ export const AdminLogsPage: React.FC = () => {
     setEndDate('');
     setDatePreset('ALL');
     setPage(1);
-    startTransition(() => {
-      loadLogs('');
-    });
+
   };
 
   const hasActiveFilters = Boolean(
@@ -117,18 +119,18 @@ export const AdminLogsPage: React.FC = () => {
 
   const getActionColor = (action: string) => {
     if (action.includes('CREATE') || action.includes('IMPORT')) {
-      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      return 'bg-emerald-500/10 text-emerald-800 border-emerald-500/20';
     }
     if (action.includes('UPDATE') || action.includes('ASSIGN')) {
-      return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+      return 'bg-indigo-500/10 text-indigo-800 border-indigo-500/20';
     }
     if (action.includes('DELETE') || action.includes('REMOVE')) {
-      return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      return 'bg-rose-500/10 text-rose-800 border-rose-500/20';
     }
     if (action.includes('RESET') || action.includes('STATUS')) {
-      return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      return 'bg-amber-500/10 text-amber-800 border-amber-500/20';
     }
-    return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+    return 'bg-purple-500/10 text-purple-800 border-purple-500/20';
   };
 
   const getActionLabel = (action: string) => {
@@ -146,6 +148,7 @@ export const AdminLogsPage: React.FC = () => {
       UPDATE_USER: 'Cập nhật tài khoản',
       DELETE_USER: 'Xóa tài khoản',
       RESET_PIN: 'Đặt lại mã PIN',
+      CREATE_CURRICULUM_UNIT: 'Tạo Unit',
       CREATE_UNIT: 'Tạo Unit',
       UPDATE_UNIT: 'Cập nhật Unit',
       DELETE_UNIT: 'Xóa Unit',
@@ -172,10 +175,10 @@ export const AdminLogsPage: React.FC = () => {
     if (typeof details === 'string') return details;
 
     if (action === 'BULK_IMPORT_STUDENTS') {
-      return `Nhập ${details.successCount || 0} học sinh vào hệ thống${details.className ? ` (Lớp: ${details.className})` : ''}`;
+      return `Nhập ${details.importedCount ?? details.successCount ?? 0} học sinh vào hệ thống${details.className ? ` (Lớp: ${details.className})` : ''}`;
     }
     if (action === 'DELETE_CLASSROOM') {
-      return `Đã xóa lớp "${details.name || details.className || '—'}" (gỡ ${details.releasedStudentsCount || 0} học sinh)`;
+      return `Đã xóa lớp "${details.name || details.className || '—'}" (gỡ ${details.deletedStudentsCount ?? details.releasedStudentsCount ?? 0} học sinh)`;
     }
     if (action === 'CREATE_CLASSROOM' || action === 'UPDATE_CLASSROOM') {
       return `Lớp "${details.name || details.className || '—'}" ${details.status ? `[${details.status}]` : ''}`;
@@ -184,7 +187,7 @@ export const AdminLogsPage: React.FC = () => {
       return `Phân công GV: ${details.teacherName || ''} ➔ Lớp ${details.className || ''}`;
     }
     if (action === 'ADD_STUDENTS_TO_CLASS') {
-      return `Thêm ${details.studentCount || (details.studentIds ? details.studentIds.length : 1)} học sinh vào lớp ${details.className || ''}`;
+      return `Thêm ${details.count || details.studentCount || (details.studentIds ? details.studentIds.length : 1)} học sinh vào lớp ${details.className || ''}`;
     }
     if (action === 'REMOVE_STUDENT_FROM_CLASS') {
       return `Gỡ học sinh khỏi lớp ${details.className || ''}`;
@@ -213,17 +216,10 @@ export const AdminLogsPage: React.FC = () => {
   const exportToExcel = async () => {
     try {
       setExporting(true);
-      const res = await adminApi.getAuditLogs({
-        page: 1,
-        limit: 500,
-        action: actionFilter || undefined,
-        targetType: targetTypeFilter || undefined,
-        search: search.trim() || undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined
-      });
-
-      const dataToExport = res?.success && res.data ? res.data : logs;
+      const dataToExport = await fetchAllPages<any>(page => adminApi.getAuditLogs({
+        page, limit: 100, action: actionFilter || undefined, targetType: targetTypeFilter || undefined,
+        search: search.trim() || undefined, startDate: startDate || undefined, endDate: endDate || undefined
+      }));
       const excelRows = dataToExport.map((item: any, idx: number) => ({
         STT: idx + 1,
         'Thời gian': new Date(item.createdAt).toLocaleString('vi-VN'),
@@ -274,14 +270,15 @@ export const AdminLogsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
+      {error && <p role="alert" className="admin-page-error">{error}</p>}
       {/* Header bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2.5">
-            <ClipboardList className="text-indigo-400" size={26} />
+          <h1 className="text-2xl font-black text-inherit flex items-center gap-2.5">
+            <ClipboardList className="text-indigo-800" size={26} />
             <span>Nhật Ký Hoạt Động Hệ Thống (Audit Logs)</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Ghi nhận chi tiết lịch sử mọi thao tác: quản lý lớp học, phân công giáo viên, nhập học sinh Excel, cập nhật giáo trình & mẫu câu.
           </p>
         </div>
@@ -290,16 +287,16 @@ export const AdminLogsPage: React.FC = () => {
           <button
             onClick={() => loadLogs()}
             disabled={loading}
-            className="px-3.5 py-2 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-2"
+            className="px-3.5 py-2 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-inherit hover:bg-slate-100 transition flex items-center gap-2"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin text-indigo-400' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin text-indigo-800' : ''} />
             <span>Làm mới</span>
           </button>
 
           <button
             onClick={exportToExcel}
             disabled={exporting || loading}
-            className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 transition flex items-center gap-2"
+            className="px-4 py-2 rounded-2xl bg-emerald-700 hover:bg-emerald-700 disabled:opacity-50 text-xs font-bold text-white  transition flex items-center gap-2"
           >
             <Download size={14} className={exporting ? 'animate-bounce' : ''} />
             <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
@@ -309,62 +306,62 @@ export const AdminLogsPage: React.FC = () => {
 
       {/* Stats summary bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-2xl flex items-center justify-between">
+        <div className="bg-white border border-slate-200 p-3.5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tổng bản ghi</p>
-            <p className="text-xl font-black text-white mt-0.5">{totalCount.toLocaleString('vi-VN')}</p>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Tổng bản ghi</p>
+            <p className="text-xl font-black text-inherit mt-0.5">{totalCount.toLocaleString('vi-VN')}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-800">
             <Layers size={18} />
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-2xl flex items-center justify-between">
+        <div className="bg-white border border-slate-200 p-3.5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Trang hiện tại</p>
-            <p className="text-xl font-black text-indigo-400 mt-0.5">
-              {page} <span className="text-xs font-normal text-slate-500">/ {totalPages}</span>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Trang hiện tại</p>
+            <p className="text-xl font-black text-indigo-800 mt-0.5">
+              {page} <span className="text-xs font-normal text-slate-600">/ {totalPages}</span>
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-800">
             <Clock size={18} />
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-2xl flex items-center justify-between">
+        <div className="bg-white border border-slate-200 p-3.5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hiển thị / Trang</p>
-            <p className="text-xl font-black text-emerald-400 mt-0.5">{logs.length}</p>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Hiển thị / Trang</p>
+            <p className="text-xl font-black text-emerald-800 mt-0.5">{logs.length}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-800">
             <CheckCircle2 size={18} />
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800/80 p-3.5 rounded-2xl flex items-center justify-between">
+        <div className="bg-white border border-slate-200 p-3.5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bảo mật hệ thống</p>
-            <p className="text-xs font-bold text-emerald-400 mt-1">Toàn vẹn 100%</p>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Bảo mật hệ thống</p>
+            <p className="text-xs font-bold text-emerald-800 mt-1">Toàn vẹn 100%</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-800">
             <ShieldCheck size={18} />
           </div>
         </div>
       </div>
 
       {/* Filter toolbar */}
-      <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-3xl space-y-4 shadow-xl">
+      <div className="bg-white border border-slate-200 p-4 rounded-3xl space-y-4">
         {/* Row 1: Search & Dropdowns */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Search box */}
           <form onSubmit={handleSearchSubmit} className="md:col-span-5 relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
             <input
               type="text"
               placeholder="Tìm theo tên admin, nội dung, lớp học, bài học..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+              className="w-full pl-10 pr-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm text-inherit placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
             />
           </form>
 
@@ -376,7 +373,7 @@ export const AdminLogsPage: React.FC = () => {
                 setActionFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3.5 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="w-full px-3.5 py-2 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm text-inherit focus:outline-none focus:border-indigo-500"
             >
               <option value="">-- Tất cả nhóm hành động --</option>
               <optgroup label="🏢 Quản lý Lớp học">
@@ -428,7 +425,7 @@ export const AdminLogsPage: React.FC = () => {
                 setTargetTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3.5 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="w-full px-3.5 py-2 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm text-inherit focus:outline-none focus:border-indigo-500"
             >
               <option value="">-- Mọi đối tượng --</option>
               <option value="ClassRoom">Lớp học (ClassRoom)</option>
@@ -444,10 +441,10 @@ export const AdminLogsPage: React.FC = () => {
         </div>
 
         {/* Row 2: Date presets & pickers */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/60">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mr-1">
-              <Calendar size={14} className="text-indigo-400" />
+            <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mr-1">
+              <Calendar size={14} className="text-indigo-800" />
               <span>Thời gian:</span>
             </span>
 
@@ -456,8 +453,8 @@ export const AdminLogsPage: React.FC = () => {
               onClick={() => handleApplyPreset('ALL')}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
                 datePreset === 'ALL'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-inherit'
               }`}
             >
               Tất cả
@@ -467,8 +464,8 @@ export const AdminLogsPage: React.FC = () => {
               onClick={() => handleApplyPreset('TODAY')}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
                 datePreset === 'TODAY'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-inherit'
               }`}
             >
               Hôm nay
@@ -478,8 +475,8 @@ export const AdminLogsPage: React.FC = () => {
               onClick={() => handleApplyPreset('WEEK')}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
                 datePreset === 'WEEK'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-inherit'
               }`}
             >
               7 ngày qua
@@ -489,8 +486,8 @@ export const AdminLogsPage: React.FC = () => {
               onClick={() => handleApplyPreset('MONTH')}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
                 datePreset === 'MONTH'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-indigo-700 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-inherit'
               }`}
             >
               30 ngày qua
@@ -506,9 +503,9 @@ export const AdminLogsPage: React.FC = () => {
                   setDatePreset('ALL');
                   setPage(1);
                 }}
-                className="px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-xs text-inherit focus:outline-none focus:border-indigo-500"
               />
-              <span className="text-slate-500 text-xs">-</span>
+              <span className="text-slate-600 text-xs">-</span>
               <input
                 type="date"
                 value={endDate}
@@ -517,7 +514,7 @@ export const AdminLogsPage: React.FC = () => {
                   setDatePreset('ALL');
                   setPage(1);
                 }}
-                className="px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-xs text-inherit focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
@@ -525,7 +522,7 @@ export const AdminLogsPage: React.FC = () => {
           {hasActiveFilters && (
             <button
               onClick={handleResetFilters}
-              className="px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition ml-auto"
+              className="px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-800 hover:bg-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition ml-auto"
             >
               <X size={13} />
               <span>Xóa bộ lọc</span>
@@ -538,13 +535,13 @@ export const AdminLogsPage: React.FC = () => {
       {loading ? (
         <div className="py-24 flex flex-col items-center justify-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-xs text-slate-400 font-bold">Đang tải nhật ký hoạt động...</p>
+          <p className="text-xs text-slate-600 font-bold">Đang tải nhật ký hoạt động...</p>
         </div>
       ) : logs.length === 0 ? (
-        <div className="py-20 text-center bg-slate-900/50 rounded-3xl border border-slate-800">
+        <div className="py-20 text-center bg-white rounded-3xl border border-slate-200">
           <ClipboardList size={44} className="mx-auto text-slate-600 mb-3" />
-          <p className="text-sm font-bold text-slate-300">Không tìm thấy bản ghi nhật ký nào</p>
-          <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+          <p className="text-sm font-bold text-slate-700">Không tìm thấy bản ghi nhật ký nào</p>
+          <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
             {hasActiveFilters
               ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm để xem các nhật ký khác.'
               : 'Các thao tác trên cổng quản trị sẽ tự động ghi lại tại đây.'}
@@ -552,18 +549,18 @@ export const AdminLogsPage: React.FC = () => {
           {hasActiveFilters && (
             <button
               onClick={handleResetFilters}
-              className="mt-4 px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition"
+              className="mt-4 px-4 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-xs font-bold text-inherit transition"
             >
               Đặt lại tất cả bộ lọc
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 uppercase tracking-wider font-bold text-[11px]">
+                <tr className="border-b border-slate-200 bg-white text-slate-600 uppercase tracking-wider font-bold text-[11px]">
                   <th className="py-3.5 px-4 w-44">Thời gian</th>
                   <th className="py-3.5 px-4 w-48">Người thực hiện</th>
                   <th className="py-3.5 px-4 w-40">Hành động</th>
@@ -572,12 +569,12 @@ export const AdminLogsPage: React.FC = () => {
                   <th className="py-3.5 px-4 text-center w-24">Chi tiết</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/80 font-medium">
+              <tbody className="divide-y divide-slate-200 font-medium">
                 {logs.map((log) => (
-                  <tr key={log._id} className="hover:bg-slate-800/40 transition-colors group">
-                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-400 text-xs">
+                  <tr key={log._id} className="hover:bg-slate-100 transition-colors group">
+                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 text-xs">
                       <div className="flex items-center gap-1.5">
-                        <Clock size={13} className="text-slate-500 shrink-0" />
+                        <Clock size={13} className="text-slate-600 shrink-0" />
                         <span>{new Date(log.createdAt).toLocaleString('vi-VN')}</span>
                       </div>
                     </td>
@@ -587,18 +584,18 @@ export const AdminLogsPage: React.FC = () => {
                           <img
                             src={log.user.avatar}
                             alt=""
-                            className="h-7 w-7 rounded-lg object-cover border border-slate-700 shrink-0"
+                            className="h-7 w-7 rounded-lg object-cover border border-slate-200 shrink-0"
                           />
                         ) : (
-                          <div className="h-7 w-7 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-black text-xs shrink-0">
+                          <div className="h-7 w-7 rounded-lg bg-indigo-500/20 text-indigo-800 border border-indigo-500/30 flex items-center justify-center font-black text-xs shrink-0">
                             {log.user?.name?.[0] || 'A'}
                           </div>
                         )}
                         <div className="truncate">
-                          <p className="font-bold text-white text-xs truncate max-w-[130px]">
+                          <p className="font-bold text-inherit text-xs truncate max-w-[130px]">
                             {log.user?.name || 'Admin'}
                           </p>
-                          <p className="text-[10px] text-slate-500 truncate max-w-[130px]">
+                          <p className="text-[10px] text-slate-600 truncate max-w-[130px]">
                             {log.user?.email || log.user?.role || 'admin'}
                           </p>
                         </div>
@@ -614,18 +611,18 @@ export const AdminLogsPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap text-xs">
-                      <span className="font-bold text-slate-300 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 text-[11px]">
+                      <span className="font-bold text-slate-700 bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-[11px]">
                         {log.targetType || 'Hệ thống'}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-300">
+                    <td className="py-3.5 px-4 text-xs text-slate-700">
                       <p className="line-clamp-2 leading-relaxed">{getLogSummary(log)}</p>
                     </td>
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <button
                         onClick={() => setSelectedLog(log)}
                         title="Xem đầy đủ chi tiết"
-                        className="p-1.5 rounded-xl bg-slate-800 hover:bg-indigo-600 text-slate-400 hover:text-white transition group-hover:scale-105"
+                        className="p-1.5 rounded-xl bg-slate-100 hover:bg-indigo-700 text-slate-600 hover:text-inherit transition group-hover:scale-105"
                       >
                         <Eye size={15} />
                       </button>
@@ -637,23 +634,23 @@ export const AdminLogsPage: React.FC = () => {
           </div>
 
           {/* Pagination bar */}
-          <div className="p-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+          <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-3">
               <span>
                 Hiển thị bản ghi {(page - 1) * limit + 1} -{' '}
                 {Math.min(page * limit, totalCount)} trong tổng số{' '}
-                <strong className="text-white font-bold">{totalCount}</strong>
+                <strong className="text-inherit font-bold">{totalCount}</strong>
               </span>
 
               <div className="flex items-center gap-1.5 ml-2">
-                <span className="text-[11px] text-slate-500">Mỗi trang:</span>
+                <span className="text-[11px] text-slate-600">Mỗi trang:</span>
                 <select
                   value={limit}
                   onChange={(e) => {
                     setLimit(Number(e.target.value));
                     setPage(1);
                   }}
-                  className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
+                  className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-xs text-inherit focus:outline-none"
                 >
                   <option value={15}>15</option>
                   <option value={25}>25</option>
@@ -668,20 +665,20 @@ export const AdminLogsPage: React.FC = () => {
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1 transition"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 disabled:opacity-40 text-inherit font-bold flex items-center gap-1 transition"
                 >
                   <ChevronLeft size={14} />
                   <span>Trước</span>
                 </button>
 
-                <div className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 font-bold text-white text-xs">
+                <div className="px-3 py-1 rounded-xl bg-white border border-slate-200 font-bold text-inherit text-xs">
                   {page} / {totalPages}
                 </div>
 
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage(page + 1)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold flex items-center gap-1 transition"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 disabled:opacity-40 text-inherit font-bold flex items-center gap-1 transition"
                 >
                   <span>Sau</span>
                   <ChevronRight size={14} />
@@ -695,21 +692,21 @@ export const AdminLogsPage: React.FC = () => {
       {/* Detail Modal */}
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-3xl p-6 shadow-2xl space-y-5 animate-scale-up max-h-[90vh] flex flex-col">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-3xl p-6 space-y-5 animate-scale-up max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-800 flex items-center justify-center font-bold">
                   <ClipboardList size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Chi Tiết Nhật Ký Hoạt Động</h3>
-                  <p className="text-xs text-slate-400">ID: {selectedLog._id}</p>
+                  <h3 className="text-base font-black text-inherit">Chi Tiết Nhật Ký Hoạt Động</h3>
+                  <p className="text-xs text-slate-600">ID: {selectedLog._id}</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 hover:text-inherit transition"
               >
                 <X size={18} />
               </button>
@@ -719,25 +716,25 @@ export const AdminLogsPage: React.FC = () => {
             <div className="space-y-4 overflow-y-auto pr-1 flex-1">
               {/* Key metadata grid */}
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Thời gian thực hiện</p>
-                  <p className="text-white font-bold mt-0.5">
+                <div className="bg-white p-3 rounded-2xl border border-slate-200">
+                  <p className="text-slate-600 font-bold text-[10px] uppercase">Thời gian thực hiện</p>
+                  <p className="text-inherit font-bold mt-0.5">
                     {new Date(selectedLog.createdAt).toLocaleString('vi-VN')}
                   </p>
                 </div>
 
-                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Người thực hiện</p>
-                  <p className="text-white font-bold mt-0.5">
+                <div className="bg-white p-3 rounded-2xl border border-slate-200">
+                  <p className="text-slate-600 font-bold text-[10px] uppercase">Người thực hiện</p>
+                  <p className="text-inherit font-bold mt-0.5">
                     {selectedLog.user?.name || 'Admin'}{' '}
-                    <span className="text-slate-400 font-normal">
+                    <span className="text-slate-600 font-normal">
                       ({selectedLog.user?.email || selectedLog.user?.role || 'admin'})
                     </span>
                   </p>
                 </div>
 
-                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Hành động</p>
+                <div className="bg-white p-3 rounded-2xl border border-slate-200">
+                  <p className="text-slate-600 font-bold text-[10px] uppercase">Hành động</p>
                   <div className="mt-1">
                     <span
                       className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black border ${getActionColor(
@@ -746,18 +743,18 @@ export const AdminLogsPage: React.FC = () => {
                     >
                       {getActionLabel(selectedLog.action)}
                     </span>
-                    <span className="ml-2 font-mono text-[11px] text-slate-400">
+                    <span className="ml-2 font-mono text-[11px] text-slate-600">
                       ({selectedLog.action})
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Đối tượng tác động</p>
-                  <p className="text-white font-bold mt-0.5">
+                <div className="bg-white p-3 rounded-2xl border border-slate-200">
+                  <p className="text-slate-600 font-bold text-[10px] uppercase">Đối tượng tác động</p>
+                  <p className="text-inherit font-bold mt-0.5">
                     {selectedLog.targetType || 'Hệ thống'}
                     {selectedLog.targetId && (
-                      <span className="text-slate-400 text-[10px] ml-1.5 font-mono">
+                      <span className="text-slate-600 text-[10px] ml-1.5 font-mono">
                         [ID: {selectedLog.targetId}]
                       </span>
                     )}
@@ -766,23 +763,23 @@ export const AdminLogsPage: React.FC = () => {
               </div>
 
               {/* Tóm tắt */}
-              <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                <p className="text-slate-500 font-bold text-[10px] uppercase mb-1">Tóm tắt hoạt động</p>
-                <p className="text-sm font-bold text-indigo-300">{getLogSummary(selectedLog)}</p>
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                <p className="text-slate-600 font-bold text-[10px] uppercase mb-1">Tóm tắt hoạt động</p>
+                <p className="text-sm font-bold text-indigo-800">{getLogSummary(selectedLog)}</p>
               </div>
 
               {/* Payload Details */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-300">Dữ liệu chi tiết (Payload JSON):</p>
+                  <p className="text-xs font-bold text-slate-700">Dữ liệu chi tiết (Payload JSON):</p>
                   <button
                     onClick={copyDetailsJson}
-                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 hover:text-white flex items-center gap-1.5 transition"
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-100 text-[11px] font-bold text-slate-700 hover:text-inherit flex items-center gap-1.5 transition"
                   >
                     {copied ? (
                       <>
-                        <CheckCircle2 size={12} className="text-emerald-400" />
-                        <span className="text-emerald-400">Đã chép!</span>
+                        <CheckCircle2 size={12} className="text-emerald-800" />
+                        <span className="text-emerald-800">Đã chép!</span>
                       </>
                     ) : (
                       <>
@@ -793,17 +790,17 @@ export const AdminLogsPage: React.FC = () => {
                   </button>
                 </div>
 
-                <pre className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-400/90 overflow-x-auto max-h-56 leading-relaxed">
+                <pre className="p-4 rounded-2xl bg-white border border-slate-200 text-[11px] font-mono text-emerald-800 overflow-x-auto max-h-56 leading-relaxed">
                   {JSON.stringify(selectedLog.details, null, 2)}
                 </pre>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="pt-3 border-t border-slate-800 flex justify-end">
+            <div className="pt-3 border-t border-slate-200 flex justify-end">
               <button
                 onClick={() => setSelectedLog(null)}
-                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition"
+                className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-100 text-xs font-bold text-inherit transition"
               >
                 Đóng
               </button>

@@ -1,3 +1,6 @@
+const { validateSchedule, activeScheduleFilter, normalizeSchedulePeriod } = require('../services/scheduleRules');
+const maintenance = require('./adminMaintenanceController');
+const integrity = require('../services/adminIntegrity');
 const {
   User,
   Topic,
@@ -14,19 +17,9 @@ const {
   ClassroomSession,
   SystemSetting,
   LanguageContent,
-  Schedule,
-  UnitCompletion
+  Schedule
 } = require('../models');
-const XLSX = require('xlsx');
-
-// Helper to generate SVG avatar for demo cards
-const createAvatarSvg = (emoji, bg) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-    <rect width="200" height="200" rx="40" fill="${bg || '#FFE082'}"/>
-    <text x="100" y="125" font-size="95" text-anchor="middle" dominant-baseline="middle">${emoji || '🌟'}</text>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
+const writeAudit = entry => AuditLog.create(entry).catch(error => console.error('[Audit log]', error.message));
 
 // @desc    Get Admin Dashboard KPI metrics
 // @route   GET /api/admin/dashboard
@@ -127,9 +120,9 @@ const getUsers = async (req, res, next) => {
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { username: { $regex: search, $options: 'i' } }
+        { name: { $regex: integrity.escapeRegex(search), $options: 'i' } },
+        { email: { $regex: integrity.escapeRegex(search), $options: 'i' } },
+        { username: { $regex: integrity.escapeRegex(search), $options: 'i' } }
       ];
     }
 
@@ -162,153 +155,12 @@ const getUsers = async (req, res, next) => {
 // @desc    Create new Teacher account
 // @route   POST /api/admin/teachers
 // @access  Private / Admin
-const createTeacher = async (req, res, next) => {
-  try {
-    const { name, username, email, password, avatar, contact, assignedClass } = req.body;
-
-    if (!name || !username || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng cung cấp đầy đủ họ tên, tên đăng nhập, email và mật khẩu.'
-      });
-    }
-
-    const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }] });
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email hoặc tên đăng nhập này đã được sử dụng.'
-      });
-    }
-
-    const teacher = new User({
-      role: 'TEACHER',
-      name,
-      username: username.toLowerCase().trim(),
-      email: email.toLowerCase().trim(),
-      password,
-      contact: contact || '',
-      avatar: avatar || 'fox',
-      avatarUrl: createAvatarSvg('🦊', '#FFE0B2'),
-      status: 'ACTIVE'
-    });
-
-    await teacher.save();
-
-    // Assign to classroom if provided
-    if (assignedClass) {
-      await ClassRoom.findByIdAndUpdate(assignedClass, { teacher: teacher._id });
-    }
-
-    // Log action
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'CREATE_USER',
-        targetType: 'User',
-        targetId: teacher._id,
-        details: { role: 'TEACHER', email: teacher.email, name: teacher.name, assignedClass }
-      });
-    }
-
-    res.status(201).json({
-      success: true,
-      message: 'Tạo tài khoản giáo viên và phân công thành công!',
-      data: teacher
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const createTeacher = maintenance.createTeacher;
 
 // @desc    Create new Child account with DOB validation
 // @route   POST /api/admin/children
 // @access  Private / Admin
-const createChild = async (req, res, next) => {
-  try {
-    const { name, dob, avatar, pin, assignedClass, email, contact, password } = req.body;
-
-    if (!name || !pin) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng cung cấp tên học sinh và mã PIN 4 chữ số.'
-      });
-    }
-
-    if (!/^\d{4}$/.test(pin)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mã PIN của trẻ phải đúng 4 chữ số.'
-      });
-    }
-
-    // Determine age group from body or DOB (default to 3-4)
-    let ageGroupCode = req.body.ageGroupCode || '3-4';
-    if (dob) {
-      const birthDate = new Date(dob);
-      const ageDiffMs = Date.now() - birthDate.getTime();
-      const ageYears = Math.floor(ageDiffMs / (365.25 * 24 * 60 * 60 * 1000));
-
-      if (ageYears <= 3) {
-        ageGroupCode = '3-4';
-      } else if (ageYears === 4) {
-        ageGroupCode = '4-5';
-      } else {
-        ageGroupCode = '5-6';
-      }
-    }
-
-    const ageGroupDoc = await AgeGroup.findOne({ code: ageGroupCode });
-
-    const avatarKey = avatar || 'lion';
-    const avatarEmojiMap = { lion: '🦁', panda: '🐼', rabbit: '🐰', bear: '🐻', fox: '🦊', koala: '🐨' };
-    const emoji = avatarEmojiMap[avatarKey] || '🦁';
-
-    const child = new User({
-      role: 'CHILD',
-      name,
-      dob: dob ? new Date(dob) : undefined,
-      avatar: avatarKey,
-      avatarUrl: createAvatarSvg(emoji, '#FFE082'),
-      pin,
-      password: password || pin, // allows logging in with password or pin
-      email: email ? email.toLowerCase().trim() : undefined,
-      contact: contact ? contact.trim() : undefined,
-      ageGroup: ageGroupDoc ? ageGroupDoc._id : undefined,
-      ageGroupCode,
-      assignedClass: assignedClass || undefined,
-      status: 'ACTIVE'
-    });
-
-    await child.save();
-
-    // Link student to classroom if provided
-    if (assignedClass) {
-      await ClassRoom.findByIdAndUpdate(assignedClass, {
-        $addToSet: { students: child._id }
-      });
-    }
-
-    // Log action
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'CREATE_USER',
-        targetType: 'User',
-        targetId: child._id,
-        details: { role: 'CHILD', name: child.name, ageGroupCode, dob }
-      });
-    }
-
-    res.status(201).json({
-      success: true,
-      message: `Tạo tài khoản học sinh thành công! Tự động gán: Nhóm tuổi ${ageGroupCode} (${ageGroupDoc?.name || ''}).`,
-      data: child
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const createChild = maintenance.createChild;
 
 // @desc    Toggle User lock/unlock status (Soft-delete / Disable)
 // @route   PATCH /api/admin/users/:id/status
@@ -322,6 +174,7 @@ const toggleUserStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
     }
 
+    if (user.role === 'TEACHER' && await ClassRoom.exists({ teacher: user._id, status: { $ne: 'INACTIVE' } })) throw integrity.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản.');
     if (user.role === 'ADMIN') {
       return res.status(400).json({ success: false, message: 'Không thể khóa tài khoản quản trị viên chính.' });
     }
@@ -332,7 +185,7 @@ const toggleUserStatus = async (req, res, next) => {
 
     // Log action
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: newStatus === 'LOCKED' ? 'LOCK_USER' : 'UNLOCK_USER',
         targetType: 'User',
@@ -371,17 +224,18 @@ const getAuditLogs = async (req, res, next) => {
     if (startDate || endDate) {
       filter.createdAt = {};
       if (startDate) {
-        filter.createdAt.$gte = new Date(startDate);
+        filter.createdAt.$gte = new Date(startDate + 'T00:00:00+07:00');
+        if (!Number.isFinite(+filter.createdAt.$gte)) throw integrity.fail('Ngày bắt đầu không hợp lệ.');
       }
       if (endDate) {
-        const eDate = new Date(endDate);
-        eDate.setHours(23, 59, 59, 999);
+        const eDate = new Date(endDate + 'T23:59:59.999+07:00');
+        if (!Number.isFinite(+eDate)) throw integrity.fail('Ngày kết thúc không hợp lệ.');
         filter.createdAt.$lte = eDate;
       }
     }
 
     if (search && search.trim()) {
-      const regex = new RegExp(search.trim(), 'i');
+      const regex = new RegExp(integrity.escapeRegex(search.trim()), 'i');
       const matchingUsers = await User.find({
         $or: [{ name: regex }, { email: regex }, { username: regex }]
       }).select('_id').lean();
@@ -440,7 +294,7 @@ const toggleTopicStatus = async (req, res, next) => {
     await topic.save();
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'TOGGLE_TOPIC',
         targetType: 'Topic',
@@ -470,7 +324,7 @@ const getClassrooms = async (req, res, next) => {
   try {
     const classrooms = await ClassRoom.find()
       .populate('teacher', 'name email username avatar avatarUrl contact')
-      .populate('students', 'name username avatar avatarUrl ageGroupCode dob contact pin status')
+      .populate('students', 'name username avatar avatarUrl ageGroupCode dob contact status')
       .populate('ageGroup', 'name code')
       .populate('currentLesson', 'title vietnameseTitle displayOrder')
       .sort({ createdAt: -1 })
@@ -492,188 +346,22 @@ const getClassrooms = async (req, res, next) => {
 };
 
 // Helper to create and assign students from parsed Excel rows
-const helperCreateStudentsFromList = async (students, classroomId, defaultAgeGroupCode = '3-4', defaultAgeGroupDoc = null) => {
-  const avatarKeys = ['lion', 'panda', 'rabbit', 'bear', 'fox', 'koala'];
-  const avatarEmojiMap = { lion: '🦁', panda: '🐼', rabbit: '🐰', bear: '🐻', fox: '🦊', koala: '🐨' };
-
-  const createdUsers = [];
-  const errors = [];
-
-  const ageGroupsCache = {};
-  const getAgeGroup = async (code) => {
-    if (!ageGroupsCache[code]) {
-      ageGroupsCache[code] = await AgeGroup.findOne({ code });
-    }
-    return ageGroupsCache[code];
-  };
-
-  for (let i = 0; i < students.length; i++) {
-    const item = students[i];
-    const rawName = item.name || item.fullName || item['Họ và tên'] || item['Họ tên'] || item['Tên'] || '';
-    const name = String(rawName).trim();
-
-    if (!name) {
-      errors.push(`Dòng ${i + 1}: Thiếu họ và tên học sinh.`);
-      continue;
-    }
-
-    let rawPin = item.pin || item['Mã PIN'] || item['PIN'] || '';
-    rawPin = String(rawPin).trim();
-    let pin = rawPin;
-    if (!pin || !/^\d{4}$/.test(pin)) {
-      pin = String(Math.floor(1000 + Math.random() * 9000));
-    }
-
-    let rawDob = item.dob || item.birthDate || item['Ngày sinh'] || '';
-    let dob = null;
-    if (rawDob) {
-      if (typeof rawDob === 'number') {
-        dob = new Date(Math.round((rawDob - 25569) * 86400 * 1000));
-      } else if (typeof rawDob === 'string') {
-        const parts = rawDob.trim().split(/[-/]/);
-        if (parts.length === 3) {
-          if (parts[0].length === 4) {
-            dob = new Date(`${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`);
-          } else if (parts[2].length === 4) {
-            dob = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-          } else {
-            dob = new Date(rawDob);
-          }
-        } else {
-          dob = new Date(rawDob);
-        }
-      }
-      if (isNaN(dob?.getTime())) {
-        dob = undefined;
-      }
-    }
-
-    let itemAgeCode = item.ageGroupCode || item['Nhóm tuổi'] || defaultAgeGroupCode;
-    if (!['3-4', '4-5', '5-6'].includes(itemAgeCode)) {
-      if (dob) {
-        const ageYears = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-        itemAgeCode = ageYears <= 3 ? '3-4' : ageYears === 4 ? '4-5' : '5-6';
-      } else {
-        itemAgeCode = defaultAgeGroupCode || '3-4';
-      }
-    }
-
-    const ageDoc = (await getAgeGroup(itemAgeCode)) || defaultAgeGroupDoc;
-
-    const rawContact = item.contact || item.parentContact || item.phone || item['SĐT Phụ huynh'] || item['Số điện thoại'] || item['SĐT'] || '';
-    const contact = String(rawContact).trim();
-
-    const cleanName = name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .toLowerCase();
-    let username = `${cleanName || 'kid'}${Math.floor(100 + Math.random() * 900)}`;
-
-    let existingUser = await User.findOne({ username });
-    while (existingUser) {
-      username = `${cleanName || 'kid'}${Math.floor(1000 + Math.random() * 9000)}`;
-      existingUser = await User.findOne({ username });
-    }
-
-    const avatarKey = item.avatar && avatarKeys.includes(item.avatar)
-      ? item.avatar
-      : avatarKeys[i % avatarKeys.length];
-    const emoji = avatarEmojiMap[avatarKey] || '🦁';
-
-    const child = new User({
-      role: 'CHILD',
-      name,
-      username,
-      dob: dob || undefined,
-      pin,
-      password: pin,
-      contact: contact || undefined,
-      parentContact: contact || undefined,
-      avatar: avatarKey,
-      avatarUrl: createAvatarSvg(emoji, '#FFE082'),
-      ageGroup: ageDoc ? ageDoc._id : undefined,
-      ageGroupCode: itemAgeCode,
-      assignedClass: classroomId || undefined,
-      status: 'ACTIVE'
-    });
-
-    await child.save();
-    createdUsers.push(child);
-  }
-
-  return { createdUsers, errors };
+const helperCreateStudentsFromList = async (students, classroomId, defaultAgeGroupCode = '3-4') => {
+  const room = classroomId ? await integrity.classroom(String(classroomId)) : null;
+  return integrity.importStudents(students, room, defaultAgeGroupCode);
 };
 
 // @desc    Bulk create child accounts from Excel data
 // @route   POST /api/admin/children/bulk-import
 // @access  Private / Admin
-const bulkImportChildren = async (req, res, next) => {
-  try {
-    const { students, classroomId, defaultAgeGroupCode } = req.body;
-    if (!Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Danh sách học sinh không hợp lệ hoặc rỗng.'
-      });
-    }
-
-    let targetClass = null;
-    if (classroomId) {
-      targetClass = await ClassRoom.findById(classroomId);
-    }
-
-    const ageCode = targetClass?.ageGroupCode || defaultAgeGroupCode || '3-4';
-    const ageDoc = await AgeGroup.findOne({ code: ageCode });
-
-    const { createdUsers, errors } = await helperCreateStudentsFromList(
-      students,
-      targetClass?._id,
-      ageCode,
-      ageDoc
-    );
-
-    if (createdUsers.length > 0 && targetClass) {
-      const newIds = createdUsers.map(u => u._id);
-      await ClassRoom.findByIdAndUpdate(targetClass._id, {
-        $addToSet: { students: { $each: newIds } }
-      });
-    }
-
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'BULK_IMPORT_STUDENTS',
-        targetType: targetClass ? 'ClassRoom' : 'User',
-        targetId: targetClass ? targetClass._id : undefined,
-        details: {
-          totalRows: students.length,
-          importedCount: createdUsers.length,
-          errorsCount: errors.length,
-          className: targetClass?.name || 'Chưa phân lớp'
-        }
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Đã tạo thành công ${createdUsers.length} tài khoản học sinh!${errors.length > 0 ? ` Có ${errors.length} dòng lỗi.` : ''}`,
-      data: {
-        count: createdUsers.length,
-        errors,
-        users: createdUsers
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const bulkImportChildren = maintenance.bulkImportChildren;
 
 
 // @desc    Create new Classroom with assigned teacher and optional initial Excel students
 // @route   POST /api/admin/classrooms
 // @access  Private / Admin
 const createClassroom = async (req, res, next) => {
+  let createdRoom;
   try {
     const { name, ageGroupCode, teacherId, academicYear, description, students } = req.body;
     if (!name || !ageGroupCode || !teacherId) {
@@ -703,7 +391,7 @@ const createClassroom = async (req, res, next) => {
     }
 
     // 2. Validate teacher and enforce 1-1 rule
-    const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
+    const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER', status: 'ACTIVE' });
     if (!teacher) {
       return res.status(400).json({
         success: false,
@@ -747,15 +435,19 @@ const createClassroom = async (req, res, next) => {
       currentLesson: initialLessonId || undefined,
       completedLessons: [],
       teacher: teacher._id,
-      academicYear: academicYear || '2026-2027',
+      academicYear: academicYear || (await SystemSetting.findOne().lean())?.academicYear || '2026-2027',
       description: description || '',
       status: 'ACTIVE',
       students: []
     });
 
+    createdRoom = classroom;
+    let credentials = [];
     let initialImportedCount = 0;
     if (Array.isArray(students) && students.length > 0) {
-      const { createdUsers } = await helperCreateStudentsFromList(students, classroom._id, ageGroupCode, ageGroupDoc);
+      const imported = await helperCreateStudentsFromList(students, classroom._id, ageGroupCode, ageGroupDoc);
+      const { createdUsers } = imported;
+      credentials = imported.credentials;
       if (createdUsers.length > 0) {
         classroom.students = createdUsers.map(u => u._id);
         await classroom.save();
@@ -763,12 +455,13 @@ const createClassroom = async (req, res, next) => {
       }
     }
 
+    await integrity.syncTeacher(classroom, classroom.teacher);
     await classroom.populate('teacher', 'name email username avatar avatarUrl');
-    await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob pin contact');
+    await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob contact');
     await classroom.populate('currentLesson', 'title vietnameseTitle displayOrder');
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'CREATE_CLASSROOM',
         targetType: 'ClassRoom',
@@ -787,9 +480,15 @@ const createClassroom = async (req, res, next) => {
       message: initialImportedCount > 0
         ? `Tạo lớp học ${classroom.name} và nạp thành công ${initialImportedCount} học sinh từ file Excel!`
         : `Tạo lớp học ${classroom.name} và phân công cho giáo viên ${teacher.name} thành công!`,
+      credentials,
       data: classroom
     });
   } catch (error) {
+    if (createdRoom) {
+      await User.deleteMany({ role: 'CHILD', assignedClass: createdRoom._id });
+      await User.updateMany({ role: 'TEACHER', assignedClass: createdRoom._id }, { $unset: { assignedClass: 1 } });
+      await ClassRoom.deleteOne({ _id: createdRoom._id });
+    }
     next(error);
   }
 };
@@ -803,6 +502,7 @@ const updateClassroom = async (req, res, next) => {
     const { name, ageGroupCode, teacherId, academicYear, description, status, currentLessonId } = req.body;
 
     const classroom = await ClassRoom.findById(id);
+    if (classroom?.deletionPending) throw integrity.fail('Lớp đang được xóa. Hãy hoàn tất thao tác xóa trước khi chỉnh sửa.');
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
@@ -825,6 +525,8 @@ const updateClassroom = async (req, res, next) => {
 
     if (ageGroupCode && ageGroupCode !== classroom.ageGroupCode) {
       classroom.ageGroupCode = ageGroupCode;
+      classroom.currentLesson = null;
+      classroom.completedLessons = [];
       const ag = await AgeGroup.findOne({ code: ageGroupCode });
       if (ag) classroom.ageGroup = ag._id;
       const bookNumber = ageGroupCode === '3-4' ? 1 : ageGroupCode === '4-5' ? 2 : 3;
@@ -853,6 +555,7 @@ const updateClassroom = async (req, res, next) => {
     }
 
     if (currentLessonId) {
+      if (!await Lesson.exists({ _id: currentLessonId, ageGroupCode: classroom.ageGroupCode, status: 'ACTIVE' })) throw integrity.fail('Bài học không phù hợp với nhóm tuổi của lớp.');
       classroom.currentLesson = currentLessonId;
     }
 
@@ -862,13 +565,14 @@ const updateClassroom = async (req, res, next) => {
       classroom.status = status;
     }
 
-    await classroom.save();
+    await integrity.syncTeacher(classroom, classroom.teacher);
+    await User.updateMany({ role: 'CHILD', assignedClass: classroom._id }, { $set: { ageGroupCode: classroom.ageGroupCode, ageGroup: classroom.ageGroup } });
     await classroom.populate('teacher', 'name email username avatar avatarUrl');
-    await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob contact pin');
+    await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob contact');
     await classroom.populate('currentLesson', 'title vietnameseTitle displayOrder');
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'UPDATE_CLASSROOM',
         targetType: 'ClassRoom',
@@ -895,190 +599,17 @@ const updateClassroom = async (req, res, next) => {
 // @desc    Delete classroom permanently and cascade delete all its students cleanly
 // @route   DELETE /api/admin/classrooms/:id
 // @access  Private / Admin
-const deleteClassroom = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const classroom = await ClassRoom.findById(id);
-    if (!classroom) {
-      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại hoặc đã bị xóa.' });
-    }
-
-    const className = classroom.name;
-    const studentIds = classroom.students || [];
-
-    // 1. Wipe out all student accounts belonging to this class permanently
-    const deleteStudentsResult = await User.deleteMany({
-      $or: [
-        { assignedClass: classroom._id },
-        { _id: { $in: studentIds } }
-      ],
-      role: 'CHILD'
-    });
-
-    // 2. Clean up attendances, sessions, and schedules associated with this class
-    try {
-      await Attendance.deleteMany({ classroom: classroom._id });
-      await ClassroomSession.deleteMany({ classroom: classroom._id });
-      const Schedule = mongoose.models.Schedule || require('../models/Schedule');
-      if (Schedule) {
-        await Schedule.deleteMany({ classroom: classroom._id });
-      }
-    } catch (e) {
-      console.warn('Could not clean up secondary classroom records:', e);
-    }
-
-    // 3. Delete the classroom document itself
-    await ClassRoom.findByIdAndDelete(id);
-
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'DELETE_CLASSROOM',
-        targetType: 'ClassRoom',
-        targetId: id,
-        details: {
-          name: className,
-          deletedStudentsCount: deleteStudentsResult.deletedCount,
-          note: 'Đã xóa vĩnh viễn lớp học và toàn bộ học sinh thuộc lớp theo quy định'
-        }
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Đã xóa vĩnh viễn lớp học "${className}" cùng toàn bộ ${deleteStudentsResult.deletedCount} hồ sơ học sinh thuộc lớp.`
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const deleteClassroom = maintenance.deleteClassroom;
 
 // @desc    Assign students to classroom
 // @route   POST /api/admin/classrooms/:id/assign-students
 // @access  Private / Admin
-const assignStudentsToClassroom = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { studentIds } = req.body;
-
-    if (!Array.isArray(studentIds)) {
-      return res.status(400).json({ success: false, message: 'Danh sách học sinh không hợp lệ.' });
-    }
-
-    const classroom = await ClassRoom.findById(id);
-    if (!classroom) {
-      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
-    }
-
-    classroom.students = studentIds;
-    await classroom.save();
-
-    await User.updateMany(
-      { _id: { $in: studentIds } },
-      { $set: { assignedClass: classroom._id, ageGroupCode: classroom.ageGroupCode } }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: `Đã phân bổ ${studentIds.length} học sinh vào lớp ${classroom.name}!`,
-      data: classroom
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const assignStudentsToClassroom = maintenance.assignStudentsToClassroom;
 
 // @desc    Update user details (name, email, dob, contact, ageGroupCode, assignedClass, status)
 // @route   PUT /api/admin/users/:id
 // @access  Private / Admin
-const updateUser = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { name, email, username, dob, contact, ageGroupCode, assignedClass, status } = req.body;
-
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-    }
-
-    if (name) user.name = name.trim();
-    if (email && email.toLowerCase().trim() !== (user.email || '').toLowerCase()) {
-      const emailExists = await User.findOne({ email: email.toLowerCase().trim(), _id: { $ne: id } });
-      if (emailExists) {
-        return res.status(400).json({ success: false, message: 'Email đã được sử dụng bởi tài khoản khác.' });
-      }
-      user.email = email.toLowerCase().trim();
-    }
-    if (username && username.toLowerCase().trim() !== (user.username || '').toLowerCase()) {
-      const uExists = await User.findOne({ username: username.toLowerCase().trim(), _id: { $ne: id } });
-      if (uExists) {
-        return res.status(400).json({ success: false, message: 'Tên đăng nhập đã được sử dụng bởi tài khoản khác.' });
-      }
-      user.username = username.toLowerCase().trim();
-    }
-    if (dob) user.dob = new Date(dob);
-    if (contact !== undefined) user.contact = contact.trim();
-    if (status && ['ACTIVE', 'INACTIVE', 'LOCKED'].includes(status)) user.status = status;
-
-    if (user.role === 'CHILD') {
-      const oldClassId = user.assignedClass ? user.assignedClass.toString() : null;
-      const newClassId = assignedClass ? assignedClass.toString() : null;
-
-      if (oldClassId !== newClassId) {
-        if (oldClassId) {
-          await ClassRoom.findByIdAndUpdate(oldClassId, { $pull: { students: user._id } });
-        }
-        if (newClassId) {
-          const newClass = await ClassRoom.findByIdAndUpdate(newClassId, { $addToSet: { students: user._id } }, { new: true });
-          user.assignedClass = newClass._id;
-          if (newClass.ageGroupCode) {
-            user.ageGroupCode = newClass.ageGroupCode;
-            const ag = await AgeGroup.findOne({ code: newClass.ageGroupCode });
-            if (ag) user.ageGroup = ag._id;
-          }
-        } else {
-          user.assignedClass = undefined;
-        }
-      }
-
-      if (ageGroupCode && !user.assignedClass) {
-        user.ageGroupCode = ageGroupCode;
-        const ag = await AgeGroup.findOne({ code: ageGroupCode });
-        if (ag) user.ageGroup = ag._id;
-      }
-    } else if (user.role === 'TEACHER') {
-      if (assignedClass) {
-        await ClassRoom.findByIdAndUpdate(assignedClass, { teacher: user._id });
-        user.assignedClass = assignedClass;
-      }
-    }
-
-    await user.save();
-
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'UPDATE_USER',
-        targetType: 'User',
-        targetId: user._id,
-        details: { name: user.name, role: user.role }
-      });
-    }
-
-    const updatedUser = await User.findById(user._id)
-      .select('-password -pin')
-      .populate('assignedClass', 'name academicYear ageGroupCode')
-      .populate('ageGroup', 'name code');
-
-    res.status(200).json({
-      success: true,
-      message: `Cập nhật thông tin tài khoản ${user.name} thành công!`,
-      data: updatedUser
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const updateUser = maintenance.updateUser;
 
 // @desc    Reset 4-digit PIN for student
 // @route   POST /api/admin/users/:id/reset-pin
@@ -1098,11 +629,12 @@ const resetChildPin = async (req, res, next) => {
     }
 
     child.pin = pin;
+    child.authVersion = (child.authVersion || 0) + 1;
     child.password = pin; // Allows PIN as password
     await child.save();
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'RESET_PIN',
         targetType: 'User',
@@ -1131,6 +663,7 @@ const deleteUser = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
     }
 
+    if (user.role === 'TEACHER' && await ClassRoom.exists({ teacher: user._id, status: { $ne: 'INACTIVE' } })) throw integrity.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản.');
     if (user.role === 'ADMIN') {
       return res.status(400).json({ success: false, message: 'Không thể xóa tài khoản Quản trị viên chính.' });
     }
@@ -1138,12 +671,13 @@ const deleteUser = async (req, res, next) => {
     user.status = 'INACTIVE';
     await user.save();
 
-    if (user.assignedClass) {
-      await ClassRoom.findByIdAndUpdate(user.assignedClass, { $pull: { students: user._id } });
+    if (user.role === 'CHILD') {
+      await ClassRoom.updateMany({ students: user._id }, { $pull: { students: user._id } });
+      await User.updateOne({ _id: user._id }, { $unset: { assignedClass: 1 } });
     }
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'DELETE_USER',
         targetType: 'User',
@@ -1166,14 +700,13 @@ const deleteUser = async (req, res, next) => {
 // @access  Private / Admin
 const getDeepCurriculum = async (req, res, next) => {
   try {
-    const [books, units, lessons, activities, vocabularies, sentences, topics] = await Promise.all([
+    const [books, units, lessons, activities, vocabularies, sentences] = await Promise.all([
       CurriculumBook.find().sort({ bookNumber: 1 }).lean(),
       CurriculumUnit.find().sort({ bookNumber: 1, unitNumber: 1 }).lean(),
       Lesson.find().populate('topic', 'title englishName').sort({ displayOrder: 1 }).lean(),
       Activity.find().select('lesson activityType title status maxScore').lean(),
       Vocabulary.find().select('_id english vietnamese pronunciation meaning audioUrl imageUrl category status sourceUnits topics lesson').lean(),
-      LanguageContent.find().select('_id lesson sourceUnit topic vocabulary english vietnamese pronunciation contentType difficulty status pairId relatedQuestion').lean(),
-      Topic.find().lean()
+      LanguageContent.find().select('_id lesson sourceUnit topic vocabulary english vietnamese pronunciation contentType difficulty status pairId relatedQuestion').lean()
     ]);
 
     // Fast lookup maps
@@ -1283,7 +816,7 @@ const toggleLessonStatus = async (req, res, next) => {
     await lesson.save();
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'TOGGLE_LESSON',
         targetType: 'Lesson',
@@ -1305,161 +838,7 @@ const toggleLessonStatus = async (req, res, next) => {
 // @desc    Get comprehensive system analytics for Admin
 // @route   GET /api/admin/analytics/overview
 // @access  Private / Admin
-const getAdminAnalytics = async (req, res, next) => {
-  try {
-    const [
-      totalStudents,
-      classrooms,
-      actResults,
-      clsSessions,
-      unitCompletions,
-      recentUsers
-    ] = await Promise.all([
-      User.countDocuments({ role: 'CHILD', status: 'ACTIVE' }),
-      ClassRoom.find().populate('teacher', 'name email').populate('students', 'name avatar ageGroupCode').lean(),
-      ActivityResult.find().select('score stars child createdAt').lean(),
-      ClassroomSession.find().select('sessionNumber classroom studentScores summary status createdAt').lean(),
-      UnitCompletion.find().select('child rewards').lean(),
-      User.find({ role: 'CHILD' }).select('name avatar ageGroupCode assignedClass streak createdAt').sort({ createdAt: -1 }).limit(10).lean()
-    ]);
-
-    // 1. Compute Home Stars (from ActivityResult + UnitCompletion bonus stars)
-    let totalHomeActivityStars = 0;
-    const studentHomeStarMap = {};
-    for (const resItem of actResults) {
-      const s = Number(resItem.stars) || 0;
-      totalHomeActivityStars += s;
-      if (resItem.child) {
-        const cid = resItem.child.toString();
-        studentHomeStarMap[cid] = (studentHomeStarMap[cid] || 0) + s;
-      }
-    }
-
-    let totalBonusStars = 0;
-    for (const comp of (unitCompletions || [])) {
-      const starReward = (comp.rewards || []).find(r => r.type === 'STAR');
-      const amt = starReward ? (Number(starReward.amount) || 0) : 0;
-      totalBonusStars += amt;
-      if (comp.child) {
-        const cid = comp.child.toString();
-        studentHomeStarMap[cid] = (studentHomeStarMap[cid] || 0) + amt;
-      }
-    }
-
-    const totalHomeStars = totalHomeActivityStars + totalBonusStars;
-
-    // 2. Compute Classroom Stars (from ClassroomSession.studentScores and session.summary)
-    let totalClassStars = 0;
-    const studentClassStarMap = {};
-    for (const session of clsSessions) {
-      let sessionStars = 0;
-      if (Array.isArray(session.studentScores)) {
-        for (const scoreObj of session.studentScores) {
-          const stars = Number(scoreObj.stars) || 0;
-          sessionStars += stars;
-          const stId = (scoreObj.student?._id || scoreObj.student)?.toString();
-          if (stId) {
-            studentClassStarMap[stId] = (studentClassStarMap[stId] || 0) + stars;
-          }
-        }
-      }
-      // If studentScores didn't yield stars, fallback to summary.totalStars
-      if (sessionStars === 0 && session.summary && session.summary.totalStars) {
-        sessionStars = Number(session.summary.totalStars) || 0;
-      }
-      totalClassStars += sessionStars;
-    }
-
-    // 3. Combined total stars map per student
-    const studentTotalStarMap = {};
-    const allStudentIds = new Set([...Object.keys(studentHomeStarMap), ...Object.keys(studentClassStarMap)]);
-    for (const id of allStudentIds) {
-      studentTotalStarMap[id] = (studentHomeStarMap[id] || 0) + (studentClassStarMap[id] || 0);
-    }
-
-    // 4. Classroom performance summary
-    const classroomStats = classrooms.map(c => {
-      const sCount = Array.isArray(c.students) ? c.students.length : 0;
-      const cSessions = clsSessions.filter(cs => cs.classroom && cs.classroom.toString() === c._id.toString());
-
-      let classSessionStars = 0;
-      for (const cs of cSessions) {
-        let sStars = 0;
-        if (Array.isArray(cs.studentScores)) {
-          sStars = cs.studentScores.reduce((acc, sc) => acc + (Number(sc.stars) || 0), 0);
-        }
-        if (sStars === 0 && cs.summary?.totalStars) {
-          sStars = Number(cs.summary.totalStars) || 0;
-        }
-        classSessionStars += sStars;
-      }
-
-      let totalStudentStars = 0;
-      let totalStudentHomeStars = 0;
-      let totalStudentClassStars = 0;
-      for (const st of (c.students || [])) {
-        const sid = st._id.toString();
-        totalStudentStars += studentTotalStarMap[sid] || 0;
-        totalStudentHomeStars += studentHomeStarMap[sid] || 0;
-        totalStudentClassStars += studentClassStarMap[sid] || 0;
-      }
-
-      return {
-        _id: c._id,
-        name: c.name,
-        ageGroupCode: c.ageGroupCode,
-        teacherName: c.teacher?.name || 'Chưa phân công',
-        studentCount: sCount,
-        sessionCount: cSessions.length,
-        totalStars: totalStudentStars,
-        classSessionStars,
-        classStars: totalStudentClassStars,
-        homeStars: totalStudentHomeStars,
-        avgStarsPerStudent: sCount > 0 ? Math.round(totalStudentStars / sCount) : 0
-      };
-    });
-
-    // 5. Top 5 students
-    const studentDocs = await User.find({ role: 'CHILD', status: 'ACTIVE' })
-      .select('name avatar ageGroupCode assignedClass')
-      .populate('assignedClass', 'name')
-      .lean();
-
-    const rankedStudents = studentDocs.map(st => {
-      const cid = st._id.toString();
-      const home = studentHomeStarMap[cid] || 0;
-      const classStars = studentClassStarMap[cid] || 0;
-      const total = (studentTotalStarMap[cid] || (home + classStars)) || 0;
-      return {
-        _id: st._id,
-        name: st.name,
-        avatar: st.avatar || 'lion',
-        ageGroupCode: st.ageGroupCode,
-        className: st.assignedClass?.name || 'Chưa vào lớp',
-        homeStars: home,
-        classStars,
-        totalStars: total
-      };
-    }).sort((a, b) => b.totalStars - a.totalStars).slice(0, 5);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        totalStudents,
-        totalHomeStars,
-        totalClassStars,
-        totalAllStars: totalHomeStars + totalClassStars,
-        totalClassrooms: classrooms.length,
-        totalSessionsConducted: clsSessions.length,
-        classroomStats,
-        topStudents: rankedStudents,
-        recentStudents: recentUsers
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const getAdminAnalytics = maintenance.getAdminAnalytics;
 
 // @desc    Get or initialize System Settings
 // @route   GET /api/admin/settings
@@ -1481,17 +860,19 @@ const getSystemSettings = async (req, res, next) => {
 // @access  Private / Admin
 const updateSystemSettings = async (req, res, next) => {
   try {
+    const allowed = Object.fromEntries(['schoolName', 'academicYear', 'contactPhone', 'contactEmail', 'address'].filter(key => req.body[key] !== undefined).map(key => [key, String(req.body[key]).trim()]));
+    if (allowed.schoolName === '' || allowed.academicYear === '') throw integrity.fail('Tên trường và năm học không được để trống.');
     let settings = await SystemSetting.findOne();
     if (!settings) {
-      settings = new SystemSetting(req.body);
+      settings = new SystemSetting(allowed);
     } else {
-      Object.assign(settings, req.body);
+      Object.assign(settings, allowed);
     }
     if (req.user) settings.updatedBy = req.user._id;
     await settings.save();
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'UPDATE_SETTINGS',
         targetType: 'Settings',
@@ -1556,7 +937,7 @@ const createUnit = async (req, res, next) => {
     });
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'CREATE_CURRICULUM_UNIT',
         targetType: 'CurriculumUnit',
@@ -1619,7 +1000,7 @@ const deleteUnit = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Unit không tồn tại.' });
     }
 
-    const attachedLessons = await Lesson.countDocuments({ curriculumUnits: unit._id });
+    const attachedLessons = await Lesson.countDocuments({ curriculumUnits: unit._id, status: { $ne: 'INACTIVE' } });
     if (attachedLessons > 0) {
       return res.status(400).json({
         success: false,
@@ -1627,6 +1008,9 @@ const deleteUnit = async (req, res, next) => {
       });
     }
 
+    await Lesson.updateMany({ curriculumUnits: unit._id }, { $pull: { curriculumUnits: unit._id } });
+    await LanguageContent.updateMany({ sourceUnit: unit._id }, { $unset: { sourceUnit: 1 } });
+    await Vocabulary.updateMany({ sourceUnits: unit._id }, { $pull: { sourceUnits: unit._id } });
     await CurriculumUnit.findByIdAndDelete(id);
 
     res.status(200).json({
@@ -1658,7 +1042,10 @@ const createLesson = async (req, res, next) => {
       resolvedTopicId = firstTopic ? firstTopic._id : undefined;
     }
 
-    const finalAgeGroupCode = ageGroupCode || '3-4';
+    const unitDoc = unitId ? await CurriculumUnit.findById(unitId) : null;
+    if (unitId && !unitDoc) throw integrity.fail('Unit không tồn tại.');
+    const finalAgeGroupCode = ageGroupCode || unitDoc?.ageGroupCode || '3-4';
+    if (unitDoc && unitDoc.ageGroupCode !== finalAgeGroupCode) throw integrity.fail('Nhóm tuổi của bài phải khớp Unit.');
     const ageGroupDoc = await AgeGroup.findOne({ code: finalAgeGroupCode });
 
     const lesson = await Lesson.create({
@@ -1675,7 +1062,7 @@ const createLesson = async (req, res, next) => {
     });
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'CREATE_LESSON',
         targetType: 'Lesson',
@@ -1711,7 +1098,13 @@ const updateLesson = async (req, res, next) => {
     if (vietnameseTitle !== undefined) lesson.vietnameseTitle = vietnameseTitle.trim();
     if (description !== undefined) lesson.description = description;
     if (topicId) lesson.topic = topicId;
-    if (unitId) lesson.curriculumUnits = [unitId];
+    if (unitId) {
+      const unit = await CurriculumUnit.findById(unitId);
+      if (!unit) throw integrity.fail('Unit không tồn tại.');
+      lesson.curriculumUnits = [unitId];
+      lesson.ageGroupCode = unit.ageGroupCode;
+      lesson.ageGroup = unit.ageGroup;
+    }
     if (ageGroupCode) {
       lesson.ageGroupCode = ageGroupCode;
       const ag = await AgeGroup.findOne({ code: ageGroupCode });
@@ -1871,8 +1264,8 @@ const getSentencePatterns = async (req, res, next) => {
 
     if (search) {
       query.$or = [
-        { english: { $regex: search, $options: 'i' } },
-        { vietnamese: { $regex: search, $options: 'i' } }
+        { english: { $regex: integrity.escapeRegex(search), $options: 'i' } },
+        { vietnamese: { $regex: integrity.escapeRegex(search), $options: 'i' } }
       ];
     }
 
@@ -1974,7 +1367,7 @@ const createSentencePattern = async (req, res, next) => {
       }
 
       if (req.user) {
-        await AuditLog.create({
+        await writeAudit({
           user: req.user._id,
           action: 'CREATE_SENTENCE_PATTERN',
           targetType: 'LanguageContent',
@@ -2023,7 +1416,7 @@ const createSentencePattern = async (req, res, next) => {
     }
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'CREATE_SENTENCE_PATTERN',
         targetType: 'LanguageContent',
@@ -2129,7 +1522,7 @@ const getClassroomById = async (req, res, next) => {
     const { id } = req.params;
     const classroom = await ClassRoom.findById(id)
       .populate('teacher', 'name email username avatar avatarUrl contact')
-      .populate('students', 'name username avatar avatarUrl ageGroupCode dob pin contact status createdAt')
+      .populate('students', 'name username avatar avatarUrl ageGroupCode dob contact status createdAt')
       .populate('ageGroup', 'name code')
       .lean();
 
@@ -2162,31 +1555,16 @@ const addStudentToClassroom = async (req, res, next) => {
     // 1. Existing student ID(s) (Thêm từ tài khoản học sinh đã có sẵn trong hệ thống)
     const idsToAdd = Array.isArray(studentIds) ? studentIds : (studentId ? [studentId] : []);
     if (idsToAdd.length > 0) {
-      const validStudents = await User.find({ _id: { $in: idsToAdd }, role: 'CHILD' });
+      const validStudents = await User.find({ _id: { $in: idsToAdd }, role: 'CHILD', status: 'ACTIVE' });
       if (validStudents.length === 0) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản học sinh hợp lệ trong hệ thống.' });
       }
       const validIds = validStudents.map(s => s._id);
 
-      // Remove from other classes
-      await ClassRoom.updateMany(
-        { _id: { $ne: classroom._id }, students: { $in: validIds } },
-        { $pull: { students: { $in: validIds } } }
-      );
-
-      // Add to this class
-      await ClassRoom.findByIdAndUpdate(id, {
-        $addToSet: { students: { $each: validIds } }
-      });
-
-      // Update students' assignedClass and ageGroupCode to match class
-      await User.updateMany(
-        { _id: { $in: validIds } },
-        { $set: { assignedClass: classroom._id, ageGroupCode: classroom.ageGroupCode } }
-      );
+      await integrity.atomic(() => integrity.moveStudents(classroom, validIds.map(String)));
 
       if (req.user) {
-        await AuditLog.create({
+        await writeAudit({
           user: req.user._id,
           action: 'ADD_STUDENTS_TO_CLASS',
           targetType: 'ClassRoom',
@@ -2197,7 +1575,7 @@ const addStudentToClassroom = async (req, res, next) => {
 
       const updated = await ClassRoom.findById(id)
         .populate('teacher', 'name email username avatar avatarUrl')
-        .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username pin status');
+        .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username status');
 
       const studentNameStr = validStudents.length === 1 ? `học sinh "${validStudents[0].name}"` : `${validIds.length} học sinh`;
       return res.status(200).json({
@@ -2219,7 +1597,7 @@ const addStudentToClassroom = async (req, res, next) => {
       };
       const ageGroupCode = classroom.ageGroupCode || '3-4';
       const ageGroupDoc = classroom.ageGroup || (await AgeGroup.findOne({ code: ageGroupCode }));
-      const { createdUsers, errors } = await helperCreateStudentsFromList(
+      const { createdUsers, credentials, errors } = await helperCreateStudentsFromList(
         [studentObj],
         classroom._id,
         ageGroupCode,
@@ -2239,7 +1617,7 @@ const addStudentToClassroom = async (req, res, next) => {
       });
 
       if (req.user) {
-        await AuditLog.create({
+        await writeAudit({
           user: req.user._id,
           action: 'ADD_INDIVIDUAL_STUDENT',
           targetType: 'ClassRoom',
@@ -2250,12 +1628,13 @@ const addStudentToClassroom = async (req, res, next) => {
 
       const updated = await ClassRoom.findById(id)
         .populate('teacher', 'name email username avatar avatarUrl')
-        .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username pin status');
+        .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username status');
 
       return res.status(201).json({
         success: true,
-        message: `Đã tiếp nhận và thêm học sinh "${newKid.name}" (Mã: ${newKid.username}, PIN: ${newKid.pin}) vào lớp ${classroom.name}!`,
+        message: `Đã tiếp nhận học sinh "${newKid.name}" (Mã: ${newKid.username}) vào lớp ${classroom.name}. Hãy lưu thông tin đăng nhập vừa cấp.`,
         data: updated,
+        credentials,
         createdStudent: newKid
       });
     }
@@ -2269,103 +1648,12 @@ const addStudentToClassroom = async (req, res, next) => {
 // @desc    Remove student from classroom
 // @route   DELETE /api/admin/classrooms/:id/students/:studentId
 // @access  Private / Admin
-const removeStudentFromClassroom = async (req, res, next) => {
-  try {
-    const { id, studentId } = req.params;
-    const classroom = await ClassRoom.findById(id);
-    if (!classroom) {
-      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
-    }
-
-    await ClassRoom.findByIdAndUpdate(id, { $pull: { students: studentId } });
-    await User.findByIdAndUpdate(studentId, { $unset: { assignedClass: 1 } });
-
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'REMOVE_STUDENT_FROM_CLASS',
-        targetType: 'ClassRoom',
-        targetId: classroom._id,
-        details: { className: classroom.name, studentId }
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Đã chuyển học sinh ra khỏi lớp ${classroom.name}.`
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const removeStudentFromClassroom = maintenance.removeStudentFromClassroom;
 
 // @desc    Import students into a classroom from Excel data (batch creation + assignment)
 // @route   POST /api/admin/classrooms/:id/import-students-excel
 // @access  Private / Admin
-const importStudentsFromExcel = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { students } = req.body;
-
-    if (!Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng cung cấp danh sách học sinh cần nhập từ file Excel.'
-      });
-    }
-
-    const classroom = await ClassRoom.findById(id).populate('ageGroup');
-    if (!classroom) {
-      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
-    }
-
-    const ageGroupCode = classroom.ageGroupCode || '3-4';
-    let ageGroupDoc = classroom.ageGroup;
-    if (!ageGroupDoc) {
-      ageGroupDoc = await AgeGroup.findOne({ code: ageGroupCode });
-    }
-
-    const { createdUsers, errors } = await helperCreateStudentsFromList(students, classroom._id, ageGroupCode, ageGroupDoc);
-
-    if (createdUsers.length > 0) {
-      const newIds = createdUsers.map(u => u._id);
-      await ClassRoom.findByIdAndUpdate(id, {
-        $addToSet: { students: { $each: newIds } }
-      });
-
-      if (req.user) {
-        await AuditLog.create({
-          user: req.user._id,
-          action: 'IMPORT_STUDENTS_EXCEL',
-          targetType: 'ClassRoom',
-          targetId: classroom._id,
-          details: {
-            className: classroom.name,
-            totalImported: createdUsers.length,
-            errorsCount: errors.length
-          }
-        });
-      }
-    }
-
-    const updatedClassroom = await ClassRoom.findById(id)
-      .populate('teacher', 'name email username avatar avatarUrl')
-      .populate('students', 'name avatar avatarUrl ageGroupCode dob contact username pin');
-
-    res.status(200).json({
-      success: true,
-      message: `Đã nhập thành công ${createdUsers.length} học sinh từ file Excel vào lớp ${classroom.name}!`,
-      data: {
-        importedCount: createdUsers.length,
-        errors,
-        students: createdUsers,
-        classroom: updatedClassroom
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const importStudentsFromExcel = maintenance.importStudentsFromExcel;
 
 // @desc    Export classroom student roster to Excel data
 // @route   GET /api/admin/classrooms/:id/export-excel
@@ -2375,7 +1663,7 @@ const exportClassroomExcel = async (req, res, next) => {
     const { id } = req.params;
     const classroom = await ClassRoom.findById(id)
       .populate('teacher', 'name email username contact')
-      .populate('students', 'name username dob pin contact parentContact status ageGroupCode createdAt')
+      .populate('students', 'name username dob contact parentContact status ageGroupCode createdAt')
       .lean();
 
     if (!classroom) {
@@ -2387,7 +1675,7 @@ const exportClassroomExcel = async (req, res, next) => {
       STT: idx + 1,
       'Họ và tên': s.name || '',
       'Tên đăng nhập': s.username || '',
-      'Mã PIN': s.pin || '',
+      'Đăng nhập': 'Dùng PIN đã cấp; đặt lại nếu quên',
       'Ngày sinh': s.dob ? new Date(s.dob).toLocaleDateString('vi-VN') : '',
       'Nhóm tuổi': classroom.ageGroupCode ? `${classroom.ageGroupCode} tuổi` : '',
       'Lớp học': classroom.name,
@@ -2398,7 +1686,7 @@ const exportClassroomExcel = async (req, res, next) => {
     }));
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'EXPORT_STUDENTS_EXCEL',
         targetType: 'ClassRoom',
@@ -2425,68 +1713,7 @@ const exportClassroomExcel = async (req, res, next) => {
 // @desc    Reassign teacher for a classroom
 // @route   PUT /api/admin/classrooms/:id/teacher
 // @access  Private / Admin
-const assignTeacherToClassroom = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { teacherId } = req.body;
-
-    if (!teacherId) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ID giáo viên phụ trách.' });
-    }
-
-    const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
-    if (!teacher) {
-      return res.status(400).json({ success: false, message: 'Không tìm thấy giáo viên hợp lệ.' });
-    }
-
-    const classroom = await ClassRoom.findById(id);
-    if (!classroom) {
-      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
-    }
-
-    // Check 1-1 rule: teacher cannot already have another active classroom
-    const existingTeacherClass = await ClassRoom.findOne({
-      teacher: teacher._id,
-      _id: { $ne: id },
-      status: { $ne: 'INACTIVE' }
-    });
-    if (existingTeacherClass) {
-      return res.status(400).json({
-        success: false,
-        message: `Giáo viên "${teacher.name}" đã phụ trách lớp "${existingTeacherClass.name}". Mỗi giáo viên chỉ được phụ trách 1 lớp học!`
-      });
-    }
-
-    // Update classroom teacher
-    classroom.teacher = teacher._id;
-    await classroom.save();
-
-    // Update teacher's assignedClass
-    await User.findByIdAndUpdate(teacher._id, { $set: { assignedClass: classroom._id } });
-
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'ASSIGN_TEACHER_TO_CLASS',
-        targetType: 'ClassRoom',
-        targetId: classroom._id,
-        details: { className: classroom.name, teacherName: teacher.name }
-      });
-    }
-
-    const updated = await ClassRoom.findById(id)
-      .populate('teacher', 'name email username avatar avatarUrl contact')
-      .populate('students', 'name avatar');
-
-    res.status(200).json({
-      success: true,
-      message: `Đã phân công giáo viên ${teacher.name} phụ trách lớp ${classroom.name}!`,
-      data: updated
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const assignTeacherToClassroom = maintenance.assignTeacherToClassroom;
 
 // @desc    Get unassigned students (trẻ chưa được phân vào lớp nào)
 // @route   GET /api/admin/students/unassigned
@@ -2508,7 +1735,7 @@ const getUnassignedStudents = async (req, res, next) => {
     }
 
     if (search) {
-      query.name = { $regex: search, $options: 'i' };
+      query.name = { $regex: integrity.escapeRegex(search), $options: 'i' };
     }
 
     const students = await User.find(query)
@@ -2566,6 +1793,7 @@ const getSchedules = async (req, res, next) => {
 // @access  Private / Admin
 const createSchedule = async (req, res, next) => {
   try {
+    req.body = { ...req.body, ...normalizeSchedulePeriod(req.body) };
     const { classroom, teacher, academicYear, weeklySlots, colorTag, effectiveFrom, effectiveTo, isActive } = req.body;
 
     if (!classroom) {
@@ -2596,6 +1824,7 @@ const createSchedule = async (req, res, next) => {
       });
     }
 
+    await validateSchedule({ classroom, teacher: assignedTeacher, weeklySlots: weeklySlots || [], effectiveFrom: effectiveFrom || new Date(), effectiveTo, isActive });
     const schedule = await Schedule.create({
       classroom,
       teacher: assignedTeacher,
@@ -2614,7 +1843,7 @@ const createSchedule = async (req, res, next) => {
 
     // Audit log
     if (req.user?._id) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'CREATE',
         targetType: 'Schedule',
@@ -2638,6 +1867,7 @@ const createSchedule = async (req, res, next) => {
 // @access  Private / Admin
 const updateSchedule = async (req, res, next) => {
   try {
+    req.body = { ...req.body, ...normalizeSchedulePeriod(req.body) };
     const { id } = req.params;
     const { classroom, teacher, academicYear, weeklySlots, colorTag, effectiveFrom, effectiveTo, isActive } = req.body;
 
@@ -2658,6 +1888,7 @@ const updateSchedule = async (req, res, next) => {
     if (effectiveTo !== undefined) schedule.effectiveTo = effectiveTo;
     if (isActive !== undefined) schedule.isActive = isActive;
 
+    await validateSchedule(schedule.toObject(), schedule._id);
     await schedule.save();
 
     const populatedSchedule = await Schedule.findById(schedule._id)
@@ -2667,7 +1898,7 @@ const updateSchedule = async (req, res, next) => {
 
     // Audit log
     if (req.user?._id) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'UPDATE',
         targetType: 'Schedule',
@@ -2704,7 +1935,7 @@ const deleteSchedule = async (req, res, next) => {
 
     // Audit log
     if (req.user?._id) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'DELETE',
         targetType: 'Schedule',
@@ -2728,7 +1959,8 @@ const deleteSchedule = async (req, res, next) => {
 const getTeacherSchedule = async (req, res, next) => {
   try {
     const { teacherId } = req.params;
-    const schedules = await Schedule.find({ teacher: teacherId, isActive: true })
+    if (req.user.role === 'TEACHER' && String(req.user._id) !== teacherId) throw integrity.fail('Bạn chỉ được xem lịch dạy của mình.', 403);
+    const schedules = await Schedule.find({ teacher: teacherId, ...activeScheduleFilter() })
       .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
       .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
@@ -2765,7 +1997,7 @@ const getAdminActivities = async (req, res, next) => {
     const query = {};
 
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(integrity.escapeRegex(search.trim()), 'i');
       query.$or = [
         { title: searchRegex },
         { vietnameseTitle: searchRegex },
@@ -2941,11 +2173,12 @@ const createAdminActivity = async (req, res, next) => {
       ageGroupDoc = await AgeGroup.findOne();
     }
 
+    if (!Array.isArray(questions) || !questions.length) throw integrity.fail('Trò chơi cần ít nhất một câu hỏi.');
     const formattedQuestions = (questions || []).map((q, idx) => ({
       promptText: q.promptText || '',
       promptAudioUrl: q.promptAudioUrl || '',
       promptImageUrl: q.promptImageUrl || '',
-      correctAnswer: q.correctAnswer || (q.options?.find(o => o.isCorrect)?.text || ''),
+      correctAnswer: q.options?.find(o => o.isCorrect)?.text || q.correctAnswer || '',
       vocabulary: q.vocabulary || null,
       explanation: q.explanation || '',
       metadata: q.metadata || {},
@@ -2978,7 +2211,7 @@ const createAdminActivity = async (req, res, next) => {
       status: status || 'ACTIVE'
     });
 
-    await AuditLog.create({
+    await writeAudit({
       user: req.user._id,
       action: 'CREATE',
       targetType: 'SYSTEM',
@@ -3011,7 +2244,6 @@ const updateAdminActivity = async (req, res, next) => {
       instructionAudioUrl,
       ageGroupCode,
       difficulty,
-      questionCount,
       timeLimit,
       pointsPerQuestion,
       starConfig,
@@ -3048,32 +2280,26 @@ const updateAdminActivity = async (req, res, next) => {
       if (agDoc) activity.ageGroup = agDoc._id;
     }
 
-    if (questions && Array.isArray(questions)) {
-      activity.questions = questions.map((q, idx) => ({
-        promptText: q.promptText || '',
-        promptAudioUrl: q.promptAudioUrl || '',
-        promptImageUrl: q.promptImageUrl || '',
-        correctAnswer: q.correctAnswer || (q.options?.find(o => o.isCorrect)?.text || ''),
-        vocabulary: q.vocabulary || null,
-        explanation: q.explanation || '',
-        metadata: q.metadata || {},
-        options: (q.options || []).map((opt, optIdx) => ({
-          id: opt.id || `opt_${idx}_${optIdx}`,
-          text: opt.text || '',
-          vietnameseText: opt.vietnameseText || '',
-          imageUrl: opt.imageUrl || '',
-          audioUrl: opt.audioUrl || '',
-          isCorrect: Boolean(opt.isCorrect)
-        }))
-      }));
-      activity.questionCount = questionCount !== undefined ? Number(questionCount) : activity.questions.length;
-    } else if (questionCount !== undefined) {
-      activity.questionCount = Number(questionCount);
+    if (questions !== undefined) {
+      if (!Array.isArray(questions) || !questions.length) throw integrity.fail('Trò chơi cần ít nhất một câu hỏi.');
+      const previous = activity.questions.map(question => question.toObject());
+      activity.questions = questions.map((question, index) => {
+        const old = question._id ? previous.find(item => String(item._id) === String(question._id)) || {} : previous[index] || {};
+        const options = (question.options || []).map((option, optionIndex) => ({
+          ...(old.options?.find(item => item.id === option.id) || old.options?.[optionIndex] || {}), ...option,
+          id: option.id || 'opt_' + index + '_' + optionIndex
+        }));
+        const correct = options.find(option => option.isCorrect);
+        return { ...old, ...question, options, vocabulary: question.vocabulary?._id || question.vocabulary || (question.vocabulary === null ? null : old.vocabulary),
+          metadata: question.metadata === undefined ? old.metadata : question.metadata,
+          correctAnswer: correct?.text || question.correctAnswer || old.correctAnswer };
+      });
+      activity.questionCount = activity.questions.length;
     }
 
     await activity.save();
 
-    await AuditLog.create({
+    await writeAudit({
       user: req.user._id,
       action: 'UPDATE',
       targetType: 'SYSTEM',
@@ -3105,7 +2331,7 @@ const deleteAdminActivity = async (req, res, next) => {
     const title = activity.title;
     await Activity.findByIdAndDelete(id);
 
-    await AuditLog.create({
+    await writeAudit({
       user: req.user._id,
       action: 'DELETE',
       targetType: 'SYSTEM',
@@ -3136,7 +2362,7 @@ const toggleActivityStatus = async (req, res, next) => {
     activity.status = activity.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await activity.save();
 
-    await AuditLog.create({
+    await writeAudit({
       user: req.user._id,
       action: 'UPDATE',
       targetType: 'SYSTEM',
@@ -3283,12 +2509,13 @@ const updateClassroomCurriculumProgress = async (req, res, next) => {
     const { currentLessonId, completedLessonIds, markCompletedLessonId } = req.body;
 
     const classroom = await ClassRoom.findById(id);
+    if (classroom?.deletionPending) throw integrity.fail('Lớp đang được xóa. Vui lòng hoàn tất thao tác xóa.');
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
 
     if (currentLessonId) {
-      const lesson = await Lesson.findById(currentLessonId);
+      const lesson = await Lesson.findOne({ _id: currentLessonId, ageGroupCode: classroom.ageGroupCode, status: 'ACTIVE' });
       if (!lesson) {
         return res.status(400).json({ success: false, message: 'Bài học không hợp lệ.' });
       }
@@ -3296,10 +2523,13 @@ const updateClassroomCurriculumProgress = async (req, res, next) => {
     }
 
     if (Array.isArray(completedLessonIds)) {
-      classroom.completedLessons = completedLessonIds;
+      const count = await Lesson.countDocuments({ _id: { $in: [...new Set(completedLessonIds)] }, ageGroupCode: classroom.ageGroupCode, status: 'ACTIVE' });
+      if (count !== new Set(completedLessonIds).size) throw integrity.fail('Danh sách bài hoàn thành không phù hợp với lớp.');
+      classroom.completedLessons = [...new Set(completedLessonIds)];
     }
 
     if (markCompletedLessonId) {
+      if (!await Lesson.exists({ _id: markCompletedLessonId, ageGroupCode: classroom.ageGroupCode, status: 'ACTIVE' })) throw integrity.fail('Bài hoàn thành không phù hợp với lớp.');
       if (!classroom.completedLessons.includes(markCompletedLessonId)) {
         classroom.completedLessons.push(markCompletedLessonId);
       }
@@ -3308,7 +2538,7 @@ const updateClassroomCurriculumProgress = async (req, res, next) => {
     await classroom.save();
 
     if (req.user) {
-      await AuditLog.create({
+      await writeAudit({
         user: req.user._id,
         action: 'UPDATE_CLASS_CURRICULUM_PROGRESS',
         targetType: 'ClassRoom',
@@ -3330,99 +2560,11 @@ const updateClassroomCurriculumProgress = async (req, res, next) => {
 // @desc    Full system database export for disaster recovery & backup
 // @route   GET /api/admin/system/backup
 // @access  Private / Admin
-const exportSystemBackup = async (req, res, next) => {
-  try {
-    const [
-      users,
-      classrooms,
-      schedules,
-      curriculumBooks,
-      curriculumUnits,
-      lessons,
-      topics,
-      vocabularies,
-      languageContents,
-      activities,
-      classroomSessions,
-      attendances,
-      systemSettings,
-      auditLogs
-    ] = await Promise.all([
-      User.find().select('-password').lean(),
-      ClassRoom.find().lean(),
-      Schedule.find().lean(),
-      CurriculumBook.find().lean(),
-      CurriculumUnit.find().lean(),
-      Lesson.find().lean(),
-      Topic.find().lean(),
-      Vocabulary.find().lean(),
-      LanguageContent.find().lean(),
-      Activity.find().lean(),
-      ClassroomSession.find().lean(),
-      Attendance.find().lean(),
-      SystemSetting.find().lean(),
-      AuditLog.find().sort({ createdAt: -1 }).limit(1000).lean()
-    ]);
-
-    const backupPayload = {
-      system: 'KCEnglishKids',
-      exportType: 'FULL_SYSTEM_BACKUP',
-      version: '2.0.0',
-      exportedAt: new Date().toISOString(),
-      exportedBy: req.user ? { name: req.user.name, email: req.user.email, role: req.user.role } : 'ADMIN',
-      summary: {
-        totalUsers: users.length,
-        totalClassrooms: classrooms.length,
-        totalSchedules: schedules.length,
-        totalCurriculumBooks: curriculumBooks.length,
-        totalCurriculumUnits: curriculumUnits.length,
-        totalLessons: lessons.length,
-        totalTopics: topics.length,
-        totalVocabularies: vocabularies.length,
-        totalSentencePatterns: languageContents.length,
-        totalActivities: activities.length,
-        totalSessions: classroomSessions.length,
-        totalAttendances: attendances.length
-      },
-      collections: {
-        users,
-        classrooms,
-        schedules,
-        curriculumBooks,
-        curriculumUnits,
-        lessons,
-        topics,
-        vocabularies,
-        languageContents,
-        activities,
-        classroomSessions,
-        attendances,
-        systemSettings,
-        auditLogs
-      }
-    };
-
-    if (req.user) {
-      await AuditLog.create({
-        user: req.user._id,
-        action: 'EXPORT_SYSTEM_BACKUP',
-        targetType: 'System',
-        details: { totalCollections: Object.keys(backupPayload.collections).length, summary: backupPayload.summary }
-      });
-    }
-
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="KCEnglishKids_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json"`
-    );
-    res.status(200).json(backupPayload);
-  } catch (error) {
-    next(error);
-  }
-};
+const exportSystemBackup = maintenance.exportSystemBackup;
 
 module.exports = {
+  getStudentCompetency: maintenance.getStudentCompetency,
+  resetStaffPassword: maintenance.resetStaffPassword,
   getDashboardStats,
   getCurriculum,
   getUsers,
