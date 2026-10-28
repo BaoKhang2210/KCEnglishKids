@@ -16,6 +16,7 @@ import { useRewards } from '../../context/RewardContext';
 import { learningApi, topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
 import type { ProgressSummary, Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
+import { ChildRecognitions } from '../../components/child/ChildRecognitions';
 import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
@@ -33,6 +34,7 @@ import { BadgeShowcaseModal } from '../../components/child/BadgeShowcaseModal';
 import { CuteRosetteMedal } from '../../components/child/CuteRosetteMedal';
 import { CuteStickerCard } from '../../components/child/CuteStickerCard';
 import { StickerShowcaseModal } from '../../components/child/StickerShowcaseModal';
+import { topicArt } from '../../utils/learningArt';
 
 
 interface CurriculumLesson {
@@ -244,8 +246,11 @@ export const ChildHomePage: React.FC = () => {
 
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-3 pb-24 md:pb-8">
+        <ChildRecognitions />
         {/* COMPACT BANNER */}
-        <section className="relative mb-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 px-5 py-3 text-white shadow-md overflow-hidden">
+        <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
+          <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_62%]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-teal-950/85 via-teal-950/55 to-teal-950/15" />
           <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
@@ -399,7 +404,7 @@ export const ChildHomePage: React.FC = () => {
                                   : 'bg-white border-amber-300 shadow-amber-200/50'
                               }`}
                             >
-                              {unit.topicIcon || theme.accentEmoji}
+                              {topicArt(unit.topicSlug) ? <img src={topicArt(unit.topicSlug)} alt="" className="w-full h-full object-cover rounded-xl" /> : unit.topicIcon || theme.accentEmoji}
                             </div>
                             <div className="min-w-0 flex-1">
                               {/* Dòng 1: Status Badge & Big Question Tag (Đã bỏ tag Unit bị trùng lặp) */}
@@ -532,7 +537,7 @@ export const ChildHomePage: React.FC = () => {
                         {/* Main Center Icon & Topic Info */}
                         <div className="my-2 flex flex-col items-center text-center w-full relative z-10">
                           <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl ${pal.iconBg} border-2 border-white shadow-md flex items-center justify-center text-5xl sm:text-6xl group-hover:scale-115 transition-transform duration-300 mb-3`}>
-                            {topic.icon || '🌟'}
+                            <img src={topic.imageUrl || topicArt(topic.slug)} alt="" className="w-full h-full object-cover rounded-2xl" loading="lazy" />
                           </div>
 
                           <h3 className="font-black text-slate-800 text-xl sm:text-2xl font-display group-hover:text-amber-700 transition-colors line-clamp-1 w-full">
@@ -859,7 +864,7 @@ export const ChildHomePage: React.FC = () => {
                 <div className="flex items-center justify-between p-5 sm:p-7 border-b-2 border-slate-200/80 bg-white/70 backdrop-blur-md relative z-10">
                   <div className="flex items-center gap-3 sm:gap-4">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white border-2 border-amber-300 shadow-md flex items-center justify-center text-3xl sm:text-4xl flex-shrink-0">
-                      {unit.topicIcon || theme.accentEmoji}
+                      {topicArt(unit.topicSlug) ? <img src={topicArt(unit.topicSlug)} alt="" className="w-full h-full object-cover rounded-xl" /> : unit.topicIcon || theme.accentEmoji}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">

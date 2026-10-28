@@ -8,6 +8,7 @@ import { BigInteractiveFlashcard } from '../../components/child/BigInteractiveFl
 import { vocabMasteryService } from '../../services/vocabMasteryService';
 import { sfx } from '../../utils/audio';
 import { ScreenShell } from '../../components/layout/ScreenShell';
+import { topicArt } from '../../utils/learningArt';
 
 export const TopicDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -98,7 +99,7 @@ export const TopicDetailPage: React.FC = () => {
             >
               <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
             </button>
-            <span className="text-xl sm:text-2xl shrink-0">{topic?.icon || '🌈'}</span>
+            <img src={topic?.imageUrl || topicArt(topic?.slug)} alt="" className="w-12 h-10 object-cover rounded-xl shrink-0" />
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-black text-slate-800 truncate leading-tight">
                 {topic?.englishName || 'Chủ đề từ vựng'}

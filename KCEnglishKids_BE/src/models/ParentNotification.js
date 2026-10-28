@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 const parentNotificationSchema = new mongoose.Schema(
   {
+    sourceKey: { type: String },
+    sourceRevision: { type: Number },
+    channel: { type: String, enum: ['IN_APP'], default: 'IN_APP' },
     // Who sent the notification
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
@@ -109,5 +112,6 @@ const parentNotificationSchema = new mongoose.Schema(
 
 parentNotificationSchema.index({ teacher: 1, createdAt: -1 });
 parentNotificationSchema.index({ child: 1, createdAt: -1 });
+parentNotificationSchema.index({ sourceKey: 1 }, { unique: true, partialFilterExpression: { sourceKey: { $type: 'string' } } });
 
 module.exports = mongoose.model('ParentNotification', parentNotificationSchema);

@@ -1,341 +1,37 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, LogOut, Menu, MessageSquare, Play, PlayCircle, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, School, BarChart3, ArrowUpDown, Send, TrendingUp, Brain } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, PlayCircle, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, School, BarChart3, ArrowUpDown, Send, Brain } from 'lucide-react';
 import { teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
 import { ParentNoteSuggestions } from './ParentNoteSuggestions';
 import { SentenceTeachingPage } from './SentenceTeachingPage';
 import { StudentCompetencyModal } from '../../components/teacher/StudentCompetencyModal';
 
-const Loader = () => <div className="py-20 text-center text-slate-500"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />Đang tải không gian giảng dạy…</div>;
-const Empty = ({ children }: { children: React.ReactNode }) => <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">{children}</div>;
-const Metric = ({ label, value, icon }: any) => <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-3 flex items-center justify-between text-slate-500">{label}{icon}</div><div className="text-3xl font-bold text-slate-900">{value ?? 0}</div></div>;
-const date = (value?: string) => value ? new Date(value).toLocaleDateString() : '—';
+const Loader = () => <div className="py-20 text-center text-slate-600"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />Đang tải không gian giảng dạy…</div>;
+const Empty = ({ children }: { children: React.ReactNode }) => <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">{children}</div>;
+const Metric = ({ label, value, icon }: any) => <div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-3 flex items-center justify-between text-slate-600">{label}{icon}</div><div className="text-3xl font-bold text-slate-900">{value ?? 0}</div></div>;
+const date = (value?: string) => value ? new Date(value).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
 const initials = (name?: string) => (name || '?').split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
 
-export const TeacherLayout = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  // 8 clean modules for preschool teacher workflow
-  const links = [
-    ['Bảng điều khiển', '/teacher/dashboard', LayoutDashboard],
-    ['Lịch dạy & Tiến độ', '/teacher/schedule', Calendar],
-    ['Bắt đầu buổi dạy', '/teacher/classes', School],
-    ['Nhật ký buổi dạy', '/teacher/classroom-sessions', PlayCircle],
-    ['Soạn giáo án AI', '/teacher/lesson-planner', Sparkles],
-    ['Học liệu & Mẫu câu', '/teacher/content', BookOpen],
-    ['Bài tập về nhà', '/teacher/assignments', ClipboardList],
-    ['Báo cáo & Phân tích', '/teacher/analytics', TrendingUp]
-  ];
-
-  const isLinkActive = (to: string) => {
-    if (to === '/teacher/dashboard') return location.pathname === '/teacher/dashboard' || location.pathname === '/teacher';
-    if (to === '/teacher/classes') return location.pathname.startsWith('/teacher/classes') || location.pathname.startsWith('/teacher/students');
-    if (to === '/teacher/classroom-sessions') return location.pathname.startsWith('/teacher/classroom-sessions');
-    if (to === '/teacher/schedule') return location.pathname.startsWith('/teacher/schedule');
-    if (to === '/teacher/content') return location.pathname.startsWith('/teacher/content') || location.pathname.startsWith('/teacher/sentences');
-    return location.pathname.startsWith(to);
-  };
-
-  const navContent = (
-    <nav className="space-y-0.5">
-      {links.map(([label, to, Icon]: any) => {
-        const active = isLinkActive(to);
-        return (
-          <Link
-            key={to}
-            to={to}
-            onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all ${
-              active
-                ? 'bg-teal-600 text-white font-bold shadow-xs'
-                : 'text-slate-600 hover:bg-teal-50 hover:text-teal-700'
-            }`}
-          >
-            <Icon size={17} className={active ? 'text-white' : 'text-slate-400'} />
-            <span className="truncate">{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-
-  return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white p-4 lg:flex lg:flex-col lg:justify-between z-20 overflow-y-auto">
-        <div>
-          <div className="mb-4 flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 font-black text-white shadow-xs text-sm">KC</div>
-            <div>
-              <b className="text-slate-900 text-sm font-extrabold">KCEnglishKids</b>
-              <p className="text-[11px] font-semibold text-teal-700">Không gian giảng dạy</p>
-            </div>
-          </div>
-
-          {/* Teacher Profile Card in Sidebar */}
-          <div className="mb-3.5 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 p-3 border border-teal-100/80 shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-600 font-black text-white shadow-xs text-xs">
-                {initials(user?.name)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[9.5px] font-bold text-teal-700 uppercase tracking-wider block">Giáo viên phụ trách</span>
-                <p className="text-xs font-extrabold text-slate-900 truncate" title={user?.name}>
-                  Cô {user?.name}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {navContent}
-        </div>
-
-        <div className="space-y-1 pt-3 border-t border-slate-200 mt-2">
-          <button
-            onClick={() => { logout(); navigate('/teacher/login'); }}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-          >
-            <LogOut size={15} /> Đăng xuất
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-teal-600 font-bold text-white text-xs">KC</div>
-          <div>
-            <span className="font-bold text-xs text-slate-900 block leading-tight">Cô {user?.name}</span>
-            <span className="text-[10px] text-teal-700 font-semibold">Giáo viên KCEnglishKids</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 cursor-pointer"
-            aria-label="Menu"
-          >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile drawer overlay */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={() => setMobileOpen(false)}>
-          <div
-            className="h-full w-72 bg-white p-5 shadow-xl flex flex-col justify-between"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 font-bold text-white">KC</div>
-                  <div>
-                    <b className="text-sm">Cô {user?.name}</b>
-                    <p className="text-xs text-teal-700 font-medium">Giáo viên mầm non</p>
-                  </div>
-                </div>
-                <button onClick={() => setMobileOpen(false)} className="rounded-lg p-1 text-slate-400 hover:text-slate-600">
-                  <X size={20} />
-                </button>
-              </div>
-              {navContent}
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-slate-200">
-              <button
-                onClick={() => { logout(); navigate('/teacher/login'); }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
-              >
-                <LogOut size={17} /> Đăng xuất
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <main className="min-h-screen lg:ml-64 p-4 sm:p-6 lg:p-8 w-auto">
-        <header className="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-lg font-black text-white shadow-md shadow-teal-500/20">
-              {initials(user?.name)}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-800">
-                  <Sparkles size={12} className="text-teal-600" /> Giáo viên Tiếng Anh Mầm Non
-                </span>
-                <span className="text-xs text-slate-400">• KCEnglishKids</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
-                Cô giáo: <span className="text-teal-700">{user?.name}</span>
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              to="/teacher/lesson-planner"
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100 transition-all shadow-sm"
-            >
-              <Sparkles size={16} className="text-amber-600" /> Soạn giáo án AI
-            </Link>
-            <Link
-              to="/teacher/schedule"
-              className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-bold text-teal-700 hover:bg-teal-100 transition-all shadow-sm"
-            >
-              <Calendar size={16} /> Lịch & Tiến độ dạy
-            </Link>
-            <Link
-              to="/teacher/classroom-sessions"
-              className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition-all shadow-sm"
-            >
-              <PlayCircle size={16} /> Bắt đầu buổi dạy
-            </Link>
-          </div>
-        </header>
-        <Outlet />
-      </main>
-    </div>
-  );
-};
-
-export const TeacherDashboard = () => {
-  const [data, setData] = useState<any>();
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    teacherApi
-      .getDashboard()
-      .then((x) => setData(x.data))
-      .catch((e) => setError(e.message));
-  }, []);
-
-  if (error) return <Empty>Không thể tải thông tin. Vui lòng thử lại.</Empty>;
-  if (!data) return <Loader />;
-  const m = data.metrics;
-
-  return (
-    <>
-      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-teal-700">Tổng quan giảng dạy</p>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Lớp học của bạn trong tầm mắt
-          </h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/teacher/sentences"
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:from-emerald-500 hover:to-teal-500 transition-all cursor-pointer"
-          >
-            <MessageSquare size={16} /> Dạy mẫu câu
-          </Link>
-          <Link
-            to="/teacher/assignments"
-            className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 transition-all cursor-pointer"
-          >
-            Giao bài tập
-          </Link>
-        </div>
-      </div>
-
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Metric label="Lớp đang phụ trách" value={m.classes} icon={<Users size={18} className="text-teal-600" />} />
-        <Metric label="Tổng số học sinh" value={m.students} icon={<GraduationCap size={18} className="text-indigo-600" />} />
-        <Metric label="Bài đang hiệu lực" value={m.activeAssignments} icon={<ClipboardList size={18} className="text-amber-600" />} />
-        <Metric label="Cần quan tâm" value={m.needingAttention} icon={<CheckCircle2 size={18} className="text-rose-500" />} />
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-          <h3 className="mb-4 font-bold text-slate-900">Tổng kết học tập</h3>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
-            <div className="p-3 rounded-xl bg-slate-50">
-              <b className="block text-xl sm:text-2xl text-teal-700 font-black">
-                {m.activeLearners > 0 ? `${m.averageScore}%` : '100%'}
-              </b>
-              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">
-                {m.activeLearners > 0 ? `Độ chính xác (${m.activeLearners}/${m.students} bé)` : 'Độ chính xác'}
-              </span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50">
-              <b className="block text-xl sm:text-2xl text-amber-600 font-black flex items-center justify-center gap-1">
-                <Star size={18} className="fill-amber-400 text-amber-400" /> {m.stars}
-              </b>
-              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Sao đã đạt</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50">
-              <b className="block text-xl sm:text-2xl text-indigo-700 font-black">{m.completedAssignments}</b>
-              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Đã hoàn thành</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-          <h3 className="mb-4 font-bold text-slate-900">Bài giao gần đây</h3>
-          {data.recentAssignments.length ? (
-            data.recentAssignments.map((a: any) => (
-              <Link
-                key={a._id}
-                to={`/teacher/assignments/${a._id}`}
-                className="mb-2.5 flex items-center justify-between rounded-xl bg-slate-50 p-3 hover:bg-teal-50 transition-colors"
-              >
-                <span className="min-w-0 pr-2">
-                  <b className="block truncate text-sm text-slate-800">{a.activity?.title || a.lesson?.title}</b>
-                  <small className="text-slate-500">{a.classRoom?.name}</small>
-                </span>
-                <span className="text-xs font-bold text-teal-700 shrink-0">{a.status}</span>
-              </Link>
-            ))
-          ) : (
-            <p className="text-sm text-slate-500 py-3">Chưa có bài giao nào.</p>
-          )}
-        </section>
-      </div>
-
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-        <h3 className="mb-4 font-bold text-slate-900">Buổi học gần đây</h3>
-        {data.recentSessions.length ? (
-          data.recentSessions.map((s: any) => (
-            <div key={s._id} className="flex items-center justify-between border-t border-slate-100 py-3 text-sm">
-              <span className="min-w-0 pr-2">
-                <b className="text-slate-900">{s.child?.name}</b>
-                <span className="text-slate-500"> · {s.lesson?.title}</span>
-              </span>
-              <span className="text-xs text-slate-400 shrink-0">{date(s.lastActivityAt)}</span>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-slate-500 py-3">Chưa có buổi học nào.</p>
-        )}
-      </section>
-    </>
-  );
-};
-
+export { TeacherLayout } from './TeacherLayout';
+export { TeacherDashboard } from './TeacherHome';
 export const TeacherClasses = () => {
   const [classes, setClasses] = useState<any[]>();
   const [students, setStudents] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
 
   const load = async () => {
     try {
       const [cRes, sRes] = await Promise.all([
         teacherApi.getClasses(),
-        teacherApi.getStudents().catch(() => ({ data: [] }))
+        teacherApi.getStudents()
       ]);
       setClasses(cRes.data || []);
       setStudents(sRes.data || []);
-    } catch {
-      setClasses([]);
+      setError('');
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
@@ -348,15 +44,16 @@ export const TeacherClasses = () => {
     [classes, search]
   );
 
+  if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => void load()}>Thử lại</button></div>;
   if (!classes) return <Loader />;
 
   // Calculate totals across all teacher's classes
   const totalAllStudents = students.length || classes.reduce((sum, c) => sum + (c.students?.length || 0), 0);
   const totalAllStars = students.reduce((sum, s) => sum + (s.stats?.totalStars ?? s.stats?.stars ?? 0), 0);
-  const activeLearners = students.filter(s => (s.stats?.attempts || 0) > 0 || (s.stats?.completedLessons || 0) > 0);
+  const activeLearners = students.filter(s => s.stats?.hasAssessment);
   const overallAvg = activeLearners.length
     ? Math.round(activeLearners.reduce((sum, s) => sum + (s.stats?.averageScore || 0), 0) / activeLearners.length)
-    : 100;
+    : 0;
 
   return (
     <>
@@ -367,33 +64,33 @@ export const TeacherClasses = () => {
 
       {/* KPI Overview of all classes */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="flex items-center justify-between text-slate-600 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Lớp phụ trách</span>
-            <School size={18} className="text-teal-600" />
+            <School size={18} className="text-teal-800" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{classes.length} <span className="text-sm font-semibold text-slate-500">lớp</span></div>
+          <div className="text-2xl font-black text-slate-900">{classes.length} <span className="text-sm font-semibold text-slate-600">lớp</span></div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="flex items-center justify-between text-slate-600 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Tổng học sinh</span>
-            <Users size={18} className="text-sky-600" />
+            <Users size={18} className="text-sky-800" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{totalAllStudents} <span className="text-sm font-semibold text-slate-500">bé</span></div>
+          <div className="text-2xl font-black text-slate-900">{totalAllStudents} <span className="text-sm font-semibold text-slate-600">bé</span></div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="flex items-center justify-between text-slate-600 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Tổng sao tích lũy</span>
-            <Star size={18} className="fill-amber-400 text-amber-500" />
+            <Star size={18} className="fill-amber-400 text-amber-800" />
           </div>
-          <div className="text-2xl font-black text-amber-600">{totalAllStars} <span className="text-sm font-semibold text-slate-500">⭐</span></div>
+          <div className="text-2xl font-black text-amber-800">{totalAllStars} <span className="text-sm font-semibold text-slate-600">⭐</span></div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="flex items-center justify-between text-slate-600 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Độ đúng luyện tập</span>
-            <BarChart3 size={18} className="text-emerald-600" />
+            <BarChart3 size={18} className="text-emerald-800" />
           </div>
-          <div className="text-2xl font-black text-emerald-700">{overallAvg}%</div>
+          <div className="text-2xl font-black text-emerald-800">{activeLearners.length ? overallAvg + '%' : 'Chưa có dữ liệu'}</div>
         </div>
       </div>
 
@@ -401,7 +98,7 @@ export const TeacherClasses = () => {
         <SearchBox value={search} onChange={setSearch} />
         <Link
           to="/teacher/classroom-sessions/new"
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-teal-700 transition-all cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition-all cursor-pointer"
         >
           <PlayCircle size={18} /> Bắt đầu buổi dạy mới
         </Link>
@@ -419,7 +116,7 @@ export const TeacherClasses = () => {
               0
             );
             const activeClassStudents = classStudents.filter(
-              (s) => (s.stats?.attempts || 0) > 0 || (s.stats?.completedLessons || 0) > 0
+              (s) => s.stats?.hasAssessment
             );
             const classAvg = activeClassStudents.length
               ? Math.round(
@@ -438,14 +135,14 @@ export const TeacherClasses = () => {
             return (
               <div
                 key={c._id}
-                className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+                className="rounded-3xl border border-slate-200 bg-white p-5 hover:border-teal-400 transition-all flex flex-col justify-between"
               >
                 <div>
                   {/* Top Bar of Card */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-50 text-teal-700 font-black text-sm">
+                        <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-50 text-teal-800 font-black text-sm">
                           🏫
                         </span>
                         <h3 className="font-black text-lg text-slate-900 leading-tight">{c.name}</h3>
@@ -454,7 +151,7 @@ export const TeacherClasses = () => {
                         {bookLabel}
                       </span>
                     </div>
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 border border-emerald-200">
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-800 border border-emerald-200">
                       {c.status === 'ACTIVE' ? 'Đang hoạt động' : c.status}
                     </span>
                   </div>
@@ -462,17 +159,17 @@ export const TeacherClasses = () => {
                   {/* 3 Metric Pills */}
                   <div className="mt-4 grid grid-cols-3 gap-2 bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
                     <div className="text-center">
-                      <span className="block text-[11px] font-bold text-slate-400">Sĩ số</span>
+                      <span className="block text-[11px] font-bold text-slate-600">Sĩ số</span>
                       <b className="text-base text-slate-800">{studentCount} bé</b>
                     </div>
                     <div className="text-center border-x border-slate-200">
-                      <span className="block text-[11px] font-bold text-slate-400">Độ đúng TB</span>
-                      <b className="text-base text-teal-700">{classAvg !== null ? `${classAvg}%` : 'Đang học'}</b>
+                      <span className="block text-[11px] font-bold text-slate-600">Độ đúng TB</span>
+                      <b className="text-base text-teal-800">{classAvg !== null ? `${classAvg}%` : 'Chưa có dữ liệu'}</b>
                     </div>
                     <div className="text-center">
-                      <span className="block text-[11px] font-bold text-slate-400">Tổng sao</span>
-                      <b className="text-base text-amber-600 flex items-center justify-center gap-0.5">
-                        <Star size={13} className="fill-amber-400 text-amber-500" />
+                      <span className="block text-[11px] font-bold text-slate-600">Tổng sao</span>
+                      <b className="text-base text-amber-800 flex items-center justify-center gap-0.5">
+                        <Star size={13} className="fill-amber-400 text-amber-800" />
                         {classStars}
                       </b>
                     </div>
@@ -483,7 +180,7 @@ export const TeacherClasses = () => {
                 <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
                   <Link
                     to={`/teacher/classroom-sessions/new?classroomId=${c._id}`}
-                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all"
                     title="Điểm danh học sinh và bắt đầu buổi dạy trực tiếp cho lớp này"
                   >
                     <Play size={13} className="fill-white" /> Điểm danh & Dạy ngay
@@ -517,19 +214,19 @@ export const TeacherClasses = () => {
 };
 
 const Header = ({ title, text, action }: any) => (
-  <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+  <header className="staff-page-header">
     <div>
-      <p className="text-sm font-bold text-teal-700">Không gian giảng dạy</p>
-      <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{title}</h2>
-      <p className="mt-1 text-sm text-slate-500">{text}</p>
+      <p className="text-sm font-bold text-teal-800">Không gian giảng dạy</p>
+      <h1>{title}</h1>
+      <p className="mt-1 text-sm text-slate-600">{text}</p>
     </div>
     {action}
-  </div>
+  </header>
 );
 
 const SearchBox = ({ value, onChange }: any) => (
-  <label className="flex max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-xs">
-    <Search size={17} className="text-slate-400 shrink-0" />
+  <label className="flex max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2">
+    <Search size={17} className="text-slate-600 shrink-0" />
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -563,7 +260,7 @@ export const TeacherClassDetail = () => {
     return (
       <Empty>
         Không thể tải lớp học này.{' '}
-        <button onClick={() => { setError(''); void load(); }} className="font-semibold text-teal-700">
+        <button onClick={() => { setError(''); void load(); }} className="font-semibold text-teal-800">
           Thử lại
         </button>
       </Empty>
@@ -590,7 +287,7 @@ export const TeacherClassDetail = () => {
       type="button"
       onClick={() => setSortKey(key)}
       className={`text-left text-xs font-bold uppercase tracking-wide cursor-pointer ${
-        sortKey === key ? 'text-teal-700' : 'text-slate-400 hover:text-slate-600'
+        sortKey === key ? 'text-teal-800' : 'text-slate-600 hover:text-slate-600'
       }`}
     >
       {label}
@@ -605,26 +302,26 @@ export const TeacherClassDetail = () => {
         text={`Độ tuổi ${data.ageGroupCode || '—'} · ${data.students.length} học sinh`}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="hidden sm:inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
               🔒 Danh sách học sinh do Quản trị viên phân bổ
             </span>
             <Link
               to={`/teacher/schedule?classroomId=${classId}`}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all"
               title="Xem lịch và lộ trình giáo trình của lớp này"
             >
-              <Calendar size={14} className="text-teal-600" /> Lịch & Giáo trình
+              <Calendar size={14} className="text-teal-800" /> Lịch & Giáo trình
             </Link>
             <Link
               to={`/teacher/classroom-sessions?classroomId=${classId}`}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all"
               title="Xem nhật ký các buổi dạy của lớp này"
             >
-              <PlayCircle size={14} className="text-teal-600" /> Nhật ký buổi dạy
+              <PlayCircle size={14} className="text-teal-800" /> Nhật ký buổi dạy
             </Link>
             <Link
               to={`/teacher/classes/${classId}/sessions/new`}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-xs transition-all"
+              className="flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-all"
             >
               <Play size={16} /> Bắt đầu buổi dạy
             </Link>
@@ -633,7 +330,7 @@ export const TeacherClassDetail = () => {
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+        <section className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-bold text-slate-900">Danh sách học sinh ({sortedStudents.length})</h3>
             <div className="w-full max-w-xs">
@@ -644,10 +341,10 @@ export const TeacherClassDetail = () => {
           <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_70px_130px_80px_90px_80px] sm:items-center sm:gap-3 sm:border-b sm:pb-2">
             {th('name', 'Họ tên')}
             <span className="hidden sm:block">{th('age', 'Tuổi')}</span>
-            <span className="hidden sm:block text-xs font-bold uppercase tracking-wide text-slate-400">Liên hệ PH</span>
+            <span className="hidden sm:block text-xs font-bold uppercase tracking-wide text-slate-600">Liên hệ PH</span>
             <span className="hidden sm:block">{th('stars', 'Sao')}</span>
             <span className="hidden sm:block">{th('progress', 'Bài học')}</span>
-            <span className="hidden sm:block text-right text-xs font-bold uppercase tracking-wide text-slate-400">Hồ sơ</span>
+            <span className="hidden sm:block text-right text-xs font-bold uppercase tracking-wide text-slate-600">Hồ sơ</span>
           </div>
 
           {sortedStudents.length ? (
@@ -660,8 +357,8 @@ export const TeacherClassDetail = () => {
                   <Avatar name={s.name} />
                   <span className="min-w-0">
                     <b className="block truncate text-sm text-slate-900">{s.name}</b>
-                    <small className="block truncate text-slate-500">
-                      {(s.stats?.attempts || 0) > 0
+                    <small className="block truncate text-slate-600">
+                      {s.stats?.hasAssessment
                         ? `${Math.round(s.stats.averageScore || 0)}% độ đúng`
                         : 'Mới bắt đầu / Chưa có bài'}
                     </small>
@@ -672,14 +369,14 @@ export const TeacherClassDetail = () => {
                   {s.contact || s.parentContact || '—'}
                 </span>
                 <span className="hidden sm:block text-sm font-semibold">
-                  <Star className="inline fill-amber-400 text-amber-400" size={14} />{' '}
+                  <Star className="inline fill-amber-400 text-amber-800" size={14} />{' '}
                   {s.stats?.totalStars ?? s.stats?.stars ?? 0}
                 </span>
                 <span className="hidden sm:block text-sm text-slate-600">{s.stats?.completedLessons ?? 0} bài học</span>
                 <div className="text-right">
                   <Link
                     to={`/teacher/students/${s._id}`}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-900 hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-900 hover:underline"
                   >
                     Xem hồ sơ →
                   </Link>
@@ -691,7 +388,7 @@ export const TeacherClassDetail = () => {
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
           <h3 className="mb-4 font-bold text-slate-900">Bài được giao</h3>
           {data.assignments.length ? (
             data.assignments.slice(0, 5).map((a: any) => (
@@ -701,11 +398,11 @@ export const TeacherClassDetail = () => {
                 key={a._id}
               >
                 <b className="text-slate-800">{a.activity?.title || a.lesson?.title}</b>
-                <small className="block text-slate-500">{a.status}</small>
+                <small className="block text-slate-600">{a.status}</small>
               </Link>
             ))
           ) : (
-            <p className="text-sm text-slate-500 py-3">Chưa có bài giao nào.</p>
+            <p className="text-sm text-slate-600 py-3">Chưa có bài giao nào.</p>
           )}
         </section>
       </div>
@@ -715,17 +412,17 @@ export const TeacherClassDetail = () => {
 };
 
 const Avatar = ({ name }: any) => (
-  <div className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 shrink-0">
+  <div className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-xs font-bold text-teal-800 shrink-0">
     {initials(name)}
   </div>
 );
 
 const Modal = ({ title, close, children }: any) => (
-  <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4">
-    <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] flex flex-col">
+  <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+    <div className="w-full max-w-lg rounded-2xl bg-white p-6 max-h-[90vh] flex flex-col">
       <div className="mb-4 flex items-center justify-between pb-2 border-b border-slate-100">
         <h3 className="font-bold text-slate-900">{title}</h3>
-        <button onClick={close} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
+        <button onClick={close} className="p-1 rounded-lg text-slate-600 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
           <X size={20} />
         </button>
       </div>
@@ -739,14 +436,16 @@ export const TeacherContent = () => {
   const currentTab = searchParams.get('tab') || 'curriculum';
   const [data, setData] = useState<any>();
   const [age, setAge] = useState('');
+  const [error, setError] = useState('');
   const [lesson, setLesson] = useState<any>();
 
-  const load = (a = '') => teacherApi.getContent(a ? `ageGroupCode=${a}` : '').then((x) => setData(x.data));
+  const load = (a = '') => teacherApi.getContent(a ? `ageGroupCode=${a}` : '').then((x) => { setData(x.data); setError(''); }).catch(e => setError(e.message));
 
   useEffect(() => {
     void load();
   }, []);
 
+  if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => void load(age)}>Thử lại</button></div>;
   return (
     <>
       <Header
@@ -759,7 +458,7 @@ export const TeacherContent = () => {
               onClick={() => setSearchParams({ tab: 'curriculum' })}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 currentTab === 'curriculum'
-                  ? 'bg-white text-teal-800 shadow-xs'
+                  ? 'bg-white text-teal-800'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -770,7 +469,7 @@ export const TeacherContent = () => {
               onClick={() => setSearchParams({ tab: 'sentences' })}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 currentTab === 'sentences'
-                  ? 'bg-white text-teal-800 shadow-xs'
+                  ? 'bg-white text-teal-800'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -796,7 +495,7 @@ export const TeacherContent = () => {
             }}
             className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
               age === a
-                ? 'bg-teal-600 text-white shadow-xs'
+                ? 'bg-teal-700 text-white'
                 : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
@@ -813,18 +512,18 @@ export const TeacherContent = () => {
             );
 
             return (
-              <div key={u._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <div key={u._id} className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <span className="text-xs font-black uppercase tracking-wider text-teal-700">
+                  <span className="text-xs font-black uppercase tracking-wider text-teal-800">
                     Sách {u.bookNumber} · Độ tuổi {u.ageGroupCode} · Unit {u.unitNumber}
                   </span>
-                  <span className="text-xs text-slate-400 font-semibold">
+                  <span className="text-xs text-slate-600 font-semibold">
                     {unitLessons.length} bài học
                   </span>
                 </div>
 
                 <h3 className="mt-2 text-lg font-black text-slate-900">{u.bigQuestion}</h3>
-                <p className="mt-1 text-xs text-slate-500 font-medium">
+                <p className="mt-1 text-xs text-slate-600 font-medium">
                   {u.vocabularyReferences?.join(' · ') || 'Chủ đề từ vựng và đàm thoại theo chuẩn giáo trình'}
                 </p>
 
@@ -836,7 +535,7 @@ export const TeacherContent = () => {
                       className="group flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 hover:border-teal-400 hover:bg-teal-50/50 hover:text-teal-900 transition-all cursor-pointer"
                     >
                       <span>{l.title}</span>
-                      <span className="text-[11px] text-teal-600 opacity-70 group-hover:opacity-100">💬</span>
+                      <span className="text-[11px] text-teal-800 opacity-70 group-hover:opacity-100">💬</span>
                     </button>
                   ))}
                 </div>
@@ -846,32 +545,32 @@ export const TeacherContent = () => {
         </section>
 
         <section className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="font-bold text-slate-900 mb-2">Chương trình học chuẩn</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               27 Unit chính thức trong Sách 1–3 thiết kế cho lứa tuổi mầm non (3-6 tuổi).
             </p>
             <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-700">
               <div className="flex justify-between">
                 <span>Bài học đã duyệt:</span>
-                <b className="text-teal-700">{data.lessons.length} bài</b>
+                <b className="text-teal-800">{data.lessons.length} bài</b>
               </div>
               <div className="flex justify-between">
                 <span>Hoạt động tương tác:</span>
-                <b className="text-teal-700">{data.activities.length} hoạt động</b>
+                <b className="text-teal-800">{data.activities.length} hoạt động</b>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-5 shadow-xs">
+          <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5">
             <span className="text-2xl">💬</span>
             <h4 className="mt-2 font-bold text-teal-900 text-sm">Dạy mẫu câu trên lớp</h4>
-            <p className="mt-1 text-xs text-teal-700 leading-relaxed">
+            <p className="mt-1 text-xs text-teal-800 leading-relaxed">
               Chiếu trực tiếp câu hỏi và câu trả lời tương ứng với bài học lên máy chiếu trong giờ dạy.
             </p>
             <Link
               to="/teacher/sentences"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs transition-all"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-700 text-white px-3.5 py-2 text-xs font-bold transition-all"
             >
               Bắt đầu học mẫu câu <ChevronRight size={13} />
             </Link>
@@ -904,13 +603,13 @@ export const TeacherContent = () => {
 
             <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
               <Link
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition-all cursor-pointer"
                 to={`/teacher/sentences?lessonId=${lesson._id}&mode=classroom`}
               >
                 <MessageSquare size={14} /> Dạy mẫu câu bài này ngay 💬
               </Link>
               <Link
-                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-700 px-4 py-2.5 text-xs font-semibold text-white transition-all cursor-pointer"
                 to={`/teacher/assignments?lesson=${lesson._id}`}
               >
                 <ClipboardList size={14} /> Giao bài học này
@@ -924,23 +623,27 @@ export const TeacherContent = () => {
 };
 
 export const TeacherAssignments = () => {
+  const [assignmentSearch, setAssignmentSearch] = useSearchParams();
+  const initialLesson = assignmentSearch.get('lesson') || assignmentSearch.get('lessonId') || '';
+  const initialClass = assignmentSearch.get('classroomId') || '';
   const [items, setItems] = useState<any[]>();
+  const [error, setError] = useState('');
   const [classes, setClasses] = useState<any[]>([]);
   const [content, setContent] = useState<any>();
-  const [create, setCreate] = useState(false);
+  const [create, setCreate] = useState(Boolean(initialLesson));
   const [submitting, setSubmitting] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClassFilter, setSelectedClassFilter] = useState('');
+  const [selectedClassFilter, setSelectedClassFilter] = useState(initialClass);
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Form State
   const [form, setForm] = useState({
-    classRoomId: '',
+    classRoomId: initialClass,
     assignedToType: 'CLASS',
     studentId: '',
-    lessonId: '',
+    lessonId: initialLesson,
     activityId: '',
     dueDate: '',
     instructions: ''
@@ -948,13 +651,25 @@ export const TeacherAssignments = () => {
 
   const [classStudents, setClassStudents] = useState<any[]>([]);
 
-  const load = () => teacherApi.getAssignments().then(x => setItems(x.data || []));
+  const load = () => teacherApi.getAssignments().then(x => { setItems(x.data || []); setError(''); }).catch(e => setError(e.message));
 
   useEffect(() => {
     void load();
-    teacherApi.getClasses().then(x => setClasses(x.data || []));
-    teacherApi.getContent().then(x => setContent(x.data || { lessons: [], activities: [] }));
+    teacherApi.getClasses().then(x => setClasses(x.data || [])).catch(e => setError(e.message));
+    teacherApi.getContent().then(x => setContent(x.data || { lessons: [], activities: [] })).catch(e => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    if (!content || !classes.length) return;
+    setForm(current => {
+      const activeClasses = classes.filter(c => c.status === 'ACTIVE');
+      const classRoomId = current.classRoomId || (activeClasses.length === 1 ? activeClasses[0]._id : '');
+      const room = classes.find(c => c._id === classRoomId);
+      const selectedLesson = content.lessons.find((lesson: any) => lesson._id === current.lessonId);
+      const lessonId = selectedLesson?.ageGroupCode && room?.ageGroupCode && selectedLesson.ageGroupCode !== room.ageGroupCode ? '' : current.lessonId;
+      return { ...current, classRoomId, lessonId };
+    });
+  }, [classes, content]);
 
   useEffect(() => {
     if (form.classRoomId) {
@@ -966,6 +681,7 @@ export const TeacherAssignments = () => {
     }
   }, [form.classRoomId]);
 
+  if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div>;
   if (!items || !content) return <Loader />;
 
   const submit = async (e: React.FormEvent) => {
@@ -975,13 +691,15 @@ export const TeacherAssignments = () => {
     try {
       await teacherApi.createAssignment({
         classRoomId: form.classRoomId,
-        assignedToType: 'CLASS',
+        assignedToType: form.assignedToType,
+        studentId: form.assignedToType === 'STUDENT' ? form.studentId : undefined,
         lessonId: form.lessonId,
         activityId: form.activityId || undefined,
         dueDate: form.dueDate || undefined,
         instructions: form.instructions || undefined
       });
       setCreate(false);
+      setAssignmentSearch({});
       setForm({
         classRoomId: '',
         assignedToType: 'CLASS',
@@ -993,7 +711,7 @@ export const TeacherAssignments = () => {
       });
       void load();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Không thể giao bài. Vui lòng kiểm tra lại.');
+      alert(err?.message || 'Không thể giao bài. Vui lòng kiểm tra lại.');
     } finally {
       setSubmitting(false);
     }
@@ -1002,12 +720,12 @@ export const TeacherAssignments = () => {
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (confirm('Bạn có chắc chắn muốn xóa bài tập này?')) {
+    if (confirm('Hủy bài giao này? Kết quả và nhận xét đã ghi nhận vẫn được giữ lại.')) {
       try {
         await teacherApi.deleteAssignment(id);
         void load();
       } catch (err: any) {
-        alert(err?.response?.data?.message || 'Không thể xóa bài.');
+        alert(err?.message || 'Không thể xóa bài.');
       }
     }
   };
@@ -1031,7 +749,7 @@ export const TeacherAssignments = () => {
         action={
           <button
             onClick={() => setCreate(true)}
-            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-700 cursor-pointer"
+            className="flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 cursor-pointer"
           >
             <Plus size={16} /> Giao bài tập mới
           </button>
@@ -1040,8 +758,8 @@ export const TeacherAssignments = () => {
 
       <div className="grid gap-4 sm:grid-cols-3 mb-6">
         <Metric label="Tổng số bài đã giao" value={items.length} icon={<ClipboardList size={18} />} />
-        <Metric label="Đang diễn ra" value={activeCount} icon={<Clock size={18} className="text-amber-500" />} />
-        <Metric label="Đã hoàn thành" value={completedCount} icon={<CheckCircle2 size={18} className="text-emerald-500" />} />
+        <Metric label="Đang diễn ra" value={activeCount} icon={<Clock size={18} className="text-amber-800" />} />
+        <Metric label="Đã hoàn thành" value={completedCount} icon={<CheckCircle2 size={18} className="text-emerald-800" />} />
       </div>
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
@@ -1072,15 +790,15 @@ export const TeacherAssignments = () => {
           </select>
         </div>
 
-        <span className="text-xs font-semibold text-slate-500">
+        <span className="text-xs font-semibold text-slate-600">
           Hiển thị {filtered.length} / {items.length} bài
         </span>
       </div>
 
       {filtered.length ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+            <thead className="bg-slate-50 text-slate-600 border-b border-slate-100">
               <tr>
                 <th className="p-4">Nội dung bài tập</th>
                 <th className="p-4">Lớp áp dụng</th>
@@ -1101,9 +819,9 @@ export const TeacherAssignments = () => {
                         to={`/teacher/assignments/${a._id}`}
                       >
                         {a.activity?.title || a.lesson?.title}
-                        <ChevronRight size={14} className="text-teal-500" />
+                        <ChevronRight size={14} className="text-teal-800" />
                       </Link>
-                      <span className="mt-0.5 inline-block text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                      <span className="mt-0.5 inline-block text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                         {a.activity?.activityType || 'Toàn bộ bài học'}
                       </span>
                     </td>
@@ -1112,19 +830,19 @@ export const TeacherAssignments = () => {
                     </td>
                     <td className="p-4">
                       <span className="inline-flex items-center gap-1.5 font-medium text-teal-800 bg-teal-50 border border-teal-200/80 px-2.5 py-1 rounded-full text-xs">
-                        <Users size={13} className="text-teal-600" />
+                        <Users size={13} className="text-teal-800" />
                         Cả lớp ({a.classRoom?.students?.length || 0} bé)
                       </span>
                     </td>
                     <td className="p-4">
                       {a.dueDate ? (
-                        <span className={`inline-flex items-center gap-1 text-xs font-semibold ${isOverdue ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded' : 'text-slate-600'}`}>
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold ${isOverdue ? 'text-rose-800 bg-rose-50 px-2 py-0.5 rounded' : 'text-slate-600'}`}>
                           <Calendar size={13} />
                           {date(a.dueDate)}
                           {isOverdue && ' (Hết hạn)'}
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-xs">Không giới hạn</span>
+                        <span className="text-slate-600 text-xs">Không giới hạn</span>
                       )}
                     </td>
                     <td className="p-4">
@@ -1143,14 +861,14 @@ export const TeacherAssignments = () => {
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           to={`/teacher/assignments/${a._id}`}
-                          className="rounded-lg bg-teal-50 hover:bg-teal-100 px-3 py-1.5 text-xs font-bold text-teal-700 transition-colors"
+                          className="rounded-lg bg-teal-50 hover:bg-teal-100 px-3 py-1.5 text-xs font-bold text-teal-800 transition-colors"
                         >
                           Chi tiết & Chấm bài
                         </Link>
                         <button
                           onClick={e => handleDelete(a._id, e)}
-                          title="Xóa bài tập này"
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                          title="Hủy bài giao, giữ lịch sử"
+                          className="p-1.5 text-slate-600 hover:text-rose-800 rounded-lg hover:bg-rose-50 transition-colors"
                         >
                           <Trash2 size={15} />
                         </button>
@@ -1172,27 +890,21 @@ export const TeacherAssignments = () => {
             <Select
               label="Chọn lớp học"
               value={form.classRoomId}
-              onChange={(v: string) => setForm({ ...form, classRoomId: v, studentId: '' })}
+              onChange={(v: string) => setForm({ ...form, classRoomId: v, studentId: '', lessonId: '', activityId: '' })}
               options={classes.map(c => ({ value: c._id, label: `${c.name} (${c.students?.length || 0} học sinh)` }))}
             />
 
-            {form.classRoomId && (
-              <div className="rounded-xl border border-teal-200 bg-teal-50/80 p-3 text-xs text-teal-900 flex items-center justify-between">
-                <span className="font-semibold flex items-center gap-1.5">
-                  <Users size={16} className="text-teal-700" />
-                  Đối tượng nhận bài: <b>Toàn bộ học sinh trong lớp ({classStudents.length} bé)</b>
-                </span>
-                <span className="bg-teal-200/80 text-teal-800 font-bold px-2 py-0.5 rounded-full">
-                  Áp dụng cả lớp
-                </span>
-              </div>
-            )}
+            {form.classRoomId && <>
+              <Select label="Đối tượng nhận bài" value={form.assignedToType} onChange={(v: string) => setForm({ ...form, assignedToType: v, studentId: '' })} options={[{ value: 'CLASS', label: 'Toàn bộ học sinh trong lớp' }, { value: 'STUDENT', label: 'Một học sinh cần ôn tập riêng' }]} />
+              {form.assignedToType === 'STUDENT' && <Select label="Chọn học sinh" value={form.studentId} onChange={(v: string) => setForm({ ...form, studentId: v })} options={classStudents.map(s => ({ value: s._id, label: s.name }))} />}
+              <p className="text-sm text-slate-500">Ưu tiên hoạt động ngắn, vui và phù hợp với nội dung bé vừa học.</p>
+            </>}
 
             <Select
               label="Chọn bài học (Lesson)"
               value={form.lessonId}
               onChange={(v: string) => setForm({ ...form, lessonId: v, activityId: '' })}
-              options={content.lessons.map((l: any) => ({ value: l._id, label: l.title }))}
+              options={content.lessons.filter((l: any) => !form.classRoomId || !l.ageGroupCode || l.ageGroupCode === classes.find(c => c._id === form.classRoomId)?.ageGroupCode).map((l: any) => ({ value: l._id, label: l.title }))}
             />
 
             {form.lessonId && (
@@ -1223,7 +935,7 @@ export const TeacherAssignments = () => {
 
             <div>
               <label className="block text-sm font-medium text-slate-700">
-                Lời dặn dò của cô
+                Lời dặn dò của giáo viên
                 <textarea
                   rows={3}
                   placeholder="VD: Các con luyện phát âm thật to và hoàn thành bài tập này trước cuối tuần nhé!"
@@ -1244,7 +956,7 @@ export const TeacherAssignments = () => {
               </button>
               <button
                 disabled={submitting}
-                className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50"
+                className="rounded-xl bg-teal-700 px-5 py-2 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 {submitting ? 'Đang tạo bài…' : 'Xác nhận giao bài'}
               </button>
@@ -1291,12 +1003,14 @@ export const TeacherAssignmentDetail = () => {
   const [savingReview, setSavingReview] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const load = () => teacherApi.getAssignment(assignmentId).then(x => setData(x.data));
+  const [error, setError] = useState('');
+  const load = () => teacherApi.getAssignment(assignmentId).then(x => { setData(x.data); setError(''); }).catch(e => setError(e.message));
 
   useEffect(() => {
     void load();
   }, [assignmentId]);
 
+  if (error) return <div role="alert" className="teacher-error">{error}<button onClick={() => void load()}>Thử lại</button></div>;
   if (!data) return <Loader />;
 
   const a = data.assignment;
@@ -1336,7 +1050,7 @@ export const TeacherAssignmentDetail = () => {
         setSaveSuccess(false);
       }, 1200);
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Không thể lưu nhận xét.');
+      alert(err?.message || 'Không thể lưu nhận xét.');
     } finally {
       setSavingReview(false);
     }
@@ -1364,7 +1078,7 @@ export const TeacherAssignmentDetail = () => {
     return true;
   });
 
-  const needsReviewCount = studentSubmissions.filter(s => s.hasSubmitted && !s.submission?.teacherFeedback?.comment).length;
+  const needsReviewCount = studentSubmissions.filter(s => s.hasSubmitted && !s.submission?.teacherFeedback?.reviewedAt).length;
 
   return (
     <>
@@ -1391,7 +1105,7 @@ export const TeacherAssignmentDetail = () => {
                     void load();
                   }
                 }}
-                className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-50"
               >
                 Hủy bài giao
               </button>
@@ -1403,7 +1117,7 @@ export const TeacherAssignmentDetail = () => {
       {/* Assignment instructions banner */}
       {a.instructions && (
         <div className="mb-6 rounded-2xl bg-teal-50 border border-teal-200 p-4 text-sm text-teal-900 flex items-start gap-3">
-          <BookOpen className="text-teal-600 mt-0.5 flex-shrink-0" size={18} />
+          <BookOpen className="text-teal-800 mt-0.5 flex-shrink-0" size={18} />
           <div>
             <b>Lời dặn dò của cô:</b> {a.instructions}
           </div>
@@ -1412,17 +1126,17 @@ export const TeacherAssignmentDetail = () => {
 
       {/* KPI Metrics */}
       <div className="grid gap-4 sm:grid-cols-4 mb-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between text-slate-600 mb-2">
             <span className="text-sm font-medium">Tỷ lệ nộp bài</span>
-            <Users size={18} className="text-teal-600" />
+            <Users size={18} className="text-teal-800" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {stats.submittedStudents} / {stats.totalStudents} <span className="text-sm font-normal text-slate-500">({stats.submissionRate}%)</span>
+            {stats.submittedStudents} / {stats.totalStudents} <span className="text-sm font-normal text-slate-600">({stats.submissionRate}%)</span>
           </div>
           <div className="mt-3 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
             <div
-              className="h-full bg-teal-600 transition-all rounded-full"
+              className="h-full bg-teal-700 transition-all rounded-full"
               style={{ width: `${stats.submissionRate}%` }}
             />
           </div>
@@ -1431,31 +1145,31 @@ export const TeacherAssignmentDetail = () => {
         <Metric
           label="Điểm trung bình"
           value={`${stats.averageScore}%`}
-          icon={<Award size={18} className="text-amber-500" />}
+          icon={<Award size={18} className="text-amber-800" />}
         />
 
         <Metric
           label="Chưa nộp bài"
           value={stats.unsubmittedStudents}
-          icon={<Clock size={18} className="text-rose-500" />}
+          icon={<Clock size={18} className="text-rose-800" />}
         />
 
         <Metric
           label="Cần chấm / Nhận xét"
           value={needsReviewCount}
-          icon={<Sparkles size={18} className="text-indigo-500" />}
+          icon={<Sparkles size={18} className="text-indigo-800" />}
         />
       </div>
 
       {/* Filter and Tab Section */}
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <section className="rounded-2xl border border-slate-200 bg-white">
         <div className="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('ALL')}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'ALL'
-                  ? 'bg-teal-600 text-white shadow-xs'
+                  ? 'bg-teal-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -1465,7 +1179,7 @@ export const TeacherAssignmentDetail = () => {
               onClick={() => setActiveTab('SUBMITTED')}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'SUBMITTED'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -1475,7 +1189,7 @@ export const TeacherAssignmentDetail = () => {
               onClick={() => setActiveTab('UNSUBMITTED')}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'UNSUBMITTED'
-                  ? 'bg-rose-600 text-white shadow-xs'
+                  ? 'bg-rose-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -1485,7 +1199,7 @@ export const TeacherAssignmentDetail = () => {
               onClick={() => setActiveTab('NEEDS_REVIEW')}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'NEEDS_REVIEW'
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-amber-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -1502,7 +1216,7 @@ export const TeacherAssignmentDetail = () => {
         {filteredSubmissions.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+              <thead className="bg-slate-50 text-slate-600 border-b border-slate-100">
                 <tr>
                   <th className="p-4">Học sinh</th>
                   <th className="p-4">Trạng thái làm bài</th>
@@ -1515,7 +1229,7 @@ export const TeacherAssignmentDetail = () => {
               <tbody className="divide-y divide-slate-100">
                 {filteredSubmissions.map(item => {
                   const sub = item.submission;
-                  const hasFeedback = !!sub?.teacherFeedback?.comment;
+                  const hasFeedback = !!sub?.teacherFeedback?.reviewedAt;
                   return (
                     <tr key={item.student._id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4">
@@ -1523,17 +1237,17 @@ export const TeacherAssignmentDetail = () => {
                           <Avatar name={item.student.name} />
                           <div>
                             <b className="text-slate-900 block">{item.student.name}</b>
-                            <span className="text-xs text-slate-400">@{item.student.username}</span>
+                            <span className="text-xs text-slate-600">@{item.student.username}</span>
                           </div>
                         </div>
                       </td>
                       <td className="p-4">
                         {item.hasSubmitted ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full">
                             <CheckCircle2 size={14} /> Đã nộp ({date(sub.submittedAt)})
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-full">
                             <Clock size={14} /> Chưa làm bài
                           </span>
                         )}
@@ -1542,49 +1256,49 @@ export const TeacherAssignmentDetail = () => {
                         {item.hasSubmitted ? (
                           <span className="font-bold text-slate-800 text-base">{sub.score}%</span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-700">—</span>
                         )}
                       </td>
                       <td className="p-4">
                         {item.hasSubmitted ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-amber-600">
-                            <Star size={16} className="fill-amber-400 text-amber-400" />
+                          <span className="inline-flex items-center gap-1 font-bold text-amber-800">
+                            <Star size={16} className="fill-amber-400 text-amber-800" />
                             {sub.stars}
                             {sub.teacherFeedback?.bonusStars > 0 && (
-                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1 rounded">
+                              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-1 rounded">
                                 +{sub.teacherFeedback.bonusStars} thưởng
                               </span>
                             )}
                           </span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-700">—</span>
                         )}
                       </td>
                       <td className="p-4 max-w-xs">
                         {item.hasSubmitted ? (
                           hasFeedback ? (
                             <div className="text-xs text-slate-700 line-clamp-2" title={sub.teacherFeedback.comment}>
-                              <span className="font-bold text-teal-700">✓ Đã nhận xét:</span> {sub.teacherFeedback.comment}
+                              <span className="font-bold text-teal-800">✓ Đã nhận xét:</span> {sub.teacherFeedback.comment}
                             </div>
                           ) : (
-                            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
                               Chưa có lời nhận xét
                             </span>
                           )
                         ) : (
-                          <span className="text-xs text-slate-400">Chờ bé làm bài</span>
+                          <span className="text-xs text-slate-600">Chờ bé làm bài</span>
                         )}
                       </td>
                       <td className="p-4 text-right">
                         {item.hasSubmitted ? (
                           <button
                             onClick={() => openReviewModal(item)}
-                            className="rounded-xl bg-teal-600 hover:bg-teal-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
+                            className="rounded-xl bg-teal-700 hover:bg-teal-700 px-3.5 py-1.5 text-xs font-bold text-white transition-all cursor-pointer"
                           >
                             Xem bài & Chấm điểm
                           </button>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Chưa có bài nộp</span>
+                          <span className="text-xs text-slate-600 italic">Chưa có bài nộp</span>
                         )}
                       </td>
                     </tr>
@@ -1594,7 +1308,7 @@ export const TeacherAssignmentDetail = () => {
             </table>
           </div>
         ) : (
-          <div className="p-8 text-center text-slate-500">
+          <div className="p-8 text-center text-slate-600">
             Không tìm thấy học sinh nào trong nhóm này.
           </div>
         )}
@@ -1602,8 +1316,8 @@ export const TeacherAssignmentDetail = () => {
 
       {/* Modal Chấm điểm & Xem chi tiết bài làm */}
       {selectedSub && selectedSub.submission && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="mb-4 flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -1612,14 +1326,14 @@ export const TeacherAssignmentDetail = () => {
                   <h3 className="font-bold text-lg text-slate-900">
                     Bài làm của bé: {selectedSub.student.name}
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600">
                     Nộp bài lúc {new Date(selectedSub.submission.submittedAt).toLocaleString()} · Thời gian: {selectedSub.submission.duration || 0}s
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedSub(null)}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="p-1 rounded-full text-slate-600 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -1631,18 +1345,18 @@ export const TeacherAssignmentDetail = () => {
               <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center">
                 <div>
                   <span className="text-xs font-medium text-slate-600 block">Điểm số</span>
-                  <b className="text-2xl text-amber-700">{selectedSub.submission.score}%</b>
+                  <b className="text-2xl text-amber-800">{selectedSub.submission.score}%</b>
                 </div>
                 <div>
                   <span className="text-xs font-medium text-slate-600 block">Số sao đạt</span>
-                  <b className="text-2xl text-amber-700 flex items-center justify-center gap-1">
-                    <Star size={20} className="fill-amber-400 text-amber-400 inline" />
+                  <b className="text-2xl text-amber-800 flex items-center justify-center gap-1">
+                    <Star size={20} className="fill-amber-400 text-amber-800 inline" />
                     {selectedSub.submission.stars}
                   </b>
                 </div>
                 <div>
                   <span className="text-xs font-medium text-slate-600 block">Kết quả câu</span>
-                  <b className="text-xl text-emerald-700">
+                  <b className="text-xl text-emerald-800">
                     {selectedSub.submission.correctCount || 0} đúng / {(selectedSub.submission.correctCount || 0) + (selectedSub.submission.incorrectCount || 0)} câu
                   </b>
                 </div>
@@ -1651,7 +1365,7 @@ export const TeacherAssignmentDetail = () => {
               {/* Detailed Questions & Answers Breakdown */}
               <div>
                 <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-teal-600" />
+                  <CheckCircle2 size={16} className="text-teal-800" />
                   Chi tiết từng câu trả lời ({selectedSub.submission.answers?.length || 0} câu):
                 </h4>
 
@@ -1668,8 +1382,8 @@ export const TeacherAssignmentDetail = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
-                              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                                ans.isCorrect ? 'bg-emerald-600' : 'bg-rose-600'
+                              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-inherit ${
+                                ans.isCorrect ? 'bg-emerald-700' : 'bg-rose-700'
                               }`}>
                                 {idx + 1}
                               </span>
@@ -1686,8 +1400,9 @@ export const TeacherAssignmentDetail = () => {
                                 <b className="text-slate-900 block text-sm">
                                   {ans.promptText || vocab?.english || `Câu hỏi #${idx + 1}`}
                                 </b>
+                                {ans.activityTitle && <span className="block text-xs text-slate-500">{ans.activityTitle}</span>}
                                 {vocab && (
-                                  <span className="text-xs text-slate-500">
+                                  <span className="text-xs text-slate-600">
                                     {vocab.english} · {vocab.vietnamese} {vocab.pronunciation && `(/${vocab.pronunciation}/)`}
                                   </span>
                                 )}
@@ -1701,7 +1416,7 @@ export const TeacherAssignmentDetail = () => {
                                 {ans.isCorrect ? '✓ Chính xác' : '✕ Sai'}
                               </span>
                               {ans.responseTimeMs && (
-                                <span className="block text-[11px] text-slate-400 mt-1">
+                                <span className="block text-[11px] text-slate-600 mt-1">
                                   {(ans.responseTimeMs / 1000).toFixed(1)}s
                                 </span>
                               )}
@@ -1712,7 +1427,7 @@ export const TeacherAssignmentDetail = () => {
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-slate-500 text-xs">
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-slate-600 text-xs">
                     Bài nộp không có chi tiết từng câu hỏi riêng biệt.
                   </div>
                 )}
@@ -1721,7 +1436,7 @@ export const TeacherAssignmentDetail = () => {
               {/* Teacher Review Form */}
               <form onSubmit={handleSaveReview} className="space-y-4 pt-3 border-t border-slate-100">
                 <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-500" />
+                  <Sparkles size={16} className="text-amber-800" />
                   Nhận xét & Đánh giá của Giáo viên
                 </h4>
 
@@ -1738,11 +1453,11 @@ export const TeacherAssignmentDetail = () => {
                         onClick={() => setBonusStars(st)}
                         className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all ${
                           bonusStars === st
-                            ? 'bg-amber-100 border-amber-400 text-amber-900 shadow-xs'
+                            ? 'bg-amber-100 border-amber-400 text-amber-900'
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
                       >
-                        <Star size={14} className={st > 0 ? 'fill-amber-400 text-amber-400' : 'text-slate-400'} />
+                        <Star size={14} className={st > 0 ? 'fill-amber-400 text-amber-800' : 'text-slate-600'} />
                         {st === 0 ? 'Không thưởng' : `+${st} sao`}
                       </button>
                     ))}
@@ -1768,8 +1483,8 @@ export const TeacherAssignmentDetail = () => {
 
                   {/* Quick Chips */}
                   <div className="mt-2.5 space-y-1.5">
-                    <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                      <Sparkles size={12} className="text-amber-500" />
+                    <div className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                      <Sparkles size={12} className="text-amber-800" />
                       <span>Chọn nhanh mẫu câu nhận xét:</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -1794,7 +1509,7 @@ export const TeacherAssignmentDetail = () => {
                     type="checkbox"
                     checked={notifyParent}
                     onChange={e => setNotifyParent(e.target.checked)}
-                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                    className="rounded border-slate-300 text-teal-800 focus:ring-teal-500 w-4 h-4"
                   />
                   <span>Đồng thời gửi thông báo kết quả này về Sổ liên lạc của Phụ huynh</span>
                 </label>
@@ -1817,7 +1532,7 @@ export const TeacherAssignmentDetail = () => {
                   <button
                     type="submit"
                     disabled={savingReview || !reviewNote.trim()}
-                    className="rounded-xl bg-teal-600 hover:bg-teal-700 px-5 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50 cursor-pointer"
+                    className="rounded-xl bg-teal-700 hover:bg-teal-700 px-5 py-2 text-sm font-bold text-white disabled:opacity-50 cursor-pointer"
                   >
                     {savingReview ? 'Đang lưu…' : 'Lưu nhận xét & Gửi cho bé'}
                   </button>
@@ -1835,6 +1550,7 @@ export const TeacherStudents = () => {
   const [items, setItems] = useState<any[]>();
   const [classes, setClasses] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
   const [sortKey, setSortKey] = useState<'name' | 'score' | 'stars' | 'lessons'>('name');
 
@@ -1842,7 +1558,6 @@ export const TeacherStudents = () => {
   const [quickStudent, setQuickStudent] = useState<any>(null);
   const [competencyStudent, setCompetencyStudent] = useState<any>(null);
   const [quickNoteText, setQuickNoteText] = useState('');
-  const [quickStars, setQuickStars] = useState(5);
   const [quickSubject, setQuickSubject] = useState('Nhận xét học tập');
   const [sendingNote, setSendingNote] = useState(false);
 
@@ -1858,12 +1573,13 @@ export const TeacherStudents = () => {
     try {
       const [sRes, cRes] = await Promise.all([
         teacherApi.getStudents(),
-        teacherApi.getClasses().catch(() => ({ data: [] }))
+        teacherApi.getClasses()
       ]);
       setItems(sRes.data || []);
       setClasses(cRes.data || []);
-    } catch {
-      setItems([]);
+      setError('');
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
@@ -1956,8 +1672,7 @@ export const TeacherStudents = () => {
         childId: quickStudent._id,
         subject: quickSubject,
         teacherNote: quickNoteText,
-        stars: quickStars,
-        templateType: 'PROGRESS_UPDATE'
+                templateType: 'PROGRESS_UPDATE'
       });
       alert(`Đã gửi nhận xét đến phụ huynh của bé ${quickStudent.name}!`);
       setQuickStudent(null);
@@ -1969,6 +1684,7 @@ export const TeacherStudents = () => {
     }
   };
 
+  if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => void load()}>Thử lại</button></div>;
   if (!items) return <Loader />;
 
   return (
@@ -1984,7 +1700,7 @@ export const TeacherStudents = () => {
           onClick={() => setSelectedClassId('all')}
           className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
             selectedClassId === 'all'
-              ? 'bg-teal-600 text-white shadow-sm'
+              ? 'bg-teal-700 text-white'
               : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
@@ -1992,7 +1708,7 @@ export const TeacherStudents = () => {
           <span
             className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
               selectedClassId === 'all'
-                ? 'bg-teal-700 text-teal-100'
+                ? 'bg-teal-700 text-white'
                 : 'bg-slate-100 text-slate-600'
             }`}
           >
@@ -2011,14 +1727,14 @@ export const TeacherStudents = () => {
               onClick={() => setSelectedClassId(String(c._id))}
               className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
                 active
-                  ? 'bg-teal-600 text-white shadow-sm'
+                  ? 'bg-teal-700 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               <span>{c.name}</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
-                  active ? 'bg-teal-700 text-teal-100' : 'bg-slate-100 text-slate-600'
+                  active ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
                 {count} bé
@@ -2032,7 +1748,7 @@ export const TeacherStudents = () => {
             onClick={() => setSelectedClassId('unassigned')}
             className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
               selectedClassId === 'unassigned'
-                ? 'bg-amber-600 text-white shadow-sm'
+                ? 'bg-amber-700 text-white'
                 : 'bg-white border border-amber-200 text-amber-800 hover:bg-amber-50'
             }`}
           >
@@ -2049,13 +1765,13 @@ export const TeacherStudents = () => {
         <SearchBox value={search} onChange={setSearch} />
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-bold text-slate-400 shrink-0 flex items-center gap-1">
+          <span className="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1">
             <ArrowUpDown size={13} /> Sắp xếp:
           </span>
           <select
             value={sortKey}
             onChange={(e: any) => setSortKey(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none shadow-xs cursor-pointer"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer"
           >
             <option value="name">Tên A–Z (Tiếng Việt)</option>
             <option value="score">Điểm trung bình cao nhất</option>
@@ -2076,12 +1792,8 @@ export const TeacherStudents = () => {
               (sum, s) => sum + (s.stats?.totalStars ?? s.stats?.stars ?? 0),
               0
             );
-            const classAvg = sortedStudents.length
-              ? Math.round(
-                  sortedStudents.reduce((sum, s) => sum + (s.stats?.averageScore || 0), 0) /
-                    sortedStudents.length
-                )
-              : 0;
+            const assessedStudents = sortedStudents.filter(s => s.stats?.hasAssessment);
+            const classAvg = assessedStudents.length ? Math.round(assessedStudents.reduce((sum, s) => sum + s.stats.averageScore, 0) / assessedStudents.length) : null;
 
             const bookLabel =
               classInfo.ageGroupCode === '3-4'
@@ -2093,12 +1805,12 @@ export const TeacherStudents = () => {
             return (
               <section
                 key={classInfo._id}
-                className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-5"
+                className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5"
               >
                 {/* Group Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-teal-700 font-black text-xl shadow-xs">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-teal-800 font-black text-xl">
                       🏫
                     </span>
                     <div>
@@ -2108,7 +1820,7 @@ export const TeacherStudents = () => {
                           {bookLabel}
                         </span>
                       </div>
-                      <p className="text-xs font-bold text-slate-400 mt-0.5">
+                      <p className="text-xs font-bold text-slate-600 mt-0.5">
                         Sĩ số: {sortedStudents.length} bé · Niên khóa {classInfo.academicYear || '2025–2026'}
                       </p>
                     </div>
@@ -2116,17 +1828,17 @@ export const TeacherStudents = () => {
 
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-100 text-xs font-bold text-slate-600">
-                      <span>Điểm TB: <b className="text-teal-700">{classAvg}%</b></span>
+                      <span>Độ đúng: <b className="text-teal-800">{classAvg == null ? 'Chưa có dữ liệu' : classAvg + '%'}</b></span>
                       <span>·</span>
-                      <span className="flex items-center gap-1 text-amber-600">
-                        <Star size={13} className="fill-amber-400 text-amber-500" />
+                      <span className="flex items-center gap-1 text-amber-800">
+                        <Star size={13} className="fill-amber-400 text-amber-800" />
                         <b>{classStars} sao</b>
                       </span>
                     </div>
 
                     <Link
                       to={`/teacher/classroom-sessions/new?classroomId=${classInfo._id}`}
-                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 shadow-xs transition-all"
+                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-700 transition-all"
                     >
                       <Play size={12} className="fill-white" /> Dạy lớp này
                     </Link>
@@ -2142,7 +1854,7 @@ export const TeacherStudents = () => {
 
                 {/* Student Cards in this class */}
                 {sortedStudents.length === 0 ? (
-                  <p className="text-sm text-slate-400 italic py-4 text-center">
+                  <p className="text-sm text-slate-600 italic py-4 text-center">
                     Không có học sinh nào trong lớp khớp với bộ lọc tìm kiếm.
                   </p>
                 ) : (
@@ -2153,16 +1865,16 @@ export const TeacherStudents = () => {
                       const lessons = s.stats?.completedLessons ?? 0;
 
                       const rankBadge =
-                        avg >= 85
-                          ? { label: '🌟 Xuất sắc', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
+                        !s.stats?.hasAssessment ? { label: 'Chưa có dữ liệu', color: 'bg-slate-50 text-slate-600 border-slate-200' } : avg >= 85
+                          ? { label: 'Độ đúng từ 85%', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
                           : avg >= 70
-                          ? { label: '👍 Khá giỏi', color: 'bg-teal-50 text-teal-800 border-teal-200' }
-                          : { label: '📖 Cần rèn thêm', color: 'bg-amber-50 text-amber-800 border-amber-200' };
+                          ? { label: 'Độ đúng từ 70%', color: 'bg-teal-50 text-teal-800 border-teal-200' }
+                          : { label: 'Cần quan sát thêm', color: 'bg-amber-50 text-amber-800 border-amber-200' };
 
                       return (
                         <div
                           key={s._id}
-                          className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between"
+                          className="rounded-2xl border border-slate-200/90 bg-white p-4 hover:border-teal-400 transition-all flex flex-col justify-between"
                         >
                           <div>
                             {/* Card Top: Avatar & Name */}
@@ -2172,12 +1884,12 @@ export const TeacherStudents = () => {
                                 <div className="min-w-0">
                                   <Link
                                     to={`/teacher/students/${s._id}`}
-                                    className="block font-black text-slate-900 truncate hover:text-teal-700 text-sm"
+                                    className="block font-black text-slate-900 truncate hover:text-teal-800 text-sm"
                                     title={s.name}
                                   >
                                     {s.name}
                                   </Link>
-                                  <span className="text-[11px] font-bold text-slate-400 block truncate">
+                                  <span className="text-[11px] font-bold text-slate-600 block truncate">
                                     @{s.username || 'hocsinh'}
                                   </span>
                                 </div>
@@ -2196,18 +1908,18 @@ export const TeacherStudents = () => {
                             {/* 3 Metrics */}
                             <div className="mt-3 grid grid-cols-3 gap-1 bg-slate-50 p-2.5 rounded-xl text-center text-xs">
                               <div>
-                                <span className="block text-[10px] font-bold text-slate-400">Điểm</span>
-                                <b className="text-teal-700 font-black">{avg}%</b>
+                                <span className="block text-[10px] font-bold text-slate-600">Điểm</span>
+                                <b className="text-teal-800 font-black">{s.stats?.hasAssessment ? avg + '%' : '—'}</b>
                               </div>
                               <div className="border-x border-slate-200">
-                                <span className="block text-[10px] font-bold text-slate-400">Sao</span>
-                                <b className="text-amber-600 font-black flex items-center justify-center gap-0.5">
-                                  <Star size={11} className="fill-amber-400 text-amber-500" />
+                                <span className="block text-[10px] font-bold text-slate-600">Sao</span>
+                                <b className="text-amber-800 font-black flex items-center justify-center gap-0.5">
+                                  <Star size={11} className="fill-amber-400 text-amber-800" />
                                   {stars}
                                 </b>
                               </div>
                               <div>
-                                <span className="block text-[10px] font-bold text-slate-400">Bài xong</span>
+                                <span className="block text-[10px] font-bold text-slate-600">Bài xong</span>
                                 <b className="text-slate-700 font-black">{lessons}</b>
                               </div>
                             </div>
@@ -2217,8 +1929,8 @@ export const TeacherStudents = () => {
                           <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
                             <button
                               type="button"
-                              onClick={() => setCompetencyStudent(s)}
-                              className="text-[11px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 cursor-pointer bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded-lg transition-colors"
+                              onClick={async () => { try { const result = await teacherApi.getStudentOverview(s._id); setCompetencyStudent({ ...result.data.student, stats: result.data.stats, competencyReport: result.data.competencyReport }); } catch(e: any) { alert(e.message); } }}
+                              className="text-[11px] font-bold text-teal-800 hover:text-teal-900 flex items-center gap-1 cursor-pointer bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded-lg transition-colors"
                               title="Hồ sơ năng lực 3 trụ cột"
                             >
                               <Brain size={12} /> Năng lực
@@ -2227,7 +1939,7 @@ export const TeacherStudents = () => {
                             <div className="flex items-center gap-1">
                               <Link
                                 to={`/teacher/students/${s._id}`}
-                                className="text-xs font-bold text-slate-600 hover:text-teal-700 flex items-center gap-0.5 px-1.5 py-1"
+                                className="text-xs font-bold text-slate-600 hover:text-teal-800 flex items-center gap-0.5 px-1.5 py-1"
                               >
                                 Chi tiết <ChevronRight size={13} />
                               </Link>
@@ -2237,10 +1949,10 @@ export const TeacherStudents = () => {
                                 onClick={() => {
                                   setQuickStudent(s);
                                   setQuickNoteText(
-                                    `Bé ${s.name} đã hoàn thành ${lessons} bài học, điểm trung bình đạt ${avg}% và tích lũy được ${stars} sao!`
+                                    s.stats?.hasAssessment ? `Bé ${s.name} đã hoàn thành ${lessons} bài học, độ đúng qua các câu trả lời đạt ${avg}% và tích lũy được ${stars} sao.` : `Gia đình cùng bé ${s.name} ôn lại nội dung đã học bằng một hoạt động ngắn, vui vẻ nhé.`
                                   );
                                 }}
-                                className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 flex items-center gap-1 cursor-pointer bg-slate-50 hover:bg-indigo-50 px-2 py-1 rounded-lg"
+                                className="text-[11px] font-bold text-slate-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer bg-slate-50 hover:bg-indigo-50 px-2 py-1 rounded-lg"
                                 title="Gửi nhận xét phụ huynh"
                               >
                                 <Send size={11} /> Nhận xét
@@ -2258,13 +1970,13 @@ export const TeacherStudents = () => {
 
           {/* Unassigned Students Group if any */}
           {showUnassigned && (
-            <section className="rounded-3xl border border-amber-200 bg-amber-50/30 p-5 sm:p-6 shadow-xs space-y-5">
+            <section className="rounded-3xl border border-amber-200 bg-amber-50/30 p-5 sm:p-6 space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-amber-200">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">⚠️</span>
                   <div>
                     <h3 className="text-lg font-black text-amber-900">Học sinh chưa phân vào lớp</h3>
-                    <p className="text-xs font-bold text-amber-700">
+                    <p className="text-xs font-bold text-amber-800">
                       Các bé này chưa được Admin gán vào lớp học nào.
                     </p>
                   </div>
@@ -2278,18 +1990,18 @@ export const TeacherStudents = () => {
                 {sortStudents(classGroups.unassigned).map((s) => (
                   <div
                     key={s._id}
-                    className="rounded-2xl border border-amber-200 bg-white p-4 shadow-xs flex flex-col justify-between"
+                    className="rounded-2xl border border-amber-200 bg-white p-4 flex flex-col justify-between"
                   >
                     <div className="flex items-center gap-2.5">
                       <Avatar name={s.name} />
                       <div className="min-w-0">
                         <Link
                           to={`/teacher/students/${s._id}`}
-                          className="block font-black text-slate-900 truncate hover:text-amber-700 text-sm"
+                          className="block font-black text-slate-900 truncate hover:text-amber-800 text-sm"
                         >
                           {s.name}
                         </Link>
-                        <span className="text-[11px] font-bold text-slate-400 block truncate">
+                        <span className="text-[11px] font-bold text-slate-600 block truncate">
                           Độ tuổi {s.ageGroupCode || '—'}
                         </span>
                       </div>
@@ -2344,7 +2056,7 @@ export const TeacherStudents = () => {
                 Lời nhận xét của cô giáo
               </label>
               <ParentNoteSuggestions childId={quickStudent._id} disabled={sendingNote}
-                onSelect={option => { setQuickNoteText(option.content); setQuickStars(option.suggestedStars); }} />
+                onSelect={option => { setQuickNoteText(option.content);  }} />
               <textarea
                 rows={4}
                 value={quickNoteText}
@@ -2354,35 +2066,12 @@ export const TeacherStudents = () => {
               />
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-600 block mb-1.5">
-                Tặng sao khen thưởng
-              </label>
-              <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setQuickStars(st)}
-                    className={`h-9 w-9 rounded-xl font-black text-sm flex items-center justify-center transition-all cursor-pointer ${
-                      quickStars >= st
-                        ? 'bg-amber-400 text-amber-950 shadow-xs'
-                        : 'bg-slate-100 text-slate-400'
-                    }`}
-                  >
-                    ⭐
-                  </button>
-                ))}
-                <span className="text-xs font-bold text-amber-700 ml-2">
-                  {quickStars} sao vàng
-                </span>
-              </div>
-            </div>
+
 
             <button
               disabled={sendingNote || !quickNoteText.trim()}
               onClick={handleSendQuickNote}
-              className="mt-2 w-full rounded-xl bg-teal-600 px-4 py-3 text-sm font-black text-white hover:bg-teal-700 disabled:opacity-50 cursor-pointer shadow-sm transition-all"
+              className="mt-2 w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-black text-white hover:bg-teal-700 disabled:opacity-50 cursor-pointer transition-all"
             >
               {sendingNote ? 'Đang gửi thông báo...' : 'Gửi phiếu nhận xét phụ huynh 📨'}
             </button>
@@ -2396,6 +2085,7 @@ export const TeacherStudents = () => {
           onClose={() => setCompetencyStudent(null)}
           student={competencyStudent}
           stats={competencyStudent.stats}
+          competencyReport={competencyStudent.competencyReport}
         />
       )}
     </>
@@ -2406,13 +2096,14 @@ export const TeacherStudentDetail = () => {
   const { studentId = '' } = useParams();
   const [data, setData] = useState<any>();
   const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [isHomeroomOnly, setIsHomeroomOnly] = useState(false);
   const [parentNotifs, setParentNotifs] = useState<any[]>([]);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showCompetencyModal, setShowCompetencyModal] = useState(false);
   const [parentSubject, setParentSubject] = useState('Nhận xét học tập');
   const [parentNoteText, setParentNoteText] = useState('');
-  const [parentStars, setParentStars] = useState(5);
 
   const studentNoteTemplates = [
     { label: '🌟 Phát âm to rõ', text: 'Bé phát âm rất to, rõ ràng và tự tin trước lớp.' },
@@ -2423,44 +2114,28 @@ export const TeacherStudentDetail = () => {
     { label: '🔒 Lưu ý GVCN', text: 'Ghi chú riêng GVCN: Cần theo dõi thêm về sự tập trung và phản xạ của bé trong giờ học.' }
   ];
 
-  const load = () => {
-    teacherApi.getStudentOverview(studentId).then(x => setData(x.data));
-    parentNotificationApi.getChildNotifications(studentId).then(x => setParentNotifs(x.data || [])).catch(() => {});
+  const load = async () => {
+    try { const [overview, messages] = await Promise.all([teacherApi.getStudentOverview(studentId), parentNotificationApi.getChildNotifications(studentId)]); setData(overview.data); setParentNotifs(messages.data || []); setError(''); }
+    catch(e: any) { setError(e.message || 'Không thể tải hồ sơ học sinh.'); }
   };
-
-  useEffect(() => { void load(); }, [studentId]);
-
+  useEffect(() => { setData(undefined); void load(); }, [studentId]);
+  if (error && !data) return <div className="teacher-error" role="alert">{error}<button onClick={() => void load()}>Thử lại</button></div>;
   if (!data) return <Loader />;
   const { student, stats } = data;
-
-  const add = async (e: any) => {
-    e.preventDefault();
-    if (note.trim()) {
-      await teacherApi.createTeacherNote({ studentId, noteType: 'GENERAL', content: note.trim(), isHomeroomOnly });
-      setNote('');
-      setIsHomeroomOnly(false);
-      void load();
-    }
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!note.trim() || saving) return; setSaving(true);
+    try { await teacherApi.createTeacherNote({ studentId, noteType: 'GENERAL', content: note.trim(), isHomeroomOnly }); setNote(''); setIsHomeroomOnly(false); await load(); }
+    catch(e: any) { setError(e.message); } finally { setSaving(false); }
   };
-
-  const sendToParent = async (e: any) => {
-    e.preventDefault();
-    if (!parentNoteText.trim()) return;
-    await parentNotificationApi.sendNotification({
-      childId: studentId,
-      subject: parentSubject,
-      teacherNote: parentNoteText.trim(),
-      stars: parentStars,
-      score: stats?.averageScore || 0,
-      templateType: 'GENERAL'
-    });
-    setParentNoteText('');
-    setShowSendModal(false);
-    void load();
+  const sendToParent = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!parentNoteText.trim() || saving) return; setSaving(true);
+    try { await parentNotificationApi.sendNotification({ childId: studentId, subject: parentSubject, teacherNote: parentNoteText.trim(), templateType: 'GENERAL' }); setParentNoteText(''); setShowSendModal(false); await load(); }
+    catch(e: any) { setError(e.message); } finally { setSaving(false); }
   };
 
   return (
     <>
+      {error && <div className="teacher-error mb-4" role="alert">{error}</div>}
       <Header
         title={student.name}
         text={`Độ tuổi ${student.ageGroupCode || '—'} · ${student.assignedClass?.name || 'Chưa phân lớp'}`}
@@ -2468,13 +2143,13 @@ export const TeacherStudentDetail = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowCompetencyModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 px-4 py-2 text-sm font-bold text-white shadow-sm cursor-pointer transition-all"
+              className="flex items-center gap-2 rounded-xl bg-teal-700 hover:bg-teal-700 px-4 py-2 text-sm font-bold text-white cursor-pointer transition-all"
             >
               <Brain size={16} /> Hồ Sơ Năng Lực (3 Trụ Cột)
             </button>
             <button
               onClick={() => setShowSendModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-xs cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-amber-700 hover:bg-amber-700 px-4 py-2 text-sm font-semibold text-white cursor-pointer"
             >
               <Mail size={16} /> Gửi nhận xét cho Phụ huynh
             </button>
@@ -2485,9 +2160,9 @@ export const TeacherStudentDetail = () => {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <div
           onClick={() => setShowCompetencyModal(true)}
-          className="rounded-2xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-5 shadow-xs cursor-pointer hover:shadow-md transition-all group col-span-2 sm:col-span-1"
+          className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 cursor-pointer transition-all group col-span-2 sm:col-span-1"
         >
-          <div className="mb-2 flex items-center justify-between text-teal-700 text-xs font-bold uppercase tracking-wider">
+          <div className="mb-2 flex items-center justify-between text-teal-800 text-xs font-bold uppercase tracking-wider">
             Cấp độ Koko
             <span className="text-xl group-hover:scale-110 transition-transform">
               {data?.competencyReport?.explorerLevel?.icon || '🌱'}
@@ -2496,13 +2171,13 @@ export const TeacherStudentDetail = () => {
           <div className="text-base font-black text-teal-900 truncate">
             {data?.competencyReport?.explorerLevel?.title || 'Mầm Nhí Khám Phá'}
           </div>
-          <div className="mt-1 text-xs text-teal-600 font-semibold flex items-center gap-1">
+          <div className="mt-1 text-xs text-teal-800 font-semibold flex items-center gap-1">
             <Brain size={12} /> Xem hồ sơ năng lực →
           </div>
         </div>
         <Metric label="Từ vựng tích lũy" value={`${data?.competencyReport?.vocabularyCompetency?.masteredCount ?? 0} từ vững`} icon={<BookOpen size={16} />} />
         <Metric label="Bài đã hoàn thành" value={stats.completedLessons} icon={<CheckCircle2 size={16} />} />
-        <Metric label="Số sao Koko" value={`⭐ ${stats.totalStars}`} icon={<Star size={16} className="text-amber-500 fill-amber-400" />} />
+        <Metric label="Số sao Koko" value={`⭐ ${stats.totalStars}`} icon={<Star size={16} className="text-amber-800 fill-amber-400" />} />
         <Metric label="Thời gian học" value={`${Math.round(stats.learningTime / 60)} phút`} icon={<Clock size={16} />} />
       </div>
 
@@ -2514,7 +2189,7 @@ export const TeacherStudentDetail = () => {
               <div key={r._id} className="flex justify-between border-t py-3 text-sm">
                 <span>
                   <b>{r.lesson?.title}</b>
-                  <small className="block text-slate-500">
+                  <small className="block text-slate-600">
                     {r.activity?.title} · {date(r.createdAt)}
                   </small>
                 </span>
@@ -2522,14 +2197,14 @@ export const TeacherStudentDetail = () => {
               </div>
             ))
           ) : (
-            <p className="text-sm text-slate-500">Chưa có hoạt động học nào.</p>
+            <p className="text-sm text-slate-600">Chưa có hoạt động học nào.</p>
           )}
         </section>
 
-        <section className="rounded-2xl border bg-white p-6 shadow-xs">
+        <section className="rounded-2xl border bg-white p-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-slate-900 text-base">Ghi chú nội bộ giáo viên</h3>
-            <span className="text-xs text-slate-400 font-medium">Lưu trữ sư phạm</span>
+            <span className="text-xs text-slate-600 font-medium">Lưu trữ sư phạm</span>
           </div>
 
           <form onSubmit={add} className="mb-4 space-y-3">
@@ -2543,7 +2218,7 @@ export const TeacherStudentDetail = () => {
 
             {/* Quick chips for teacher note */}
             <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-500">Mẫu ghi chú nhanh:</span>
+              <span className="text-[11px] font-bold text-slate-600">Mẫu ghi chú nhanh:</span>
               <div className="flex flex-wrap gap-1.5">
                 {studentNoteTemplates.map((t, idx) => (
                   <button
@@ -2564,7 +2239,7 @@ export const TeacherStudentDetail = () => {
                 type="checkbox"
                 checked={isHomeroomOnly}
                 onChange={e => setIsHomeroomOnly(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                className="w-4 h-4 rounded text-indigo-800 focus:ring-indigo-500"
               />
               <span>🔒 Ghi chú riêng cho Giáo viên chủ nhiệm (Chỉ GVCN lớp được xem)</span>
             </label>
@@ -2572,7 +2247,7 @@ export const TeacherStudentDetail = () => {
             <button
               type="submit"
               disabled={!note.trim()}
-              className="rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+              className="rounded-xl bg-teal-700 hover:bg-teal-700 disabled:opacity-40 px-4 py-2 text-xs font-bold text-white transition-colors cursor-pointer"
             >
               Lưu ghi chú nội bộ
             </button>
@@ -2590,38 +2265,38 @@ export const TeacherStudentDetail = () => {
                           🔒 Chỉ GVCN xem
                         </span>
                       ) : (
-                        <span className="text-[10px] font-medium text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-medium text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
                           👥 Nội bộ lớp
                         </span>
                       )}
                     </div>
-                    <small className="text-slate-400 text-xs">{date(n.createdAt)}</small>
+                    <small className="text-slate-600 text-xs">{date(n.createdAt)}</small>
                   </div>
                   <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-wrap">{n.content}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400 py-3 text-center">Chưa có ghi chú nội bộ nào cho bé.</p>
+            <p className="text-xs text-slate-600 py-3 text-center">Chưa có ghi chú nội bộ nào cho bé.</p>
           )}
         </section>
       </div>
 
       {/* Sổ liên lạc & Thông báo học tập tới Phụ huynh (GV-07: Hiển thị dạng thẻ thông báo, không phải dạng chat) */}
-      <section className="mt-6 rounded-2xl border bg-white p-6 shadow-xs">
+      <section className="mt-6 rounded-2xl border bg-white p-6">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900">
-              <Mail className="text-amber-500" size={20} />
+              <Mail className="text-amber-800" size={20} />
               Sổ Liên Lạc & Thông Báo Tới Phụ Huynh ({parentNotifs.length})
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-600">
               Các phiếu thông báo nhận xét học tập đã gửi về Sổ liên lạc của gia đình bé.
             </p>
           </div>
           <button
             onClick={() => setShowSendModal(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-700 hover:bg-amber-700 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition-colors"
           >
             + Gửi thông báo nhận xét mới
           </button>
@@ -2630,15 +2305,15 @@ export const TeacherStudentDetail = () => {
         {parentNotifs.length ? (
           <div className="space-y-4">
             {parentNotifs.map((item: any) => (
-              <div key={item._id} className="rounded-2xl border-2 border-amber-200/80 bg-white p-5 shadow-xs space-y-3">
+              <div key={item._id} className="rounded-2xl border-2 border-amber-200/80 bg-white p-5 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700 text-lg">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-lg">
                       📢
                     </span>
                     <div>
                       <h4 className="font-bold text-sm text-slate-900">{item.subject || 'Phiếu nhận xét học tập'}</h4>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-slate-600">
                         Gửi ngày {new Date(item.sentAt || item.createdAt).toLocaleDateString('vi-VN')}
                       </span>
                     </div>
@@ -2662,7 +2337,7 @@ export const TeacherStudentDetail = () => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-400 py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <p className="text-sm text-slate-600 py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
             Chưa có thông báo nào được gửi tới Sổ liên lạc của phụ huynh bé {student.name}.
           </p>
         )}
@@ -2684,34 +2359,14 @@ export const TeacherStudentDetail = () => {
               />
             </label>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tặng sao khen thưởng cho bé:
-              </label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(s => (
-                  <button
-                    type="button"
-                    key={s}
-                    onClick={() => setParentStars(s)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                      parentStars === s
-                        ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    ⭐ {s} sao
-                  </button>
-                ))}
-              </div>
-            </div>
+
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Nội dung nhận xét & dặn dò phụ huynh:
               </label>
               <ParentNoteSuggestions childId={studentId}
-                onSelect={option => { setParentNoteText(option.content); setParentStars(option.suggestedStars); }} />
+                onSelect={option => { setParentNoteText(option.content);  }} />
               <textarea
                 value={parentNoteText}
                 onChange={e => setParentNoteText(e.target.value)}
@@ -2723,7 +2378,7 @@ export const TeacherStudentDetail = () => {
 
               {/* Quick templates for parent note */}
               <div className="mt-2 space-y-1">
-                <span className="text-[11px] font-bold text-slate-500">Mẫu nhận xét nhanh:</span>
+                <span className="text-[11px] font-bold text-slate-600">Mẫu nhận xét nhanh:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     'Bé phát âm rất to, rõ ràng và có nhiều tiến bộ hôm nay! 🌟',
@@ -2746,8 +2401,8 @@ export const TeacherStudentDetail = () => {
 
             <button
               type="submit"
-              disabled={!parentNoteText.trim()}
-              className="mt-2 w-full rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 py-2.5 font-bold text-white shadow-xs transition-colors cursor-pointer"
+              disabled={saving || !parentNoteText.trim()}
+              className="mt-2 w-full rounded-xl bg-amber-700 hover:bg-amber-700 disabled:opacity-40 py-2.5 font-bold text-white transition-colors cursor-pointer"
             >
               Xác nhận gửi thông báo tới Sổ liên lạc
             </button>
@@ -2767,5 +2422,5 @@ export const TeacherStudentDetail = () => {
   );
 };
 
-export { TeacherAnalyticsTab as TeacherAnalytics } from './TeacherAnalyticsTab';
+export { TeacherAnalytics } from './TeacherInsights';
 

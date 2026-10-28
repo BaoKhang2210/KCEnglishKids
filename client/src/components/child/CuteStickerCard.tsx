@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import type { StickerItem } from '../../data/stickers';
 import { sfx } from '../../utils/audio';
+import { LearningSymbol } from '../common/LearningSymbol';
 
 // §1.3.3 — playful onomatopoeia per sticker: tap an unlocked sticker to hear it
 const STICKER_CRIES: Record<string, { text: string; pitch: number; rate: number }> = {
@@ -138,7 +139,7 @@ export const CuteStickerCard: React.FC<CuteStickerCardProps> = ({
           {/* Center sticker emoji / lock */}
           <div className={`${currentSize.icon} filter drop-shadow-md select-none`}>
             {isUnlocked ? (
-              <span>{sticker.icon}</span>
+              <LearningSymbol symbol={sticker.icon} label={sticker.name} className="w-16 h-16 sm:w-20 sm:h-20" />
             ) : (
               <LockKeyhole className="w-8 h-8 text-slate-400/80" />
             )}

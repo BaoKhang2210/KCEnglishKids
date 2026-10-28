@@ -52,6 +52,8 @@ Thumbs.db
 [Dd]esktop.ini
 
 # Temporary files & test coverage
+.local-backups/
+.tmp/asset-source/
 coverage/
 .nyc_output/
 *.tmp

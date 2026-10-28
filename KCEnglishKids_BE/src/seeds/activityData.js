@@ -151,7 +151,7 @@ function buildActivitiesForLesson(lessonDef, vocabMap) {
         promptImageUrl: p.image,
         correctAnswer: p.word,
         vocabulary: p.vocabulary,
-        options: words.slice(0, 3).map((w, optIdx) => ({
+        options: [p.word, ...words.filter(w => w !== p.word).slice(0, 2)].map((w, optIdx) => ({
           id: `opt_match_${idx}_${optIdx}`,
           text: w,
           isCorrect: w === p.word

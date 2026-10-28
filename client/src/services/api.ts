@@ -1,3 +1,4 @@
+import { fetchAllPages } from './adminPagination';
 import type {
   ParentNoteRequest,
   ParentNoteSuggestions,
@@ -8,6 +9,8 @@ import type {
 } from '../types';
 
 const BASE_URL = '/api';
+// Request IDs are deduplication keys, not credentials; support classroom LAN browsers too.
+const operationId = () => globalThis.crypto?.randomUUID?.() || 'op-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 
 const getHeaders = () => {
   const token = localStorage.getItem('kc_token');
@@ -18,8 +21,9 @@ const getHeaders = () => {
 };
 
 export const api = {
-  async get(endpoint: string) {
+  async get(endpoint: string, signal?: AbortSignal) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
+      signal,
       headers: getHeaders()
     });
     const data = await res.json();
@@ -207,6 +211,8 @@ export const stageProgressApi = {
 
 // Admin API
 export const adminApi = {
+  getStudentCompetency: (id: string) => api.get(`/admin/users/${id}/competency`),
+  resetStaffPassword: (id: string, password: string, currentPassword?: string) => api.post(`/admin/users/${id}/reset-password`, { password, currentPassword }),
   getDashboardStats: () => api.get('/admin/dashboard'),
   getCurriculum: () => api.get('/admin/curriculum'),
   getDeepCurriculum: () => api.get('/admin/curriculum/deep'),
@@ -536,12 +542,14 @@ export const teacherApi = {
 
 // Classroom Session API (Phase 3)
 export const classroomSessionApi = {
-  getSessions: (params?: { status?: string; classroomId?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.status) q.append('status', params.status);
-    if (params?.classroomId) q.append('classroomId', params.classroomId);
-    const qs = q.toString();
-    return api.get(`/teacher/classroom-sessions${qs ? `?${qs}` : ''}`);
+  getSessions: async (params?: { status?: string; classroomId?: string }) => {
+    const data = await fetchAllPages<any>(page => {
+      const q = new URLSearchParams({ page: String(page), limit: '200' });
+      if (params?.status) q.set('status', params.status);
+      if (params?.classroomId) q.set('classroomId', params.classroomId);
+      return api.get('/teacher/classroom-sessions?' + q);
+    });
+    return { success: true, data };
   },
   createSession: (data: {
     classroomId: string;
@@ -557,6 +565,7 @@ export const classroomSessionApi = {
     attendanceNote?: string;
   }) => api.post('/teacher/classroom-sessions', data),
   getSession: (id: string) => api.get(`/teacher/classroom-sessions/${id}`),
+  deleteDraft: (id: string) => api.delete(`/teacher/classroom-sessions/${id}`),
   startSession: (id: string) =>
     api.post(`/teacher/classroom-sessions/${id}/start`, {}),
   endSession: (id: string) =>
@@ -570,7 +579,7 @@ export const classroomSessionApi = {
       correctDelta?: number;
       incorrectDelta?: number;
     }
-  ) => api.post(`/teacher/classroom-sessions/${id}/score-student`, data),
+  ) => api.post(`/teacher/classroom-sessions/${id}/score-student`, { operationId: operationId(), ...data }),
   scoreBulk: (
     id: string,
     data: {
@@ -580,7 +589,7 @@ export const classroomSessionApi = {
       correctDelta?: number;
       incorrectDelta?: number;
     }
-  ) => api.post(`/teacher/classroom-sessions/${id}/score-bulk`, data),
+  ) => api.post(`/teacher/classroom-sessions/${id}/score-bulk`, { operationId: operationId(), ...data }),
   recordQuestionResult: (
     id: string,
     data: {

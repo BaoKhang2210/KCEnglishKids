@@ -149,6 +149,7 @@ export interface Vocabulary {
   pronunciation?: string;
   imageUrl?: string;
   audioUrl?: string;
+  animationUrl?: string;
   exampleSentence?: string;
   exampleSentenceVietnamese?: string;
   category?: string;
@@ -280,15 +281,15 @@ export interface VocabularyCompetency {
 }
 
 export interface ListeningCompetency {
-  accuracyRate: number;
+  accuracyRate: number | null;
   totalResponses: number;
   correctResponses: number;
   reactionSpeed: string;
-  status: 'EXCELLENT' | 'GOOD' | 'PRACTICE_NEEDED';
+  status: 'EXCELLENT' | 'GOOD' | 'PRACTICE_NEEDED' | 'NOT_ASSESSED';
 }
 
 export interface PronunciationCompetency {
-  averageScore: number;
+  averageScore: number | null;
   confidence: string;
   starsEarned: number;
 }
@@ -303,6 +304,7 @@ export interface StudentCompetencyReport {
 
 export interface RewardSummary {
   totalStars: number;
+  teacherStars?: number;
   earnedStars: number;
   bonusStars: number;
   classroomStars: number;

@@ -26,6 +26,7 @@ const studentScoreSchema = new mongoose.Schema({
 
 // Per-question result within a classroom session
 const questionResultSchema = new mongoose.Schema({
+  key: { type: String },
   activityId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Activity'
@@ -64,6 +65,13 @@ const classroomSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lesson',
       default: null
+    },
+    // Historical mixed lessons have no single lesson FK; preserve the original context.
+    contentSnapshot: {
+      mode: { type: String, enum: ['MIXED_LESSONS'] },
+      originalLessonId: String,
+      lessonIds: [String],
+      repairNote: String
     },
     title: {
       type: String,
@@ -116,6 +124,7 @@ const classroomSessionSchema = new mongoose.Schema(
     studentScores: [studentScoreSchema],
     // Per-question results (for the Kahoot-like view)
     questionResults: [questionResultSchema],
+    appliedOperations: { type: [String], default: [], select: false },
     // Generated summary after session ends
     summary: {
       participationCount: { type: Number, default: 0 },
@@ -130,10 +139,12 @@ const classroomSessionSchema = new mongoose.Schema(
       ]
     }
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true, toJSON: { transform: (_doc, ret) => { delete ret.appliedOperations; return ret; } } }
 );
 
 classroomSessionSchema.index({ classroom: 1, status: 1 });
 classroomSessionSchema.index({ teacher: 1, createdAt: -1 });
+classroomSessionSchema.index({ classroom: 1 }, { unique: true, partialFilterExpression: { status: 'LIVE' }, name: 'one_live_session_per_class' });
+classroomSessionSchema.index({ teacher: 1 }, { unique: true, partialFilterExpression: { status: 'LIVE' }, name: 'one_live_session_per_teacher' });
 
 module.exports = mongoose.model('ClassroomSession', classroomSessionSchema);

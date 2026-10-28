@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import type { StickerItem } from '../../data/stickers';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
+import { LearningSymbol } from '../common/LearningSymbol';
 
 interface StickerShowcaseModalProps {
   sticker: StickerItem | null;
@@ -100,7 +101,7 @@ export const StickerShowcaseModal: React.FC<StickerShowcaseModalProps> = ({
 
             {/* Sticker Icon */}
             <span className="text-7xl sm:text-8xl filter drop-shadow-lg select-none">
-              {isUnlocked ? sticker.icon : '🔒'}
+              {isUnlocked ? <LearningSymbol symbol={sticker.icon} label={sticker.name} className="w-28 h-28 sm:w-36 sm:h-36" /> : '🔒'}
             </span>
 
             {/* Peel corner fold effect in bottom-right */}

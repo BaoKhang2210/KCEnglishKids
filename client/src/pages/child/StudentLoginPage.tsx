@@ -87,6 +87,8 @@ export const StudentLoginPage: React.FC = () => {
     >
       {/* ── decorative blobs ── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-50/60 via-amber-50/85 to-white/90" />
         <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-amber-300/20 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-sky-300/20 rounded-full blur-3xl" />
         <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-rose-200/10 rounded-full blur-3xl" />

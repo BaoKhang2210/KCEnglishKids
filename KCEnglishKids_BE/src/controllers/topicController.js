@@ -94,7 +94,7 @@ const getLessonsByTopic = async (req, res, next) => {
     }
 
     const lessons = await Lesson.find(lessonQuery)
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl')
+      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType')
       .sort({ displayOrder: 1 })
       .lean();
 

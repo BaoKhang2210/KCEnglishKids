@@ -1,0 +1,27 @@
+{
+  "readOnly": true,
+  "verifiedAt": "2026-10-28T03:47:44.173Z",
+  "api": {
+    "checked": 419,
+    "passed": 419
+  },
+  "images": {
+    "checked": 1114,
+    "passed": 1114
+  },
+  "teacherChecks": [
+    {
+      "route": "/api/teacher/dashboard",
+      "status": 200
+    },
+    {
+      "route": "/api/teacher/sentence-patterns",
+      "status": 200
+    },
+    {
+      "route": "/api/teacher/sentence-patterns/units-overview",
+      "status": 200
+    }
+  ],
+  "failures": []
+}

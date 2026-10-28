@@ -5,8 +5,7 @@ import {
   Save,
   Star,
   CheckCircle2,
-  AlertCircle,
-  KeyRound
+  AlertCircle
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
@@ -21,9 +20,6 @@ export const AdminSettingsPage: React.FC = () => {
     contactPhone: '0901 234 567',
     contactEmail: 'admin@kcenglishkids.edu.vn',
     address: '123 Đường Sư Phạm, Quận 1, TP. Hồ Chí Minh',
-    defaultStudentPin: '1234',
-    starsPerActivity: 3,
-    maxBonusStarsPerUnit: 10
   });
 
   useEffect(() => {
@@ -46,9 +42,6 @@ export const AdminSettingsPage: React.FC = () => {
           contactPhone: res.data.contactPhone || '0901 234 567',
           contactEmail: res.data.contactEmail || 'admin@kcenglishkids.edu.vn',
           address: res.data.address || '123 Đường Sư Phạm, Quận 1, TP. Hồ Chí Minh',
-          defaultStudentPin: res.data.defaultStudentPin || '1234',
-          starsPerActivity: res.data.starsPerActivity ?? 3,
-          maxBonusStarsPerUnit: res.data.maxBonusStarsPerUnit ?? 10
         });
       }
     } catch (err: any) {
@@ -79,7 +72,7 @@ export const AdminSettingsPage: React.FC = () => {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-sm font-semibold text-slate-400">Đang tải thông số cấu hình hệ thống...</p>
+          <p className="text-sm font-semibold text-slate-600">Đang tải thông số cấu hình hệ thống...</p>
         </div>
       </div>
     );
@@ -90,10 +83,10 @@ export const AdminSettingsPage: React.FC = () => {
       {/* Alert toast notification */}
       {alert && (
         <div
-          className={`p-4 rounded-2xl flex items-center justify-between gap-3 text-sm font-bold shadow-lg transition-all ${
+          className={`p-4 rounded-2xl flex items-center justify-between gap-3 text-sm font-bold transition-all ${
             alert.type === 'success'
-              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-              : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-800'
+              : 'bg-rose-500/10 border border-rose-500/30 text-rose-800'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -107,16 +100,16 @@ export const AdminSettingsPage: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-800 border border-indigo-500/20 text-xs font-bold uppercase tracking-wider">
             <Settings size={14} />
             <span>Cài Đặt Quản Trị</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white font-display tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-inherit font-display tracking-tight">
             Cấu Hình Tham Số Hệ Thống
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-600">
             Thiết lập thông tin trường mầm non, niên khóa và quy tắc tính điểm sao khen thưởng.
           </p>
         </div>
@@ -124,20 +117,20 @@ export const AdminSettingsPage: React.FC = () => {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* School Profile Card */}
-        <div className="bg-slate-900/90 rounded-3xl border border-slate-800 p-6 sm:p-7 shadow-xl space-y-5">
-          <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 space-y-5">
+          <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-800 flex items-center justify-center">
               <School size={20} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Thông Tin Trường Mầm Non / Trung Tâm</h2>
-              <p className="text-xs text-slate-400">Tên cơ sở giáo dục và thông tin liên hệ hiển thị toàn nền tảng</p>
+              <h2 className="text-base font-bold text-inherit">Thông Tin Trường Mầm Non / Trung Tâm</h2>
+              <p className="text-xs text-slate-600">Tên cơ sở giáo dục và thông tin liên hệ hiển thị toàn nền tảng</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Tên Trường / Trung Tâm *
               </label>
               <input
@@ -145,12 +138,12 @@ export const AdminSettingsPage: React.FC = () => {
                 required
                 value={form.schoolName}
                 onChange={(e) => setForm({ ...form, schoolName: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white font-semibold focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-inherit font-semibold focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Niên Khóa Hoạt Động Mặc Định *
               </label>
               <input
@@ -158,119 +151,60 @@ export const AdminSettingsPage: React.FC = () => {
                 required
                 value={form.academicYear}
                 onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white font-semibold focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-inherit font-semibold focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Số Điện Thoại Hotline
               </label>
               <input
                 type="text"
                 value={form.contactPhone}
                 onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-inherit focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Email Liên Hệ Quản Trị
               </label>
               <input
                 type="email"
                 value={form.contactEmail}
                 onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-inherit focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Địa Chỉ Trường Học
               </label>
               <input
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-inherit focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
         </div>
 
-        {/* Security & Reward Rules Card */}
-        <div className="bg-slate-900/90 rounded-3xl border border-slate-800 p-6 sm:p-7 shadow-xl space-y-5">
-          <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-              <Star size={20} className="fill-amber-400 text-amber-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Quy Tắc Điểm Sao & Đăng Nhập Học Sinh</h2>
-              <p className="text-xs text-slate-400">Cơ chế bảo mật mã PIN và hệ thống kinh tế sao khen thưởng cho bé</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5">
-                <KeyRound size={14} className="text-amber-400" />
-                <span>Mã PIN Mặc Định</span>
-              </label>
-              <input
-                type="text"
-                maxLength={4}
-                required
-                value={form.defaultStudentPin}
-                onChange={(e) => setForm({ ...form, defaultStudentPin: e.target.value.replace(/\D/g, '') })}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-base text-amber-400 font-mono font-bold tracking-widest text-center focus:outline-none focus:border-amber-400 mt-2"
-              />
-              <p className="text-[10px] text-slate-400 mt-2">Dành cho bé khi vừa tạo tài khoản chưa đổi PIN</p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5">
-                <Star size={14} className="text-amber-400 fill-amber-400" />
-                <span>Sao / Trò Chơi</span>
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={5}
-                required
-                value={form.starsPerActivity}
-                onChange={(e) => setForm({ ...form, starsPerActivity: parseInt(e.target.value, 10) || 3 })}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-base text-white font-black text-center focus:outline-none focus:border-indigo-500 mt-2"
-              />
-              <p className="text-[10px] text-slate-400 mt-2">Số sao tối đa nhận được khi hoàn thành 1 mini-game (1-5)</p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1 flex items-center gap-1.5">
-                <Star size={14} className="text-teal-400 fill-teal-400" />
-                <span>Sao Rương Unit</span>
-              </label>
-              <input
-                type="number"
-                min={5}
-                max={50}
-                required
-                value={form.maxBonusStarsPerUnit}
-                onChange={(e) => setForm({ ...form, maxBonusStarsPerUnit: parseInt(e.target.value, 10) || 10 })}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-base text-teal-400 font-black text-center focus:outline-none focus:border-teal-400 mt-2"
-              />
-              <p className="text-[10px] text-slate-400 mt-2">Sao thưởng khi mở rương hoàn thành trọn bộ Unit (5-50)</p>
-            </div>
-          </div>
-        </div>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><Star size={20} /> Quy tắc sao và đăng nhập</h2>
+          <p className="mt-3 text-slate-600">Mỗi bài học nhận tối đa 3 sao theo mức 50%, 70%, 90%. Hoàn thành một Unit được cộng 5 sao và một nhãn dán. Chơi lại chỉ cải thiện kết quả tốt nhất.</p>
+          <p className="mt-3 text-slate-600">Học sinh được cấp PIN riêng. PIN mới chỉ hiển thị một lần; có thể đặt lại ở trang Tài khoản.</p>
+        </section>
 
         {/* Submit Button */}
         <div className="flex justify-end pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-6 py-3 bg-indigo-700 hover:bg-indigo-700 text-white rounded-2xl text-xs sm:text-sm font-bold  transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save size={16} />
             <span>{saving ? 'Đang lưu cài đặt…' : 'Lưu Thay Đổi Cấu Hình'}</span>

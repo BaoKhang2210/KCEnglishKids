@@ -1,0 +1,1074 @@
+{
+  "startedAt": "2026-10-28T02:29:14.086Z",
+  "finishedAt": "2026-10-28T02:29:14.463Z",
+  "database": "kcenglishkids",
+  "readOnly": true,
+  "snapshot": "Sequential reads; run during a quiet period for a consistent audit.",
+  "collections": [
+    {
+      "model": "AgeGroup",
+      "collection": "agegroups",
+      "count": 3,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "CurriculumBook",
+      "collection": "curriculumbooks",
+      "count": 3,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "CurriculumUnit",
+      "collection": "curriculumunits",
+      "count": 27,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Media",
+      "collection": "media",
+      "count": 1227,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Topic",
+      "collection": "topics",
+      "count": 19,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Vocabulary",
+      "collection": "vocabularies",
+      "count": 409,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "LanguageContent",
+      "collection": "languagecontents",
+      "count": 246,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Lesson",
+      "collection": "lessons",
+      "count": 108,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Activity",
+      "collection": "activities",
+      "count": 306,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "User",
+      "collection": "users",
+      "count": 100,
+      "present": true,
+      "missing": [
+        {
+          "key": {
+            "importKey": 1
+          },
+          "unique": true,
+          "sparse": true
+        }
+      ],
+      "duplicates": []
+    },
+    {
+      "model": "ClassRoom",
+      "collection": "classrooms",
+      "count": 2,
+      "present": true,
+      "missing": [
+        {
+          "key": {
+            "teacher": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "name": "one_teacher_per_active_class",
+          "partialFilterExpression": {
+            "status": {
+              "$in": [
+                "ACTIVE",
+                "UPCOMING",
+                "COMPLETED"
+              ]
+            }
+          }
+        }
+      ],
+      "duplicates": []
+    },
+    {
+      "model": "LearningSession",
+      "collection": "learningsessions",
+      "count": 13,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "ActivityResult",
+      "collection": "activityresults",
+      "count": 30,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Progress",
+      "collection": "progresses",
+      "count": 13,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "AuditLog",
+      "collection": "auditlogs",
+      "count": 32,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Assignment",
+      "collection": "assignments",
+      "count": 2,
+      "present": true,
+      "missing": [
+        {
+          "key": {
+            "teacher": 1,
+            "classRoom": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false
+        },
+        {
+          "key": {
+            "reviews.child": 1
+          },
+          "unique": false,
+          "sparse": false
+        }
+      ],
+      "duplicates": []
+    },
+    {
+      "model": "TeacherNote",
+      "collection": "teachernotes",
+      "count": 7,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "ClassroomSession",
+      "collection": "classroomsessions",
+      "count": 26,
+      "present": true,
+      "missing": [
+        {
+          "key": {
+            "classroom": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "name": "one_live_session_per_class",
+          "partialFilterExpression": {
+            "status": "LIVE"
+          }
+        },
+        {
+          "key": {
+            "teacher": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "name": "one_live_session_per_teacher",
+          "partialFilterExpression": {
+            "status": "LIVE"
+          }
+        }
+      ],
+      "duplicates": []
+    },
+    {
+      "model": "VocabularyMastery",
+      "collection": "vocabularymasteries",
+      "count": 99,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "ParentNotification",
+      "collection": "parentnotifications",
+      "count": 169,
+      "present": true,
+      "missing": [
+        {
+          "key": {
+            "sourceKey": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": {
+            "sourceKey": {
+              "$type": "string"
+            }
+          }
+        }
+      ],
+      "duplicates": []
+    },
+    {
+      "model": "UnitCompletion",
+      "collection": "unitcompletions",
+      "count": 2,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "SystemSetting",
+      "collection": "systemsettings",
+      "count": 1,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Attendance",
+      "collection": "attendances",
+      "count": 3,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "Schedule",
+      "collection": "schedules",
+      "count": 3,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    },
+    {
+      "model": "ClassRecognition",
+      "collection": "classrecognitions",
+      "count": 0,
+      "present": true,
+      "missing": [],
+      "duplicates": []
+    }
+  ],
+  "unmappedCollections": [],
+  "checkedReferences": 9703,
+  "referencePaths": 97,
+  "coverage": [
+    {
+      "unit": "B1_U1",
+      "lessons": 4,
+      "vocabulary": 32,
+      "language": 18,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U2",
+      "lessons": 4,
+      "vocabulary": 11,
+      "language": 10,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U3",
+      "lessons": 4,
+      "vocabulary": 12,
+      "language": 13,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U4",
+      "lessons": 4,
+      "vocabulary": 14,
+      "language": 14,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U5",
+      "lessons": 4,
+      "vocabulary": 17,
+      "language": 8,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U6",
+      "lessons": 4,
+      "vocabulary": 17,
+      "language": 9,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U7",
+      "lessons": 4,
+      "vocabulary": 12,
+      "language": 9,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U8",
+      "lessons": 4,
+      "vocabulary": 12,
+      "language": 8,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B1_U9",
+      "lessons": 4,
+      "vocabulary": 12,
+      "language": 8,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U1",
+      "lessons": 4,
+      "vocabulary": 33,
+      "language": 7,
+      "activities": 10,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U2",
+      "lessons": 4,
+      "vocabulary": 15,
+      "language": 5,
+      "activities": 8,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U3",
+      "lessons": 4,
+      "vocabulary": 15,
+      "language": 9,
+      "activities": 9,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U4",
+      "lessons": 4,
+      "vocabulary": 16,
+      "language": 6,
+      "activities": 9,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U5",
+      "lessons": 4,
+      "vocabulary": 15,
+      "language": 8,
+      "activities": 8,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U6",
+      "lessons": 4,
+      "vocabulary": 17,
+      "language": 10,
+      "activities": 9,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U7",
+      "lessons": 4,
+      "vocabulary": 15,
+      "language": 10,
+      "activities": 9,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U8",
+      "lessons": 4,
+      "vocabulary": 15,
+      "language": 11,
+      "activities": 9,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B2_U9",
+      "lessons": 4,
+      "vocabulary": 15,
+      "language": 6,
+      "activities": 8,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U1",
+      "lessons": 4,
+      "vocabulary": 21,
+      "language": 13,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U2",
+      "lessons": 4,
+      "vocabulary": 18,
+      "language": 9,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U3",
+      "lessons": 4,
+      "vocabulary": 19,
+      "language": 8,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U4",
+      "lessons": 4,
+      "vocabulary": 18,
+      "language": 10,
+      "activities": 12,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U5",
+      "lessons": 4,
+      "vocabulary": 18,
+      "language": 8,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U6",
+      "lessons": 4,
+      "vocabulary": 19,
+      "language": 7,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U7",
+      "lessons": 4,
+      "vocabulary": 21,
+      "language": 7,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U8",
+      "lessons": 4,
+      "vocabulary": 18,
+      "language": 8,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    },
+    {
+      "unit": "B3_U9",
+      "lessons": 4,
+      "vocabulary": 19,
+      "language": 7,
+      "activities": 13,
+      "vocabularyReferencesWithoutExactMatch": []
+    }
+  ],
+  "imageInventory": {
+    "Vocabulary": {
+      "inlineSvg": 409
+    },
+    "Topic": {
+      "missing": 19
+    },
+    "Lesson": {
+      "inlineSvg": 108
+    },
+    "mediaTypes": {
+      "IMAGE": 409,
+      "AUDIO": 409,
+      "ANIMATION": 409
+    },
+    "languageImageReferences": 0,
+    "vocabularyCacheMismatch": 0,
+    "audioCacheMismatch": 0,
+    "emojiSvgVocabulary": 409,
+    "animationPlaceholders": 409,
+    "genericSparkleVocabulary": [
+      "listen to stories",
+      "beautiful",
+      "Art",
+      "play in the playground",
+      "blue",
+      "yellow",
+      "green",
+      "pink",
+      "purple",
+      "brown",
+      "black",
+      "white",
+      "gray",
+      "rainbow",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine",
+      "ten",
+      "eleven",
+      "twelve",
+      "twenty",
+      "count"
+    ]
+  },
+  "contentUsage": {
+    "vocabularyWithoutLesson": [
+      {
+        "id": "6abf80d54ab71c28dd99a974",
+        "english": "blue"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a975",
+        "english": "yellow"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a976",
+        "english": "green"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a977",
+        "english": "pink"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a978",
+        "english": "purple"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a979",
+        "english": "brown"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a97a",
+        "english": "black"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a97b",
+        "english": "white"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a97c",
+        "english": "gray"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a97d",
+        "english": "rainbow"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a97e",
+        "english": "one"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a97f",
+        "english": "two"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a980",
+        "english": "three"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a981",
+        "english": "four"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a982",
+        "english": "five"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a983",
+        "english": "six"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a984",
+        "english": "seven"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a985",
+        "english": "eight"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a986",
+        "english": "nine"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a987",
+        "english": "ten"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a988",
+        "english": "eleven"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a989",
+        "english": "twelve"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a98a",
+        "english": "twenty"
+      },
+      {
+        "id": "6abf80d54ab71c28dd99a98b",
+        "english": "count"
+      }
+    ],
+    "languageWithoutLesson": []
+  },
+  "integrity": [
+    {
+      "model": "AgeGroup",
+      "collection": "agegroups",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "CurriculumBook",
+      "collection": "curriculumbooks",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "CurriculumUnit",
+      "collection": "curriculumunits",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Media",
+      "collection": "media",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Topic",
+      "collection": "topics",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Vocabulary",
+      "collection": "vocabularies",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "LanguageContent",
+      "collection": "languagecontents",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Lesson",
+      "collection": "lessons",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Activity",
+      "collection": "activities",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "User",
+      "collection": "users",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "ClassRoom",
+      "collection": "classrooms",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "LearningSession",
+      "collection": "learningsessions",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "ActivityResult",
+      "collection": "activityresults",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Progress",
+      "collection": "progresses",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "AuditLog",
+      "collection": "auditlogs",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Assignment",
+      "collection": "assignments",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "TeacherNote",
+      "collection": "teachernotes",
+      "documentsWithBrokenReferences": 1
+    },
+    {
+      "model": "ClassroomSession",
+      "collection": "classroomsessions",
+      "documentsWithBrokenReferences": 6
+    },
+    {
+      "model": "VocabularyMastery",
+      "collection": "vocabularymasteries",
+      "documentsWithBrokenReferences": 40
+    },
+    {
+      "model": "ParentNotification",
+      "collection": "parentnotifications",
+      "documentsWithBrokenReferences": 59
+    },
+    {
+      "model": "UnitCompletion",
+      "collection": "unitcompletions",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "SystemSetting",
+      "collection": "systemsettings",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Attendance",
+      "collection": "attendances",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "Schedule",
+      "collection": "schedules",
+      "documentsWithBrokenReferences": 0
+    },
+    {
+      "model": "ClassRecognition",
+      "collection": "classrecognitions",
+      "documentsWithBrokenReferences": 0
+    }
+  ],
+  "issues": [
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "TeacherNote",
+      "detail": "teacher -> User",
+      "count": 1,
+      "sampleIds": [
+        "6aa0533ebf467b0b00d65613"
+      ],
+      "affectedDocuments": 1
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "TeacherNote",
+      "detail": "student -> User",
+      "count": 1,
+      "sampleIds": [
+        "6aa0533ebf467b0b00d65613"
+      ],
+      "affectedDocuments": 1
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "classroom -> ClassRoom",
+      "count": 6,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746",
+        "6abf78dc8d7fa84c9c90cb5a",
+        "6ad4e2e9890abfdcfe2a85d4"
+      ],
+      "affectedDocuments": 6
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "teacher -> User",
+      "count": 5,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746",
+        "6abf78dc8d7fa84c9c90cb5a"
+      ],
+      "affectedDocuments": 5
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "lesson -> Lesson",
+      "count": 5,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746",
+        "6abf78dc8d7fa84c9c90cb5a"
+      ],
+      "affectedDocuments": 5
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "activities -> Activity",
+      "count": 11,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746",
+        "6abf78dc8d7fa84c9c90cb5a"
+      ],
+      "affectedDocuments": 5
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "studentScores.student -> User",
+      "count": 62,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746",
+        "6abf78dc8d7fa84c9c90cb5a"
+      ],
+      "affectedDocuments": 5
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "questionResults.activityId -> Activity",
+      "count": 5,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab79e00d43b7296219f8746"
+      ],
+      "affectedDocuments": 3
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "questionResults.studentAnswers.student -> User",
+      "count": 44,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab79e00d43b7296219f8746"
+      ],
+      "affectedDocuments": 3
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "summary.topPerformers -> User",
+      "count": 11,
+      "sampleIds": [
+        "6ab6ad14aedb655750dcd3a1",
+        "6ab6b1cf23ea3c76740ec82e",
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746"
+      ],
+      "affectedDocuments": 4
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ClassroomSession",
+      "detail": "summary.studentsNeedingPractice -> User",
+      "count": 31,
+      "sampleIds": [
+        "6ab792dad43b7296219f76b1",
+        "6ab79e00d43b7296219f8746"
+      ],
+      "affectedDocuments": 2
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "VocabularyMastery",
+      "detail": "student -> User",
+      "count": 38,
+      "sampleIds": [
+        "6ab6baebf3f6172956bf52f1",
+        "6ab6baebf3f6172956bf52f2",
+        "6ab6baebf3f6172956bf52f3",
+        "6ab6baebf3f6172956bf52f4",
+        "6ab6baebf3f6172956bf52f5",
+        "6ab6baebf3f6172956bf52f6",
+        "6ab6baebf3f6172956bf52f7",
+        "6ab6baebf3f6172956bf52f8"
+      ],
+      "affectedDocuments": 38
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "VocabularyMastery",
+      "detail": "vocabulary -> Vocabulary",
+      "count": 40,
+      "sampleIds": [
+        "6ab6baebf3f6172956bf52f1",
+        "6ab6baebf3f6172956bf52f2",
+        "6ab6baebf3f6172956bf52f3",
+        "6ab6baebf3f6172956bf52f4",
+        "6ab6baebf3f6172956bf52f5",
+        "6ab6baebf3f6172956bf52f6",
+        "6ab6baebf3f6172956bf52f7",
+        "6ab6baebf3f6172956bf52f8"
+      ],
+      "affectedDocuments": 40
+    },
+    {
+      "severity": "ERROR",
+      "code": "REFERENCE_USER_ROLE",
+      "model": "VocabularyMastery",
+      "detail": "student",
+      "count": 11,
+      "sampleIds": [
+        "6ad5a8a68ddf3e96ef28d02d",
+        "6ad5a8a68ddf3e96ef28d02e",
+        "6ad5a8a68ddf3e96ef28d02f",
+        "6ad5a8a68ddf3e96ef28d030",
+        "6ad5a8a68ddf3e96ef28d031",
+        "6ad5c5d48ddf3e96ef28d037",
+        "6ad5c5d48ddf3e96ef28d038",
+        "6ad5c5d48ddf3e96ef28d039"
+      ],
+      "affectedDocuments": 11
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ParentNotification",
+      "detail": "teacher -> User",
+      "count": 59,
+      "sampleIds": [
+        "6ab78b60d43b7296219f7579",
+        "6ab78b60d43b7296219f757a",
+        "6ab78b60d43b7296219f757b",
+        "6ab78b60d43b7296219f757c",
+        "6ab78b60d43b7296219f757d",
+        "6ab78b60d43b7296219f757e",
+        "6ab78b60d43b7296219f757f",
+        "6ab78b60d43b7296219f7580"
+      ],
+      "affectedDocuments": 59
+    },
+    {
+      "severity": "ERROR",
+      "code": "DANGLING_REFERENCE",
+      "model": "ParentNotification",
+      "detail": "child -> User",
+      "count": 59,
+      "sampleIds": [
+        "6ab78b60d43b7296219f7579",
+        "6ab78b60d43b7296219f757a",
+        "6ab78b60d43b7296219f757b",
+        "6ab78b60d43b7296219f757c",
+        "6ab78b60d43b7296219f757d",
+        "6ab78b60d43b7296219f757e",
+        "6ab78b60d43b7296219f757f",
+        "6ab78b60d43b7296219f7580"
+      ],
+      "affectedDocuments": 59
+    },
+    {
+      "severity": "WARNING",
+      "code": "CORRECT_OPTION_COUNT",
+      "model": "Activity",
+      "detail": "IMAGE_WORD_MATCH",
+      "count": 1,
+      "sampleIds": [
+        "6abf80d54ab71c28dd99acea"
+      ],
+      "affectedDocuments": 1
+    },
+    {
+      "severity": "ERROR",
+      "code": "TEACHER_CLASS_BACKLINK",
+      "model": "ClassRoom",
+      "detail": "teacher.assignedClass",
+      "count": 1,
+      "sampleIds": [
+        "6ad5c47042e6c6ca87124fad"
+      ],
+      "affectedDocuments": 1
+    },
+    {
+      "severity": "WARNING",
+      "code": "COMPLETION_WITHOUT_ALL_CURRENT_RESULTS",
+      "model": "Progress",
+      "detail": "completed vs active activity results (content may have changed)",
+      "count": 1,
+      "sampleIds": [
+        "6abf80d84ab71c28dd99b7de"
+      ],
+      "affectedDocuments": 1
+    },
+    {
+      "severity": "ERROR",
+      "code": "CLASS_SESSION_ACTIVITY_LESSON",
+      "model": "ClassroomSession",
+      "detail": "activities",
+      "count": 3,
+      "sampleIds": [
+        "6ad3164994e6677d67c4811b"
+      ],
+      "affectedDocuments": 1
+    }
+  ]
+}

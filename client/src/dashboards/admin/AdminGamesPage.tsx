@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Gamepad2,
   Plus,
@@ -41,7 +41,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🎯',
     category: 'listening',
     color: '#06b6d4',
-    badgeBg: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+    badgeBg: 'bg-cyan-500/15 text-cyan-800 border-cyan-500/30',
     description: 'Bé nghe phát âm từ vựng và chạm vào hình ảnh tương ứng.'
   },
   BUBBLE_POP: {
@@ -50,7 +50,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🫧',
     category: 'action',
     color: '#38bdf8',
-    badgeBg: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+    badgeBg: 'bg-sky-500/15 text-sky-800 border-sky-500/30',
     description: 'Bóng nước bay lên mang từ vựng, bé chạm nổ bóng đúng yêu cầu.'
   },
   MEMORY_CARD: {
@@ -59,7 +59,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🃏',
     category: 'memory',
     color: '#a855f7',
-    badgeBg: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+    badgeBg: 'bg-purple-500/15 text-purple-800 border-purple-500/30',
     description: 'Lật tìm các cặp thẻ bài trùng khớp giữa từ vựng và hình minh họa.'
   },
   MEMORY: {
@@ -68,7 +68,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🎴',
     category: 'memory',
     color: '#c084fc',
-    badgeBg: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
+    badgeBg: 'bg-fuchsia-500/15 text-fuchsia-800 border-fuchsia-500/30',
     description: 'Trò chơi rèn luyện trí nhớ thị giác và từ vựng.'
   },
   STAR_CATCHER: {
@@ -77,7 +77,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '⭐',
     category: 'action',
     color: '#f59e0b',
-    badgeBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    badgeBg: 'bg-amber-500/15 text-amber-800 border-amber-500/30',
     description: 'Ngôi sao mang từ vựng rơi xuống, bé di chuyển giỏ để đón sao đúng.'
   },
   ANIMAL_SOUND: {
@@ -86,7 +86,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🐾',
     category: 'listening',
     color: '#10b981',
-    badgeBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    badgeBg: 'bg-emerald-500/15 text-emerald-800 border-emerald-500/30',
     description: 'Nghe tiếng kêu đặc trưng của các con vật và đoán tên tiếng Anh.'
   },
   FEED_ANIMAL: {
@@ -95,7 +95,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🍎',
     category: 'action',
     color: '#f43f5e',
-    badgeBg: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+    badgeBg: 'bg-rose-500/15 text-rose-800 border-rose-500/30',
     description: 'Kéo đúng món thức ăn hoặc đồ vật tương ứng vào miệng bạn thú ngộ nghĩnh.'
   },
   IMAGE_WORD_MATCH: {
@@ -104,7 +104,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🖼️',
     category: 'logic',
     color: '#6366f1',
-    badgeBg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+    badgeBg: 'bg-indigo-500/15 text-indigo-800 border-indigo-500/30',
     description: 'Nối từ tiếng Anh viết hoa với tranh minh họa đúng.'
   },
   MATCHING: {
@@ -113,7 +113,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🔗',
     category: 'logic',
     color: '#818cf8',
-    badgeBg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+    badgeBg: 'bg-indigo-500/15 text-indigo-800 border-indigo-500/30',
     description: 'Kéo đường nối giữa 2 cột nội dung có liên quan mật thiết.'
   },
   COUNT_OBJECTS: {
@@ -122,7 +122,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🔢',
     category: 'logic',
     color: '#ec4899',
-    badgeBg: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+    badgeBg: 'bg-pink-500/15 text-pink-800 border-pink-500/30',
     description: 'Đếm số lượng đồ vật trên màn hình và chọn số đếm tiếng Anh.'
   },
   FIND_OBJECT: {
@@ -131,7 +131,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🔍',
     category: 'logic',
     color: '#14b8a6',
-    badgeBg: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+    badgeBg: 'bg-teal-500/15 text-teal-800 border-teal-500/30',
     description: 'Khám phá bức tranh lớn và chạm vào đồ vật được yêu cầu.'
   },
   MISSING_OBJECT: {
@@ -140,7 +140,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '❓',
     category: 'memory',
     color: '#eab308',
-    badgeBg: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+    badgeBg: 'bg-yellow-500/15 text-yellow-800 border-yellow-500/30',
     description: 'Quan sát các vật thể và phát hiện món đồ vừa bị giấu đi.'
   },
   COLOR_RECOGNITION: {
@@ -149,7 +149,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🎨',
     category: 'listening',
     color: '#8b5cf6',
-    badgeBg: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
+    badgeBg: 'bg-violet-500/15 text-violet-800 border-violet-500/30',
     description: 'Nhận diện và phân biệt các mảng màu qua lời đọc tiếng Anh.'
   },
   TRUE_FALSE: {
@@ -158,7 +158,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '⚖️',
     category: 'logic',
     color: '#0ea5e9',
-    badgeBg: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+    badgeBg: 'bg-sky-500/15 text-sky-800 border-sky-500/30',
     description: 'Nhìn tranh và trả lời câu hỏi Yes hoặc No tương ứng.'
   },
   DRAG_DROP: {
@@ -167,7 +167,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🧩',
     category: 'action',
     color: '#f97316',
-    badgeBg: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+    badgeBg: 'bg-orange-500/15 text-orange-800 border-orange-500/30',
     description: 'Kéo thả các chi tiết vào đúng vị trí mục tiêu trên bảng.'
   },
   CLASSIFICATION: {
@@ -176,7 +176,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '📦',
     category: 'logic',
     color: '#64748b',
-    badgeBg: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+    badgeBg: 'bg-slate-500/15 text-slate-700 border-slate-500/30',
     description: 'Phân loại đồ dùng vào 2 giỏ theo chủ đề hoặc tính chất.'
   },
   LISTEN_REPEAT: {
@@ -185,7 +185,7 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '🗣️',
     category: 'listening',
     color: '#059669',
-    badgeBg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    badgeBg: 'bg-emerald-500/15 text-emerald-800 border-emerald-500/30',
     description: 'Luyện phát âm từ vựng theo hướng dẫn của bạn Koko.'
   },
   TAP_PICTURE: {
@@ -194,13 +194,14 @@ export const GAME_TYPES: Record<string, GameTypeMeta> = {
     icon: '👆',
     category: 'action',
     color: '#0284c7',
-    badgeBg: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+    badgeBg: 'bg-sky-500/15 text-sky-800 border-sky-500/30',
     description: 'Chạm phản xạ nhanh khi hình ảnh mục tiêu xuất hiện.'
   }
 };
 
 export const AdminGamesPage: React.FC = () => {
   // Data States
+  const requestVersion = useRef(0);
   const [activities, setActivities] = useState<any[]>([]);
   const [curriculumTree, setCurriculumTree] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -299,6 +300,7 @@ export const AdminGamesPage: React.FC = () => {
 
   // Fetch Activities on filter change
   const loadActivities = async () => {
+    const version = ++requestVersion.current;
     setLoading(true);
     try {
       const res: any = await adminApi.getActivities({
@@ -310,7 +312,7 @@ export const AdminGamesPage: React.FC = () => {
         page,
         limit
       });
-      if (res?.success) {
+      if (version === requestVersion.current && res?.success) {
         setActivities(res.data || []);
         if (res.pagination) {
           setTotalPages(res.pagination.totalPages || 1);
@@ -320,9 +322,9 @@ export const AdminGamesPage: React.FC = () => {
         }
       }
     } catch (err: any) {
-      showAlert('error', err?.message || 'Không thể tải danh sách trò chơi.');
+      if (version === requestVersion.current) showAlert('error', err?.message || 'Không thể tải danh sách trò chơi.');
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
@@ -432,12 +434,15 @@ export const AdminGamesPage: React.FC = () => {
       status: activity.status || 'ACTIVE',
       questions: (activity.questions && activity.questions.length > 0)
         ? activity.questions.map((q: any) => ({
+            ...q,
+            vocabulary: q.vocabulary?._id || q.vocabulary,
             promptText: q.promptText || '',
             promptAudioUrl: q.promptAudioUrl || '',
             promptImageUrl: q.promptImageUrl || '',
             correctAnswer: q.correctAnswer || '',
             explanation: q.explanation || '',
             options: (q.options || []).map((o: any, idx: number) => ({
+              ...o,
               id: o.id || `opt_${idx}`,
               text: o.text || '',
               vietnameseText: o.vietnameseText || '',
@@ -600,92 +605,90 @@ export const AdminGamesPage: React.FC = () => {
       {/* ── Top Alert Toast ─────────────────────────────────────────────────── */}
       {alert && (
         <div
-          className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-bold transition-all animate-in fade-in slide-in-from-top-4 ${
+          className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl border text-sm font-bold transition-all animate-in fade-in slide-in-from-top-4 ${
             alert.type === 'success'
-              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40'
-              : 'bg-rose-950/90 text-rose-200 border-rose-500/40'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-500/40'
+              : 'bg-rose-50 text-rose-800 border-rose-500/40'
           }`}
         >
-          {alert.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-400" /> : <AlertCircle size={18} className="text-rose-400" />}
+          {alert.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-800" /> : <AlertCircle size={18} className="text-rose-800" />}
           <span>{alert.message}</span>
         </div>
       )}
 
       {/* ── Banner Header ───────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-800/40 p-6 md:p-8 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-6 -mr-6 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+      <header className="staff-page-header">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-800 text-xs font-bold uppercase tracking-wider">
               <Gamepad2 size={14} />
               <span>Trung tâm Tương tác Giáo dục</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Kho Trò Chơi & Hoạt Động Tương Tác
             </h1>
-            <p className="text-sm text-slate-400 font-medium leading-relaxed">
+            <p className="text-sm text-slate-600 font-medium leading-relaxed">
               Toàn quyền quản trị, tinh chỉnh câu đố, điểm thưởng và kiểm tra 18 thể loại trò chơi mầm non từ Book 1 đến Book 3.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="staff-page-header-actions">
             <button
               onClick={() => loadActivities()}
-              className="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-inherit transition-colors cursor-pointer"
               title="Làm mới dữ liệu"
+              aria-label="Làm mới danh sách trò chơi"
             >
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={openCreateModal}
-              className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-sm  transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus size={18} />
               <span>Thêm Trò Chơi Mới</span>
             </button>
           </div>
-        </div>
-      </div>
+      </header>
 
       {/* ── KPI Stat Cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-800">
             <Gamepad2 size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tổng Trò Chơi</p>
-            <p className="text-2xl font-black text-white mt-0.5">{stats.totalActivities}</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tổng Trò Chơi</p>
+            <p className="text-2xl font-black text-inherit mt-0.5">{stats.totalActivities}</p>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-800">
             <CheckCircle2 size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đang Mở Khóa</p>
-            <p className="text-2xl font-black text-emerald-400 mt-0.5">{stats.activeCount}</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Đang Mở Khóa</p>
+            <p className="text-2xl font-black text-emerald-800 mt-0.5">{stats.activeCount}</p>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-800">
             <Clock size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tạm Ẩn / Bảo trì</p>
-            <p className="text-2xl font-black text-amber-400 mt-0.5">{stats.inactiveCount}</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tạm Ẩn / Bảo trì</p>
+            <p className="text-2xl font-black text-amber-800 mt-0.5">{stats.inactiveCount}</p>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-800">
             <Sparkles size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Thể Loại Trò Chơi</p>
-            <p className="text-2xl font-black text-purple-300 mt-0.5">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Thể Loại Trò Chơi</p>
+            <p className="text-2xl font-black text-purple-800 mt-0.5">
               {Object.keys(stats.byType || {}).length || 14} Loại
             </p>
           </div>
@@ -693,8 +696,8 @@ export const AdminGamesPage: React.FC = () => {
       </div>
 
       {/* ── Quick Filter by Game Type (Pills bar) ────────────────────────────── */}
-      <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/60 space-y-3">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-400">
+      <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-600">
           <span className="flex items-center gap-2">
             <Filter size={14} />
             <span>Phân loại theo thể loại game ({Object.keys(GAME_TYPES).length}):</span>
@@ -702,7 +705,7 @@ export const AdminGamesPage: React.FC = () => {
           {selectedType !== 'ALL' && (
             <button
               onClick={() => setSelectedType('ALL')}
-              className="text-indigo-400 hover:text-indigo-300 cursor-pointer"
+              className="text-indigo-800 hover:text-indigo-800 cursor-pointer"
             >
               Đặt lại (Tất cả)
             </button>
@@ -714,8 +717,8 @@ export const AdminGamesPage: React.FC = () => {
             onClick={() => setSelectedType('ALL')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               selectedType === 'ALL'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-indigo-700 text-white'
+                : 'bg-slate-100 text-slate-600 hover:text-slate-700 hover:bg-slate-100'
             }`}
           >
             Tất cả ({stats.totalActivities})
@@ -730,8 +733,8 @@ export const AdminGamesPage: React.FC = () => {
                 onClick={() => setSelectedType(meta.code)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
                   isSelected
-                    ? 'bg-indigo-600 text-white border-indigo-400 shadow-md'
-                    : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-800'
+                    ? 'bg-indigo-700 text-white border-indigo-400'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-200 hover:bg-slate-100'
                 }`}
               >
                 <span>{meta.icon}</span>
@@ -746,10 +749,10 @@ export const AdminGamesPage: React.FC = () => {
       </div>
 
       {/* ── Search and Filter Toolbar ────────────────────────────────────────── */}
-      <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-wrap items-center gap-3">
+      <div className="p-4 rounded-2xl bg-white border border-slate-200 flex flex-wrap items-center gap-3">
         {/* Search Input */}
         <div className="relative flex-1 min-w-[240px]">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
           <input
             type="text"
             value={search}
@@ -758,7 +761,7 @@ export const AdminGamesPage: React.FC = () => {
               setPage(1);
             }}
             placeholder="Tìm theo tên game tiếng Anh, tiếng Việt, hướng dẫn..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
           />
         </div>
 
@@ -769,7 +772,7 @@ export const AdminGamesPage: React.FC = () => {
             setSelectedAgeGroup(e.target.value);
             setPage(1);
           }}
-          className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+          className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
         >
           <option value="ALL">Tất cả Độ tuổi</option>
           <option value="3-4">3–4 Tuổi (Mầm - Book 1)</option>
@@ -784,7 +787,7 @@ export const AdminGamesPage: React.FC = () => {
             setSelectedStatus(e.target.value);
             setPage(1);
           }}
-          className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+          className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
         >
           <option value="ALL">Tất cả Trạng thái</option>
           <option value="ACTIVE">Đang hoạt động</option>
@@ -798,7 +801,7 @@ export const AdminGamesPage: React.FC = () => {
             setSelectedLessonId(e.target.value);
             setPage(1);
           }}
-          className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[200px] truncate"
+          className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[200px] truncate"
         >
           <option value="ALL">Tất cả Bài học</option>
           {allLessons.map((l) => (
@@ -811,17 +814,17 @@ export const AdminGamesPage: React.FC = () => {
 
       {/* ── Main Activity Grid ──────────────────────────────────────────────── */}
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
-          <RefreshCw size={28} className="animate-spin text-indigo-500" />
+        <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-600">
+          <RefreshCw size={28} className="animate-spin text-indigo-800" />
           <p className="text-sm font-bold">Đang tải kho trò chơi mầm non...</p>
         </div>
       ) : activities.length === 0 ? (
-        <div className="py-20 text-center rounded-3xl border border-slate-800 bg-slate-900/30 p-8 space-y-3">
-          <div className="h-16 w-16 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+        <div className="py-20 text-center rounded-3xl border border-slate-200 bg-white p-8 space-y-3">
+          <div className="h-16 w-16 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-800">
             <Gamepad2 size={32} />
           </div>
-          <p className="text-base font-bold text-white">Không tìm thấy trò chơi phù hợp</p>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
+          <p className="text-base font-bold text-inherit">Không tìm thấy trò chơi phù hợp</p>
+          <p className="text-xs text-slate-600 max-w-md mx-auto">
             Hãy thử thay đổi từ khóa tìm kiếm hoặc bấm nút "Thêm Trò Chơi Mới" để tạo trò chơi tương tác đầu tiên cho bài học.
           </p>
         </div>
@@ -831,7 +834,7 @@ export const AdminGamesPage: React.FC = () => {
             const meta = GAME_TYPES[act.activityType] || {
               label: act.activityType,
               icon: '🎮',
-              badgeBg: 'bg-slate-800 text-slate-300 border-slate-700'
+              badgeBg: 'bg-slate-100 text-slate-700 border-slate-200'
             };
             const isExpanded = expandedId === act._id;
             const qCount = act.questions?.length || act.questionCount || 0;
@@ -839,7 +842,7 @@ export const AdminGamesPage: React.FC = () => {
             return (
               <div
                 key={act._id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/90 transition-all shadow-md flex flex-col justify-between overflow-hidden group"
+                className="rounded-2xl border border-slate-200 bg-white hover:border-slate-200 hover:bg-white transition-all flex flex-col justify-between overflow-hidden group"
               >
                 {/* Header & Badges */}
                 <div className="p-5 pb-3 space-y-3">
@@ -852,15 +855,15 @@ export const AdminGamesPage: React.FC = () => {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-black">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black">
                         {act.ageGroupCode || '3-4'} Tuổi
                       </span>
                       <button
                         onClick={() => handleToggleStatus(act)}
                         className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition-colors cursor-pointer ${
                           act.status === 'ACTIVE'
-                            ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40 hover:bg-emerald-900/60'
-                            : 'bg-rose-950/60 text-rose-400 border-rose-500/40 hover:bg-rose-900/60'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-500/40 hover:bg-emerald-50'
+                            : 'bg-rose-50 text-rose-800 border-rose-500/40 hover:bg-rose-50'
                         }`}
                         title="Bấm để bật/tắt trò chơi"
                       >
@@ -871,11 +874,11 @@ export const AdminGamesPage: React.FC = () => {
 
                   {/* Title & Vietnamese Translation */}
                   <div>
-                    <h3 className="text-base font-black text-white group-hover:text-indigo-300 transition-colors line-clamp-1">
+                    <h3 className="text-base font-black text-inherit group-hover:text-indigo-800 transition-colors line-clamp-1">
                       {act.title}
                     </h3>
                     {act.vietnameseTitle && (
-                      <p className="text-xs font-semibold text-slate-400 line-clamp-1 mt-0.5">
+                      <p className="text-xs font-semibold text-slate-600 line-clamp-1 mt-0.5">
                         {act.vietnameseTitle}
                       </p>
                     )}
@@ -883,29 +886,29 @@ export const AdminGamesPage: React.FC = () => {
 
                   {/* Lesson and Unit Link */}
                   {act.lesson && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400 font-medium">
-                      <BookOpen size={12} className="text-indigo-400 shrink-0" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-[11px] text-slate-600 font-medium">
+                      <BookOpen size={12} className="text-indigo-800 shrink-0" />
                       <span className="truncate">
-                        Bài: <strong className="text-slate-200">{act.lesson.title || 'Bài học'}</strong>
+                        Bài: <strong className="text-slate-700">{act.lesson.title || 'Bài học'}</strong>
                       </span>
                     </div>
                   )}
 
                   {/* Quick specs pill row */}
                   <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                    <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800/60">
-                      <p className="text-[10px] text-slate-500 font-bold uppercase">Câu hỏi</p>
-                      <p className="text-xs font-black text-slate-200 mt-0.5">{qCount} câu</p>
+                    <div className="p-2 rounded-xl bg-white border border-slate-200">
+                      <p className="text-[10px] text-slate-600 font-bold uppercase">Câu hỏi</p>
+                      <p className="text-xs font-black text-slate-700 mt-0.5">{qCount} câu</p>
                     </div>
-                    <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800/60">
-                      <p className="text-[10px] text-slate-500 font-bold uppercase">Độ khó</p>
-                      <p className="text-xs font-black text-amber-400 mt-0.5">
+                    <div className="p-2 rounded-xl bg-white border border-slate-200">
+                      <p className="text-[10px] text-slate-600 font-bold uppercase">Độ khó</p>
+                      <p className="text-xs font-black text-amber-800 mt-0.5">
                         {'★'.repeat(act.difficulty || 1)}
                       </p>
                     </div>
-                    <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800/60">
-                      <p className="text-[10px] text-slate-500 font-bold uppercase">Thời gian</p>
-                      <p className="text-xs font-black text-slate-200 mt-0.5">
+                    <div className="p-2 rounded-xl bg-white border border-slate-200">
+                      <p className="text-[10px] text-slate-600 font-bold uppercase">Thời gian</p>
+                      <p className="text-xs font-black text-slate-700 mt-0.5">
                         {act.timeLimit ? `${act.timeLimit}s` : 'Vô hạn'}
                       </p>
                     </div>
@@ -916,7 +919,7 @@ export const AdminGamesPage: React.FC = () => {
                     <div className="pt-1">
                       <button
                         onClick={() => setExpandedId(isExpanded ? null : act._id)}
-                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-800/40 hover:bg-slate-800/80 text-[11px] font-bold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-[11px] font-bold text-slate-600 hover:text-slate-700 transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-1.5">
                           <HelpCircle size={12} />
@@ -926,16 +929,16 @@ export const AdminGamesPage: React.FC = () => {
                       </button>
 
                       {isExpanded && act.questions && (
-                        <div className="mt-2 space-y-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 max-h-48 overflow-y-auto">
+                        <div className="mt-2 space-y-2 p-2.5 rounded-xl bg-white border border-slate-200 max-h-48 overflow-y-auto">
                           {act.questions.map((q: any, qIdx: number) => (
                             <div
                               key={qIdx}
-                              className="text-xs p-2 rounded-lg bg-slate-900 border border-slate-800/60 space-y-1"
+                              className="text-xs p-2 rounded-lg bg-white border border-slate-200 space-y-1"
                             >
-                              <div className="flex items-center justify-between font-bold text-slate-300">
+                              <div className="flex items-center justify-between font-bold text-slate-700">
                                 <span>Câu {qIdx + 1}: {q.promptText || 'Lựa chọn hình đúng'}</span>
                                 {q.vocabulary && (
-                                  <span className="text-[10px] text-indigo-400 font-black">
+                                  <span className="text-[10px] text-indigo-800 font-black">
                                     {q.vocabulary.english}
                                   </span>
                                 )}
@@ -946,8 +949,8 @@ export const AdminGamesPage: React.FC = () => {
                                     key={optIdx}
                                     className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                                       opt.isCorrect || opt.text === q.correctAnswer
-                                        ? 'bg-emerald-950 text-emerald-300 border-emerald-500/50 font-black'
-                                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-500/50 font-black'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
                                     }`}
                                   >
                                     {opt.text || `Lựa chọn ${optIdx + 1}`} {opt.isCorrect ? '✓' : ''}
@@ -963,13 +966,13 @@ export const AdminGamesPage: React.FC = () => {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-slate-800/60 bg-slate-950/40 flex items-center justify-between gap-2">
+                <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between gap-2">
                   {/* Chơi thử / Preview Game in student mode */}
                   <a
-                    href={`/activities/${act._id}`}
+                    href={`/activities/${act._id}?preview=1}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 hover:text-indigo-200 text-xs font-bold transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-800 hover:text-indigo-800 text-xs font-bold transition-colors cursor-pointer"
                     title="Mở màn hình chơi thử của trẻ em"
                   >
                     <Play size={13} />
@@ -980,7 +983,7 @@ export const AdminGamesPage: React.FC = () => {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => openEditModal(act)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="p-2 rounded-xl text-slate-600 hover:text-inherit hover:bg-slate-100 transition-colors cursor-pointer"
                       title="Chỉnh sửa trò chơi"
                     >
                       <Edit size={15} />
@@ -990,7 +993,7 @@ export const AdminGamesPage: React.FC = () => {
                         setDeletingActivity(act);
                         setDeleteModalOpen(true);
                       }}
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                      className="p-2 rounded-xl text-slate-600 hover:text-rose-800 hover:bg-rose-500/10 transition-colors cursor-pointer"
                       title="Xóa trò chơi"
                     >
                       <Trash2 size={15} />
@@ -1005,22 +1008,22 @@ export const AdminGamesPage: React.FC = () => {
 
       {/* ── Pagination Controls ─────────────────────────────────────────────── */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs font-bold text-slate-400">
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-600">
           <div>
-            Trang <strong className="text-white">{page}</strong> trên <strong className="text-white">{totalPages}</strong>
+            Trang <strong className="text-inherit">{page}</strong> trên <strong className="text-inherit">{totalPages}</strong>
           </div>
           <div className="flex items-center gap-2">
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-white cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-inherit cursor-pointer"
             >
               Trang trước
             </button>
             <button
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-white cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-inherit cursor-pointer"
             >
               Trang kế
             </button>
@@ -1031,39 +1034,39 @@ export const AdminGamesPage: React.FC = () => {
       {/* ── CREATE / EDIT MODAL ──────────────────────────────────────────────── */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-3xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+          <div className="w-full max-w-3xl rounded-3xl bg-white border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-white">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <div className="h-10 w-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-800">
                   <Gamepad2 size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-white">
+                  <h2 className="text-lg font-black text-inherit">
                     {modalMode === 'create' ? 'Tạo Trò Chơi Mới' : 'Chỉnh Sửa Trò Chơi'}
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Cấu hình thể loại, điểm thưởng và câu hỏi tương tác cho trẻ
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                className="p-2 rounded-xl text-slate-600 hover:text-inherit hover:bg-slate-100 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Modal Navigation Tabs */}
-            <div className="flex border-b border-slate-800 px-6 bg-slate-950/30">
+            <div className="flex border-b border-slate-200 px-6 bg-white">
               <button
                 type="button"
                 onClick={() => setActiveTab('basic')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-colors ${
                   activeTab === 'basic'
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                    ? 'border-indigo-500 text-indigo-800'
+                    : 'border-transparent text-slate-600 hover:text-slate-700'
                 }`}
               >
                 1. Thông tin trò chơi
@@ -1073,12 +1076,12 @@ export const AdminGamesPage: React.FC = () => {
                 onClick={() => setActiveTab('questions')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
                   activeTab === 'questions'
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                    ? 'border-indigo-500 text-indigo-800'
+                    : 'border-transparent text-slate-600 hover:text-slate-700'
                 }`}
               >
                 <span>2. Bộ câu hỏi & Đáp án</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px]">
+                <span className="px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-800 text-[10px]">
                   {formData.questions.length}
                 </span>
               </button>
@@ -1090,8 +1093,8 @@ export const AdminGamesPage: React.FC = () => {
                 <div className="space-y-4">
                   {/* Select Lesson */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      Thuộc bài học (Lesson) <span className="text-rose-400">*</span>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Thuộc bài học (Lesson) <span className="text-rose-800">*</span>
                     </label>
                     <select
                       value={formData.lessonId}
@@ -1103,7 +1106,7 @@ export const AdminGamesPage: React.FC = () => {
                           ageGroupCode: target?.ageGroupCode || prev.ageGroupCode
                         }));
                       }}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-medium focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs font-medium focus:outline-none focus:border-indigo-500 cursor-pointer"
                       required
                     >
                       <option value="">-- Chọn bài học --</option>
@@ -1117,13 +1120,13 @@ export const AdminGamesPage: React.FC = () => {
 
                   {/* Select Game Type */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      Thể loại trò chơi <span className="text-rose-400">*</span>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Thể loại trò chơi <span className="text-rose-800">*</span>
                     </label>
                     <select
                       value={formData.activityType}
                       onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-medium focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs font-medium focus:outline-none focus:border-indigo-500 cursor-pointer"
                       required
                     >
                       {Object.values(GAME_TYPES).map((meta) => (
@@ -1133,7 +1136,7 @@ export const AdminGamesPage: React.FC = () => {
                       ))}
                     </select>
                     {GAME_TYPES[formData.activityType] && (
-                      <p className="text-[11px] text-slate-400 mt-1 italic">
+                      <p className="text-[11px] text-slate-600 mt-1 italic">
                         {GAME_TYPES[formData.activityType].description}
                       </p>
                     )}
@@ -1142,20 +1145,20 @@ export const AdminGamesPage: React.FC = () => {
                   {/* Title & Vietnamese Title */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                        Tên trò chơi (English) <span className="text-rose-400">*</span>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Tên trò chơi (English) <span className="text-rose-800">*</span>
                       </label>
                       <input
                         type="text"
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         placeholder="VD: Listen & Choose: School Objects"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Tên tiếng Việt
                       </label>
                       <input
@@ -1163,14 +1166,14 @@ export const AdminGamesPage: React.FC = () => {
                         value={formData.vietnameseTitle}
                         onChange={(e) => setFormData({ ...formData, vietnameseTitle: e.target.value })}
                         placeholder="VD: Nghe và Chọn: Đồ dùng học tập"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                       />
                     </div>
                   </div>
 
                   {/* Instructions */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Lời dẫn / Hướng dẫn bé chơi
                     </label>
                     <input
@@ -1178,20 +1181,20 @@ export const AdminGamesPage: React.FC = () => {
                       value={formData.instructions}
                       onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                       placeholder="VD: Listen and tap the correct picture!"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   {/* Age Group & Difficulty */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Độ tuổi mục tiêu
                       </label>
                       <select
                         value={formData.ageGroupCode}
                         onChange={(e) => setFormData({ ...formData, ageGroupCode: e.target.value })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:outline-none focus:border-indigo-500"
                       >
                         <option value="3-4">3–4 Tuổi (Mầm)</option>
                         <option value="4-5">4–5 Tuổi (Chồi)</option>
@@ -1200,13 +1203,13 @@ export const AdminGamesPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Độ khó (1 - 3 sao)
                       </label>
                       <select
                         value={formData.difficulty}
                         onChange={(e) => setFormData({ ...formData, difficulty: Number(e.target.value) })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:outline-none focus:border-indigo-500"
                       >
                         <option value={1}>★ Cấp độ 1 (Dễ)</option>
                         <option value={2}>★★ Cấp độ 2 (Vừa)</option>
@@ -1215,13 +1218,13 @@ export const AdminGamesPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Trạng thái hiển thị
                       </label>
                       <select
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:outline-none focus:border-indigo-500"
                       >
                         <option value="ACTIVE">Hoạt động (Active)</option>
                         <option value="INACTIVE">Tạm ẩn (Inactive)</option>
@@ -1232,7 +1235,7 @@ export const AdminGamesPage: React.FC = () => {
                   {/* Points & Time limit */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Điểm mỗi câu đúng
                       </label>
                       <input
@@ -1241,11 +1244,11 @@ export const AdminGamesPage: React.FC = () => {
                         max={100}
                         value={formData.pointsPerQuestion}
                         onChange={(e) => setFormData({ ...formData, pointsPerQuestion: Number(e.target.value) })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Thời gian giới hạn (0 = không giới hạn giây)
                       </label>
                       <input
@@ -1254,7 +1257,7 @@ export const AdminGamesPage: React.FC = () => {
                         max={300}
                         value={formData.timeLimit}
                         onChange={(e) => setFormData({ ...formData, timeLimit: Number(e.target.value) })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:outline-none focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -1264,13 +1267,13 @@ export const AdminGamesPage: React.FC = () => {
               {activeTab === 'questions' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-400">
+                    <p className="text-xs font-bold text-slate-600">
                       Danh sách các câu đố / thử thách trong trò chơi này:
                     </p>
                     <button
                       type="button"
                       onClick={addQuestion}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer"
                     >
                       <Plus size={14} />
                       <span>Thêm câu hỏi</span>
@@ -1280,16 +1283,16 @@ export const AdminGamesPage: React.FC = () => {
                   {formData.questions.map((q, qIdx) => (
                     <div
                       key={qIdx}
-                      className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4"
+                      className="p-4 rounded-2xl bg-white border border-slate-200 space-y-4"
                     >
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                        <span className="text-xs font-black text-indigo-400 uppercase tracking-wider">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">
                           Câu {qIdx + 1}
                         </span>
                         <button
                           type="button"
                           onClick={() => removeQuestion(qIdx)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                          className="p-1 rounded-lg text-slate-600 hover:text-rose-800 transition-colors cursor-pointer"
                           title="Xóa câu hỏi này"
                         >
                           <Trash2 size={14} />
@@ -1299,7 +1302,7 @@ export const AdminGamesPage: React.FC = () => {
                       {/* Prompt Question */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
                             Tiêu đề câu hỏi / Lời yêu cầu (Prompt)
                           </label>
                           <input
@@ -1307,12 +1310,12 @@ export const AdminGamesPage: React.FC = () => {
                             value={q.promptText}
                             onChange={(e) => updateQuestion(qIdx, 'promptText', e.target.value)}
                             placeholder="VD: Where is the book?"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
                             Link hình ảnh minh họa (tùy chọn)
                           </label>
                           <input
@@ -1320,19 +1323,19 @@ export const AdminGamesPage: React.FC = () => {
                             value={q.promptImageUrl}
                             onChange={(e) => updateQuestion(qIdx, 'promptImageUrl', e.target.value)}
                             placeholder="https://... hoặc /assets/..."
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                           />
                         </div>
                       </div>
 
                       {/* Options */}
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
                           <span>Các lựa chọn trả lời (Tích chọn đáp án đúng):</span>
                           <button
                             type="button"
                             onClick={() => addOption(qIdx)}
-                            className="text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer"
+                            className="text-indigo-800 hover:text-indigo-800 font-bold cursor-pointer"
                           >
                             + Thêm lựa chọn
                           </button>
@@ -1344,8 +1347,8 @@ export const AdminGamesPage: React.FC = () => {
                               key={optIdx}
                               className={`flex items-center gap-2.5 p-2 rounded-xl border transition-all ${
                                 opt.isCorrect
-                                  ? 'bg-emerald-950/30 border-emerald-500/40'
-                                  : 'bg-slate-900 border-slate-800'
+                                  ? 'bg-emerald-50 border-emerald-500/40'
+                                  : 'bg-white border-slate-200'
                               }`}
                             >
                               <button
@@ -1353,8 +1356,8 @@ export const AdminGamesPage: React.FC = () => {
                                 onClick={() => setCorrectOption(qIdx, optIdx)}
                                 className={`h-6 w-6 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
                                   opt.isCorrect
-                                    ? 'bg-emerald-500 text-white shadow-sm'
-                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                    ? 'bg-emerald-700 text-white'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
                                 }`}
                                 title="Đánh dấu đây là đáp án đúng"
                               >
@@ -1373,7 +1376,7 @@ export const AdminGamesPage: React.FC = () => {
                                   }
                                 }}
                                 placeholder="Tiếng Anh (VD: Book)"
-                                className="flex-1 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                                className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                               />
 
                               <input
@@ -1385,7 +1388,7 @@ export const AdminGamesPage: React.FC = () => {
                                   updateQuestion(qIdx, 'options', updatedOpts);
                                 }}
                                 placeholder="Tiếng Việt (VD: Quyển sách)"
-                                className="flex-1 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                                className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                               />
 
                               <input
@@ -1397,13 +1400,13 @@ export const AdminGamesPage: React.FC = () => {
                                   updateQuestion(qIdx, 'options', updatedOpts);
                                 }}
                                 placeholder="Link ảnh URL"
-                                className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                                className="w-36 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-inherit text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
                               />
 
                               <button
                                 type="button"
                                 onClick={() => removeOption(qIdx, optIdx)}
-                                className="p-1 rounded text-slate-500 hover:text-rose-400 cursor-pointer"
+                                className="p-1 rounded text-slate-600 hover:text-rose-800 cursor-pointer"
                               >
                                 <X size={14} />
                               </button>
@@ -1417,18 +1420,18 @@ export const AdminGamesPage: React.FC = () => {
               )}
 
               {/* Modal Footer Controls */}
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs  transition-all cursor-pointer"
                 >
                   {saving && <RefreshCw size={14} className="animate-spin" />}
                   <span>{modalMode === 'create' ? 'Lưu Trò Chơi Mới' : 'Lưu Thay Đổi'}</span>
@@ -1442,23 +1445,23 @@ export const AdminGamesPage: React.FC = () => {
       {/* ── DELETE CONFIRMATION MODAL ────────────────────────────────────────── */}
       {deleteModalOpen && deletingActivity && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center gap-3 text-rose-400">
+          <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 p-6 space-y-5">
+            <div className="flex items-center gap-3 text-rose-800">
               <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
                 <AlertCircle size={22} />
               </div>
-              <h3 className="text-base font-black text-white">Xác nhận xóa trò chơi</h3>
+              <h3 className="text-base font-black text-inherit">Xác nhận xóa trò chơi</h3>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Bạn có chắc chắn muốn xóa trò chơi <strong className="text-rose-300">"{deletingActivity.title}"</strong> không? Hành động này sẽ gỡ bỏ hoạt động tương tác này khỏi tiến trình học của các bé.
+            <p className="text-xs text-slate-700 leading-relaxed">
+              Bạn có chắc chắn muốn xóa trò chơi <strong className="text-rose-800">"{deletingActivity.title}"</strong> không? Hành động này sẽ gỡ bỏ hoạt động tương tác này khỏi tiến trình học của các bé.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
               >
                 Hủy
               </button>
@@ -1466,7 +1469,7 @@ export const AdminGamesPage: React.FC = () => {
                 type="button"
                 disabled={deleting}
                 onClick={confirmDelete}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-rose-700 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold  transition-all cursor-pointer"
               >
                 {deleting && <RefreshCw size={14} className="animate-spin" />}
                 <span>Xác nhận xóa</span>

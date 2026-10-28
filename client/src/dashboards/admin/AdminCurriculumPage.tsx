@@ -1,3 +1,4 @@
+import { AdminBookTabs } from '../../components/staff/AdminBookTabs';
 import React, { useEffect, useState } from 'react';
 import {
   BookOpen,
@@ -44,7 +45,8 @@ export const AdminCurriculumPage: React.FC = () => {
     title: '',
     vietnameseTitle: '',
     description: '',
-    displayOrder: 1
+    displayOrder: 1,
+    unitId: ''
   });
 
   const [vocabForm, setVocabForm] = useState({
@@ -97,7 +99,7 @@ export const AdminCurriculumPage: React.FC = () => {
         setCurriculumTree(res.data);
         const book1 = res.data.find((b: any) => b.bookNumber === selectedBookNum) || res.data[0];
         if (book1?.units?.[0]) {
-          setSelectedUnitId(book1.units[0]._id);
+          setSelectedUnitId(current => book1.units.some((unit: any) => unit._id === current) ? current : book1.units[0]._id);
         }
       }
     } catch (err: any) {
@@ -110,7 +112,7 @@ export const AdminCurriculumPage: React.FC = () => {
   useEffect(() => {
     const book = curriculumTree.find((b) => b.bookNumber === selectedBookNum);
     if (book?.units?.length > 0) {
-      setSelectedUnitId(book.units[0]._id);
+      setSelectedUnitId(current => book.units.some((unit: any) => unit._id === current) ? current : book.units[0]._id);
     } else {
       setSelectedUnitId(null);
     }
@@ -122,7 +124,8 @@ export const AdminCurriculumPage: React.FC = () => {
 
   // ── UNIT HANDLERS ─────────────────────────────────────────────────────────
   const handleOpenCreateUnit = () => {
-    const nextNum = (currentUnits.length || 0) + 1;
+    const nextNum = Array.from({ length: 9 }, (_, index) => index + 1).find(number => !currentUnits.some((unit: any) => unit.unitNumber === number));
+    if (!nextNum) { showAlert('error', 'Sách đã có đủ 9 Unit. Hãy chỉnh sửa một Unit đang có.'); return; }
     setUnitForm({
       unitNumber: nextNum,
       bigQuestion: '',
@@ -207,6 +210,7 @@ export const AdminCurriculumPage: React.FC = () => {
       title: '',
       vietnameseTitle: '',
       description: '',
+      unitId,
       displayOrder: existingLessons.length + 1
     });
     setLessonModal({ mode: 'create', unitId, data: null });
@@ -217,6 +221,7 @@ export const AdminCurriculumPage: React.FC = () => {
       title: lesson.title,
       vietnameseTitle: lesson.vietnameseTitle || '',
       description: lesson.description || '',
+      unitId,
       displayOrder: lesson.displayOrder || 1
     });
     setLessonModal({ mode: 'edit', unitId, data: lesson });
@@ -237,7 +242,7 @@ export const AdminCurriculumPage: React.FC = () => {
           vietnameseTitle: lessonForm.vietnameseTitle,
           description: lessonForm.description,
           displayOrder: Number(lessonForm.displayOrder),
-          unitId: lessonModal.unitId,
+          unitId: lessonForm.unitId || lessonModal.unitId,
           ageGroupCode
         });
         if (res.success) {
@@ -250,7 +255,8 @@ export const AdminCurriculumPage: React.FC = () => {
           title: lessonForm.title,
           vietnameseTitle: lessonForm.vietnameseTitle,
           description: lessonForm.description,
-          displayOrder: Number(lessonForm.displayOrder)
+          displayOrder: Number(lessonForm.displayOrder),
+          unitId: lessonForm.unitId
         });
         if (res.success) {
           showAlert('success', res.message || 'Cập nhật bài học thành công!');
@@ -588,10 +594,10 @@ export const AdminCurriculumPage: React.FC = () => {
       {/* Alert toast notification */}
       {alert && (
         <div
-          className={`fixed top-5 right-5 z-50 p-4 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-bold border transition-all ${
+          className={`fixed top-5 right-5 z-50 p-4 rounded-2xl flex items-center gap-3 text-sm font-bold border transition-all ${
             alert.type === 'success'
-              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40'
-              : 'bg-rose-950/90 text-rose-200 border-rose-500/40'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-500/40'
+              : 'bg-rose-50 text-rose-800 border-rose-500/40'
           }`}
         >
           {alert.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
@@ -602,11 +608,11 @@ export const AdminCurriculumPage: React.FC = () => {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2.5">
-            <BookOpen className="text-amber-400" size={26} />
+          <h1 className="text-2xl font-black text-inherit flex items-center gap-2.5">
+            <BookOpen className="text-indigo-800" size={26} />
             <span>Quản Lý Giáo Trình & Bài Học</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Toàn quyền Thêm - Sửa - Xóa 3 Bộ sách, 27 Units, câu hỏi định hướng, bài học và từ vựng chuẩn hóa.
           </p>
         </div>
@@ -614,72 +620,42 @@ export const AdminCurriculumPage: React.FC = () => {
         <button
           id="btn-create-unit"
           onClick={handleOpenCreateUnit}
-          className="px-4 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-amber-600/30 flex items-center gap-2 transition-all self-start sm:self-auto"
+          className="px-4 py-2.5 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm  flex items-center gap-2 transition-all self-start sm:self-auto"
         >
           <Plus size={18} />
           <span>Thêm Unit Mới Vào Sách {selectedBookNum}</span>
         </button>
       </div>
 
-      {/* Book Tabs (Sách 1, 2, 3) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { num: 1, age: '3-4 Tuổi (Mầm)', desc: 'Xây dựng phản xạ tự nhiên & từ vựng giác quan' },
-          { num: 2, age: '4-5 Tuổi (Chồi)', desc: 'Mở rộng câu đơn & tương tác hoạt cảnh' },
-          { num: 3, age: '5-6 Tuổi (Lá)', desc: 'Hội thoại tự tin & chuẩn bị tiền tiểu học' }
-        ].map((book) => {
-          const isSelected = selectedBookNum === book.num;
-          return (
-            <button
-              key={book.num}
-              onClick={() => setSelectedBookNum(book.num)}
-              className={`p-4 rounded-3xl border text-left transition-all ${
-                isSelected
-                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 border-amber-400 text-white shadow-xl shadow-amber-600/20 ring-1 ring-white/20'
-                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className={`text-xs font-black uppercase tracking-wider ${isSelected ? 'text-amber-200' : 'text-amber-400'}`}>
-                  Book {book.num}
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                  {book.age}
-                </span>
-              </div>
-              <p className={`text-xs ${isSelected ? 'text-amber-100' : 'text-slate-400'} font-medium`}>{book.desc}</p>
-            </button>
-          );
-        })}
-      </div>
+      <AdminBookTabs selected={selectedBookNum} onSelect={book => setSelectedBookNum(book)} />
 
       {/* Units List */}
       {loading ? (
         <div className="py-20 flex justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
         </div>
       ) : currentUnits.length === 0 ? (
-        <div className="py-16 text-center bg-slate-900/50 rounded-3xl border border-slate-800">
+        <div className="py-16 text-center bg-white rounded-3xl border border-slate-200">
           <BookOpen size={40} className="mx-auto text-slate-600 mb-3" />
-          <p className="text-sm font-bold text-slate-300">Chưa có Unit nào trong Sách {selectedBookNum}</p>
+          <p className="text-sm font-bold text-slate-700">Chưa có Unit nào trong Sách {selectedBookNum}</p>
           <button
             onClick={handleOpenCreateUnit}
-            className="mt-3 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs"
+            className="mt-3 px-4 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs"
           >
             Tạo Unit Đầu Tiên
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="admin-curriculum-grid">
           {/* ── LEFT PANEL: LIST OF UNITS IN BOOK (lg:col-span-4) ─── */}
-          <div className="lg:col-span-4 space-y-3">
+          <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-600">
                 Danh sách Unit ({currentUnits.length})
               </span>
               <button
                 onClick={handleOpenCreateUnit}
-                className="px-2.5 py-1 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
+                className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-500/30 font-bold text-xs flex items-center gap-1 transition-all"
                 title="Tạo Unit mới vào sách này"
               >
                 <Plus size={13} />
@@ -687,7 +663,7 @@ export const AdminCurriculumPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-2.5 max-h-[720px] overflow-y-auto pr-1">
+            <div className="admin-unit-list">
               {currentUnits.map((unit: any) => {
                 const isSelected = activeUnit?._id === unit._id;
                 const lessonCount = unit.lessons?.length || 0;
@@ -695,11 +671,16 @@ export const AdminCurriculumPage: React.FC = () => {
                 return (
                   <div
                     key={unit._id}
+                    data-selected={isSelected}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isSelected}
+                    onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedUnitId(unit._id); } }}
                     onClick={() => setSelectedUnitId(unit._id)}
                     className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border-amber-400 text-white shadow-xl shadow-amber-950/40 ring-1 ring-amber-400/40'
-                        : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/40'
+                        ? 'bg-white border-indigo-400 text-inherit  ring-1 ring-amber-400/40'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -707,22 +688,22 @@ export const AdminCurriculumPage: React.FC = () => {
                         <div
                           className={`h-10 w-10 rounded-xl font-black text-sm flex items-center justify-center shrink-0 border transition-all ${
                             isSelected
-                              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30'
-                              : 'bg-slate-800/80 text-amber-400 border-amber-500/20'
+                              ? 'bg-indigo-700 text-white border-indigo-400 '
+                              : 'bg-slate-100 text-indigo-800 border-indigo-500/20'
                           }`}
                         >
                           U{unit.unitNumber}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                            <span className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider">
                               Unit {unit.unitNumber}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-400">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">
                               {lessonCount} bài
                             </span>
                           </div>
-                          <h3 className="text-xs sm:text-sm font-black text-white mt-0.5 line-clamp-1">
+                          <h3 className="text-xs sm:text-sm font-black text-inherit mt-0.5 line-clamp-1">
                             "{unit.bigQuestion}"
                           </h3>
                         </div>
@@ -731,14 +712,14 @@ export const AdminCurriculumPage: React.FC = () => {
                       <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenEditUnit(unit)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-100 text-slate-600 hover:text-inherit transition-all"
                           title="Sửa Unit"
                         >
                           <Edit size={13} />
                         </button>
                         <button
                           onClick={() => handleDeleteUnit(unit)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-400 transition-all"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-800 transition-all"
                           title="Xóa Unit"
                         >
                           <Trash2 size={13} />
@@ -747,8 +728,8 @@ export const AdminCurriculumPage: React.FC = () => {
                     </div>
 
                     {unit.storyTitle && (
-                      <p className="text-[11px] text-slate-400 mt-2 truncate">
-                        Story: <span className="text-slate-300 font-medium">{unit.storyTitle}</span>
+                      <p className="text-[11px] text-slate-600 mt-2 truncate">
+                        Story: <span className="text-slate-700 font-medium">{unit.storyTitle}</span>
                       </p>
                     )}
                   </div>
@@ -758,34 +739,34 @@ export const AdminCurriculumPage: React.FC = () => {
           </div>
 
           {/* ── RIGHT PANEL: SELECTED UNIT DETAIL & LESSONS (lg:col-span-8) ─── */}
-          <div className="lg:col-span-8 space-y-5">
+          <div className="space-y-5">
             {activeUnit ? (
               <>
                 {/* Active Unit Header Banner */}
-                <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
                     <div>
                       <div className="flex items-center gap-2.5">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-indigo-800 border border-indigo-500/30">
                           Book {activeUnit.bookNumber} • Unit {activeUnit.unitNumber}
                         </span>
-                        <span className="text-xs text-slate-400 font-semibold">
+                        <span className="text-xs text-slate-600 font-semibold">
                           {activeUnit.lessons?.length || 0} bài học
                         </span>
                       </div>
-                      <h2 className="text-lg sm:text-xl font-black text-white mt-1.5">
+                      <h2 className="text-lg sm:text-xl font-black text-inherit mt-1.5">
                         "{activeUnit.bigQuestion}"
                       </h2>
                       {activeUnit.storyTitle && (
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Story: <span className="text-amber-200 font-bold">{activeUnit.storyTitle}</span>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Story: <span className="text-indigo-800 font-bold">{activeUnit.storyTitle}</span>
                         </p>
                       )}
                     </div>
 
                     <button
                       onClick={() => handleOpenCreateLesson(activeUnit._id)}
-                      className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/30 self-start sm:self-auto shrink-0"
+                      className="px-4 py-2.5 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 transition-all  self-start sm:self-auto shrink-0"
                     >
                       <Plus size={15} />
                       <span>Thêm Bài Học Mới</span>
@@ -794,15 +775,15 @@ export const AdminCurriculumPage: React.FC = () => {
 
                   {/* Concept & Oracy summary */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs mt-4">
-                    <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80">
-                      <span className="font-bold text-amber-400 block mb-0.5">Khái niệm & Giá trị (Concept):</span>
-                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                    <div className="bg-white p-3 rounded-2xl border border-slate-200">
+                      <span className="font-bold text-indigo-800 block mb-0.5">Khái niệm & Giá trị (Concept):</span>
+                      <p className="text-slate-700 text-[11px] leading-relaxed">
                         {activeUnit.concept || 'Chưa cập nhật'}
                       </p>
                     </div>
-                    <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80">
-                      <span className="font-bold text-indigo-400 block mb-0.5">Mục tiêu đàm thoại (Oracy Goal):</span>
-                      <p className="text-slate-300 text-[11px] leading-relaxed">
+                    <div className="bg-white p-3 rounded-2xl border border-slate-200">
+                      <span className="font-bold text-indigo-800 block mb-0.5">Mục tiêu đàm thoại (Oracy Goal):</span>
+                      <p className="text-slate-700 text-[11px] leading-relaxed">
                         {activeUnit.oracy || 'Chưa cập nhật'}
                       </p>
                     </div>
@@ -812,24 +793,24 @@ export const AdminCurriculumPage: React.FC = () => {
                 {/* Lessons of this Unit */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between px-1">
-                    <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                      <Layers size={16} className="text-amber-400" />
+                    <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <Layers size={16} className="text-indigo-800" />
                       <span>Các Bài Học Trong Unit {activeUnit.unitNumber}</span>
                     </h3>
                   </div>
 
                   {!activeUnit.lessons || activeUnit.lessons.length === 0 ? (
-                    <div className="py-12 text-center bg-slate-900/50 rounded-3xl border border-slate-800 p-6">
+                    <div className="py-12 text-center bg-white rounded-3xl border border-slate-200 p-6">
                       <Layers size={36} className="mx-auto text-slate-600 mb-2.5" />
-                      <p className="text-sm font-bold text-slate-300">
+                      <p className="text-sm font-bold text-slate-700">
                         Chưa có bài học nào trong Unit {activeUnit.unitNumber}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-600 mt-1">
                         Bấm nút bên dưới để tạo bài học đầu tiên cho Unit này.
                       </p>
                       <button
                         onClick={() => handleOpenCreateLesson(activeUnit._id)}
-                        className="mt-3.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md"
+                        className="mt-3.5 px-4 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs"
                       >
                         Thêm Bài Học Đầu Tiên
                       </button>
@@ -839,31 +820,33 @@ export const AdminCurriculumPage: React.FC = () => {
                       {activeUnit.lessons.map((lesson: any, lIndex: number) => (
                         <div
                           key={lesson._id}
-                          className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl transition-all space-y-4"
+                          className="bg-white border border-slate-200 rounded-3xl p-5 transition-all space-y-4"
                         >
                           {/* Lesson Header */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
                             <div className="flex items-start gap-3">
-                              <span className="h-7 w-7 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-black text-xs flex items-center justify-center shrink-0">
+                              <span className="h-7 w-7 rounded-xl bg-indigo-500/20 text-indigo-800 border border-indigo-500/30 font-black text-xs flex items-center justify-center shrink-0">
                                 {lIndex + 1}
                               </span>
                               <div>
-                                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                                <h4 className="text-sm font-black text-inherit flex items-center gap-2">
                                   <span>{lesson.title}</span>
                                   {lesson.vietnameseTitle && (
-                                    <span className="text-slate-400 font-normal text-xs">({lesson.vietnameseTitle})</span>
+                                    <span className="text-slate-600 font-normal text-xs">({lesson.vietnameseTitle})</span>
                                   )}
                                 </h4>
                                 {lesson.description && (
-                                  <p className="text-xs text-slate-400 mt-0.5">{lesson.description}</p>
+                                  <p className="text-xs text-slate-600 mt-0.5">{lesson.description}</p>
                                 )}
                               </div>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
+                              <span className={lesson.status === 'ACTIVE' ? 'rounded-lg bg-emerald-50 px-2 py-1 text-emerald-800' : 'rounded-lg bg-slate-100 px-2 py-1 text-slate-600'}>{lesson.status === 'ACTIVE' ? 'Đang sử dụng' : 'Đã ngừng'}</span>
+                              <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-indigo-800" onClick={async () => { try { await adminApi.toggleLessonStatus(lesson._id); await loadCurriculum(); } catch (error: any) { showAlert('error', error.message); } }}>{lesson.status === 'ACTIVE' ? 'Tạm ngừng' : 'Khôi phục'}</button>
                               <button
                                 onClick={() => handleOpenCreateVocab(lesson._id)}
-                                className="px-2.5 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 font-bold text-xs border border-teal-500/20 transition-all flex items-center gap-1 shadow-sm"
+                                className="px-2.5 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-800 font-bold text-xs border border-teal-500/20 transition-all flex items-center gap-1"
                                 title="Thêm từ vựng vào bài học này"
                               >
                                 <Plus size={13} />
@@ -871,7 +854,7 @@ export const AdminCurriculumPage: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => handleOpenCreateSentence(lesson._id, activeUnit._id)}
-                                className="px-2.5 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-300 font-bold text-xs border border-pink-500/20 transition-all flex items-center gap-1 shadow-sm"
+                                className="px-2.5 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-800 font-bold text-xs border border-pink-500/20 transition-all flex items-center gap-1"
                                 title="Thêm mẫu câu hoặc hội thoại vào bài học này"
                               >
                                 <Plus size={13} />
@@ -879,14 +862,14 @@ export const AdminCurriculumPage: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => handleOpenEditLesson(lesson, activeUnit._id)}
-                                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white transition-all ml-1"
+                                className="p-1.5 rounded-xl bg-slate-100 text-slate-700 hover:text-inherit transition-all ml-1"
                                 title="Sửa bài học"
                               >
                                 <Edit size={14} />
                               </button>
                               <button
                                 onClick={() => handleDeleteLesson(lesson)}
-                                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-rose-400 transition-all"
+                                className="p-1.5 rounded-xl bg-slate-100 text-slate-600 hover:text-rose-800 transition-all"
                                 title="Xóa bài học"
                               >
                                 <Trash2 size={14} />
@@ -897,7 +880,7 @@ export const AdminCurriculumPage: React.FC = () => {
                           {/* Vocabulary Section of Lesson */}
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 flex items-center gap-1.5">
                                 <Sparkles size={12} />
                                 <span>Từ vựng ({lesson.vocabulary?.length || 0})</span>
                               </span>
@@ -908,12 +891,12 @@ export const AdminCurriculumPage: React.FC = () => {
                                 {lesson.vocabulary.map((v: any) => (
                                   <div
                                     key={v._id}
-                                    className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs flex items-center gap-2 group hover:border-teal-500/40 transition-all shadow-sm"
+                                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs flex items-center gap-2 group hover:border-teal-500/40 transition-all"
                                   >
                                     <button
                                       type="button"
                                       onClick={() => playAudio(v.word || v.english)}
-                                      className="text-slate-500 hover:text-teal-400 transition-colors"
+                                      className="text-slate-600 hover:text-teal-800 transition-colors"
                                       title="Nghe phát âm"
                                     >
                                       <Volume2 size={13} />
@@ -921,16 +904,16 @@ export const AdminCurriculumPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleOpenEditVocab(v, lesson._id)}
-                                      className="font-bold text-teal-300 hover:underline text-left"
+                                      className="font-bold text-teal-800 hover:underline text-left"
                                       title="Sửa từ vựng"
                                     >
                                       {v.word || v.english}
                                     </button>
                                     <span className="text-slate-600">→</span>
-                                    <span className="text-slate-400">{v.vietnamese}</span>
+                                    <span className="text-slate-600">{v.vietnamese}</span>
                                     <button
                                       onClick={() => handleDeleteVocab(v)}
-                                      className="text-slate-600 hover:text-rose-400 ml-1 transition-colors"
+                                      className="text-slate-600 hover:text-rose-800 ml-1 transition-colors"
                                       title="Xóa từ vựng"
                                     >
                                       <X size={12} />
@@ -939,19 +922,19 @@ export const AdminCurriculumPage: React.FC = () => {
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-[11px] text-slate-500 italic">Chưa có từ vựng nào trong bài học này.</p>
+                              <p className="text-[11px] text-slate-600 italic">Chưa có từ vựng nào trong bài học này.</p>
                             )}
                           </div>
 
                           {/* Sentence Patterns Section of Lesson */}
-                          <div className="pt-2 border-t border-slate-800/60">
+                          <div className="pt-2 border-t border-slate-200">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-pink-800 flex items-center gap-1.5">
                                   <MessageSquare size={12} />
                                   <span>Mẫu câu & Hội thoại ({lesson.sentences?.length || 0})</span>
                                 </span>
-                                <span className="hidden sm:inline-block text-[10px] text-slate-500 font-medium">
+                                <span className="hidden sm:inline-block text-[10px] text-slate-600 font-medium">
                                   (Phân biệt rõ Cặp Hỏi ❓ & Đáp 💬)
                                 </span>
                               </div>
@@ -964,35 +947,35 @@ export const AdminCurriculumPage: React.FC = () => {
                                     return (
                                       <div
                                         key={group.id}
-                                        className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 hover:border-pink-500/40 transition-all space-y-2.5 shadow-sm"
+                                        className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-pink-500/40 transition-all space-y-2.5"
                                       >
                                         {/* Question Row */}
                                         <div className="flex items-start justify-between gap-2">
                                           <div className="flex items-start gap-2">
-                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0 mt-0.5 flex items-center gap-1">
+                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-800 border border-purple-500/30 shrink-0 mt-0.5 flex items-center gap-1">
                                               <span>❓ Hỏi</span>
                                             </span>
                                             <div>
                                               <div className="flex items-center gap-2">
-                                                <p className="font-extrabold text-white text-xs leading-snug">
+                                                <p className="font-extrabold text-inherit text-xs leading-snug">
                                                   {group.question.english}
                                                 </p>
                                                 <button
                                                   type="button"
                                                   onClick={() => playAudio(group.question.english)}
-                                                  className="text-slate-500 hover:text-pink-400 transition-colors"
+                                                  className="text-slate-600 hover:text-pink-800 transition-colors"
                                                   title="Nghe phát âm câu hỏi"
                                                 >
                                                   <Volume2 size={13} />
                                                 </button>
                                               </div>
                                               {group.question.vietnamese && (
-                                                <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                                                <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
                                                   {group.question.vietnamese}
                                                 </p>
                                               )}
                                               {group.question.pronunciation && (
-                                                <p className="text-[10px] text-pink-300/80 font-mono mt-0.5">
+                                                <p className="text-[10px] text-pink-800 font-mono mt-0.5">
                                                   {group.question.pronunciation}
                                                 </p>
                                               )}
@@ -1005,7 +988,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                               onClick={() =>
                                                 handleOpenEditSentence(group.question, lesson._id, activeUnit._id)
                                               }
-                                              className="p-1 text-slate-500 hover:text-white transition-colors"
+                                              className="p-1 text-slate-600 hover:text-inherit transition-colors"
                                               title="Sửa câu hỏi"
                                             >
                                               <Edit size={12} />
@@ -1013,7 +996,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => handleDeleteSentence(group.question)}
-                                              className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                                              className="p-1 text-slate-600 hover:text-rose-800 transition-colors"
                                               title="Xóa câu hỏi"
                                             >
                                               <Trash2 size={12} />
@@ -1027,34 +1010,34 @@ export const AdminCurriculumPage: React.FC = () => {
                                             {group.answers.map((ans: any) => (
                                               <div
                                                 key={ans._id}
-                                                className="flex items-start justify-between gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80"
+                                                className="flex items-start justify-between gap-2 bg-white p-2 rounded-xl border border-slate-200"
                                               >
                                                 <div className="flex items-start gap-2">
-                                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 mt-0.5 flex items-center gap-1">
+                                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 shrink-0 mt-0.5 flex items-center gap-1">
                                                     <CornerDownRight size={10} />
                                                     <span>Đáp</span>
                                                   </span>
                                                   <div>
                                                     <div className="flex items-center gap-1.5">
-                                                      <p className="font-bold text-emerald-200 text-xs">
+                                                      <p className="font-bold text-emerald-800 text-xs">
                                                         {ans.english}
                                                       </p>
                                                       <button
                                                         type="button"
                                                         onClick={() => playAudio(ans.english)}
-                                                        className="text-slate-500 hover:text-emerald-400 transition-colors"
+                                                        className="text-slate-600 hover:text-emerald-800 transition-colors"
                                                         title="Nghe phát âm câu trả lời"
                                                       >
                                                         <Volume2 size={12} />
                                                       </button>
                                                     </div>
                                                     {ans.vietnamese && (
-                                                      <p className="text-[10px] text-slate-400 mt-0.5">
+                                                      <p className="text-[10px] text-slate-600 mt-0.5">
                                                         {ans.vietnamese}
                                                       </p>
                                                     )}
                                                     {ans.pronunciation && (
-                                                      <p className="text-[10px] text-emerald-300/80 font-mono mt-0.5">
+                                                      <p className="text-[10px] text-emerald-800 font-mono mt-0.5">
                                                         {ans.pronunciation}
                                                       </p>
                                                     )}
@@ -1067,7 +1050,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                                     onClick={() =>
                                                       handleOpenEditSentence(ans, lesson._id, activeUnit._id)
                                                     }
-                                                    className="p-1 text-slate-500 hover:text-white transition-colors"
+                                                    className="p-1 text-slate-600 hover:text-inherit transition-colors"
                                                     title="Sửa câu trả lời"
                                                   >
                                                     <Edit size={11} />
@@ -1075,7 +1058,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                                   <button
                                                     type="button"
                                                     onClick={() => handleDeleteSentence(ans)}
-                                                    className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                                                    className="p-1 text-slate-600 hover:text-rose-800 transition-colors"
                                                     title="Xóa câu trả lời"
                                                   >
                                                     <Trash2 size={11} />
@@ -1095,13 +1078,13 @@ export const AdminCurriculumPage: React.FC = () => {
                                     return (
                                       <div
                                         key={group.id}
-                                        className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-pink-500/40 text-xs flex items-start justify-between gap-2 group transition-all shadow-xs"
+                                        className="p-3 rounded-2xl bg-white border border-slate-200 hover:border-pink-500/40 text-xs flex items-start justify-between gap-2 group transition-all"
                                       >
                                         <div className="flex items-start gap-2">
                                           <button
                                             type="button"
                                             onClick={() => playAudio(s.english)}
-                                            className="text-slate-500 hover:text-pink-400 transition-colors mt-0.5 shrink-0"
+                                            className="text-slate-600 hover:text-pink-800 transition-colors mt-0.5 shrink-0"
                                             title="Nghe phát âm"
                                           >
                                             <Volume2 size={14} />
@@ -1111,21 +1094,21 @@ export const AdminCurriculumPage: React.FC = () => {
                                               <span
                                                 className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                                   isQuestion
-                                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                                    ? 'bg-purple-500/20 text-purple-800 border border-purple-500/30'
                                                     : isAnswer
-                                                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                                                    : 'bg-pink-500/10 text-pink-300 border border-pink-500/20'
+                                                    ? 'bg-emerald-500/15 text-emerald-800 border border-emerald-500/30'
+                                                    : 'bg-pink-500/10 text-pink-800 border border-pink-500/20'
                                                 }`}
                                               >
                                                 {isQuestion ? '❓ Câu hỏi' : isAnswer ? '💬 Trả lời' : 'Mẫu câu'}
                                               </span>
                                             </div>
-                                            <p className="font-bold text-white text-xs leading-snug">{s.english}</p>
+                                            <p className="font-bold text-inherit text-xs leading-snug">{s.english}</p>
                                             {s.vietnamese && (
-                                              <p className="text-[11px] text-slate-400 mt-0.5">{s.vietnamese}</p>
+                                              <p className="text-[11px] text-slate-600 mt-0.5">{s.vietnamese}</p>
                                             )}
                                             {s.pronunciation && (
-                                              <p className="text-[10px] text-pink-300/80 font-mono mt-0.5">
+                                              <p className="text-[10px] text-pink-800 font-mono mt-0.5">
                                                 {s.pronunciation}
                                               </p>
                                             )}
@@ -1136,7 +1119,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                           <button
                                             type="button"
                                             onClick={() => handleOpenEditSentence(s, lesson._id, activeUnit._id)}
-                                            className="p-1 text-slate-500 hover:text-white transition-colors"
+                                            className="p-1 text-slate-600 hover:text-inherit transition-colors"
                                             title="Sửa mẫu câu"
                                           >
                                             <Edit size={12} />
@@ -1144,7 +1127,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                           <button
                                             type="button"
                                             onClick={() => handleDeleteSentence(s)}
-                                            className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                                            className="p-1 text-slate-600 hover:text-rose-800 transition-colors"
                                             title="Xóa mẫu câu"
                                           >
                                             <Trash2 size={12} />
@@ -1156,7 +1139,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                 })}
                               </div>
                             ) : (
-                              <p className="text-[11px] text-slate-500 italic">Chưa có mẫu câu nào trong bài học này.</p>
+                              <p className="text-[11px] text-slate-600 italic">Chưa có mẫu câu nào trong bài học này.</p>
                             )}
                           </div>
                         </div>
@@ -1166,10 +1149,10 @@ export const AdminCurriculumPage: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="py-20 text-center bg-slate-900/50 rounded-3xl border border-slate-800 p-6">
+              <div className="py-20 text-center bg-white rounded-3xl border border-slate-200 p-6">
                 <BookOpen size={40} className="mx-auto text-slate-600 mb-3" />
-                <p className="text-sm font-bold text-slate-300">Vui lòng chọn một Unit bên trái</p>
-                <p className="text-xs text-slate-500 mt-1">Các bài học của Unit được chọn sẽ hiển thị tại đây.</p>
+                <p className="text-sm font-bold text-slate-700">Vui lòng chọn một Unit bên trái</p>
+                <p className="text-xs text-slate-600 mt-1">Các bài học của Unit được chọn sẽ hiển thị tại đây.</p>
               </div>
             )}
           </div>
@@ -1179,35 +1162,36 @@ export const AdminCurriculumPage: React.FC = () => {
       {/* ── MODAL: CREATE / EDIT UNIT ───────────────────────────────────────── */}
       {unitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <BookOpen className="text-amber-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <BookOpen className="text-indigo-800" size={20} />
                 <span>{unitModal.mode === 'create' ? `Tạo Unit Mới (Book ${selectedBookNum})` : `Chỉnh Sửa Unit ${unitForm.unitNumber}`}</span>
               </h2>
-              <button onClick={() => setUnitModal(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setUnitModal(null)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleUnitSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Số thứ tự Unit *
                 </label>
                 <input
                   type="number"
                   min="1"
-                  max="50"
+                  max="9"
                   required
                   value={unitForm.unitNumber}
+                  disabled={unitModal.mode === 'edit'}
                   onChange={(e) => setUnitForm({ ...unitForm, unitNumber: Number(e.target.value) })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Big Question (Câu hỏi định hướng tiếng Anh) *
                 </label>
                 <input
@@ -1216,12 +1200,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={unitForm.bigQuestion}
                   onChange={(e) => setUnitForm({ ...unitForm, bigQuestion: e.target.value })}
                   placeholder='Ví dụ: "Who is in our classroom?"'
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Tên câu chuyện chủ đề (Story Title)
                 </label>
                 <input
@@ -1229,12 +1213,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={unitForm.storyTitle}
                   onChange={(e) => setUnitForm({ ...unitForm, storyTitle: e.target.value })}
                   placeholder="Ví dụ: The Welcome Song"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Khái niệm & Giá trị (Concept & Values)
                 </label>
                 <input
@@ -1242,12 +1226,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={unitForm.concept}
                   onChange={(e) => setUnitForm({ ...unitForm, concept: e.target.value })}
                   placeholder="Ví dụ: Friendship, sharing, kindness"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Mục tiêu đàm thoại (Oracy Goal)
                 </label>
                 <input
@@ -1255,7 +1239,7 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={unitForm.oracy}
                   onChange={(e) => setUnitForm({ ...unitForm, oracy: e.target.value })}
                   placeholder="Ví dụ: Greeting teachers, saying please & thank you"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -1263,13 +1247,13 @@ export const AdminCurriculumPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setUnitModal(null)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/30"
+                  className="px-5 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs "
                 >
                   {unitModal.mode === 'create' ? 'Tạo Unit' : 'Lưu Thay Đổi'}
                 </button>
@@ -1282,20 +1266,21 @@ export const AdminCurriculumPage: React.FC = () => {
       {/* ── MODAL: CREATE / EDIT LESSON ─────────────────────────────────────── */}
       {lessonModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Layers className="text-indigo-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <Layers className="text-indigo-800" size={20} />
                 <span>{lessonModal.mode === 'create' ? 'Thêm Bài Học Mới' : 'Chỉnh Sửa Bài Học'}</span>
               </h2>
-              <button onClick={() => setLessonModal(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setLessonModal(null)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleLessonSubmit} className="space-y-4">
+              <label className="grid gap-2 text-slate-700">Unit của bài học<select value={lessonForm.unitId} onChange={event => setLessonForm({ ...lessonForm, unitId: event.target.value })} className="border border-slate-300">{currentUnits.map((unit: any) => <option key={unit._id} value={unit._id}>Unit {unit.unitNumber} · {unit.bigQuestion}</option>)}</select></label>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Tiêu đề bài học (tiếng Anh) *
                 </label>
                 <input
@@ -1304,12 +1289,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={lessonForm.title}
                   onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
                   placeholder="Ví dụ: Hello & Welcome Song"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Tiêu đề tiếng Việt
                 </label>
                 <input
@@ -1317,12 +1302,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={lessonForm.vietnameseTitle}
                   onChange={(e) => setLessonForm({ ...lessonForm, vietnameseTitle: e.target.value })}
                   placeholder="Ví dụ: Bài hát Chào mừng và Giới thiệu"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Mô tả bài học
                 </label>
                 <textarea
@@ -1330,12 +1315,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={lessonForm.description}
                   onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
                   placeholder="Mô tả mục tiêu và hoạt động trong bài học..."
-                  className="w-full px-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-2 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Thứ tự hiển thị
                 </label>
                 <input
@@ -1343,7 +1328,7 @@ export const AdminCurriculumPage: React.FC = () => {
                   min="1"
                   value={lessonForm.displayOrder}
                   onChange={(e) => setLessonForm({ ...lessonForm, displayOrder: Number(e.target.value) })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -1351,13 +1336,13 @@ export const AdminCurriculumPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLessonModal(null)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30"
+                  className="px-5 py-2 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs "
                 >
                   {lessonModal.mode === 'create' ? 'Tạo Bài Học' : 'Lưu Thay Đổi'}
                 </button>
@@ -1370,20 +1355,20 @@ export const AdminCurriculumPage: React.FC = () => {
       {/* ── MODAL: CREATE / EDIT VOCABULARY ──────────────────────────────────── */}
       {vocabModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-md animate-scale-up">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Sparkles className="text-teal-400" size={20} />
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <Sparkles className="text-teal-800" size={20} />
                 <span>{vocabModal.mode === 'create' ? 'Thêm Từ Vựng Mới' : 'Sửa Từ Vựng'}</span>
               </h2>
-              <button onClick={() => setVocabModal(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setVocabModal(null)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleVocabSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Từ tiếng Anh *
                 </label>
                 <input
@@ -1392,12 +1377,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={vocabForm.english}
                   onChange={(e) => setVocabForm({ ...vocabForm, english: e.target.value })}
                   placeholder="Ví dụ: Apple, Hello, Teacher"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-teal-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-teal-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Nghĩa tiếng Việt *
                 </label>
                 <input
@@ -1406,12 +1391,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={vocabForm.vietnamese}
                   onChange={(e) => setVocabForm({ ...vocabForm, vietnamese: e.target.value })}
                   placeholder="Ví dụ: Quả táo, Xin chào, Giáo viên"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-teal-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-teal-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Phiên âm IPA
                 </label>
                 <input
@@ -1419,12 +1404,12 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={vocabForm.pronunciation}
                   onChange={(e) => setVocabForm({ ...vocabForm, pronunciation: e.target.value })}
                   placeholder="Ví dụ: /ˈæp.əl/"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-teal-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-teal-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Chủ đề / Danh mục
                 </label>
                 <input
@@ -1432,7 +1417,7 @@ export const AdminCurriculumPage: React.FC = () => {
                   value={vocabForm.category}
                   onChange={(e) => setVocabForm({ ...vocabForm, category: e.target.value })}
                   placeholder="Ví dụ: Greetings, Nature, Animals"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-teal-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-teal-500 focus:outline-none"
                 />
               </div>
 
@@ -1440,13 +1425,13 @@ export const AdminCurriculumPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setVocabModal(null)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-lg shadow-teal-600/30"
+                  className="px-5 py-2 rounded-2xl bg-teal-700 hover:bg-teal-700 text-white font-bold text-xs "
                 >
                   {vocabModal.mode === 'create' ? 'Thêm Từ' : 'Lưu Thay Đổi'}
                 </button>
@@ -1459,10 +1444,10 @@ export const AdminCurriculumPage: React.FC = () => {
       {/* ── MODAL: CREATE / EDIT SENTENCE PATTERN ──────────────────────────── */}
       {sentenceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-xl shadow-2xl animate-scale-up my-8 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800 shrink-0">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <MessageSquare className="text-pink-400" size={20} />
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-xl animate-scale-up my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 shrink-0">
+              <h2 className="text-lg font-black text-inherit flex items-center gap-2">
+                <MessageSquare className="text-pink-800" size={20} />
                 <span>
                   {sentenceModal.mode === 'create'
                     ? sentenceForm.entryMode === 'pair'
@@ -1471,21 +1456,21 @@ export const AdminCurriculumPage: React.FC = () => {
                     : 'Chỉnh Sửa Mẫu Câu'}
                 </span>
               </h2>
-              <button onClick={() => setSentenceModal(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setSentenceModal(null)} className="text-slate-600 hover:text-inherit">
                 <X size={20} />
               </button>
             </div>
 
             {/* Mode Selector for creation mode */}
             {sentenceModal.mode === 'create' && (
-              <div className="grid grid-cols-2 p-1 rounded-2xl bg-slate-950 border border-slate-800 mb-4 shrink-0">
+              <div className="grid grid-cols-2 p-1 rounded-2xl bg-white border border-slate-200 mb-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => setSentenceForm({ ...sentenceForm, entryMode: 'pair' })}
                   className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     sentenceForm.entryMode === 'pair'
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-purple-700 text-white'
+                      : 'text-inherit hover:text-inherit'
                   }`}
                 >
                   <Sparkles size={14} />
@@ -1496,8 +1481,8 @@ export const AdminCurriculumPage: React.FC = () => {
                   onClick={() => setSentenceForm({ ...sentenceForm, entryMode: 'single' })}
                   className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     sentenceForm.entryMode === 'single'
-                      ? 'bg-slate-800 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-slate-100 text-inherit'
+                      : 'text-slate-600 hover:text-inherit'
                   }`}
                 >
                   <MessageSquare size={14} />
@@ -1510,17 +1495,17 @@ export const AdminCurriculumPage: React.FC = () => {
               {sentenceModal.mode === 'create' && sentenceForm.entryMode === 'pair' ? (
                 <>
                   {/* Question Section */}
-                  <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-3">
+                  <div className="p-4 rounded-2xl bg-purple-50 border border-purple-500/30 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1.5">
+                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-800 border border-purple-500/30 flex items-center gap-1.5">
                         <HelpCircle size={12} />
                         <span>1. Câu Hỏi (Question)</span>
                       </span>
-                      <span className="text-[11px] text-purple-300/80 font-medium">Bắt buộc</span>
+                      <span className="text-[11px] text-purple-800 font-medium">Bắt buộc</span>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
                         Câu hỏi tiếng Anh *
                       </label>
                       <input
@@ -1529,13 +1514,13 @@ export const AdminCurriculumPage: React.FC = () => {
                         value={sentenceForm.questionEnglish}
                         onChange={(e) => setSentenceForm({ ...sentenceForm, questionEnglish: e.target.value })}
                         placeholder="Ví dụ: What is it? / What's your name? / Is it a book?"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-purple-500 focus:outline-none placeholder:text-slate-600"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-inherit text-sm focus:border-purple-500 focus:outline-none placeholder:text-slate-600"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                           Dịch nghĩa tiếng Việt
                         </label>
                         <input
@@ -1545,11 +1530,11 @@ export const AdminCurriculumPage: React.FC = () => {
                             setSentenceForm({ ...sentenceForm, questionVietnamese: e.target.value })
                           }
                           placeholder="Ví dụ: Đây là cái gì? / Đó có phải là sách không?"
-                          className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-purple-500 focus:outline-none placeholder:text-slate-600"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:border-purple-500 focus:outline-none placeholder:text-slate-600"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                           Phiên âm ngữ điệu (tùy chọn)
                         </label>
                         <input
@@ -1559,16 +1544,16 @@ export const AdminCurriculumPage: React.FC = () => {
                             setSentenceForm({ ...sentenceForm, questionPronunciation: e.target.value })
                           }
                           placeholder="Ví dụ: /wɒt ɪz ɪt/ ↗"
-                          className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-purple-500 focus:outline-none font-mono placeholder:text-slate-600"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:border-purple-500 focus:outline-none font-mono placeholder:text-slate-600"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Answers Section */}
-                  <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-3">
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-500/30 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-800 border border-emerald-500/30 flex items-center gap-1.5">
                         <CornerDownRight size={12} />
                         <span>2. Câu Trả Lời Đi Kèm (Answer)</span>
                       </span>
@@ -1583,7 +1568,7 @@ export const AdminCurriculumPage: React.FC = () => {
                             ]
                           })
                         }
-                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
+                        className="text-xs font-bold text-emerald-800 hover:text-emerald-800 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
                       >
                         <Plus size={13} />
                         <span>Thêm đáp án phụ (Yes / No...)</span>
@@ -1594,7 +1579,7 @@ export const AdminCurriculumPage: React.FC = () => {
                       {sentenceForm.answers.map((ans, idx) => (
                         <div
                           key={idx}
-                          className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2 relative"
+                          className="p-3 rounded-xl bg-white border border-slate-200 space-y-2 relative"
                         >
                           {sentenceForm.answers.length > 1 && (
                             <button
@@ -1603,14 +1588,14 @@ export const AdminCurriculumPage: React.FC = () => {
                                 const next = sentenceForm.answers.filter((_, i) => i !== idx);
                                 setSentenceForm({ ...sentenceForm, answers: next });
                               }}
-                              className="absolute top-2.5 right-2.5 text-slate-500 hover:text-rose-400"
+                              className="absolute top-2.5 right-2.5 text-slate-600 hover:text-rose-800"
                               title="Xóa câu trả lời này"
                             >
                               <X size={14} />
                             </button>
                           )}
                           <div>
-                            <label className="block text-[11px] font-bold text-emerald-300 mb-1">
+                            <label className="block text-[11px] font-bold text-emerald-800 mb-1">
                               Câu trả lời {sentenceForm.answers.length > 1 ? `#${idx + 1}` : ''} tiếng Anh *
                             </label>
                             <input
@@ -1623,12 +1608,12 @@ export const AdminCurriculumPage: React.FC = () => {
                                 setSentenceForm({ ...sentenceForm, answers: next });
                               }}
                               placeholder="Ví dụ: It's a book. / Yes, it is. / My name is Leo."
-                              className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-emerald-500 focus:outline-none placeholder:text-slate-600"
+                              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-inherit text-sm focus:border-emerald-500 focus:outline-none placeholder:text-slate-600"
                             />
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] text-slate-400 mb-0.5">
+                              <label className="block text-[10px] text-slate-600 mb-0.5">
                                 Dịch nghĩa tiếng Việt
                               </label>
                               <input
@@ -1640,11 +1625,11 @@ export const AdminCurriculumPage: React.FC = () => {
                                   setSentenceForm({ ...sentenceForm, answers: next });
                                 }}
                                 placeholder="Ví dụ: Đó là quyển sách. / Vâng, đúng rồi."
-                                className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:border-emerald-500 focus:outline-none placeholder:text-slate-600"
+                                className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:border-emerald-500 focus:outline-none placeholder:text-slate-600"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] text-slate-400 mb-0.5">
+                              <label className="block text-[10px] text-slate-600 mb-0.5">
                                 Phiên âm (tùy chọn)
                               </label>
                               <input
@@ -1656,7 +1641,7 @@ export const AdminCurriculumPage: React.FC = () => {
                                   setSentenceForm({ ...sentenceForm, answers: next });
                                 }}
                                 placeholder="Ví dụ: /ɪts ə bʊk/ ↘"
-                                className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:border-emerald-500 focus:outline-none font-mono placeholder:text-slate-600"
+                                className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:border-emerald-500 focus:outline-none font-mono placeholder:text-slate-600"
                               />
                             </div>
                           </div>
@@ -1670,13 +1655,13 @@ export const AdminCurriculumPage: React.FC = () => {
                 <div className="space-y-3.5">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                         Loại câu *
                       </label>
                       <select
                         value={sentenceForm.contentType}
                         onChange={(e) => setSentenceForm({ ...sentenceForm, contentType: e.target.value })}
-                        className="w-full px-3 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-pink-500 focus:outline-none"
+                        className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-pink-500 focus:outline-none"
                       >
                         <option value="PATTERN">Mẫu câu (Pattern)</option>
                         <option value="QUESTION">❓ Câu hỏi (Question)</option>
@@ -1687,7 +1672,7 @@ export const AdminCurriculumPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                         Độ khó (1 - 3)
                       </label>
                       <select
@@ -1695,7 +1680,7 @@ export const AdminCurriculumPage: React.FC = () => {
                         onChange={(e) =>
                           setSentenceForm({ ...sentenceForm, difficulty: Number(e.target.value) })
                         }
-                        className="w-full px-3 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-pink-500 focus:outline-none"
+                        className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-pink-500 focus:outline-none"
                       >
                         <option value={1}>⭐ Cơ bản (1)</option>
                         <option value={2}>⭐⭐ Trung bình (2)</option>
@@ -1706,8 +1691,8 @@ export const AdminCurriculumPage: React.FC = () => {
 
                   {/* If Answer, let user choose which question it pairs with in this lesson */}
                   {sentenceForm.contentType === 'ANSWER' && (
-                    <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30">
-                      <label className="block text-xs font-bold text-purple-300 mb-1 flex items-center gap-1.5">
+                    <div className="p-3 rounded-2xl bg-purple-50 border border-purple-500/30">
+                      <label className="block text-xs font-bold text-purple-800 mb-1 flex items-center gap-1.5">
                         <HelpCircle size={13} />
                         <span>🔗 Đi chung với câu hỏi nào trong bài này?</span>
                       </label>
@@ -1716,7 +1701,7 @@ export const AdminCurriculumPage: React.FC = () => {
                         onChange={(e) =>
                           setSentenceForm({ ...sentenceForm, relatedQuestion: e.target.value })
                         }
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-purple-500 focus:outline-none"
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-inherit text-xs focus:border-purple-500 focus:outline-none"
                       >
                         <option value="">-- Không ghép cặp (Câu trả lời độc lập) --</option>
                         {(
@@ -1733,7 +1718,7 @@ export const AdminCurriculumPage: React.FC = () => {
                   )}
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                       Mẫu câu tiếng Anh *
                     </label>
                     <input
@@ -1742,12 +1727,12 @@ export const AdminCurriculumPage: React.FC = () => {
                       value={sentenceForm.english}
                       onChange={(e) => setSentenceForm({ ...sentenceForm, english: e.target.value })}
                       placeholder="Ví dụ: How are you? / I am fine, thank you."
-                      className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-pink-500 focus:outline-none"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-pink-500 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                       Dịch nghĩa tiếng Việt
                     </label>
                     <input
@@ -1755,12 +1740,12 @@ export const AdminCurriculumPage: React.FC = () => {
                       value={sentenceForm.vietnamese}
                       onChange={(e) => setSentenceForm({ ...sentenceForm, vietnamese: e.target.value })}
                       placeholder="Ví dụ: Bạn có khỏe không? / Mình khỏe, cảm ơn bạn."
-                      className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-pink-500 focus:outline-none"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-pink-500 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                       Phiên âm ngữ điệu (Intonation / Pronunciation)
                     </label>
                     <input
@@ -1768,23 +1753,23 @@ export const AdminCurriculumPage: React.FC = () => {
                       value={sentenceForm.pronunciation}
                       onChange={(e) => setSentenceForm({ ...sentenceForm, pronunciation: e.target.value })}
                       placeholder="Ví dụ: /haʊ ɑːr juː/ ↗"
-                      className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-white text-sm focus:border-pink-500 focus:outline-none font-mono"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-inherit text-sm focus:border-pink-500 focus:outline-none font-mono"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800 shrink-0">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 shrink-0">
                 <button
                   type="button"
                   onClick={() => setSentenceModal(null)}
-                  className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-all"
+                  className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-all"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-2xl bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs shadow-lg shadow-pink-600/30 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2.5 rounded-2xl bg-pink-700 hover:bg-pink-700 text-white font-bold text-xs  transition-all flex items-center gap-1.5"
                 >
                   <Check size={14} />
                   <span>

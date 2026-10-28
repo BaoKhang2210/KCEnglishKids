@@ -1,0 +1,117 @@
+/* Fixed reading scale for staff. Keep these rules outside Tailwind's layers so
+   compact utilities in older views cannot shrink labels or form controls. */
+.staff-surface {
+  --staff-body: 1.25rem;
+  --staff-small: 1.125rem;
+  color: #0f172a;
+  background: #f8fafc;
+  font-size: var(--staff-body);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  color-scheme: light;
+}
+.staff-surface :where(p, label, input, select, textarea, td, th, button, a) { line-height: 1.6; }
+.staff-surface :is([class*="text-xs"], [class*="text-sm"], [class*="text-[8px]"], [class*="text-[9px]"], [class*="text-[9."], [class*="text-[10px]"], [class*="text-[10."], [class*="text-[11px]"], [class*="text-[11."], [class*="text-[12px]"], [class*="text-[12."], [class*="text-[13px]"], [class*="text-[13."], [class*="text-[14px]"], [class*="text-[14."], [class*="text-[15px]"], [class*="text-[15."], [class*="text-[16px]"], [class*="text-[17px]"], small) {
+  font-size: var(--staff-small) !important;
+  line-height: 1.6 !important;
+}
+.staff-surface :is(.text-base, input:not([type="checkbox"]):not([type="radio"]), select, textarea, td, th) {
+  font-size: var(--staff-body);
+}
+.staff-surface :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  font-size: var(--staff-body) !important;
+}
+.staff-surface :where(h1, h2, h3, h4) { text-wrap: pretty; }
+.staff-surface :where(h1) { line-height: 1.3; }
+.staff-surface :where(h2, h3) { line-height: 1.4; }
+.staff-surface :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  min-height: 3.25rem;
+  max-width: 100%;
+  padding-block: .7rem;
+  border-radius: .75rem;
+}
+.staff-surface :where(input:not([class*="pl-"]):not([type="checkbox"]):not([type="radio"]), select, textarea) { padding-left: .85rem; }
+.staff-surface :where(input:not([class*="pr-"]):not([type="checkbox"]):not([type="radio"]), select, textarea) { padding-right: .85rem; }
+.staff-surface :where(input, textarea)::placeholder { color: #64748b; opacity: 1; }
+.staff-surface :where(select option) { background: white; color: #0f172a; }
+.staff-surface :where(button, a[role="button"], nav a) { min-height: 2.75rem; }
+.staff-surface :where(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid #0369a1;
+  outline-offset: 3px;
+}
+.staff-surface :where(button:disabled) { cursor: not-allowed; }
+.staff-surface :where(th, td) { padding: 1rem; vertical-align: middle; }
+.staff-surface :where(th) { letter-spacing: normal; text-transform: none; }
+.staff-surface :where(nav a) { white-space: normal; }
+.staff-surface :where(nav a span) { overflow: visible; text-overflow: clip; white-space: normal; }
+.staff-surface :where(svg) { flex-shrink: 0; }
+.staff-surface :where([role="dialog"]) { max-height: 92dvh; overflow-y: auto; }
+
+/* Flat surfaces use borders and spacing instead of decorative shadows. */
+.staff-surface *, .staff-surface *::before, .staff-surface *::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  --tw-drop-shadow: drop-shadow(0 0 #0000) !important;
+  --tw-drop-shadow-shadow: 0 0 #0000 !important;
+}
+.staff-surface [class*="drop-shadow"] { filter: none !important; }
+.staff-workspace { user-select: text; }
+.staff-workspace :is(.truncate, [class*="line-clamp-"]) {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-line-clamp: unset;
+}
+.staff-workspace :where([class*="tracking-wid"]) { letter-spacing: normal; }
+.staff-workspace :where(.uppercase) { text-transform: none; }
+.staff-workspace :where(.flex > *, .grid > *) { min-width: 0; }
+.staff-workspace :where(button, a) { text-wrap: pretty; }
+.staff-workspace :where(.fixed.inset-0 > [class*="max-w-"]) { max-height: 92dvh; overflow-y: auto; }
+.staff-workspace :where(.fixed.inset-0) { overflow-y: auto; }
+.staff-workspace :where(.fixed.inset-0 > *) { margin-block: auto; }
+.staff-workspace :where(.overflow-x-auto) { overscroll-behavior-inline: contain; }
+.staff-workspace :where(table) { width: 100%; }
+.staff-workspace :where(thead) { background: #f1f5f9; }
+.staff-workspace :where(tbody tr) { border-bottom: 1px solid #e2e8f0; }
+.staff-workspace :where(tbody tr:hover) { background-color: #f8fafc; }
+.staff-workspace :where(button:not(:disabled), a)[class*="bg-"]:hover { filter: brightness(.96); }
+.staff-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  border: 1px solid #cbd5e1;
+  border-radius: 1.5rem;
+  background: white;
+  color: #0f172a;
+}
+.staff-page-header > :first-child { flex: 1 1 24rem; }
+.staff-page-header p { max-width: 65ch; color: #475569; }
+.staff-page-header h1 { margin-block: .65rem; }
+.staff-page-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.staff-page-header-actions button { justify-content: center; }
+.staff-skip-link { position: fixed; top: -100px; left: 1rem; z-index: 100; padding: .75rem 1rem; background: white; color: #0f172a; border: 3px solid #0369a1; }
+.staff-skip-link:focus { top: 1rem; }
+
+.recognition-panel { border: 1px solid #cbd5e1; background: white; color: #0f172a; border-radius: 1.5rem; padding: clamp(1rem, 3vw, 2rem); }
+.recognition-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.recognition-filters label { display: grid; gap: .5rem; font-weight: 800; }
+.recognition-filters select, .recognition-filters input { width: 100%; min-width: 0; border: 1px solid #94a3b8; background: #f8fafc; }
+.recognition-button { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; border-radius: .85rem; padding: .75rem 1.25rem; background: #0f766e; color: white; font-weight: 800; cursor: pointer; }
+.recognition-button:hover { background: #115e59; }
+.recognition-button:disabled { cursor: not-allowed; }
+.recognition-table { width: 100%; min-width: 600px; border-collapse: collapse; text-align: left; }
+.recognition-table th { background: #f1f5f9; color: #334155; }
+.recognition-table tr { border-bottom: 1px solid #e2e8f0; }
+.recognition-table tr[data-winner="true"] { background: #fffbeb; }
+@media (max-width: 767px) {
+  .recognition-filters { grid-template-columns: 1fr; }
+  .staff-page-header-actions { width: 100%; }
+  .staff-page-header-actions > :last-child { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-surface *, .staff-surface *::before, .staff-surface *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

@@ -1,0 +1,3635 @@
+{
+  "version": "learning-art-v1",
+  "source": "Microsoft Fluent Emoji + KCEnglishKids educational compositions",
+  "revision": "1ffb34c752ecf5d402f04cfb4b392c77f57c54bc",
+  "license": "MIT",
+  "vocabulary": {
+    "teacher": {
+      "english": "teacher",
+      "url": "/images/vocabulary/teacher-v1.svg",
+      "animationUrl": "/images/animations/teacher-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "boy": {
+      "english": "boy",
+      "url": "/images/vocabulary/boy-v1.svg",
+      "animationUrl": "/images/animations/boy-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "girl": {
+      "english": "girl",
+      "url": "/images/vocabulary/girl-v1.svg",
+      "animationUrl": "/images/animations/girl-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "school": {
+      "english": "school",
+      "url": "/images/vocabulary/school-v1.svg",
+      "animationUrl": "/images/animations/school-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sun": {
+      "english": "sun",
+      "url": "/images/vocabulary/sun-v1.svg",
+      "animationUrl": "/images/animations/sun-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "tree": {
+      "english": "tree",
+      "url": "/images/vocabulary/tree-v1.svg",
+      "animationUrl": "/images/animations/tree-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "book": {
+      "english": "book",
+      "url": "/images/vocabulary/book-v1.svg",
+      "animationUrl": "/images/animations/book-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "crayon": {
+      "english": "crayon",
+      "url": "/images/vocabulary/crayon-v1.svg",
+      "animationUrl": "/images/animations/crayon-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "chair": {
+      "english": "chair",
+      "url": "/images/vocabulary/chair-v1.svg",
+      "animationUrl": "/images/animations/chair-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "table": {
+      "english": "table",
+      "url": "/images/vocabulary/table-v1.svg",
+      "animationUrl": "/images/animations/table-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "leo": {
+      "english": "Leo",
+      "url": "/images/vocabulary/leo-v1.svg",
+      "animationUrl": "/images/animations/leo-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "tickles": {
+      "english": "Tickles",
+      "url": "/images/vocabulary/tickles-v1.svg",
+      "animationUrl": "/images/animations/tickles-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "dad": {
+      "english": "Dad",
+      "url": "/images/vocabulary/dad-v1.svg",
+      "animationUrl": "/images/animations/dad-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "mom": {
+      "english": "Mom",
+      "url": "/images/vocabulary/mom-v1.svg",
+      "animationUrl": "/images/animations/mom-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "mia": {
+      "english": "Mia",
+      "url": "/images/vocabulary/mia-v1.svg",
+      "animationUrl": "/images/animations/mia-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "face": {
+      "english": "face",
+      "url": "/images/vocabulary/face-v1.svg",
+      "animationUrl": "/images/animations/face-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "hair": {
+      "english": "hair",
+      "url": "/images/vocabulary/hair-v1.svg",
+      "animationUrl": "/images/animations/hair-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "eyes": {
+      "english": "eyes",
+      "url": "/images/vocabulary/eyes-v1.svg",
+      "animationUrl": "/images/animations/eyes-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "nose": {
+      "english": "nose",
+      "url": "/images/vocabulary/nose-v1.svg",
+      "animationUrl": "/images/animations/nose-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "forehead": {
+      "english": "forehead",
+      "url": "/images/vocabulary/forehead-v1.svg",
+      "animationUrl": "/images/animations/forehead-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "mouth": {
+      "english": "mouth",
+      "url": "/images/vocabulary/mouth-v1.svg",
+      "animationUrl": "/images/animations/mouth-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "ears": {
+      "english": "ears",
+      "url": "/images/vocabulary/ears-v1.svg",
+      "animationUrl": "/images/animations/ears-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cheeks": {
+      "english": "cheeks",
+      "url": "/images/vocabulary/cheeks-v1.svg",
+      "animationUrl": "/images/animations/cheeks-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "happy": {
+      "english": "happy",
+      "url": "/images/vocabulary/happy-v1.svg",
+      "animationUrl": "/images/animations/happy-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "sad": {
+      "english": "sad",
+      "url": "/images/vocabulary/sad-v1.svg",
+      "animationUrl": "/images/animations/sad-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "angry": {
+      "english": "angry",
+      "url": "/images/vocabulary/angry-v1.svg",
+      "animationUrl": "/images/animations/angry-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "arms": {
+      "english": "arms",
+      "url": "/images/vocabulary/arms-v1.svg",
+      "animationUrl": "/images/animations/arms-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "hands": {
+      "english": "hands",
+      "url": "/images/vocabulary/hands-v1.svg",
+      "animationUrl": "/images/animations/hands-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "legs": {
+      "english": "legs",
+      "url": "/images/vocabulary/legs-v1.svg",
+      "animationUrl": "/images/animations/legs-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "feet": {
+      "english": "feet",
+      "url": "/images/vocabulary/feet-v1.svg",
+      "animationUrl": "/images/animations/feet-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "fingers": {
+      "english": "fingers",
+      "url": "/images/vocabulary/fingers-v1.svg",
+      "animationUrl": "/images/animations/fingers-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "head": {
+      "english": "head",
+      "url": "/images/vocabulary/head-v1.svg",
+      "animationUrl": "/images/animations/head-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "elbow": {
+      "english": "elbow",
+      "url": "/images/vocabulary/elbow-v1.svg",
+      "animationUrl": "/images/animations/elbow-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "knee": {
+      "english": "knee",
+      "url": "/images/vocabulary/knee-v1.svg",
+      "animationUrl": "/images/animations/knee-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "run": {
+      "english": "run",
+      "url": "/images/vocabulary/run-v1.svg",
+      "animationUrl": "/images/animations/run-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "dance": {
+      "english": "dance",
+      "url": "/images/vocabulary/dance-v1.svg",
+      "animationUrl": "/images/animations/dance-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "crawl": {
+      "english": "crawl",
+      "url": "/images/vocabulary/crawl-v1.svg",
+      "animationUrl": "/images/animations/crawl-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "kick": {
+      "english": "kick",
+      "url": "/images/vocabulary/kick-v1.svg",
+      "animationUrl": "/images/animations/kick-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "family": {
+      "english": "family",
+      "url": "/images/vocabulary/family-v1.svg",
+      "animationUrl": "/images/animations/family-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "father": {
+      "english": "father",
+      "url": "/images/vocabulary/father-v1.svg",
+      "animationUrl": "/images/animations/father-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "mother": {
+      "english": "mother",
+      "url": "/images/vocabulary/mother-v1.svg",
+      "animationUrl": "/images/animations/mother-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sister": {
+      "english": "sister",
+      "url": "/images/vocabulary/sister-v1.svg",
+      "animationUrl": "/images/animations/sister-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "brother": {
+      "english": "brother",
+      "url": "/images/vocabulary/brother-v1.svg",
+      "animationUrl": "/images/animations/brother-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "grandfather": {
+      "english": "grandfather",
+      "url": "/images/vocabulary/grandfather-v1.svg",
+      "animationUrl": "/images/animations/grandfather-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "grandmother": {
+      "english": "grandmother",
+      "url": "/images/vocabulary/grandmother-v1.svg",
+      "animationUrl": "/images/animations/grandmother-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "baby": {
+      "english": "baby",
+      "url": "/images/vocabulary/baby-v1.svg",
+      "animationUrl": "/images/animations/baby-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "young": {
+      "english": "young",
+      "url": "/images/vocabulary/young-v1.svg",
+      "animationUrl": "/images/animations/young-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "old": {
+      "english": "old",
+      "url": "/images/vocabulary/old-v1.svg",
+      "animationUrl": "/images/animations/old-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "short": {
+      "english": "short",
+      "url": "/images/vocabulary/short-v1.svg",
+      "animationUrl": "/images/animations/short-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "tall": {
+      "english": "tall",
+      "url": "/images/vocabulary/tall-v1.svg",
+      "animationUrl": "/images/animations/tall-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "dog": {
+      "english": "dog",
+      "url": "/images/vocabulary/dog-v1.svg",
+      "animationUrl": "/images/animations/dog-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "bird": {
+      "english": "bird",
+      "url": "/images/vocabulary/bird-v1.svg",
+      "animationUrl": "/images/animations/bird-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "rabbit": {
+      "english": "rabbit",
+      "url": "/images/vocabulary/rabbit-v1.svg",
+      "animationUrl": "/images/animations/rabbit-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "fish": {
+      "english": "fish",
+      "url": "/images/vocabulary/fish-v1.svg",
+      "animationUrl": "/images/animations/fish-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "turtle": {
+      "english": "turtle",
+      "url": "/images/vocabulary/turtle-v1.svg",
+      "animationUrl": "/images/animations/turtle-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cat": {
+      "english": "cat",
+      "url": "/images/vocabulary/cat-v1.svg",
+      "animationUrl": "/images/animations/cat-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "hamster": {
+      "english": "hamster",
+      "url": "/images/vocabulary/hamster-v1.svg",
+      "animationUrl": "/images/animations/hamster-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "lizard": {
+      "english": "lizard",
+      "url": "/images/vocabulary/lizard-v1.svg",
+      "animationUrl": "/images/animations/lizard-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "walk": {
+      "english": "walk",
+      "url": "/images/vocabulary/walk-v1.svg",
+      "animationUrl": "/images/animations/walk-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "jump": {
+      "english": "jump",
+      "url": "/images/vocabulary/jump-v1.svg",
+      "animationUrl": "/images/animations/jump-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "swim": {
+      "english": "swim",
+      "url": "/images/vocabulary/swim-v1.svg",
+      "animationUrl": "/images/animations/swim-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "fly": {
+      "english": "fly",
+      "url": "/images/vocabulary/fly-v1.svg",
+      "animationUrl": "/images/animations/fly-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "apple": {
+      "english": "apple",
+      "url": "/images/vocabulary/apple-v1.svg",
+      "animationUrl": "/images/animations/apple-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "pear": {
+      "english": "pear",
+      "url": "/images/vocabulary/pear-v1.svg",
+      "animationUrl": "/images/animations/pear-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "tomato": {
+      "english": "tomato",
+      "url": "/images/vocabulary/tomato-v1.svg",
+      "animationUrl": "/images/animations/tomato-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "carrot": {
+      "english": "carrot",
+      "url": "/images/vocabulary/carrot-v1.svg",
+      "animationUrl": "/images/animations/carrot-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "bananas": {
+      "english": "bananas",
+      "url": "/images/vocabulary/bananas-v1.svg",
+      "animationUrl": "/images/animations/bananas-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "grapes": {
+      "english": "grapes",
+      "url": "/images/vocabulary/grapes-v1.svg",
+      "animationUrl": "/images/animations/grapes-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cucumbers": {
+      "english": "cucumbers",
+      "url": "/images/vocabulary/cucumbers-v1.svg",
+      "animationUrl": "/images/animations/cucumbers-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "lettuce": {
+      "english": "lettuce",
+      "url": "/images/vocabulary/lettuce-v1.svg",
+      "animationUrl": "/images/animations/lettuce-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "pineapple": {
+      "english": "pineapple",
+      "url": "/images/vocabulary/pineapple-v1.svg",
+      "animationUrl": "/images/animations/pineapple-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "orange": {
+      "english": "orange",
+      "url": "/images/vocabulary/orange-v1.svg",
+      "animationUrl": "/images/animations/orange-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "potato": {
+      "english": "potato",
+      "url": "/images/vocabulary/potato-v1.svg",
+      "animationUrl": "/images/animations/potato-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "peas": {
+      "english": "peas",
+      "url": "/images/vocabulary/peas-v1.svg",
+      "animationUrl": "/images/animations/peas-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "car": {
+      "english": "car",
+      "url": "/images/vocabulary/car-v1.svg",
+      "animationUrl": "/images/animations/car-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "teddy_bear": {
+      "english": "teddy bear",
+      "url": "/images/vocabulary/teddy_bear-v1.svg",
+      "animationUrl": "/images/animations/teddy_bear-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "doll": {
+      "english": "doll",
+      "url": "/images/vocabulary/doll-v1.svg",
+      "animationUrl": "/images/animations/doll-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "ball": {
+      "english": "ball",
+      "url": "/images/vocabulary/ball-v1.svg",
+      "animationUrl": "/images/animations/ball-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "kite": {
+      "english": "kite",
+      "url": "/images/vocabulary/kite-v1.svg",
+      "animationUrl": "/images/animations/kite-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "tricycle": {
+      "english": "tricycle",
+      "url": "/images/vocabulary/tricycle-v1.svg",
+      "animationUrl": "/images/animations/tricycle-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "blocks": {
+      "english": "blocks",
+      "url": "/images/vocabulary/blocks-v1.svg",
+      "animationUrl": "/images/animations/blocks-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "yo_yo": {
+      "english": "yo-yo",
+      "url": "/images/vocabulary/yo_yo-v1.svg",
+      "animationUrl": "/images/animations/yo_yo-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "train": {
+      "english": "train",
+      "url": "/images/vocabulary/train-v1.svg",
+      "animationUrl": "/images/animations/train-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "puzzle": {
+      "english": "puzzle",
+      "url": "/images/vocabulary/puzzle-v1.svg",
+      "animationUrl": "/images/animations/puzzle-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "board_game": {
+      "english": "board game",
+      "url": "/images/vocabulary/board_game-v1.svg",
+      "animationUrl": "/images/animations/board_game-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "robot": {
+      "english": "robot",
+      "url": "/images/vocabulary/robot-v1.svg",
+      "animationUrl": "/images/animations/robot-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "flower": {
+      "english": "flower",
+      "url": "/images/vocabulary/flower-v1.svg",
+      "animationUrl": "/images/animations/flower-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "grass": {
+      "english": "grass",
+      "url": "/images/vocabulary/grass-v1.svg",
+      "animationUrl": "/images/animations/grass-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "bee": {
+      "english": "bee",
+      "url": "/images/vocabulary/bee-v1.svg",
+      "animationUrl": "/images/animations/bee-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "slide": {
+      "english": "slide",
+      "url": "/images/vocabulary/slide-v1.svg",
+      "animationUrl": "/images/animations/slide-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "swing": {
+      "english": "swing",
+      "url": "/images/vocabulary/swing-v1.svg",
+      "animationUrl": "/images/animations/swing-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "seesaw": {
+      "english": "seesaw",
+      "url": "/images/vocabulary/seesaw-v1.svg",
+      "animationUrl": "/images/animations/seesaw-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "monkey_bars": {
+      "english": "monkey bars",
+      "url": "/images/vocabulary/monkey_bars-v1.svg",
+      "animationUrl": "/images/animations/monkey_bars-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "cloud": {
+      "english": "cloud",
+      "url": "/images/vocabulary/cloud-v1.svg",
+      "animationUrl": "/images/animations/cloud-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sky": {
+      "english": "sky",
+      "url": "/images/vocabulary/sky-v1.svg",
+      "animationUrl": "/images/animations/sky-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "butterfly": {
+      "english": "butterfly",
+      "url": "/images/vocabulary/butterfly-v1.svg",
+      "animationUrl": "/images/animations/butterfly-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "city": {
+      "english": "city",
+      "url": "/images/vocabulary/city-v1.svg",
+      "animationUrl": "/images/animations/city-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "country": {
+      "english": "country",
+      "url": "/images/vocabulary/country-v1.svg",
+      "animationUrl": "/images/animations/country-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "house": {
+      "english": "house",
+      "url": "/images/vocabulary/house-v1.svg",
+      "animationUrl": "/images/animations/house-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "farm": {
+      "english": "farm",
+      "url": "/images/vocabulary/farm-v1.svg",
+      "animationUrl": "/images/animations/farm-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "apartment_building": {
+      "english": "apartment building",
+      "url": "/images/vocabulary/apartment_building-v1.svg",
+      "animationUrl": "/images/animations/apartment_building-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "door": {
+      "english": "door",
+      "url": "/images/vocabulary/door-v1.svg",
+      "animationUrl": "/images/animations/door-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "window": {
+      "english": "window",
+      "url": "/images/vocabulary/window-v1.svg",
+      "animationUrl": "/images/animations/window-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "street": {
+      "english": "street",
+      "url": "/images/vocabulary/street-v1.svg",
+      "animationUrl": "/images/animations/street-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "park": {
+      "english": "park",
+      "url": "/images/vocabulary/park-v1.svg",
+      "animationUrl": "/images/animations/park-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "playground": {
+      "english": "playground",
+      "url": "/images/vocabulary/playground-v1.svg",
+      "animationUrl": "/images/animations/playground-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "market": {
+      "english": "market",
+      "url": "/images/vocabulary/market-v1.svg",
+      "animationUrl": "/images/animations/market-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "toy_store": {
+      "english": "toy store",
+      "url": "/images/vocabulary/toy_store-v1.svg",
+      "animationUrl": "/images/animations/toy_store-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "paint": {
+      "english": "paint",
+      "url": "/images/vocabulary/paint-v1.svg",
+      "animationUrl": "/images/animations/paint-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "draw": {
+      "english": "draw",
+      "url": "/images/vocabulary/draw-v1.svg",
+      "animationUrl": "/images/animations/draw-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "color": {
+      "english": "color",
+      "url": "/images/vocabulary/color-v1.svg",
+      "animationUrl": "/images/animations/color-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "cut": {
+      "english": "cut",
+      "url": "/images/vocabulary/cut-v1.svg",
+      "animationUrl": "/images/animations/cut-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "glue": {
+      "english": "glue",
+      "url": "/images/vocabulary/glue-v1.svg",
+      "animationUrl": "/images/animations/glue-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "pencil": {
+      "english": "pencil",
+      "url": "/images/vocabulary/pencil-v1.svg",
+      "animationUrl": "/images/animations/pencil-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "marker": {
+      "english": "marker",
+      "url": "/images/vocabulary/marker-v1.svg",
+      "animationUrl": "/images/animations/marker-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "paintbrush": {
+      "english": "paintbrush",
+      "url": "/images/vocabulary/paintbrush-v1.svg",
+      "animationUrl": "/images/animations/paintbrush-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "glue_stick": {
+      "english": "glue stick",
+      "url": "/images/vocabulary/glue_stick-v1.svg",
+      "animationUrl": "/images/animations/glue_stick-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "scissors": {
+      "english": "scissors",
+      "url": "/images/vocabulary/scissors-v1.svg",
+      "animationUrl": "/images/animations/scissors-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "listen_to_stories": {
+      "english": "listen to stories",
+      "url": "/images/vocabulary/listen_to_stories-v1.svg",
+      "animationUrl": "/images/animations/listen_to_stories-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "sing_songs": {
+      "english": "sing songs",
+      "url": "/images/vocabulary/sing_songs-v1.svg",
+      "animationUrl": "/images/animations/sing_songs-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "tidy_up": {
+      "english": "tidy up",
+      "url": "/images/vocabulary/tidy_up-v1.svg",
+      "animationUrl": "/images/animations/tidy_up-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "eat_lunch": {
+      "english": "eat lunch",
+      "url": "/images/vocabulary/eat_lunch-v1.svg",
+      "animationUrl": "/images/animations/eat_lunch-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "play_with_friends": {
+      "english": "play with friends",
+      "url": "/images/vocabulary/play_with_friends-v1.svg",
+      "animationUrl": "/images/animations/play_with_friends-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "wash_my_face": {
+      "english": "wash my face",
+      "url": "/images/vocabulary/wash_my_face-v1.svg",
+      "animationUrl": "/images/animations/wash_my_face-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "brush_my_hair": {
+      "english": "brush my hair",
+      "url": "/images/vocabulary/brush_my_hair-v1.svg",
+      "animationUrl": "/images/animations/brush_my_hair-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "eat_healthy_food": {
+      "english": "eat healthy food",
+      "url": "/images/vocabulary/eat_healthy_food-v1.svg",
+      "animationUrl": "/images/animations/eat_healthy_food-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "put_on_a_jacket": {
+      "english": "put on a jacket",
+      "url": "/images/vocabulary/put_on_a_jacket-v1.svg",
+      "animationUrl": "/images/animations/put_on_a_jacket-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "drink_water": {
+      "english": "drink water",
+      "url": "/images/vocabulary/drink_water-v1.svg",
+      "animationUrl": "/images/animations/drink_water-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "toothbrush": {
+      "english": "toothbrush",
+      "url": "/images/vocabulary/toothbrush-v1.svg",
+      "animationUrl": "/images/animations/toothbrush-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "brush": {
+      "english": "brush",
+      "url": "/images/vocabulary/brush-v1.svg",
+      "animationUrl": "/images/animations/brush-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "soap": {
+      "english": "soap",
+      "url": "/images/vocabulary/soap-v1.svg",
+      "animationUrl": "/images/animations/soap-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "towel": {
+      "english": "towel",
+      "url": "/images/vocabulary/towel-v1.svg",
+      "animationUrl": "/images/animations/towel-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "jump_rope": {
+      "english": "jump rope",
+      "url": "/images/vocabulary/jump_rope-v1.svg",
+      "animationUrl": "/images/animations/jump_rope-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "tired": {
+      "english": "tired",
+      "url": "/images/vocabulary/tired-v1.svg",
+      "animationUrl": "/images/animations/tired-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "thirsty": {
+      "english": "thirsty",
+      "url": "/images/vocabulary/thirsty-v1.svg",
+      "animationUrl": "/images/animations/thirsty-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "dirty": {
+      "english": "dirty",
+      "url": "/images/vocabulary/dirty-v1.svg",
+      "animationUrl": "/images/animations/dirty-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "hungry": {
+      "english": "hungry",
+      "url": "/images/vocabulary/hungry-v1.svg",
+      "animationUrl": "/images/animations/hungry-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "sick": {
+      "english": "sick",
+      "url": "/images/vocabulary/sick-v1.svg",
+      "animationUrl": "/images/animations/sick-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "living_room": {
+      "english": "living room",
+      "url": "/images/vocabulary/living_room-v1.svg",
+      "animationUrl": "/images/animations/living_room-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "dining_room": {
+      "english": "dining room",
+      "url": "/images/vocabulary/dining_room-v1.svg",
+      "animationUrl": "/images/animations/dining_room-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "kitchen": {
+      "english": "kitchen",
+      "url": "/images/vocabulary/kitchen-v1.svg",
+      "animationUrl": "/images/animations/kitchen-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "bedroom": {
+      "english": "bedroom",
+      "url": "/images/vocabulary/bedroom-v1.svg",
+      "animationUrl": "/images/animations/bedroom-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "bathroom": {
+      "english": "bathroom",
+      "url": "/images/vocabulary/bathroom-v1.svg",
+      "animationUrl": "/images/animations/bathroom-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "bed": {
+      "english": "bed",
+      "url": "/images/vocabulary/bed-v1.svg",
+      "animationUrl": "/images/animations/bed-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "couch": {
+      "english": "couch",
+      "url": "/images/vocabulary/couch-v1.svg",
+      "animationUrl": "/images/animations/couch-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "shower": {
+      "english": "shower",
+      "url": "/images/vocabulary/shower-v1.svg",
+      "animationUrl": "/images/animations/shower-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "lamp": {
+      "english": "lamp",
+      "url": "/images/vocabulary/lamp-v1.svg",
+      "animationUrl": "/images/animations/lamp-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "fridge": {
+      "english": "fridge",
+      "url": "/images/vocabulary/fridge-v1.svg",
+      "animationUrl": "/images/animations/fridge-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "cook": {
+      "english": "cook",
+      "url": "/images/vocabulary/cook-v1.svg",
+      "animationUrl": "/images/animations/cook-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "sweep_the_floor": {
+      "english": "sweep the floor",
+      "url": "/images/vocabulary/sweep_the_floor-v1.svg",
+      "animationUrl": "/images/animations/sweep_the_floor-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "set_the_table": {
+      "english": "set the table",
+      "url": "/images/vocabulary/set_the_table-v1.svg",
+      "animationUrl": "/images/animations/set_the_table-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "watch_tv": {
+      "english": "watch TV",
+      "url": "/images/vocabulary/watch_tv-v1.svg",
+      "animationUrl": "/images/animations/watch_tv-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "make_the_bed": {
+      "english": "make the bed",
+      "url": "/images/vocabulary/make_the_bed-v1.svg",
+      "animationUrl": "/images/animations/make_the_bed-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "cow": {
+      "english": "cow",
+      "url": "/images/vocabulary/cow-v1.svg",
+      "animationUrl": "/images/animations/cow-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "hen": {
+      "english": "hen",
+      "url": "/images/vocabulary/hen-v1.svg",
+      "animationUrl": "/images/animations/hen-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "duck": {
+      "english": "duck",
+      "url": "/images/vocabulary/duck-v1.svg",
+      "animationUrl": "/images/animations/duck-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "horse": {
+      "english": "horse",
+      "url": "/images/vocabulary/horse-v1.svg",
+      "animationUrl": "/images/animations/horse-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sheep": {
+      "english": "sheep",
+      "url": "/images/vocabulary/sheep-v1.svg",
+      "animationUrl": "/images/animations/sheep-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "feed_the_ducks": {
+      "english": "feed the ducks",
+      "url": "/images/vocabulary/feed_the_ducks-v1.svg",
+      "animationUrl": "/images/animations/feed_the_ducks-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "milk_the_cows": {
+      "english": "milk the cows",
+      "url": "/images/vocabulary/milk_the_cows-v1.svg",
+      "animationUrl": "/images/animations/milk_the_cows-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "groom_the_horses": {
+      "english": "groom the horses",
+      "url": "/images/vocabulary/groom_the_horses-v1.svg",
+      "animationUrl": "/images/animations/groom_the_horses-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "shear_the_sheep": {
+      "english": "shear the sheep",
+      "url": "/images/vocabulary/shear_the_sheep-v1.svg",
+      "animationUrl": "/images/animations/shear_the_sheep-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "collect_the_eggs": {
+      "english": "collect the eggs",
+      "url": "/images/vocabulary/collect_the_eggs-v1.svg",
+      "animationUrl": "/images/animations/collect_the_eggs-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "calf": {
+      "english": "calf",
+      "url": "/images/vocabulary/calf-v1.svg",
+      "animationUrl": "/images/animations/calf-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "lamb": {
+      "english": "lamb",
+      "url": "/images/vocabulary/lamb-v1.svg",
+      "animationUrl": "/images/animations/lamb-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "duckling": {
+      "english": "duckling",
+      "url": "/images/vocabulary/duckling-v1.svg",
+      "animationUrl": "/images/animations/duckling-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "chick": {
+      "english": "chick",
+      "url": "/images/vocabulary/chick-v1.svg",
+      "animationUrl": "/images/animations/chick-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "foal": {
+      "english": "foal",
+      "url": "/images/vocabulary/foal-v1.svg",
+      "animationUrl": "/images/animations/foal-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "breakfast": {
+      "english": "breakfast",
+      "url": "/images/vocabulary/breakfast-v1.svg",
+      "animationUrl": "/images/animations/breakfast-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "lunch": {
+      "english": "lunch",
+      "url": "/images/vocabulary/lunch-v1.svg",
+      "animationUrl": "/images/animations/lunch-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "dinner": {
+      "english": "dinner",
+      "url": "/images/vocabulary/dinner-v1.svg",
+      "animationUrl": "/images/animations/dinner-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "eggs": {
+      "english": "eggs",
+      "url": "/images/vocabulary/eggs-v1.svg",
+      "animationUrl": "/images/animations/eggs-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "chicken": {
+      "english": "chicken",
+      "url": "/images/vocabulary/chicken-v1.svg",
+      "animationUrl": "/images/animations/chicken-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "salad": {
+      "english": "salad",
+      "url": "/images/vocabulary/salad-v1.svg",
+      "animationUrl": "/images/animations/salad-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "pancakes": {
+      "english": "pancakes",
+      "url": "/images/vocabulary/pancakes-v1.svg",
+      "animationUrl": "/images/animations/pancakes-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "water": {
+      "english": "water",
+      "url": "/images/vocabulary/water-v1.svg",
+      "animationUrl": "/images/animations/water-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "soup": {
+      "english": "soup",
+      "url": "/images/vocabulary/soup-v1.svg",
+      "animationUrl": "/images/animations/soup-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "rice": {
+      "english": "rice",
+      "url": "/images/vocabulary/rice-v1.svg",
+      "animationUrl": "/images/animations/rice-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "milk": {
+      "english": "milk",
+      "url": "/images/vocabulary/milk-v1.svg",
+      "animationUrl": "/images/animations/milk-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cereal": {
+      "english": "cereal",
+      "url": "/images/vocabulary/cereal-v1.svg",
+      "animationUrl": "/images/animations/cereal-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "orange_juice": {
+      "english": "orange juice",
+      "url": "/images/vocabulary/orange_juice-v1.svg",
+      "animationUrl": "/images/animations/orange_juice-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "strawberries": {
+      "english": "strawberries",
+      "url": "/images/vocabulary/strawberries-v1.svg",
+      "animationUrl": "/images/animations/strawberries-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "pants": {
+      "english": "pants",
+      "url": "/images/vocabulary/pants-v1.svg",
+      "animationUrl": "/images/animations/pants-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "shoes": {
+      "english": "shoes",
+      "url": "/images/vocabulary/shoes-v1.svg",
+      "animationUrl": "/images/animations/shoes-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "t_shirt": {
+      "english": "T-shirt",
+      "url": "/images/vocabulary/t_shirt-v1.svg",
+      "animationUrl": "/images/animations/t_shirt-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "skirt": {
+      "english": "skirt",
+      "url": "/images/vocabulary/skirt-v1.svg",
+      "animationUrl": "/images/animations/skirt-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sweater": {
+      "english": "sweater",
+      "url": "/images/vocabulary/sweater-v1.svg",
+      "animationUrl": "/images/animations/sweater-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "socks": {
+      "english": "socks",
+      "url": "/images/vocabulary/socks-v1.svg",
+      "animationUrl": "/images/animations/socks-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "jacket": {
+      "english": "jacket",
+      "url": "/images/vocabulary/jacket-v1.svg",
+      "animationUrl": "/images/animations/jacket-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "boots": {
+      "english": "boots",
+      "url": "/images/vocabulary/boots-v1.svg",
+      "animationUrl": "/images/animations/boots-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "raincoat": {
+      "english": "raincoat",
+      "url": "/images/vocabulary/raincoat-v1.svg",
+      "animationUrl": "/images/animations/raincoat-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "dress": {
+      "english": "dress",
+      "url": "/images/vocabulary/dress-v1.svg",
+      "animationUrl": "/images/animations/dress-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sunny": {
+      "english": "sunny",
+      "url": "/images/vocabulary/sunny-v1.svg",
+      "animationUrl": "/images/animations/sunny-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "cloudy": {
+      "english": "cloudy",
+      "url": "/images/vocabulary/cloudy-v1.svg",
+      "animationUrl": "/images/animations/cloudy-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "rainy": {
+      "english": "rainy",
+      "url": "/images/vocabulary/rainy-v1.svg",
+      "animationUrl": "/images/animations/rainy-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "snowy": {
+      "english": "snowy",
+      "url": "/images/vocabulary/snowy-v1.svg",
+      "animationUrl": "/images/animations/snowy-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "windy": {
+      "english": "windy",
+      "url": "/images/vocabulary/windy-v1.svg",
+      "animationUrl": "/images/animations/windy-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "see": {
+      "english": "see",
+      "url": "/images/vocabulary/see-v1.svg",
+      "animationUrl": "/images/animations/see-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "touch": {
+      "english": "touch",
+      "url": "/images/vocabulary/touch-v1.svg",
+      "animationUrl": "/images/animations/touch-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "hear": {
+      "english": "hear",
+      "url": "/images/vocabulary/hear-v1.svg",
+      "animationUrl": "/images/animations/hear-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "smell": {
+      "english": "smell",
+      "url": "/images/vocabulary/smell-v1.svg",
+      "animationUrl": "/images/animations/smell-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "taste": {
+      "english": "taste",
+      "url": "/images/vocabulary/taste-v1.svg",
+      "animationUrl": "/images/animations/taste-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "soft": {
+      "english": "soft",
+      "url": "/images/vocabulary/soft-v1.svg",
+      "animationUrl": "/images/animations/soft-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "rough": {
+      "english": "rough",
+      "url": "/images/vocabulary/rough-v1.svg",
+      "animationUrl": "/images/animations/rough-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "smooth": {
+      "english": "smooth",
+      "url": "/images/vocabulary/smooth-v1.svg",
+      "animationUrl": "/images/animations/smooth-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "good": {
+      "english": "good",
+      "url": "/images/vocabulary/good-v1.svg",
+      "animationUrl": "/images/animations/good-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "bad": {
+      "english": "bad",
+      "url": "/images/vocabulary/bad-v1.svg",
+      "animationUrl": "/images/animations/bad-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "sweet": {
+      "english": "sweet",
+      "url": "/images/vocabulary/sweet-v1.svg",
+      "animationUrl": "/images/animations/sweet-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "salty": {
+      "english": "salty",
+      "url": "/images/vocabulary/salty-v1.svg",
+      "animationUrl": "/images/animations/salty-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "loud": {
+      "english": "loud",
+      "url": "/images/vocabulary/loud-v1.svg",
+      "animationUrl": "/images/animations/loud-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "quiet": {
+      "english": "quiet",
+      "url": "/images/vocabulary/quiet-v1.svg",
+      "animationUrl": "/images/animations/quiet-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "beautiful": {
+      "english": "beautiful",
+      "url": "/images/vocabulary/beautiful-v1.svg",
+      "animationUrl": "/images/animations/beautiful-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "bus": {
+      "english": "bus",
+      "url": "/images/vocabulary/bus-v1.svg",
+      "animationUrl": "/images/animations/bus-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "airplane": {
+      "english": "airplane",
+      "url": "/images/vocabulary/airplane-v1.svg",
+      "animationUrl": "/images/animations/airplane-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "boat": {
+      "english": "boat",
+      "url": "/images/vocabulary/boat-v1.svg",
+      "animationUrl": "/images/animations/boat-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "bike": {
+      "english": "bike",
+      "url": "/images/vocabulary/bike-v1.svg",
+      "animationUrl": "/images/animations/bike-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "helicopter": {
+      "english": "helicopter",
+      "url": "/images/vocabulary/helicopter-v1.svg",
+      "animationUrl": "/images/animations/helicopter-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "ship": {
+      "english": "ship",
+      "url": "/images/vocabulary/ship-v1.svg",
+      "animationUrl": "/images/animations/ship-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "air": {
+      "english": "air",
+      "url": "/images/vocabulary/air-v1.svg",
+      "animationUrl": "/images/animations/air-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "land": {
+      "english": "land",
+      "url": "/images/vocabulary/land-v1.svg",
+      "animationUrl": "/images/animations/land-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "beach": {
+      "english": "beach",
+      "url": "/images/vocabulary/beach-v1.svg",
+      "animationUrl": "/images/animations/beach-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "amusement_park": {
+      "english": "amusement park",
+      "url": "/images/vocabulary/amusement_park-v1.svg",
+      "animationUrl": "/images/animations/amusement_park-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "mountains": {
+      "english": "mountains",
+      "url": "/images/vocabulary/mountains-v1.svg",
+      "animationUrl": "/images/animations/mountains-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "plant": {
+      "english": "plant",
+      "url": "/images/vocabulary/plant-v1.svg",
+      "animationUrl": "/images/animations/plant-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "soil": {
+      "english": "soil",
+      "url": "/images/vocabulary/soil-v1.svg",
+      "animationUrl": "/images/animations/soil-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "seed": {
+      "english": "seed",
+      "url": "/images/vocabulary/seed-v1.svg",
+      "animationUrl": "/images/animations/seed-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "shovel": {
+      "english": "shovel",
+      "url": "/images/vocabulary/shovel-v1.svg",
+      "animationUrl": "/images/animations/shovel-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "hole": {
+      "english": "hole",
+      "url": "/images/vocabulary/hole-v1.svg",
+      "animationUrl": "/images/animations/hole-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "watering_can": {
+      "english": "watering can",
+      "url": "/images/vocabulary/watering_can-v1.svg",
+      "animationUrl": "/images/animations/watering_can-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "petals": {
+      "english": "petals",
+      "url": "/images/vocabulary/petals-v1.svg",
+      "animationUrl": "/images/animations/petals-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "leaves": {
+      "english": "leaves",
+      "url": "/images/vocabulary/leaves-v1.svg",
+      "animationUrl": "/images/animations/leaves-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "stem": {
+      "english": "stem",
+      "url": "/images/vocabulary/stem-v1.svg",
+      "animationUrl": "/images/animations/stem-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "roots": {
+      "english": "roots",
+      "url": "/images/vocabulary/roots-v1.svg",
+      "animationUrl": "/images/animations/roots-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "monday": {
+      "english": "Monday",
+      "url": "/images/vocabulary/monday-v1.svg",
+      "animationUrl": "/images/animations/monday-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "tuesday": {
+      "english": "Tuesday",
+      "url": "/images/vocabulary/tuesday-v1.svg",
+      "animationUrl": "/images/animations/tuesday-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "wednesday": {
+      "english": "Wednesday",
+      "url": "/images/vocabulary/wednesday-v1.svg",
+      "animationUrl": "/images/animations/wednesday-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "thursday": {
+      "english": "Thursday",
+      "url": "/images/vocabulary/thursday-v1.svg",
+      "animationUrl": "/images/animations/thursday-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "friday": {
+      "english": "Friday",
+      "url": "/images/vocabulary/friday-v1.svg",
+      "animationUrl": "/images/animations/friday-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "science": {
+      "english": "Science",
+      "url": "/images/vocabulary/science-v1.svg",
+      "animationUrl": "/images/animations/science-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "art": {
+      "english": "Art",
+      "url": "/images/vocabulary/art-v1.svg",
+      "animationUrl": "/images/animations/art-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "math": {
+      "english": "Math",
+      "url": "/images/vocabulary/math-v1.svg",
+      "animationUrl": "/images/animations/math-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "writing": {
+      "english": "Writing",
+      "url": "/images/vocabulary/writing-v1.svg",
+      "animationUrl": "/images/animations/writing-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "reading": {
+      "english": "Reading",
+      "url": "/images/vocabulary/reading-v1.svg",
+      "animationUrl": "/images/animations/reading-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "physical_education": {
+      "english": "Physical Education",
+      "url": "/images/vocabulary/physical_education-v1.svg",
+      "animationUrl": "/images/animations/physical_education-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "use_a_computer": {
+      "english": "use a computer",
+      "url": "/images/vocabulary/use_a_computer-v1.svg",
+      "animationUrl": "/images/animations/use_a_computer-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "play_music": {
+      "english": "play music",
+      "url": "/images/vocabulary/play_music-v1.svg",
+      "animationUrl": "/images/animations/play_music-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "speak_english": {
+      "english": "speak English",
+      "url": "/images/vocabulary/speak_english-v1.svg",
+      "animationUrl": "/images/animations/speak_english-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "paint_with_watercolors": {
+      "english": "paint with watercolors",
+      "url": "/images/vocabulary/paint_with_watercolors-v1.svg",
+      "animationUrl": "/images/animations/paint_with_watercolors-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "read_books": {
+      "english": "read books",
+      "url": "/images/vocabulary/read_books-v1.svg",
+      "animationUrl": "/images/animations/read_books-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "play_in_the_playground": {
+      "english": "play in the playground",
+      "url": "/images/vocabulary/play_in_the_playground-v1.svg",
+      "animationUrl": "/images/animations/play_in_the_playground-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "shy": {
+      "english": "shy",
+      "url": "/images/vocabulary/shy-v1.svg",
+      "animationUrl": "/images/animations/shy-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "silly": {
+      "english": "silly",
+      "url": "/images/vocabulary/silly-v1.svg",
+      "animationUrl": "/images/animations/silly-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "scared": {
+      "english": "scared",
+      "url": "/images/vocabulary/scared-v1.svg",
+      "animationUrl": "/images/animations/scared-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "excited": {
+      "english": "excited",
+      "url": "/images/vocabulary/excited-v1.svg",
+      "animationUrl": "/images/animations/excited-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "surprised": {
+      "english": "surprised",
+      "url": "/images/vocabulary/surprised-v1.svg",
+      "animationUrl": "/images/animations/surprised-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "bored": {
+      "english": "bored",
+      "url": "/images/vocabulary/bored-v1.svg",
+      "animationUrl": "/images/animations/bored-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "scream": {
+      "english": "scream",
+      "url": "/images/vocabulary/scream-v1.svg",
+      "animationUrl": "/images/animations/scream-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "jump_up_and_down": {
+      "english": "jump up and down",
+      "url": "/images/vocabulary/jump_up_and_down-v1.svg",
+      "animationUrl": "/images/animations/jump_up_and_down-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "shout_hooray": {
+      "english": "shout hooray",
+      "url": "/images/vocabulary/shout_hooray-v1.svg",
+      "animationUrl": "/images/animations/shout_hooray-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "yawn": {
+      "english": "yawn",
+      "url": "/images/vocabulary/yawn-v1.svg",
+      "animationUrl": "/images/animations/yawn-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "cry": {
+      "english": "cry",
+      "url": "/images/vocabulary/cry-v1.svg",
+      "animationUrl": "/images/animations/cry-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "laugh": {
+      "english": "laugh",
+      "url": "/images/vocabulary/laugh-v1.svg",
+      "animationUrl": "/images/animations/laugh-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "candy": {
+      "english": "candy",
+      "url": "/images/vocabulary/candy-v1.svg",
+      "animationUrl": "/images/animations/candy-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cake": {
+      "english": "cake",
+      "url": "/images/vocabulary/cake-v1.svg",
+      "animationUrl": "/images/animations/cake-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "candle": {
+      "english": "candle",
+      "url": "/images/vocabulary/candle-v1.svg",
+      "animationUrl": "/images/animations/candle-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "balloon": {
+      "english": "balloon",
+      "url": "/images/vocabulary/balloon-v1.svg",
+      "animationUrl": "/images/animations/balloon-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "present": {
+      "english": "present",
+      "url": "/images/vocabulary/present-v1.svg",
+      "animationUrl": "/images/animations/present-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "party_hat": {
+      "english": "party hat",
+      "url": "/images/vocabulary/party_hat-v1.svg",
+      "animationUrl": "/images/animations/party_hat-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "child": {
+      "english": "child",
+      "url": "/images/vocabulary/child-v1.svg",
+      "animationUrl": "/images/animations/child-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "children": {
+      "english": "children",
+      "url": "/images/vocabulary/children-v1.svg",
+      "animationUrl": "/images/animations/children-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "woman": {
+      "english": "woman",
+      "url": "/images/vocabulary/woman-v1.svg",
+      "animationUrl": "/images/animations/woman-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "women": {
+      "english": "women",
+      "url": "/images/vocabulary/women-v1.svg",
+      "animationUrl": "/images/animations/women-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "man": {
+      "english": "man",
+      "url": "/images/vocabulary/man-v1.svg",
+      "animationUrl": "/images/animations/man-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "men": {
+      "english": "men",
+      "url": "/images/vocabulary/men-v1.svg",
+      "animationUrl": "/images/animations/men-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "thin": {
+      "english": "thin",
+      "url": "/images/vocabulary/thin-v1.svg",
+      "animationUrl": "/images/animations/thin-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "aunt": {
+      "english": "aunt",
+      "url": "/images/vocabulary/aunt-v1.svg",
+      "animationUrl": "/images/animations/aunt-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cousin": {
+      "english": "cousin",
+      "url": "/images/vocabulary/cousin-v1.svg",
+      "animationUrl": "/images/animations/cousin-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "uncle": {
+      "english": "uncle",
+      "url": "/images/vocabulary/uncle-v1.svg",
+      "animationUrl": "/images/animations/uncle-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "blond": {
+      "english": "blond",
+      "url": "/images/vocabulary/blond-v1.svg",
+      "animationUrl": "/images/animations/blond-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "red": {
+      "english": "red",
+      "url": "/images/vocabulary/red-v1.svg",
+      "animationUrl": "/images/animations/red-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "long": {
+      "english": "long",
+      "url": "/images/vocabulary/long-v1.svg",
+      "animationUrl": "/images/animations/long-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "curly": {
+      "english": "curly",
+      "url": "/images/vocabulary/curly-v1.svg",
+      "animationUrl": "/images/animations/curly-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "straight": {
+      "english": "straight",
+      "url": "/images/vocabulary/straight-v1.svg",
+      "animationUrl": "/images/animations/straight-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    },
+    "monkey": {
+      "english": "monkey",
+      "url": "/images/vocabulary/monkey-v1.svg",
+      "animationUrl": "/images/animations/monkey-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "lion": {
+      "english": "lion",
+      "url": "/images/vocabulary/lion-v1.svg",
+      "animationUrl": "/images/animations/lion-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "giraffe": {
+      "english": "giraffe",
+      "url": "/images/vocabulary/giraffe-v1.svg",
+      "animationUrl": "/images/animations/giraffe-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "tiger": {
+      "english": "tiger",
+      "url": "/images/vocabulary/tiger-v1.svg",
+      "animationUrl": "/images/animations/tiger-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "bear": {
+      "english": "bear",
+      "url": "/images/vocabulary/bear-v1.svg",
+      "animationUrl": "/images/animations/bear-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "elephant": {
+      "english": "elephant",
+      "url": "/images/vocabulary/elephant-v1.svg",
+      "animationUrl": "/images/animations/elephant-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "snake": {
+      "english": "snake",
+      "url": "/images/vocabulary/snake-v1.svg",
+      "animationUrl": "/images/animations/snake-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "whale": {
+      "english": "whale",
+      "url": "/images/vocabulary/whale-v1.svg",
+      "animationUrl": "/images/animations/whale-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "eagle": {
+      "english": "eagle",
+      "url": "/images/vocabulary/eagle-v1.svg",
+      "animationUrl": "/images/animations/eagle-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "shark": {
+      "english": "shark",
+      "url": "/images/vocabulary/shark-v1.svg",
+      "animationUrl": "/images/animations/shark-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "kangaroo": {
+      "english": "kangaroo",
+      "url": "/images/vocabulary/kangaroo-v1.svg",
+      "animationUrl": "/images/animations/kangaroo-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "toucan": {
+      "english": "toucan",
+      "url": "/images/vocabulary/toucan-v1.svg",
+      "animationUrl": "/images/animations/toucan-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "paw": {
+      "english": "paw",
+      "url": "/images/vocabulary/paw-v1.svg",
+      "animationUrl": "/images/animations/paw-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "fin": {
+      "english": "fin",
+      "url": "/images/vocabulary/fin-v1.svg",
+      "animationUrl": "/images/animations/fin-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "beak": {
+      "english": "beak",
+      "url": "/images/vocabulary/beak-v1.svg",
+      "animationUrl": "/images/animations/beak-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "trunk": {
+      "english": "trunk",
+      "url": "/images/vocabulary/trunk-v1.svg",
+      "animationUrl": "/images/animations/trunk-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "tail": {
+      "english": "tail",
+      "url": "/images/vocabulary/tail-v1.svg",
+      "animationUrl": "/images/animations/tail-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "wing": {
+      "english": "wing",
+      "url": "/images/vocabulary/wing-v1.svg",
+      "animationUrl": "/images/animations/wing-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "firefighter": {
+      "english": "firefighter",
+      "url": "/images/vocabulary/firefighter-v1.svg",
+      "animationUrl": "/images/animations/firefighter-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "doctor": {
+      "english": "doctor",
+      "url": "/images/vocabulary/doctor-v1.svg",
+      "animationUrl": "/images/animations/doctor-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "chef": {
+      "english": "chef",
+      "url": "/images/vocabulary/chef-v1.svg",
+      "animationUrl": "/images/animations/chef-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "police_officer": {
+      "english": "police officer",
+      "url": "/images/vocabulary/police_officer-v1.svg",
+      "animationUrl": "/images/animations/police_officer-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "mail_carrier": {
+      "english": "mail carrier",
+      "url": "/images/vocabulary/mail_carrier-v1.svg",
+      "animationUrl": "/images/animations/mail_carrier-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cashier": {
+      "english": "cashier",
+      "url": "/images/vocabulary/cashier-v1.svg",
+      "animationUrl": "/images/animations/cashier-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "fire_station": {
+      "english": "fire station",
+      "url": "/images/vocabulary/fire_station-v1.svg",
+      "animationUrl": "/images/animations/fire_station-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "hospital": {
+      "english": "hospital",
+      "url": "/images/vocabulary/hospital-v1.svg",
+      "animationUrl": "/images/animations/hospital-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "restaurant": {
+      "english": "restaurant",
+      "url": "/images/vocabulary/restaurant-v1.svg",
+      "animationUrl": "/images/animations/restaurant-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "post_office": {
+      "english": "post office",
+      "url": "/images/vocabulary/post_office-v1.svg",
+      "animationUrl": "/images/animations/post_office-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "police_station": {
+      "english": "police station",
+      "url": "/images/vocabulary/police_station-v1.svg",
+      "animationUrl": "/images/animations/police_station-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "grocery_store": {
+      "english": "grocery store",
+      "url": "/images/vocabulary/grocery_store-v1.svg",
+      "animationUrl": "/images/animations/grocery_store-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "put_out_fires": {
+      "english": "put out fires",
+      "url": "/images/vocabulary/put_out_fires-v1.svg",
+      "animationUrl": "/images/animations/put_out_fires-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "take_care_of_people": {
+      "english": "take care of people",
+      "url": "/images/vocabulary/take_care_of_people-v1.svg",
+      "animationUrl": "/images/animations/take_care_of_people-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "cook_food": {
+      "english": "cook food",
+      "url": "/images/vocabulary/cook_food-v1.svg",
+      "animationUrl": "/images/animations/cook_food-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "keep_people_safe": {
+      "english": "keep people safe",
+      "url": "/images/vocabulary/keep_people_safe-v1.svg",
+      "animationUrl": "/images/animations/keep_people_safe-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "deliver_mail": {
+      "english": "deliver mail",
+      "url": "/images/vocabulary/deliver_mail-v1.svg",
+      "animationUrl": "/images/animations/deliver_mail-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "ring_up_groceries": {
+      "english": "ring up groceries",
+      "url": "/images/vocabulary/ring_up_groceries-v1.svg",
+      "animationUrl": "/images/animations/ring_up_groceries-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "waiter": {
+      "english": "waiter",
+      "url": "/images/vocabulary/waiter-v1.svg",
+      "animationUrl": "/images/animations/waiter-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "menu": {
+      "english": "menu",
+      "url": "/images/vocabulary/menu-v1.svg",
+      "animationUrl": "/images/animations/menu-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "drink": {
+      "english": "drink",
+      "url": "/images/vocabulary/drink-v1.svg",
+      "animationUrl": "/images/animations/drink-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "main_dish": {
+      "english": "main dish",
+      "url": "/images/vocabulary/main_dish-v1.svg",
+      "animationUrl": "/images/animations/main_dish-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "side_dish": {
+      "english": "side dish",
+      "url": "/images/vocabulary/side_dish-v1.svg",
+      "animationUrl": "/images/animations/side_dish-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "dessert": {
+      "english": "dessert",
+      "url": "/images/vocabulary/dessert-v1.svg",
+      "animationUrl": "/images/animations/dessert-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "steak": {
+      "english": "steak",
+      "url": "/images/vocabulary/steak-v1.svg",
+      "animationUrl": "/images/animations/steak-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "beans": {
+      "english": "beans",
+      "url": "/images/vocabulary/beans-v1.svg",
+      "animationUrl": "/images/animations/beans-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "lemonade": {
+      "english": "lemonade",
+      "url": "/images/vocabulary/lemonade-v1.svg",
+      "animationUrl": "/images/animations/lemonade-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "soda": {
+      "english": "soda",
+      "url": "/images/vocabulary/soda-v1.svg",
+      "animationUrl": "/images/animations/soda-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "french_fries": {
+      "english": "French fries",
+      "url": "/images/vocabulary/french_fries-v1.svg",
+      "animationUrl": "/images/animations/french_fries-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "spaghetti": {
+      "english": "spaghetti",
+      "url": "/images/vocabulary/spaghetti-v1.svg",
+      "animationUrl": "/images/animations/spaghetti-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "pizza": {
+      "english": "pizza",
+      "url": "/images/vocabulary/pizza-v1.svg",
+      "animationUrl": "/images/animations/pizza-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "ice_cream": {
+      "english": "ice cream",
+      "url": "/images/vocabulary/ice_cream-v1.svg",
+      "animationUrl": "/images/animations/ice_cream-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "chocolate_cake": {
+      "english": "chocolate cake",
+      "url": "/images/vocabulary/chocolate_cake-v1.svg",
+      "animationUrl": "/images/animations/chocolate_cake-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "vegetables": {
+      "english": "vegetables",
+      "url": "/images/vocabulary/vegetables-v1.svg",
+      "animationUrl": "/images/animations/vegetables-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cheeseburger": {
+      "english": "cheeseburger",
+      "url": "/images/vocabulary/cheeseburger-v1.svg",
+      "animationUrl": "/images/animations/cheeseburger-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "get_up": {
+      "english": "get up",
+      "url": "/images/vocabulary/get_up-v1.svg",
+      "animationUrl": "/images/animations/get_up-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "get_dressed": {
+      "english": "get dressed",
+      "url": "/images/vocabulary/get_dressed-v1.svg",
+      "animationUrl": "/images/animations/get_dressed-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "have_breakfast": {
+      "english": "have breakfast",
+      "url": "/images/vocabulary/have_breakfast-v1.svg",
+      "animationUrl": "/images/animations/have_breakfast-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "go_to_school": {
+      "english": "go to school",
+      "url": "/images/vocabulary/go_to_school-v1.svg",
+      "animationUrl": "/images/animations/go_to_school-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "go_home": {
+      "english": "go home",
+      "url": "/images/vocabulary/go_home-v1.svg",
+      "animationUrl": "/images/animations/go_home-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "do_homework": {
+      "english": "do homework",
+      "url": "/images/vocabulary/do_homework-v1.svg",
+      "animationUrl": "/images/animations/do_homework-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "dance_class": {
+      "english": "dance class",
+      "url": "/images/vocabulary/dance_class-v1.svg",
+      "animationUrl": "/images/animations/dance_class-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "soccer_practice": {
+      "english": "soccer practice",
+      "url": "/images/vocabulary/soccer_practice-v1.svg",
+      "animationUrl": "/images/animations/soccer_practice-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "music_lessons": {
+      "english": "music lessons",
+      "url": "/images/vocabulary/music_lessons-v1.svg",
+      "animationUrl": "/images/animations/music_lessons-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "swimming_lessons": {
+      "english": "swimming lessons",
+      "url": "/images/vocabulary/swimming_lessons-v1.svg",
+      "animationUrl": "/images/animations/swimming_lessons-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "gymnastics": {
+      "english": "gymnastics",
+      "url": "/images/vocabulary/gymnastics-v1.svg",
+      "animationUrl": "/images/animations/gymnastics-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "eat_dinner": {
+      "english": "eat dinner",
+      "url": "/images/vocabulary/eat_dinner-v1.svg",
+      "animationUrl": "/images/animations/eat_dinner-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "take_a_bath": {
+      "english": "take a bath",
+      "url": "/images/vocabulary/take_a_bath-v1.svg",
+      "animationUrl": "/images/animations/take_a_bath-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "brush_teeth": {
+      "english": "brush teeth",
+      "url": "/images/vocabulary/brush_teeth-v1.svg",
+      "animationUrl": "/images/animations/brush_teeth-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "put_on_pajamas": {
+      "english": "put on pajamas",
+      "url": "/images/vocabulary/put_on_pajamas-v1.svg",
+      "animationUrl": "/images/animations/put_on_pajamas-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "read_a_book": {
+      "english": "read a book",
+      "url": "/images/vocabulary/read_a_book-v1.svg",
+      "animationUrl": "/images/animations/read_a_book-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "go_to_bed": {
+      "english": "go to bed",
+      "url": "/images/vocabulary/go_to_bed-v1.svg",
+      "animationUrl": "/images/animations/go_to_bed-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "natural": {
+      "english": "natural",
+      "url": "/images/vocabulary/natural-v1.svg",
+      "animationUrl": "/images/animations/natural-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "human_made": {
+      "english": "human-made",
+      "url": "/images/vocabulary/human_made-v1.svg",
+      "animationUrl": "/images/animations/human_made-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "frog": {
+      "english": "frog",
+      "url": "/images/vocabulary/frog-v1.svg",
+      "animationUrl": "/images/animations/frog-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "rock": {
+      "english": "rock",
+      "url": "/images/vocabulary/rock-v1.svg",
+      "animationUrl": "/images/animations/rock-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "paper": {
+      "english": "paper",
+      "url": "/images/vocabulary/paper-v1.svg",
+      "animationUrl": "/images/animations/paper-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "plastic_bottle": {
+      "english": "plastic bottle",
+      "url": "/images/vocabulary/plastic_bottle-v1.svg",
+      "animationUrl": "/images/animations/plastic_bottle-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "cardboard_box": {
+      "english": "cardboard box",
+      "url": "/images/vocabulary/cardboard_box-v1.svg",
+      "animationUrl": "/images/animations/cardboard_box-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "soda_can": {
+      "english": "soda can",
+      "url": "/images/vocabulary/soda_can-v1.svg",
+      "animationUrl": "/images/animations/soda_can-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "newspaper": {
+      "english": "newspaper",
+      "url": "/images/vocabulary/newspaper-v1.svg",
+      "animationUrl": "/images/animations/newspaper-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "spoon": {
+      "english": "spoon",
+      "url": "/images/vocabulary/spoon-v1.svg",
+      "animationUrl": "/images/animations/spoon-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "jar": {
+      "english": "jar",
+      "url": "/images/vocabulary/jar-v1.svg",
+      "animationUrl": "/images/animations/jar-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "glass_bottle": {
+      "english": "glass bottle",
+      "url": "/images/vocabulary/glass_bottle-v1.svg",
+      "animationUrl": "/images/animations/glass_bottle-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "plastic_bag": {
+      "english": "plastic bag",
+      "url": "/images/vocabulary/plastic_bag-v1.svg",
+      "animationUrl": "/images/animations/plastic_bag-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "cloth_bag": {
+      "english": "cloth bag",
+      "url": "/images/vocabulary/cloth_bag-v1.svg",
+      "animationUrl": "/images/animations/cloth_bag-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "recycle": {
+      "english": "recycle",
+      "url": "/images/vocabulary/recycle-v1.svg",
+      "animationUrl": "/images/animations/recycle-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "trash": {
+      "english": "trash",
+      "url": "/images/vocabulary/trash-v1.svg",
+      "animationUrl": "/images/animations/trash-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "turn_on": {
+      "english": "turn on",
+      "url": "/images/vocabulary/turn_on-v1.svg",
+      "animationUrl": "/images/animations/turn_on-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "turn_off": {
+      "english": "turn off",
+      "url": "/images/vocabulary/turn_off-v1.svg",
+      "animationUrl": "/images/animations/turn_off-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "forest": {
+      "english": "forest",
+      "url": "/images/vocabulary/forest-v1.svg",
+      "animationUrl": "/images/animations/forest-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "lake": {
+      "english": "lake",
+      "url": "/images/vocabulary/lake-v1.svg",
+      "animationUrl": "/images/animations/lake-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "summer_camp": {
+      "english": "summer camp",
+      "url": "/images/vocabulary/summer_camp-v1.svg",
+      "animationUrl": "/images/animations/summer_camp-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "flashlight": {
+      "english": "flashlight",
+      "url": "/images/vocabulary/flashlight-v1.svg",
+      "animationUrl": "/images/animations/flashlight-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "sleeping_bag": {
+      "english": "sleeping bag",
+      "url": "/images/vocabulary/sleeping_bag-v1.svg",
+      "animationUrl": "/images/animations/sleeping_bag-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "diagram"
+    },
+    "sunglasses": {
+      "english": "sunglasses",
+      "url": "/images/vocabulary/sunglasses-v1.svg",
+      "animationUrl": "/images/animations/sunglasses-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "cap": {
+      "english": "cap",
+      "url": "/images/vocabulary/cap-v1.svg",
+      "animationUrl": "/images/animations/cap-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "backpack": {
+      "english": "backpack",
+      "url": "/images/vocabulary/backpack-v1.svg",
+      "animationUrl": "/images/animations/backpack-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "build_a_sandcastle": {
+      "english": "build a sandcastle",
+      "url": "/images/vocabulary/build_a_sandcastle-v1.svg",
+      "animationUrl": "/images/animations/build_a_sandcastle-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "hike": {
+      "english": "hike",
+      "url": "/images/vocabulary/hike-v1.svg",
+      "animationUrl": "/images/animations/hike-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "make_a_campfire": {
+      "english": "make a campfire",
+      "url": "/images/vocabulary/make_a_campfire-v1.svg",
+      "animationUrl": "/images/animations/make_a_campfire-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "go_on_rides": {
+      "english": "go on rides",
+      "url": "/images/vocabulary/go_on_rides-v1.svg",
+      "animationUrl": "/images/animations/go_on_rides-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "scene"
+    },
+    "row_a_boat": {
+      "english": "row a boat",
+      "url": "/images/vocabulary/row_a_boat-v1.svg",
+      "animationUrl": "/images/animations/row_a_boat-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "ride_a_horse": {
+      "english": "ride a horse",
+      "url": "/images/vocabulary/ride_a_horse-v1.svg",
+      "animationUrl": "/images/animations/ride_a_horse-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "symbol"
+    },
+    "blue": {
+      "english": "blue",
+      "url": "/images/vocabulary/blue-v1.svg",
+      "animationUrl": "/images/animations/blue-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "yellow": {
+      "english": "yellow",
+      "url": "/images/vocabulary/yellow-v1.svg",
+      "animationUrl": "/images/animations/yellow-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "green": {
+      "english": "green",
+      "url": "/images/vocabulary/green-v1.svg",
+      "animationUrl": "/images/animations/green-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "pink": {
+      "english": "pink",
+      "url": "/images/vocabulary/pink-v1.svg",
+      "animationUrl": "/images/animations/pink-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "purple": {
+      "english": "purple",
+      "url": "/images/vocabulary/purple-v1.svg",
+      "animationUrl": "/images/animations/purple-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "brown": {
+      "english": "brown",
+      "url": "/images/vocabulary/brown-v1.svg",
+      "animationUrl": "/images/animations/brown-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "black": {
+      "english": "black",
+      "url": "/images/vocabulary/black-v1.svg",
+      "animationUrl": "/images/animations/black-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "white": {
+      "english": "white",
+      "url": "/images/vocabulary/white-v1.svg",
+      "animationUrl": "/images/animations/white-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "gray": {
+      "english": "gray",
+      "url": "/images/vocabulary/gray-v1.svg",
+      "animationUrl": "/images/animations/gray-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "color"
+    },
+    "rainbow": {
+      "english": "rainbow",
+      "url": "/images/vocabulary/rainbow-v1.svg",
+      "animationUrl": "/images/animations/rainbow-v1.svg",
+      "isTransparent": true,
+      "visualType": "concrete",
+      "kind": "symbol"
+    },
+    "one": {
+      "english": "one",
+      "url": "/images/vocabulary/one-v1.svg",
+      "animationUrl": "/images/animations/one-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "two": {
+      "english": "two",
+      "url": "/images/vocabulary/two-v1.svg",
+      "animationUrl": "/images/animations/two-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "three": {
+      "english": "three",
+      "url": "/images/vocabulary/three-v1.svg",
+      "animationUrl": "/images/animations/three-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "four": {
+      "english": "four",
+      "url": "/images/vocabulary/four-v1.svg",
+      "animationUrl": "/images/animations/four-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "five": {
+      "english": "five",
+      "url": "/images/vocabulary/five-v1.svg",
+      "animationUrl": "/images/animations/five-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "six": {
+      "english": "six",
+      "url": "/images/vocabulary/six-v1.svg",
+      "animationUrl": "/images/animations/six-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "seven": {
+      "english": "seven",
+      "url": "/images/vocabulary/seven-v1.svg",
+      "animationUrl": "/images/animations/seven-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "eight": {
+      "english": "eight",
+      "url": "/images/vocabulary/eight-v1.svg",
+      "animationUrl": "/images/animations/eight-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "nine": {
+      "english": "nine",
+      "url": "/images/vocabulary/nine-v1.svg",
+      "animationUrl": "/images/animations/nine-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "ten": {
+      "english": "ten",
+      "url": "/images/vocabulary/ten-v1.svg",
+      "animationUrl": "/images/animations/ten-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "eleven": {
+      "english": "eleven",
+      "url": "/images/vocabulary/eleven-v1.svg",
+      "animationUrl": "/images/animations/eleven-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "twelve": {
+      "english": "twelve",
+      "url": "/images/vocabulary/twelve-v1.svg",
+      "animationUrl": "/images/animations/twelve-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "twenty": {
+      "english": "twenty",
+      "url": "/images/vocabulary/twenty-v1.svg",
+      "animationUrl": "/images/animations/twenty-v1.svg",
+      "isTransparent": false,
+      "visualType": "concrete",
+      "kind": "number"
+    },
+    "count": {
+      "english": "count",
+      "url": "/images/vocabulary/count-v1.svg",
+      "animationUrl": "/images/animations/count-v1.svg",
+      "isTransparent": false,
+      "visualType": "abstract",
+      "kind": "diagram"
+    }
+  },
+  "topics": {
+    "animals": {
+      "url": "/images/topics/animals-v1.svg",
+      "isTransparent": false
+    },
+    "school": {
+      "url": "/images/topics/school-v1.svg",
+      "isTransparent": false
+    },
+    "my-body": {
+      "url": "/images/topics/my-body-v1.svg",
+      "isTransparent": false
+    },
+    "family": {
+      "url": "/images/topics/family-v1.svg",
+      "isTransparent": false
+    },
+    "food": {
+      "url": "/images/topics/food-v1.svg",
+      "isTransparent": false
+    },
+    "toys": {
+      "url": "/images/topics/toys-v1.svg",
+      "isTransparent": false
+    },
+    "colors": {
+      "url": "/images/topics/colors-v1.svg",
+      "isTransparent": false
+    },
+    "numbers": {
+      "url": "/images/topics/numbers-v1.svg",
+      "isTransparent": false
+    },
+    "nature": {
+      "url": "/images/topics/nature-v1.svg",
+      "isTransparent": false
+    },
+    "my-house": {
+      "url": "/images/topics/my-house-v1.svg",
+      "isTransparent": false
+    },
+    "clothes": {
+      "url": "/images/topics/clothes-v1.svg",
+      "isTransparent": false
+    },
+    "feelings": {
+      "url": "/images/topics/feelings-v1.svg",
+      "isTransparent": false
+    },
+    "senses": {
+      "url": "/images/topics/senses-v1.svg",
+      "isTransparent": false
+    },
+    "transportation": {
+      "url": "/images/topics/transportation-v1.svg",
+      "isTransparent": false
+    },
+    "weather": {
+      "url": "/images/topics/weather-v1.svg",
+      "isTransparent": false
+    },
+    "daily-routines": {
+      "url": "/images/topics/daily-routines-v1.svg",
+      "isTransparent": false
+    },
+    "community": {
+      "url": "/images/topics/community-v1.svg",
+      "isTransparent": false
+    },
+    "environment": {
+      "url": "/images/topics/environment-v1.svg",
+      "isTransparent": false
+    },
+    "vacation": {
+      "url": "/images/topics/vacation-v1.svg",
+      "isTransparent": false
+    }
+  },
+  "symbols": {
+    "🦁": "/images/symbols/1f981.svg",
+    "🐯": "/images/symbols/1f42f.svg",
+    "🐼": "/images/symbols/1f43c.svg",
+    "🚀": "/images/symbols/1f680.svg",
+    "🏆": "/images/symbols/1f3c6.svg",
+    "🌈": "/images/symbols/1f308.svg",
+    "⭐": "/images/symbols/2b50.svg",
+    "🦄": "/images/symbols/1f984.svg",
+    "🦖": "/images/symbols/1f996.svg",
+    "🍎": "/images/symbols/1f34e.svg",
+    "🎨": "/images/symbols/1f3a8.svg",
+    "🐬": "/images/symbols/1f42c.svg",
+    "👑": "/images/symbols/1f451.svg",
+    "🎈": "/images/symbols/1f388.svg",
+    "🍓": "/images/symbols/1f353.svg",
+    "🦊": "/images/symbols/1f98a.svg",
+    "🐻": "/images/symbols/1f43b.svg",
+    "🐰": "/images/symbols/1f430.svg",
+    "👍": "/images/symbols/1f44d.svg",
+    "✋": "/images/symbols/270b.svg",
+    "💬": "/images/symbols/1f4ac.svg",
+    "❓": "/images/symbols/2753.svg",
+    "💡": "/images/symbols/1f4a1.svg",
+    "👩‍🏫": "/images/symbols/1f469-200d-1f3eb.svg",
+    "👦": "/images/symbols/1f466.svg",
+    "👧": "/images/symbols/1f467.svg",
+    "🏫": "/images/symbols/1f3eb.svg",
+    "☀️": "/images/symbols/2600-fe0f.svg",
+    "🌳": "/images/symbols/1f333.svg",
+    "📖": "/images/symbols/1f4d6.svg",
+    "🖍️": "/images/symbols/1f58d-fe0f.svg",
+    "🪑": "/images/symbols/1fa91.svg",
+    "🐱": "/images/symbols/1f431.svg",
+    "👨": "/images/symbols/1f468.svg",
+    "👩": "/images/symbols/1f469.svg",
+    "🙂": "/images/symbols/1f642.svg",
+    "👀": "/images/symbols/1f440.svg",
+    "👃": "/images/symbols/1f443.svg",
+    "👄": "/images/symbols/1f444.svg",
+    "👂": "/images/symbols/1f442.svg",
+    "😄": "/images/symbols/1f604.svg",
+    "😢": "/images/symbols/1f622.svg",
+    "😠": "/images/symbols/1f620.svg",
+    "🏃": "/images/symbols/1f3c3.svg",
+    "💃": "/images/symbols/1f483.svg",
+    "🐛": "/images/symbols/1f41b.svg",
+    "🦵": "/images/symbols/1f9b5.svg",
+    "👴": "/images/symbols/1f474.svg",
+    "👵": "/images/symbols/1f475.svg",
+    "👶": "/images/symbols/1f476.svg",
+    "🧒": "/images/symbols/1f9d2.svg",
+    "🐕": "/images/symbols/1f415.svg",
+    "🐦": "/images/symbols/1f426.svg",
+    "🐇": "/images/symbols/1f407.svg",
+    "🐟": "/images/symbols/1f41f.svg",
+    "🐢": "/images/symbols/1f422.svg",
+    "🐈": "/images/symbols/1f408.svg",
+    "🐹": "/images/symbols/1f439.svg",
+    "🦎": "/images/symbols/1f98e.svg",
+    "🚶": "/images/symbols/1f6b6.svg",
+    "🦘": "/images/symbols/1f998.svg",
+    "🏊": "/images/symbols/1f3ca.svg",
+    "🕊️": "/images/symbols/1f54a-fe0f.svg",
+    "🍐": "/images/symbols/1f350.svg",
+    "🍅": "/images/symbols/1f345.svg",
+    "🥕": "/images/symbols/1f955.svg",
+    "🍌": "/images/symbols/1f34c.svg",
+    "🍇": "/images/symbols/1f347.svg",
+    "🥒": "/images/symbols/1f952.svg",
+    "🥬": "/images/symbols/1f96c.svg",
+    "🍍": "/images/symbols/1f34d.svg",
+    "🍊": "/images/symbols/1f34a.svg",
+    "🥔": "/images/symbols/1f954.svg",
+    "🚗": "/images/symbols/1f697.svg",
+    "🧸": "/images/symbols/1f9f8.svg",
+    "🪆": "/images/symbols/1fa86.svg",
+    "⚽": "/images/symbols/26bd.svg",
+    "🪁": "/images/symbols/1fa81.svg",
+    "🧱": "/images/symbols/1f9f1.svg",
+    "🪀": "/images/symbols/1fa80.svg",
+    "🚂": "/images/symbols/1f682.svg",
+    "🧩": "/images/symbols/1f9e9.svg",
+    "🎲": "/images/symbols/1f3b2.svg",
+    "🤖": "/images/symbols/1f916.svg",
+    "🌸": "/images/symbols/1f338.svg",
+    "🌱": "/images/symbols/1f331.svg",
+    "🐝": "/images/symbols/1f41d.svg",
+    "🛝": "/images/symbols/1f6dd.svg",
+    "☁️": "/images/symbols/2601-fe0f.svg",
+    "🌤️": "/images/symbols/1f324-fe0f.svg",
+    "🦋": "/images/symbols/1f98b.svg",
+    "🏙️": "/images/symbols/1f3d9-fe0f.svg",
+    "🏡": "/images/symbols/1f3e1.svg",
+    "🏠": "/images/symbols/1f3e0.svg",
+    "🚜": "/images/symbols/1f69c.svg",
+    "🏢": "/images/symbols/1f3e2.svg",
+    "🚪": "/images/symbols/1f6aa.svg",
+    "🪟": "/images/symbols/1fa9f.svg",
+    "🛣️": "/images/symbols/1f6e3-fe0f.svg",
+    "🏞️": "/images/symbols/1f3de-fe0f.svg",
+    "🏪": "/images/symbols/1f3ea.svg",
+    "✏️": "/images/symbols/270f-fe0f.svg",
+    "✂️": "/images/symbols/2702-fe0f.svg",
+    "🖊️": "/images/symbols/1f58a-fe0f.svg",
+    "🖌️": "/images/symbols/1f58c-fe0f.svg",
+    "🎤": "/images/symbols/1f3a4.svg",
+    "🧹": "/images/symbols/1f9f9.svg",
+    "🍱": "/images/symbols/1f371.svg",
+    "💧": "/images/symbols/1f4a7.svg",
+    "🪮": "/images/symbols/1faae.svg",
+    "🥦": "/images/symbols/1f966.svg",
+    "🧥": "/images/symbols/1f9e5.svg",
+    "🥛": "/images/symbols/1f95b.svg",
+    "🪥": "/images/symbols/1faa5.svg",
+    "🧼": "/images/symbols/1f9fc.svg",
+    "🪢": "/images/symbols/1faa2.svg",
+    "🥱": "/images/symbols/1f971.svg",
+    "🌙": "/images/symbols/1f319.svg",
+    "😓": "/images/symbols/1f613.svg",
+    "👕": "/images/symbols/1f455.svg",
+    "🟤": "/images/symbols/1f7e4.svg",
+    "😋": "/images/symbols/1f60b.svg",
+    "🍽️": "/images/symbols/1f37d-fe0f.svg",
+    "🤒": "/images/symbols/1f912.svg",
+    "🛋️": "/images/symbols/1f6cb-fe0f.svg",
+    "🍳": "/images/symbols/1f373.svg",
+    "🧊": "/images/symbols/1f9ca.svg",
+    "🛏️": "/images/symbols/1f6cf-fe0f.svg",
+    "🛁": "/images/symbols/1f6c1.svg",
+    "🚿": "/images/symbols/1f6bf.svg",
+    "🥄": "/images/symbols/1f944.svg",
+    "📺": "/images/symbols/1f4fa.svg",
+    "🐄": "/images/symbols/1f404.svg",
+    "🐔": "/images/symbols/1f414.svg",
+    "🦆": "/images/symbols/1f986.svg",
+    "🐎": "/images/symbols/1f40e.svg",
+    "🐑": "/images/symbols/1f411.svg",
+    "🌾": "/images/symbols/1f33e.svg",
+    "🥚": "/images/symbols/1f95a.svg",
+    "🧺": "/images/symbols/1f9fa.svg",
+    "🐥": "/images/symbols/1f425.svg",
+    "🥪": "/images/symbols/1f96a.svg",
+    "🍲": "/images/symbols/1f372.svg",
+    "🍗": "/images/symbols/1f357.svg",
+    "🥗": "/images/symbols/1f957.svg",
+    "🥞": "/images/symbols/1f95e.svg",
+    "🥣": "/images/symbols/1f963.svg",
+    "🍚": "/images/symbols/1f35a.svg",
+    "🧃": "/images/symbols/1f9c3.svg",
+    "👖": "/images/symbols/1f456.svg",
+    "👟": "/images/symbols/1f45f.svg",
+    "👗": "/images/symbols/1f457.svg",
+    "🧦": "/images/symbols/1f9e6.svg",
+    "👢": "/images/symbols/1f462.svg",
+    "🌧️": "/images/symbols/1f327-fe0f.svg",
+    "❄️": "/images/symbols/2744-fe0f.svg",
+    "💨": "/images/symbols/1f4a8.svg",
+    "🖐️": "/images/symbols/1f590-fe0f.svg",
+    "👅": "/images/symbols/1f445.svg",
+    "🪶": "/images/symbols/1fab6.svg",
+    "🪨": "/images/symbols/1faa8.svg",
+    "👎": "/images/symbols/1f44e.svg",
+    "🍭": "/images/symbols/1f36d.svg",
+    "🥨": "/images/symbols/1f968.svg",
+    "📢": "/images/symbols/1f4e2.svg",
+    "🤫": "/images/symbols/1f92b.svg",
+    "🌺": "/images/symbols/1f33a.svg",
+    "🚌": "/images/symbols/1f68c.svg",
+    "✈️": "/images/symbols/2708-fe0f.svg",
+    "⛵": "/images/symbols/26f5.svg",
+    "🚲": "/images/symbols/1f6b2.svg",
+    "🚁": "/images/symbols/1f681.svg",
+    "🚢": "/images/symbols/1f6a2.svg",
+    "🏖️": "/images/symbols/1f3d6-fe0f.svg",
+    "🎡": "/images/symbols/1f3a1.svg",
+    "⛰️": "/images/symbols/26f0-fe0f.svg",
+    "🪴": "/images/symbols/1fab4.svg",
+    "🌰": "/images/symbols/1f330.svg",
+    "🧑‍🌾": "/images/symbols/1f9d1-200d-1f33e.svg",
+    "🕳️": "/images/symbols/1f573-fe0f.svg",
+    "🍃": "/images/symbols/1f343.svg",
+    "🔬": "/images/symbols/1f52c.svg",
+    "📐": "/images/symbols/1f4d0.svg",
+    "✍️": "/images/symbols/270d-fe0f.svg",
+    "📄": "/images/symbols/1f4c4.svg",
+    "📚": "/images/symbols/1f4da.svg",
+    "💻": "/images/symbols/1f4bb.svg",
+    "🎹": "/images/symbols/1f3b9.svg",
+    "🎵": "/images/symbols/1f3b5.svg",
+    "🙈": "/images/symbols/1f648.svg",
+    "🤪": "/images/symbols/1f92a.svg",
+    "😱": "/images/symbols/1f631.svg",
+    "🤩": "/images/symbols/1f929.svg",
+    "😲": "/images/symbols/1f632.svg",
+    "⬆️": "/images/symbols/2b06-fe0f.svg",
+    "⬇️": "/images/symbols/2b07-fe0f.svg",
+    "🙌": "/images/symbols/1f64c.svg",
+    "🎉": "/images/symbols/1f389.svg",
+    "😂": "/images/symbols/1f602.svg",
+    "🍬": "/images/symbols/1f36c.svg",
+    "🎂": "/images/symbols/1f382.svg",
+    "🕯️": "/images/symbols/1f56f-fe0f.svg",
+    "🎁": "/images/symbols/1f381.svg",
+    "🥳": "/images/symbols/1f973.svg",
+    "👩‍🦰": "/images/symbols/1f469-200d-1f9b0.svg",
+    "👨‍🦱": "/images/symbols/1f468-200d-1f9b1.svg",
+    "🧑": "/images/symbols/1f9d1.svg",
+    "👱": "/images/symbols/1f471.svg",
+    "🐵": "/images/symbols/1f435.svg",
+    "🦒": "/images/symbols/1f992.svg",
+    "🐅": "/images/symbols/1f405.svg",
+    "🐘": "/images/symbols/1f418.svg",
+    "🐍": "/images/symbols/1f40d.svg",
+    "🐋": "/images/symbols/1f40b.svg",
+    "🦅": "/images/symbols/1f985.svg",
+    "🦈": "/images/symbols/1f988.svg",
+    "🦜": "/images/symbols/1f99c.svg",
+    "🐾": "/images/symbols/1f43e.svg",
+    "👨‍🚒": "/images/symbols/1f468-200d-1f692.svg",
+    "👩‍⚕️": "/images/symbols/1f469-200d-2695-fe0f.svg",
+    "👨‍🍳": "/images/symbols/1f468-200d-1f373.svg",
+    "👮": "/images/symbols/1f46e.svg",
+    "📬": "/images/symbols/1f4ec.svg",
+    "🧑‍💼": "/images/symbols/1f9d1-200d-1f4bc.svg",
+    "🚒": "/images/symbols/1f692.svg",
+    "🏥": "/images/symbols/1f3e5.svg",
+    "🏣": "/images/symbols/1f3e3.svg",
+    "🚓": "/images/symbols/1f693.svg",
+    "🛒": "/images/symbols/1f6d2.svg",
+    "🔥": "/images/symbols/1f525.svg",
+    "🩺": "/images/symbols/1fa7a.svg",
+    "👩‍🍳": "/images/symbols/1f469-200d-1f373.svg",
+    "🛡️": "/images/symbols/1f6e1-fe0f.svg",
+    "✉️": "/images/symbols/2709-fe0f.svg",
+    "💳": "/images/symbols/1f4b3.svg",
+    "📋": "/images/symbols/1f4cb.svg",
+    "🥤": "/images/symbols/1f964.svg",
+    "🍨": "/images/symbols/1f368.svg",
+    "🥩": "/images/symbols/1f969.svg",
+    "🫘": "/images/symbols/1fad8.svg",
+    "🍋": "/images/symbols/1f34b.svg",
+    "🍟": "/images/symbols/1f35f.svg",
+    "🍝": "/images/symbols/1f35d.svg",
+    "🍕": "/images/symbols/1f355.svg",
+    "🍔": "/images/symbols/1f354.svg",
+    "🤸": "/images/symbols/1f938.svg",
+    "🫧": "/images/symbols/1fae7.svg",
+    "🦷": "/images/symbols/1f9b7.svg",
+    "🌻": "/images/symbols/1f33b.svg",
+    "🐸": "/images/symbols/1f438.svg",
+    "📦": "/images/symbols/1f4e6.svg",
+    "📰": "/images/symbols/1f4f0.svg",
+    "🫙": "/images/symbols/1fad9.svg",
+    "♻️": "/images/symbols/267b-fe0f.svg",
+    "🗑️": "/images/symbols/1f5d1-fe0f.svg",
+    "✅": "/images/symbols/2705.svg",
+    "❌": "/images/symbols/274c.svg",
+    "🌲": "/images/symbols/1f332.svg",
+    "⛺": "/images/symbols/26fa.svg",
+    "🔦": "/images/symbols/1f526.svg",
+    "🕶️": "/images/symbols/1f576-fe0f.svg",
+    "🧢": "/images/symbols/1f9e2.svg",
+    "🎒": "/images/symbols/1f392.svg",
+    "🏰": "/images/symbols/1f3f0.svg",
+    "🥾": "/images/symbols/1f97e.svg",
+    "🪵": "/images/symbols/1fab5.svg",
+    "🚣": "/images/symbols/1f6a3.svg",
+    "🏇": "/images/symbols/1f3c7.svg",
+    "🧮": "/images/symbols/1f9ee.svg",
+    "🔢": "/images/symbols/1f522.svg",
+    "🦶": "/images/symbols/1f9b6.svg",
+    "😊": "/images/symbols/1f60a.svg",
+    "😮": "/images/symbols/1f62e.svg",
+    "🌷": "/images/symbols/1f337.svg",
+    "⏰": "/images/symbols/23f0.svg"
+  }
+}

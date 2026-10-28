@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Vocabulary } from '../../types';
 import { isTransparentImage } from '../core/targetSelector';
+import { wordArt } from '../../utils/learningArt';
 
 interface VocabImageProps {
   vocab: Vocabulary;
@@ -15,7 +16,9 @@ export const VocabImage: React.FC<VocabImageProps> = ({
   className = '',
   alt,
 }) => {
-  if (!vocab.imageUrl) {
+  const [failedUrl, setFailedUrl] = useState('');
+  const src = !vocab.imageUrl || vocab.imageUrl.startsWith('data:image/svg+xml') ? wordArt(vocab.english)?.url || vocab.imageUrl : vocab.imageUrl;
+  if (!src || failedUrl === src) {
     return (
       <span className={`inline-flex items-center justify-center text-3xl ${className}`} aria-hidden>
         {silhouette ? '⬛' : '🌟'}
@@ -25,7 +28,8 @@ export const VocabImage: React.FC<VocabImageProps> = ({
 
   return (
     <img
-      src={vocab.imageUrl}
+      src={src}
+      onError={() => setFailedUrl(src)}
       alt={alt ?? vocab.english}
       draggable={false}
       className={`max-w-full max-h-full object-contain pointer-events-none ${className}`}

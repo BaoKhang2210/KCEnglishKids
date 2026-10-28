@@ -76,6 +76,8 @@ const gradeActivityAnswers = (activity, answers = []) => {
  * Start or resume a learning session for child and lesson
  */
 const getOrCreateSession = async (childId, lessonId) => {
+  const { User } = require('../models');
+  if (!await User.exists({ _id: childId, role: 'CHILD', status: 'ACTIVE' }) || !await Lesson.exists({ _id: lessonId, status: 'ACTIVE' })) throw Object.assign(new Error('Học sinh hoặc bài học không hoạt động.'), { statusCode: 400 });
   let session = await LearningSession.findOne({
     child: childId,
     lesson: lessonId,
@@ -111,14 +113,17 @@ const processActivityResult = async ({
   answers = [],
   duration = 0
 }) => {
-  const activity = await Activity.findById(activityId);
+  const { User } = require('../models');
+  if (!await User.exists({ _id: childId, role: 'CHILD', status: 'ACTIVE' })) throw Object.assign(new Error('Chỉ được lưu kết quả cho học sinh đang hoạt động.'), { statusCode: 400 });
+  if (!await Lesson.exists({ _id: lessonId, status: 'ACTIVE' })) throw Object.assign(new Error('Bài học không còn hoạt động.'), { statusCode: 400 });
+  const activity = await Activity.findOne({ _id: activityId, lesson: lessonId, status: 'ACTIVE' });
   if (!activity) {
     throw new Error('Activity not found');
   }
 
   let session;
   if (sessionId) {
-    session = await LearningSession.findById(sessionId);
+    session = await LearningSession.findOne({ _id: sessionId, child: childId, lesson: lessonId });
   }
   if (!session) {
     session = await getOrCreateSession(childId, lessonId);
@@ -215,6 +220,7 @@ const processActivityResult = async ({
     }
     if (lessonRating.completed) {
       progress.stars = lessonRating.stars;
+      progress.completionSnapshot = { source: 'CURRENT_ACTIVITIES', recordedAt: new Date(), activityIds: lessonActivities.map(a => a._id) };
     } else if (!progress.completed) {
       progress.stars = 0;
     }

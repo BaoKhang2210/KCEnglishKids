@@ -35,7 +35,7 @@ router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(),
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');
-const { Assignment, User, ActivityResult, ClassRoom, Schedule } = require('../models');
+const { Assignment, User, ClassRoom, Schedule } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
 router.post('/:childId/parent-notifications/:id/reply', protect, ownChildOr403(), pn.replyAsParent);
@@ -49,29 +49,24 @@ router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, n
     if (!child) return res.status(404).json({ success: false, message: 'Child not found' });
     const q = {
       status: { $in: ['ASSIGNED', 'IN_PROGRESS'] },
-      $or: [
-        { student: childId },
-        ...(child.assignedClass ? [{ classRoom: child.assignedClass, assignedToType: 'CLASS' }] : [])
+      classRoom: child.assignedClass || null,
+      $and: [
+        { $or: [{ student: childId }, { assignedToType: 'CLASS' }] },
+        { $or: [{ recipients: { $exists: false } }, { recipients: childId }] },
+        { $or: [{ startDate: null }, { startDate: { $lte: new Date() } }] }
       ]
     };
     const assignments = await Assignment.find(q)
-      .populate('lesson', 'title vietnameseTitle')
+      .populate({ path: 'lesson', select: 'title vietnameseTitle', match: { status: 'ACTIVE' } })
       .populate('activity', 'title activityType instructions passingScore maxScore')
       .populate('teacher', 'name')
       .sort({ createdAt: -1 });
 
-    const dataWithStatus = await Promise.all(assignments.map(async (a) => {
+    const dataWithStatus = await Promise.all(assignments.filter(a => a.lesson).map(async a => {
       const aObj = a.toObject();
-      const resQuery = {
-        child: childId,
-        ...(a.activity ? { activity: a.activity._id } : { lesson: a.lesson._id })
-      };
-      const result = await ActivityResult.findOne(resQuery)
-        .select('score stars duration completed createdAt teacherFeedback')
-        .sort({ createdAt: -1 });
-
-      aObj.isCompleted = !!result;
-      aObj.result = result || null;
+      const { data } = await require('../services/teacherAssignments').submissions(a, [{ _id: childId }]);
+      aObj.isCompleted = data[0]?.hasSubmitted || false;
+      aObj.result = data[0]?.submission || null;
       return aObj;
     }));
 

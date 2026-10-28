@@ -5,6 +5,7 @@ const { protect, authorize } = require('../middlewares/authMiddleware');
 
 // All classroom session routes require authentication
 router.use(protect, authorize('TEACHER', 'ADMIN'));
+router.delete('/:id', cs.deleteDraft);
 
 // List / Create
 router.get('/', cs.getSessions);
@@ -21,7 +22,7 @@ router.post('/:id/score-bulk', cs.scoreBulk);
 router.post('/:id/question-result', cs.recordQuestionResult);
 router.patch('/:id/activity-index', cs.updateActivityIndex);
 
-// Summary (can be fetched at any time after session starts)
+// Summary is available once the teacher has ended the session.
 router.get('/:id/summary', cs.getSessionSummary);
 
 module.exports = router;

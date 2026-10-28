@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getStudentCompetency,
+  resetStaffPassword,
   getDashboardStats,
   getCurriculum,
   getUsers,
@@ -62,6 +64,22 @@ const {
 const { getRewardsSummary } = require('../controllers/rewardController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
+const { audit } = require('../services/adminIntegrity');
+const auditActions = {
+  'PUT /curriculum/units/:id': 'UPDATE_UNIT', 'DELETE /curriculum/units/:id': 'DELETE_UNIT',
+  'PUT /curriculum/lessons/:id': 'UPDATE_LESSON', 'DELETE /curriculum/lessons/:id': 'DELETE_LESSON',
+  'POST /curriculum/vocabularies': 'CREATE_VOCABULARY', 'PUT /curriculum/vocabularies/:id': 'UPDATE_VOCABULARY',
+  'DELETE /curriculum/vocabularies/:id': 'DELETE_VOCABULARY', 'PUT /sentences/:id': 'UPDATE_SENTENCE_PATTERN', 'DELETE /sentences/:id': 'DELETE_SENTENCE_PATTERN'
+};
+router.use((req, res, next) => {
+  res.on('finish', () => {
+    const action = auditActions[`${req.method} ${req.route?.path}`];
+    if (action && res.statusCode < 300) void audit(req, action, req.route.path.includes('vocabularies') ? 'Vocabulary' : req.route.path.includes('sentences') ? 'LanguageContent' : 'Curriculum', req.params.id,
+      { name: req.body?.title || req.body?.english || req.body?.bigQuestion || action });
+  });
+  next();
+});
+
 router.get('/dashboard', protect, authorize('ADMIN'), getDashboardStats);
 router.get('/curriculum', protect, authorize('ADMIN'), getCurriculum);
 router.get('/curriculum/deep', protect, authorize('ADMIN'), getDeepCurriculum);
@@ -119,6 +137,8 @@ router.get('/schedules/by-teacher/:teacherId', protect, authorize('ADMIN', 'TEAC
 
 // User Management
 router.get('/users', protect, authorize('ADMIN'), getUsers);
+router.get('/users/:id/competency', protect, authorize('ADMIN'), getStudentCompetency);
+router.post('/users/:id/reset-password', protect, authorize('ADMIN'), resetStaffPassword);
 router.post('/teachers', protect, authorize('ADMIN'), createTeacher);
 router.post('/children', protect, authorize('ADMIN'), createChild);
 router.post('/children/bulk-import', protect, authorize('ADMIN'), bulkImportChildren);
@@ -145,6 +165,6 @@ router.patch('/topics/:id/status', protect, authorize('ADMIN'), toggleTopicStatu
 router.patch('/lessons/:id/status', protect, authorize('ADMIN'), toggleLessonStatus);
 
 // Public / demo preview stats
-router.get('/public-stats', getDashboardStats);
+router.get('/public-stats', protect, authorize('ADMIN'), getDashboardStats);
 
 module.exports = router;

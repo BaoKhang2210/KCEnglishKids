@@ -28,10 +28,10 @@ import { playWordAudio, sfx } from '../../utils/audio';
 type TabType = 'TEACHING' | 'ROSTER' | 'ASSIGNMENTS' | 'NOTES';
 
 const NOTE_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  INTEREST: { label: 'Hứng thú cao', color: 'text-amber-700', bg: 'bg-amber-100 border-amber-300' },
-  VOCABULARY: { label: 'Ghi nhớ từ vựng tốt', color: 'text-emerald-700', bg: 'bg-emerald-100 border-emerald-300' },
-  PARTICIPATION: { label: 'Tương tác tích cực', color: 'text-blue-700', bg: 'bg-blue-100 border-blue-300' },
-  REINFORCEMENT: { label: 'Cần củng cố thêm', color: 'text-rose-700', bg: 'bg-rose-100 border-rose-300' },
+  INTEREST: { label: 'Hứng thú cao', color: 'text-amber-800', bg: 'bg-amber-100 border-amber-300' },
+  VOCABULARY: { label: 'Ghi nhớ từ vựng tốt', color: 'text-emerald-800', bg: 'bg-emerald-100 border-emerald-300' },
+  PARTICIPATION: { label: 'Tương tác tích cực', color: 'text-blue-800', bg: 'bg-blue-100 border-blue-300' },
+  REINFORCEMENT: { label: 'Cần củng cố thêm', color: 'text-rose-800', bg: 'bg-rose-100 border-rose-300' },
   GENERAL: { label: 'Ghi chú chung', color: 'text-slate-700', bg: 'bg-slate-100 border-slate-300' }
 };
 
@@ -318,16 +318,16 @@ export const TeacherDashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-xs">
+      <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center text-white font-black text-xl shadow-md">
+          <div className="w-10 h-10 rounded-2xl bg-teal-700 flex items-center justify-center text-white font-black text-xl">
             T
           </div>
           <div>
             <h1 className="text-xl font-black text-slate-900 tracking-tight">
               KCEnglishKids • Cổng Giáo Viên
             </h1>
-            <p className="text-xs font-bold text-slate-400">
+            <p className="text-xs font-bold text-slate-600">
               Quản lý lớp học, giao bài & theo dõi phát triển học sinh
             </p>
           </div>
@@ -336,18 +336,18 @@ export const TeacherDashboardPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <Link
             to="/"
-            className="text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3.5 py-2 rounded-xl transition-colors hidden sm:inline-block"
+            className="text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3.5 py-2 rounded-xl transition-colors hidden sm:inline-block"
           >
             Chuyển sang Cổng Trẻ Em 🦁
           </Link>
           <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
             <div className="text-right hidden sm:block">
               <span className="text-sm font-black text-slate-800 block">{user?.name}</span>
-              <span className="text-[11px] font-bold text-teal-600 uppercase tracking-wider">Giáo viên</span>
+              <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider">Giáo viên</span>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-slate-600 hover:text-rose-800 hover:bg-rose-50 transition-colors cursor-pointer"
               title="Đăng xuất"
             >
               <LogOut className="w-5 h-5" />
@@ -364,7 +364,7 @@ export const TeacherDashboardPage: React.FC = () => {
             onClick={() => setActiveTab('TEACHING')}
             className={`px-5 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'TEACHING'
-                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 ring-2 ring-amber-400'
+                ? 'bg-amber-700 text-white  ring-2 ring-amber-400'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -376,7 +376,7 @@ export const TeacherDashboardPage: React.FC = () => {
             onClick={() => setActiveTab('ROSTER')}
             className={`px-5 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'ROSTER'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                ? 'bg-teal-700 text-white '
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -391,13 +391,13 @@ export const TeacherDashboardPage: React.FC = () => {
             }}
             className={`px-5 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'ASSIGNMENTS'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                ? 'bg-teal-700 text-white '
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
             <BookOpen className="w-4 h-4" />
             <span>Giao bài tập</span>
-            <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full font-bold">
               {assignments.length}
             </span>
           </button>
@@ -411,7 +411,7 @@ export const TeacherDashboardPage: React.FC = () => {
             }}
             className={`px-5 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'NOTES'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                ? 'bg-teal-700 text-white '
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -430,7 +430,7 @@ export const TeacherDashboardPage: React.FC = () => {
             {activeTab === 'TEACHING' && (
               <div className="space-y-6">
                 {/* Classroom Control & Lesson Selector Header */}
-                <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-black bg-amber-100 text-amber-800 px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
@@ -441,7 +441,7 @@ export const TeacherDashboardPage: React.FC = () => {
                     <h2 className="text-2xl font-black text-slate-900">
                       Nội dung bài dạy trên lớp
                     </h2>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                    <p className="text-xs font-semibold text-slate-600 mt-0.5">
                       Trình chiếu thẻ từ vựng chuẩn, âm thanh phát âm và trò chơi tương tác trực quan cho cả lớp
                     </p>
                   </div>
@@ -457,7 +457,7 @@ export const TeacherDashboardPage: React.FC = () => {
                         setTeachingLessonId(e.target.value);
                         loadTeachingLesson(e.target.value);
                       }}
-                      className="w-full sm:w-auto max-w-md bg-slate-50 hover:bg-slate-100 font-bold text-sm text-slate-800 px-4 py-2.5 rounded-2xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-xs transition-colors"
+                      className="w-full sm:w-auto max-w-md bg-slate-50 hover:bg-slate-100 font-bold text-sm text-slate-800 px-4 py-2.5 rounded-2xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer transition-colors"
                     >
                       {curriculumTree.map((unit: any) => (
                         <optgroup key={unit._id} label={`Unit ${unit.unitNumber}: ${unit.title}`}>
@@ -478,17 +478,17 @@ export const TeacherDashboardPage: React.FC = () => {
                   </div>
                 ) : !teachingLesson ? (
                   <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-                    <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <AlertCircle className="w-12 h-12 text-slate-700 mx-auto mb-3" />
                     <p className="font-bold text-slate-600">Chưa tải được nội dung bài học.</p>
-                    <p className="text-xs text-slate-400 mt-1">Vui lòng chọn một bài học từ danh sách phía trên.</p>
+                    <p className="text-xs text-slate-600 mt-1">Vui lòng chọn một bài học từ danh sách phía trên.</p>
                   </div>
                 ) : (
                   <>
                     {/* Hero Banner: Lesson Details */}
-                    <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
+                    <div className="bg-amber-700 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
                       <div className="relative z-10">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="text-xs font-black bg-white/20 backdrop-blur-xs px-3 py-1 rounded-full uppercase tracking-wider">
+                          <span className="text-xs font-black bg-black/10 backdrop-blur-xs px-3 py-1 rounded-full uppercase tracking-wider">
                             Unit {teachingLesson.curriculumUnits?.[0]?.unitNumber || 1} • {teachingLesson.topic?.englishName || 'Curriculum'}
                           </span>
                           {teachingLesson.topic?.vietnameseName && (
@@ -502,15 +502,15 @@ export const TeacherDashboardPage: React.FC = () => {
                           Lesson {teachingLesson.lessonNumber}: {teachingLesson.title}
                         </h1>
                         {teachingLesson.vietnameseTitle && (
-                          <p className="text-amber-100 text-lg font-bold mt-1">
+                          <p className="text-inherit text-lg font-bold mt-1">
                             "{teachingLesson.vietnameseTitle}"
                           </p>
                         )}
 
                         {teachingLesson.curriculumUnits?.[0]?.bigQuestion && (
-                          <div className="mt-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-xs px-4 py-2 rounded-2xl border border-white/30">
+                          <div className="mt-4 inline-flex items-center gap-2 bg-black/10 backdrop-blur-xs px-4 py-2 rounded-2xl border border-white/30">
                             <span className="text-lg">❓</span>
-                            <span className="text-sm font-bold text-white">
+                            <span className="text-sm font-bold text-inherit">
                               Câu hỏi bài học: {teachingLesson.curriculumUnits[0].bigQuestion}
                             </span>
                           </div>
@@ -523,9 +523,9 @@ export const TeacherDashboardPage: React.FC = () => {
                               setAssignLessonId(teachingLesson._id);
                               setShowCreateAssignmentModal(true);
                             }}
-                            className="bg-white text-slate-900 hover:bg-amber-50 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                            className="bg-white text-slate-900 hover:bg-amber-50 font-black text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer"
                           >
-                            <BookOpen className="w-4 h-4 text-amber-600" />
+                            <BookOpen className="w-4 h-4 text-amber-800" />
                             <span>Giao bài này về nhà cho các bé 🚀</span>
                           </button>
                         </div>
@@ -536,19 +536,19 @@ export const TeacherDashboardPage: React.FC = () => {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold">
+                          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 font-bold">
                             <Sparkles className="w-4 h-4" />
                           </div>
                           <div>
                             <h3 className="text-xl font-black text-slate-900">
                               Thẻ từ vựng trình chiếu lớp học (Classroom Flashcards)
                             </h3>
-                            <p className="text-xs font-semibold text-slate-500">
+                            <p className="text-xs font-semibold text-slate-600">
                               Bấm vào loa để phát âm mẫu chuẩn cho học sinh nghe và nhắc lại theo lớp
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full">
+                        <span className="text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full">
                           {teachingLesson.vocabularyItems?.length || 0} từ vựng
                         </span>
                       </div>
@@ -557,7 +557,7 @@ export const TeacherDashboardPage: React.FC = () => {
                         {teachingLesson.vocabularyItems?.map((v: any, index: number) => (
                           <div
                             key={v._id || index}
-                            className="bg-white rounded-3xl p-5 border-2 border-slate-100 hover:border-amber-300 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center group relative overflow-hidden"
+                            className="bg-white rounded-3xl p-5 border-2 border-slate-100 hover:border-amber-300 transition-all duration-300 flex flex-col items-center text-center group relative overflow-hidden"
                           >
                             <div className="w-full h-44 rounded-2xl bg-amber-50/40 flex items-center justify-center p-3 relative overflow-hidden group-hover:bg-amber-50 transition-colors">
                               {v.imageUrl ? (
@@ -577,7 +577,7 @@ export const TeacherDashboardPage: React.FC = () => {
                                   {v.english}
                                 </h4>
                                 {v.pronunciation && (
-                                  <span className="inline-block mt-1 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full font-mono border border-amber-200">
+                                  <span className="inline-block mt-1 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full font-mono border border-amber-200">
                                     {v.pronunciation}
                                   </span>
                                 )}
@@ -591,7 +591,7 @@ export const TeacherDashboardPage: React.FC = () => {
                                       "{v.exampleSentence}"
                                     </p>
                                     {v.exampleSentenceVietnamese && (
-                                      <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                                      <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
                                         {v.exampleSentenceVietnamese}
                                       </p>
                                     )}
@@ -602,9 +602,9 @@ export const TeacherDashboardPage: React.FC = () => {
                               <button
                                 onClick={() => handlePlayWord(v.english, v.audioUrl)}
                                 disabled={playingWord === v.english}
-                                className={`mt-5 w-full py-3 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs ${
+                                className={`mt-5 w-full py-3 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 cursor-pointer transition-all ${
                                   playingWord === v.english
-                                    ? 'bg-amber-500 text-white scale-98 shadow-md ring-4 ring-amber-200'
+                                    ? 'bg-amber-700 text-white scale-98 ring-4 ring-amber-200'
                                     : 'bg-amber-100 hover:bg-amber-200 text-amber-900'
                                 }`}
                               >
@@ -621,14 +621,14 @@ export const TeacherDashboardPage: React.FC = () => {
                     {teachingLesson.activities && teachingLesson.activities.length > 0 && (
                       <div className="space-y-4 pt-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800 font-bold">
                             <Play className="w-4 h-4 fill-emerald-600" />
                           </div>
                           <div>
                             <h3 className="text-xl font-black text-slate-900">
                               Trò chơi tương tác lớp học (Classroom Mini-Games)
                             </h3>
-                            <p className="text-xs font-semibold text-slate-500">
+                            <p className="text-xs font-semibold text-slate-600">
                               Mở trò chơi để cả lớp cùng tương tác, trả lời và ghi nhớ kiến thức
                             </p>
                           </div>
@@ -638,14 +638,14 @@ export const TeacherDashboardPage: React.FC = () => {
                           {teachingLesson.activities.map((act: any) => (
                             <div
                               key={act._id}
-                              className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+                              className="bg-white rounded-3xl p-5 border border-slate-200 flex flex-col justify-between transition-shadow"
                             >
                               <div>
                                 <div className="flex items-center justify-between mb-3">
-                                  <span className="text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                  <span className="text-[11px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                                     {act.activityType || 'MINI-GAME'}
                                   </span>
-                                  <span className="text-xs font-bold text-slate-400">
+                                  <span className="text-xs font-bold text-slate-600">
                                     {act.questionCount || 5} câu hỏi
                                   </span>
                                 </div>
@@ -653,7 +653,7 @@ export const TeacherDashboardPage: React.FC = () => {
                                   {act.title}
                                 </h4>
                                 {act.vietnameseTitle && (
-                                  <p className="text-xs font-bold text-slate-500 mt-0.5">
+                                  <p className="text-xs font-bold text-slate-600 mt-0.5">
                                     {act.vietnameseTitle}
                                   </p>
                                 )}
@@ -663,7 +663,7 @@ export const TeacherDashboardPage: React.FC = () => {
                                 href={`/activities/${act._id}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="mt-5 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                                className="mt-5 w-full bg-emerald-700 hover:bg-emerald-700 text-white font-black text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
                               >
                                 <Play className="w-3.5 h-3.5 fill-white" />
                                 <span>Mở trò chơi trên lớp ↗</span>
@@ -680,10 +680,10 @@ export const TeacherDashboardPage: React.FC = () => {
 
             {/* If not TEACHING, check classes */}
             {activeTab !== 'TEACHING' && classes.length === 0 ? (
-              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs">
-                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
+                <AlertCircle className="w-12 h-12 text-amber-800 mx-auto mb-3" />
                 <h3 className="text-lg font-black text-slate-800">Chưa có phân công lớp</h3>
-                <p className="font-semibold text-slate-500 text-sm mt-1">
+                <p className="font-semibold text-slate-600 text-sm mt-1">
                   Bạn chưa được phân công phụ trách lớp học nào. Vui lòng liên hệ Quản trị viên (Admin).
                 </p>
               </div>
@@ -693,23 +693,23 @@ export const TeacherDashboardPage: React.FC = () => {
             {activeTab === 'ROSTER' && (
               <div className="space-y-6">
                 {/* Classroom Selector Banner */}
-                <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 rounded-3xl p-6 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="bg-teal-700 rounded-3xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-black bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider inline-block">
+                      <span className="text-xs font-black bg-black/10 px-3 py-1 rounded-full uppercase tracking-wider inline-block">
                         Lớp phụ trách
                       </span>
                       {classes.length > 1 && (
                         <div className="flex items-center gap-1.5">
-                          <label htmlFor={classFilterSelectId} className="text-xs font-semibold text-teal-100">Chọn:</label>
+                          <label htmlFor={classFilterSelectId} className="text-xs font-semibold text-inherit">Chọn:</label>
                           <select
                             id={classFilterSelectId}
                             value={selectedClassId}
                             onChange={e => handleSelectClass(e.target.value)}
-                            className="bg-white/20 text-white font-bold text-xs rounded-xl px-2.5 py-1 border border-white/30 focus:outline-none cursor-pointer"
+                            className="bg-black/10 text-inherit font-bold text-xs rounded-xl px-2.5 py-1 border border-white/30 focus:outline-none cursor-pointer"
                           >
                             {classes.map(c => (
-                              <option key={c._id} value={c._id} className="text-slate-800">
+                              <option key={c._id} value={c._id} className="bg-white text-slate-800">
                                 {c.name} ({c.ageGroupCode})
                               </option>
                             ))}
@@ -720,17 +720,17 @@ export const TeacherDashboardPage: React.FC = () => {
                     <h2 className="text-3xl font-black tracking-tight">
                       {selectedClass?.name || 'My Class'}
                     </h2>
-                    <p className="text-teal-100 text-sm font-bold mt-1">
+                    <p className="text-inherit text-sm font-bold mt-1">
                       Năm học {selectedClass?.academicYear || '2026-2027'} • Nhóm tuổi {selectedClass?.ageGroupCode || '3-4'}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/20">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                      <Users className="w-6 h-6 text-teal-200" />
+                  <div className="flex items-center gap-4 bg-black/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
+                    <div className="w-12 h-12 rounded-xl bg-black/10 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-inherit" />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-teal-200 block">Sĩ số lớp</span>
+                      <span className="text-xs font-bold text-inherit block">Sĩ số lớp</span>
                       <span className="font-black text-2xl">
                         {selectedClass?.students?.length || 0} Học sinh
                       </span>
@@ -739,10 +739,10 @@ export const TeacherDashboardPage: React.FC = () => {
                 </div>
 
                 {/* Students Cards Grid */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs">
+                <div className="bg-white rounded-3xl border border-slate-200 p-6">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-teal-600" />
+                      <Users className="w-5 h-5 text-teal-800" />
                       <span>Danh sách học sinh trong lớp</span>
                     </h3>
                     <button
@@ -752,7 +752,7 @@ export const TeacherDashboardPage: React.FC = () => {
                           setNoteStudentId(selectedClass.students[0]._id);
                         }
                       }}
-                      className="text-xs font-black text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3.5 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                      className="text-xs font-black text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3.5 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                     >
                       <PlusCircle className="w-4 h-4" />
                       <span>Viết ghi chú</span>
@@ -763,10 +763,10 @@ export const TeacherDashboardPage: React.FC = () => {
                     {selectedClass?.students?.map((student: any) => (
                       <div
                         key={student._id}
-                        className="border-2 border-slate-100 bg-slate-50/50 hover:bg-white hover:border-teal-400 rounded-3xl p-5 flex items-center justify-between transition-all group shadow-xs hover:shadow-md"
+                        className="border-2 border-slate-100 bg-slate-50/50 hover:bg-white hover:border-teal-400 rounded-3xl p-5 flex items-center justify-between transition-all group"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 p-1 flex items-center justify-center shadow-xs">
+                          <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 p-1 flex items-center justify-center">
                             {student.avatarUrl ? (
                               <img
                                 src={student.avatarUrl}
@@ -778,14 +778,14 @@ export const TeacherDashboardPage: React.FC = () => {
                             )}
                           </div>
                           <div>
-                            <h4 className="font-black text-lg text-slate-900 group-hover:text-teal-700 transition-colors">
+                            <h4 className="font-black text-lg text-slate-900 group-hover:text-teal-800 transition-colors">
                               {student.name}
                             </h4>
-                            <p className="text-xs font-semibold text-slate-400">
+                            <p className="text-xs font-semibold text-slate-600">
                               Mã PIN: **** • Tuổi: {student.ageGroupCode || '3-4'}
                             </p>
                             {student.contact && (
-                              <p className="text-xs font-bold text-slate-500 mt-0.5">
+                              <p className="text-xs font-bold text-slate-600 mt-0.5">
                                 Phụ huynh: {student.contact}
                               </p>
                             )}
@@ -793,16 +793,16 @@ export const TeacherDashboardPage: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center gap-1 font-black text-amber-500 text-lg bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
+                          <div className="flex items-center gap-1 font-black text-amber-800 text-lg bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
                             <Star className="w-4 h-4 fill-amber-400" />
                             <span>{student.stats?.totalStars || 0}</span>
                           </div>
-                          <span className="text-[11px] font-bold text-slate-400">
+                          <span className="text-[11px] font-bold text-slate-600">
                             {student.stats?.completedLessons || 0} bài xong
                           </span>
                           <button
                             onClick={() => handleOpenStudentDetail(student._id)}
-                            className="mt-1 text-xs font-black text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl border border-teal-200 flex items-center gap-1 transition-colors cursor-pointer"
+                            className="mt-1 text-xs font-black text-teal-800 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl border border-teal-200 flex items-center gap-1 transition-colors cursor-pointer"
                           >
                             <span>Chi tiết</span>
                             <ChevronRight className="w-3.5 h-3.5" />
@@ -818,10 +818,10 @@ export const TeacherDashboardPage: React.FC = () => {
             {/* ================= TAB 2: ASSIGNMENTS ================= */}
             {activeTab === 'ASSIGNMENTS' && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200">
                   <div>
                     <h2 className="text-2xl font-black text-slate-900">Quản lý bài tập</h2>
-                    <p className="text-xs font-semibold text-slate-500">
+                    <p className="text-xs font-semibold text-slate-600">
                       Giao bài học/hoạt động cho cả lớp hoặc từng học sinh cần rèn luyện thêm
                     </p>
                   </div>
@@ -844,7 +844,7 @@ export const TeacherDashboardPage: React.FC = () => {
 
                     <button
                       onClick={() => setShowCreateAssignmentModal(true)}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md shadow-teal-600/20 transition-all cursor-pointer"
+                      className="bg-teal-700 hover:bg-teal-700 text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5  transition-all cursor-pointer"
                     >
                       <PlusCircle className="w-4 h-4" />
                       <span>Giao bài tập mới</span>
@@ -854,28 +854,28 @@ export const TeacherDashboardPage: React.FC = () => {
 
                 {assignments.length === 0 ? (
                   <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-                    <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <BookOpen className="w-12 h-12 text-slate-700 mx-auto mb-3" />
                     <p className="font-bold text-slate-600">Chưa có bài tập nào được giao.</p>
-                    <p className="text-xs text-slate-400 mt-1">Bấm "+ Giao bài tập mới" để bắt đầu giao bài cho học sinh.</p>
+                    <p className="text-xs text-slate-600 mt-1">Bấm "+ Giao bài tập mới" để bắt đầu giao bài cho học sinh.</p>
                   </div>
                 ) : (
                   <div className="grid gap-4">
                     {assignments.map(item => (
                       <div
                         key={item._id}
-                        className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+                        className="bg-white rounded-3xl border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
                       >
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-black bg-teal-50 text-teal-700 px-2.5 py-0.5 rounded-md border border-teal-200">
+                            <span className="text-xs font-black bg-teal-50 text-teal-800 px-2.5 py-0.5 rounded-md border border-teal-200">
                               Lớp: {item.classRoom?.name || 'N/A'}
                             </span>
                             {item.assignedToType === 'CLASS' ? (
-                              <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-md border border-blue-200">
+                              <span className="text-xs font-bold bg-blue-50 text-blue-800 px-2.5 py-0.5 rounded-md border border-blue-200">
                                 Cả lớp
                               </span>
                             ) : (
-                              <span className="text-xs font-bold bg-purple-50 text-purple-700 px-2.5 py-0.5 rounded-md border border-purple-200">
+                              <span className="text-xs font-bold bg-purple-50 text-purple-800 px-2.5 py-0.5 rounded-md border border-purple-200">
                                 Cá nhân: {item.student?.name || 'Học sinh'}
                               </span>
                             )}
@@ -897,8 +897,8 @@ export const TeacherDashboardPage: React.FC = () => {
                           </h4>
 
                           {item.activity && (
-                            <p className="text-xs font-bold text-slate-500">
-                              Hoạt động cụ thể: <span className="text-teal-700">{item.activity.title}</span> ({item.activity.activityType})
+                            <p className="text-xs font-bold text-slate-600">
+                              Hoạt động cụ thể: <span className="text-teal-800">{item.activity.title}</span> ({item.activity.activityType})
                             </p>
                           )}
 
@@ -909,7 +909,7 @@ export const TeacherDashboardPage: React.FC = () => {
                           )}
 
                           {item.dueDate && (
-                            <div className="flex items-center gap-1 text-xs font-bold text-rose-600 pt-1">
+                            <div className="flex items-center gap-1 text-xs font-bold text-rose-800 pt-1">
                               <Calendar className="w-3.5 h-3.5" />
                               <span>Hạn chót: {new Date(item.dueDate).toLocaleDateString('vi-VN')}</span>
                             </div>
@@ -929,7 +929,7 @@ export const TeacherDashboardPage: React.FC = () => {
 
                           <button
                             onClick={() => handleDeleteAssignment(item._id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            className="p-2 text-slate-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                             title="Xoá bài tập"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -945,14 +945,14 @@ export const TeacherDashboardPage: React.FC = () => {
             {/* ================= TAB 3: PEDAGOGICAL NOTES ================= */}
             {activeTab === 'NOTES' && (
               <div className="space-y-6">
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs">
+                <div className="bg-white rounded-3xl border border-slate-200 p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-black">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-800 flex items-center justify-center font-black">
                       <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-slate-900">Ghi chú sư phạm định tính</h3>
-                      <p className="text-xs font-semibold text-slate-500">
+                      <p className="text-xs font-semibold text-slate-600">
                         Ghi nhận sự tiến bộ, mức độ hứng thú, khả năng tiếp thu từ vựng và những phần cần củng cố của trẻ
                       </p>
                     </div>
@@ -1018,7 +1018,7 @@ export const TeacherDashboardPage: React.FC = () => {
                       <button
                         type="submit"
                         disabled={submittingNote}
-                        className="bg-teal-600 hover:bg-teal-700 text-white font-black text-sm px-6 py-2.5 rounded-2xl shadow-md shadow-teal-600/20 transition-all cursor-pointer"
+                        className="bg-teal-700 hover:bg-teal-700 text-white font-black text-sm px-6 py-2.5 rounded-2xl  transition-all cursor-pointer"
                       >
                         {submittingNote ? 'Đang lưu...' : 'Lưu ghi chú sư phạm'}
                       </button>
@@ -1035,14 +1035,14 @@ export const TeacherDashboardPage: React.FC = () => {
 
       {/* ================= MODAL: STUDENT DRILLDOWN ================= */}
       {drilldownStudentId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl my-8 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 my-8 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
                 setDrilldownStudentId(null);
                 setStudentOverview(null);
               }}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-600 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1055,7 +1055,7 @@ export const TeacherDashboardPage: React.FC = () => {
               <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 p-1 flex items-center justify-center shadow-xs">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 p-1 flex items-center justify-center">
                     {studentOverview.student?.avatarUrl ? (
                       <img
                         src={studentOverview.student.avatarUrl}
@@ -1070,11 +1070,11 @@ export const TeacherDashboardPage: React.FC = () => {
                     <h3 className="text-2xl font-black text-slate-900">
                       {studentOverview.student?.name}
                     </h3>
-                    <p className="text-xs font-semibold text-slate-400">
+                    <p className="text-xs font-semibold text-slate-600">
                       Mã học sinh: {studentOverview.student?._id} • Tuổi: {studentOverview.student?.ageGroupCode || '3-4'}
                     </p>
                     {studentOverview.student?.contact && (
-                      <p className="text-xs font-bold text-slate-500">
+                      <p className="text-xs font-bold text-slate-600">
                         Liên hệ phụ huynh: {studentOverview.student.contact}
                       </p>
                     )}
@@ -1084,39 +1084,39 @@ export const TeacherDashboardPage: React.FC = () => {
                 {/* Performance Stats KPI */}
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="bg-amber-50 rounded-2xl p-3 border border-amber-200">
-                    <Star className="w-5 h-5 text-amber-500 fill-amber-400 mx-auto mb-1" />
-                    <span className="text-xl font-black text-amber-600 block">
+                    <Star className="w-5 h-5 text-amber-800 fill-amber-400 mx-auto mb-1" />
+                    <span className="text-xl font-black text-amber-800 block">
                       {studentOverview.stats?.totalStars || 0}
                     </span>
-                    <span className="text-[11px] font-bold text-amber-700">Ngôi sao tích luỹ</span>
+                    <span className="text-[11px] font-bold text-amber-800">Ngôi sao tích luỹ</span>
                   </div>
 
                   <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-200">
-                    <CheckCircle className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-                    <span className="text-xl font-black text-emerald-600 block">
+                    <CheckCircle className="w-5 h-5 text-emerald-800 mx-auto mb-1" />
+                    <span className="text-xl font-black text-emerald-800 block">
                       {studentOverview.stats?.completedLessons || 0}
                     </span>
-                    <span className="text-[11px] font-bold text-emerald-700">Bài học hoàn thành</span>
+                    <span className="text-[11px] font-bold text-emerald-800">Bài học hoàn thành</span>
                   </div>
 
                   <div className="bg-blue-50 rounded-2xl p-3 border border-blue-200">
-                    <Award className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-                    <span className="text-xl font-black text-blue-600 block">
+                    <Award className="w-5 h-5 text-blue-800 mx-auto mb-1" />
+                    <span className="text-xl font-black text-blue-800 block">
                       {studentOverview.stats?.totalActivitiesPlayed || 0}
                     </span>
-                    <span className="text-[11px] font-bold text-blue-700">Lượt hoạt động</span>
+                    <span className="text-[11px] font-bold text-blue-800">Lượt hoạt động</span>
                   </div>
                 </div>
 
                 {/* Pedagogical Notes on this student */}
                 <div>
                   <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <FileText className="w-4 h-4 text-teal-600" />
+                    <FileText className="w-4 h-4 text-teal-800" />
                     <span>Ghi chú sư phạm đã lưu ({studentOverview.notes?.length || 0})</span>
                   </h4>
 
                   {studentOverview.notes?.length === 0 ? (
-                    <p className="text-xs font-semibold text-slate-400 italic bg-slate-50 p-4 rounded-2xl text-center">
+                    <p className="text-xs font-semibold text-slate-600 italic bg-slate-50 p-4 rounded-2xl text-center">
                       Chưa có ghi chú sư phạm nào cho học sinh này.
                     </p>
                   ) : (
@@ -1129,7 +1129,7 @@ export const TeacherDashboardPage: React.FC = () => {
                               <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-md border ${meta.bg} ${meta.color}`}>
                                 {meta.label}
                               </span>
-                              <span className="text-[10px] font-bold text-slate-400">
+                              <span className="text-[10px] font-bold text-slate-600">
                                 {new Date(n.createdAt).toLocaleDateString('vi-VN')}
                               </span>
                             </div>
@@ -1144,12 +1144,12 @@ export const TeacherDashboardPage: React.FC = () => {
                 {/* Recent Activities */}
                 <div>
                   <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-teal-600" />
+                    <Clock className="w-4 h-4 text-teal-800" />
                     <span>Lịch sử chơi hoạt động gần đây</span>
                   </h4>
 
                   {studentOverview.recentActivities?.length === 0 ? (
-                    <p className="text-xs font-semibold text-slate-400 italic bg-slate-50 p-4 rounded-2xl text-center">
+                    <p className="text-xs font-semibold text-slate-600 italic bg-slate-50 p-4 rounded-2xl text-center">
                       Bé chưa tham gia hoạt động nào.
                     </p>
                   ) : (
@@ -1163,14 +1163,14 @@ export const TeacherDashboardPage: React.FC = () => {
                             <span className="font-black text-slate-800 block">
                               {act.activity?.title || 'Hoạt động'}
                             </span>
-                            <span className="font-semibold text-slate-400">
+                            <span className="font-semibold text-slate-600">
                               Bài: {act.lesson?.title || 'N/A'} • Loại: {act.activity?.activityType || 'N/A'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 font-black text-amber-500">
+                          <div className="flex items-center gap-1 font-black text-amber-800">
                             <Star className="w-4 h-4 fill-amber-400" />
                             <span>{act.starsAwarded || 0} sao</span>
-                            <span className="text-slate-400 font-bold ml-2">({act.score}%)</span>
+                            <span className="text-slate-600 font-bold ml-2">({act.score}%)</span>
                           </div>
                         </div>
                       ))}
@@ -1185,17 +1185,17 @@ export const TeacherDashboardPage: React.FC = () => {
 
       {/* ================= MODAL: CREATE ASSIGNMENT ================= */}
       {showCreateAssignmentModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl my-8 relative">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 my-8 relative">
             <button
               onClick={() => setShowCreateAssignmentModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-600 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <h3 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-teal-600" />
+              <BookOpen className="w-6 h-6 text-teal-800" />
               <span>Giao bài tập mới</span>
             </h3>
 
@@ -1368,7 +1368,7 @@ export const TeacherDashboardPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={submittingAssignment}
-                  className="bg-teal-600 hover:bg-teal-700 text-white font-black text-sm px-6 py-2.5 rounded-2xl shadow-md shadow-teal-600/20 transition-all cursor-pointer"
+                  className="bg-teal-700 hover:bg-teal-700 text-white font-black text-sm px-6 py-2.5 rounded-2xl  transition-all cursor-pointer"
                 >
                   {submittingAssignment ? 'Đang tạo...' : 'Xác nhận giao bài'}
                 </button>

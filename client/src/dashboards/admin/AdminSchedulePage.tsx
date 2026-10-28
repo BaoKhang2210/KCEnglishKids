@@ -1,3 +1,4 @@
+import { fetchAllPages } from '../../services/adminPagination';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   CalendarDays,
@@ -57,7 +58,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-indigo-200',
     text: 'text-indigo-900',
     badge: 'bg-indigo-100 text-indigo-800',
-    dot: 'bg-indigo-600',
+    dot: 'bg-indigo-700',
     lightBg: '#4f46e5'
   },
   emerald: {
@@ -65,7 +66,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-emerald-200',
     text: 'text-emerald-900',
     badge: 'bg-emerald-100 text-emerald-800',
-    dot: 'bg-emerald-600',
+    dot: 'bg-emerald-700',
     lightBg: '#059669'
   },
   amber: {
@@ -73,7 +74,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-amber-200',
     text: 'text-amber-900',
     badge: 'bg-amber-100 text-amber-800',
-    dot: 'bg-amber-600',
+    dot: 'bg-amber-700',
     lightBg: '#d97706'
   },
   rose: {
@@ -81,7 +82,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-rose-200',
     text: 'text-rose-900',
     badge: 'bg-rose-100 text-rose-800',
-    dot: 'bg-rose-600',
+    dot: 'bg-rose-700',
     lightBg: '#e11d48'
   },
   purple: {
@@ -89,7 +90,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-purple-200',
     text: 'text-purple-900',
     badge: 'bg-purple-100 text-purple-800',
-    dot: 'bg-purple-600',
+    dot: 'bg-purple-700',
     lightBg: '#9333ea'
   },
   sky: {
@@ -97,7 +98,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-sky-200',
     text: 'text-sky-900',
     badge: 'bg-sky-100 text-sky-800',
-    dot: 'bg-sky-600',
+    dot: 'bg-sky-700',
     lightBg: '#0284c7'
   },
   teal: {
@@ -105,7 +106,7 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-teal-200',
     text: 'text-teal-900',
     badge: 'bg-teal-100 text-teal-800',
-    dot: 'bg-teal-600',
+    dot: 'bg-teal-700',
     lightBg: '#0d9488'
   },
   orange: {
@@ -113,12 +114,13 @@ const COLOR_THEMES: { [key: string]: { bg: string; border: string; text: string;
     border: 'border-orange-200',
     text: 'text-orange-900',
     badge: 'bg-orange-100 text-orange-800',
-    dot: 'bg-orange-600',
+    dot: 'bg-orange-700',
     lightBg: '#ea580c'
   }
 };
 
 export const AdminSchedulePage: React.FC = () => {
+  const [defaultYear, setDefaultYear] = useState('2026-2027');
   const [schedules, setSchedules] = useState<ClassSchedule[]>([]);
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
@@ -155,6 +157,7 @@ export const AdminSchedulePage: React.FC = () => {
     colorTag: string;
     weeklySlots: ScheduleWeeklySlot[];
     effectiveFrom: string;
+    effectiveTo: string;
     isActive: boolean;
   }>({
     classroom: '',
@@ -165,7 +168,8 @@ export const AdminSchedulePage: React.FC = () => {
       { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101' },
       { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101' }
     ],
-    effectiveFrom: new Date().toISOString().split('T')[0],
+    effectiveTo: '',
+    effectiveFrom: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
     isActive: true
   });
 
@@ -181,11 +185,13 @@ export const AdminSchedulePage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [schedRes, clsRes, teachersRes] = await Promise.all([
+      const [schedRes, clsRes, teachersRes, settingsRes] = await Promise.all([
         adminApi.getSchedules(),
         adminApi.getClassrooms(),
-        adminApi.getUsers({ role: 'TEACHER', limit: 100 })
+        fetchAllPages<any>(page => adminApi.getUsers({ role: 'TEACHER', limit: 100, page })).then(data => ({ data, users: data })),
+        adminApi.getSettings()
       ]);
+      setDefaultYear(settingsRes.data.academicYear);
 
       const sList = Array.isArray(schedRes) ? schedRes : (schedRes?.data || schedRes?.schedules || []);
       setSchedules(sList);
@@ -280,13 +286,14 @@ export const AdminSchedulePage: React.FC = () => {
     setFormData({
       classroom: firstClass?._id || '',
       teacher: initialTeacher,
-      academicYear: firstClass?.academicYear || '2026-2027',
+      academicYear: firstClass?.academicYear || defaultYear,
       colorTag: 'indigo',
       weeklySlots: [
         { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101', lesson: null, lessonNumber: 1, lessonTitle: 'Bài 1: Làm quen & Chào hỏi' },
         { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101', lesson: null, lessonNumber: 2, lessonTitle: 'Bài 2: Từ vựng & Mẫu câu' }
       ],
-      effectiveFrom: new Date().toISOString().split('T')[0],
+      effectiveTo: '',
+      effectiveFrom: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
       isActive: true
     });
     setIsModalOpen(true);
@@ -313,7 +320,8 @@ export const AdminSchedulePage: React.FC = () => {
       weeklySlots: sch.weeklySlots?.length > 0 ? [...sch.weeklySlots] : [
         { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: '', room: '', lesson: null, lessonNumber: null, lessonTitle: '' }
       ],
-      effectiveFrom: sch.effectiveFrom ? new Date(sch.effectiveFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      effectiveTo: sch.effectiveTo ? new Date(+new Date(sch.effectiveTo) + 7 * 60 * 60 * 1000).toISOString().slice(0, 10) : '',
+      effectiveFrom: sch.effectiveFrom ? new Date(+new Date(sch.effectiveFrom) + 7 * 60 * 60 * 1000).toISOString().slice(0, 10) : new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10),
       isActive: sch.isActive !== undefined ? sch.isActive : true
     });
     setIsModalOpen(true);
@@ -325,6 +333,7 @@ export const AdminSchedulePage: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       classroom: classId,
+      weeklySlots: prev.weeklySlots.map(slot => ({ ...slot, lesson: null, lessonNumber: null, lessonTitle: '' })),
       teacher: selected?.teacher?._id || prev.teacher,
       academicYear: selected?.academicYear || prev.academicYear
     }));
@@ -378,10 +387,10 @@ export const AdminSchedulePage: React.FC = () => {
       setModalError(null);
 
       if (editingSchedule) {
-        await adminApi.updateSchedule(editingSchedule._id, formData);
+        await adminApi.updateSchedule(editingSchedule._id, { ...formData, effectiveTo: formData.effectiveTo || null });
         showAlert('success', 'Đã cập nhật thời khóa biểu thành công!');
       } else {
-        await adminApi.createSchedule(formData);
+        await adminApi.createSchedule({ ...formData, effectiveTo: formData.effectiveTo || null });
         showAlert('success', 'Đã thiết lập thời khóa biểu mới thành công!');
       }
 
@@ -413,7 +422,7 @@ export const AdminSchedulePage: React.FC = () => {
       name: '',
       ageGroupCode: '3-4',
       teacherId: availableTeacher?._id || '',
-      academicYear: '2026-2027',
+      academicYear: defaultYear,
       description: ''
     });
     setQuickClassError(null);
@@ -483,7 +492,7 @@ export const AdminSchedulePage: React.FC = () => {
     for (let d = 0; d <= 6; d++) map[d] = [];
 
     filteredSchedules.forEach((sch) => {
-      if (!sch.isActive) return;
+      if (!sch.isActive || sch.effectiveFrom && +new Date(sch.effectiveFrom) > Date.now() || sch.effectiveTo && +new Date(sch.effectiveTo) < Date.now()) return;
       sch.weeklySlots?.forEach((slot) => {
         if (map[slot.dayOfWeek]) {
           map[slot.dayOfWeek].push({ schedule: sch, slot });
@@ -521,33 +530,33 @@ export const AdminSchedulePage: React.FC = () => {
       {/* Toast Alert */}
       {alert && (
         <div
-          className={`fixed top-5 right-5 z-50 px-5 py-4 rounded-2xl shadow-xl flex items-center gap-3 text-base font-bold border transition-all ${
+          className={`fixed top-5 right-5 z-50 px-5 py-4 rounded-2xl flex items-center gap-3 text-base font-bold border transition-all ${
             alert.type === 'success'
               ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
               : 'bg-rose-50 text-rose-900 border-rose-300'
           }`}
         >
           {alert.type === 'success' ? (
-            <CheckCircle2 size={22} className="text-emerald-600 shrink-0" />
+            <CheckCircle2 size={22} className="text-emerald-800 shrink-0" />
           ) : (
-            <AlertCircle size={22} className="text-rose-600 shrink-0" />
+            <AlertCircle size={22} className="text-rose-800 shrink-0" />
           )}
           <span>{alert.message}</span>
         </div>
       )}
 
       {/* ── Page Header ───────────────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 bg-white p-7 rounded-3xl border border-slate-200/90 shadow-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 bg-white p-7 rounded-3xl border border-slate-200/90">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600">
+            <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-800">
               <CalendarDays size={28} />
             </span>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Thời Khóa Biểu Giảng Dạy
             </h1>
           </div>
-          <p className="text-base text-slate-500 font-semibold max-w-2xl leading-relaxed">
+          <p className="text-base text-slate-600 font-semibold max-w-2xl leading-relaxed">
             Thiết lập lịch học cố định theo tuần cho từng lớp. Giáo viên chỉ có thể mở lớp và bắt đầu giảng dạy khi đến đúng ngày và giờ quy định theo thời khóa biểu.
           </p>
         </div>
@@ -556,7 +565,7 @@ export const AdminSchedulePage: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenQuickAddClass}
-            className="py-3 px-5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-sm sm:text-base flex items-center gap-2 transition-all border border-indigo-200 cursor-pointer shadow-2xs"
+            className="py-3 px-5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-black text-sm sm:text-base flex items-center gap-2 transition-all border border-indigo-200 cursor-pointer"
             title="Tạo lớp học mới trực tiếp từ đây"
           >
             <School size={18} />
@@ -566,7 +575,7 @@ export const AdminSchedulePage: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenCreateModal}
-            className="py-3 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+            className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all  cursor-pointer"
           >
             <Plus size={20} />
             <span>+ Xếp Lịch Cho Lớp</span>
@@ -575,11 +584,11 @@ export const AdminSchedulePage: React.FC = () => {
       </div>
 
       {/* ── Filters & Controls Bar ────────────────────────────────────────── */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           {/* Class filter */}
           <div className="flex items-center gap-2">
-            <Filter size={18} className="text-slate-400" />
+            <Filter size={18} className="text-slate-600" />
             <select
               value={selectedClassFilter}
               onChange={(e) => setSelectedClassFilter(e.target.value)}
@@ -615,7 +624,7 @@ export const AdminSchedulePage: React.FC = () => {
             type="button"
             onClick={() => setViewMode('grid')}
             className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              viewMode === 'grid' ? 'bg-white text-indigo-800' : 'text-slate-600 hover:text-slate-800'
             }`}
           >
             <LayoutGrid size={16} />
@@ -625,7 +634,7 @@ export const AdminSchedulePage: React.FC = () => {
             type="button"
             onClick={() => setViewMode('list')}
             className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === 'list' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              viewMode === 'list' ? 'bg-white text-indigo-800' : 'text-slate-600 hover:text-slate-800'
             }`}
           >
             <List size={16} />
@@ -636,15 +645,15 @@ export const AdminSchedulePage: React.FC = () => {
 
       {/* ── Main View: Weekly Grid or List ─────────────────────────────────── */}
       {loading ? (
-        <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center shadow-xs">
+        <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center">
           <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-lg font-bold text-slate-600">Đang đồng bộ thời khóa biểu các lớp học…</p>
         </div>
       ) : filteredSchedules.length === 0 ? (
-        <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center shadow-xs space-y-4">
-          <CalendarDays size={52} className="mx-auto text-slate-300" />
+        <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center space-y-4">
+          <CalendarDays size={52} className="mx-auto text-slate-700" />
           <h3 className="text-xl font-black text-slate-900">Chưa có thời khóa biểu nào được xếp</h3>
-          <p className="text-base text-slate-500 font-semibold max-w-md mx-auto">
+          <p className="text-base text-slate-600 font-semibold max-w-md mx-auto">
             Hãy bắt đầu tạo lịch học đầu tiên cho các lớp để phân công lịch dạy cố định cho giáo viên.
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -656,7 +665,7 @@ export const AdminSchedulePage: React.FC = () => {
             </button>
             <button
               onClick={handleOpenCreateModal}
-              className="py-3 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm sm:text-base shadow-md cursor-pointer"
+              className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-sm sm:text-base cursor-pointer"
             >
               + Xếp Thời Khóa Biểu
             </button>
@@ -674,23 +683,23 @@ export const AdminSchedulePage: React.FC = () => {
                 key={dayNum}
                 className={`rounded-3xl border transition-all flex flex-col min-h-[380px] ${
                   isToday
-                    ? 'bg-indigo-50/40 border-indigo-300 shadow-sm ring-2 ring-indigo-500/20'
-                    : 'bg-white border-slate-200/90 shadow-2xs'
+                    ? 'bg-indigo-50/40 border-indigo-300 ring-2 ring-indigo-500/20'
+                    : 'bg-white border-slate-200/90'
                 }`}
               >
                 {/* Day Header */}
                 <div
                   className={`p-4 border-b rounded-t-3xl flex items-center justify-between ${
-                    isToday ? 'bg-indigo-600 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
+                    isToday ? 'bg-indigo-700 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
                   }`}
                 >
                   <span className="font-black text-base">{DAY_LABELS[dayNum]}</span>
                   {isToday ? (
-                    <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full">
+                    <span className="text-[11px] font-black uppercase tracking-wider bg-black/10 text-inherit px-2 py-0.5 rounded-full">
                       Hôm nay
                     </span>
                   ) : (
-                    <span className="text-xs font-bold text-slate-400">
+                    <span className="text-xs font-bold text-inherit">
                       {daySlots.length} ca
                     </span>
                   )}
@@ -700,7 +709,7 @@ export const AdminSchedulePage: React.FC = () => {
                 <div className="p-3 flex-1 overflow-y-auto space-y-2.5">
                   {daySlots.length === 0 ? (
                     <div className="h-full flex items-center justify-center p-4 text-center">
-                      <span className="text-xs font-semibold text-slate-400 italic">Không có ca học</span>
+                      <span className="text-xs font-semibold text-slate-600 italic">Không có ca học</span>
                     </div>
                   ) : (
                     daySlots.map(({ schedule, slot }, sIdx) => {
@@ -714,11 +723,11 @@ export const AdminSchedulePage: React.FC = () => {
                       return (
                         <div
                           key={`${schedule._id}-${sIdx}`}
-                          className={`p-3.5 rounded-2xl border transition-all group relative ${theme.bg} ${theme.border} hover:shadow-xs`}
+                          className={`p-3.5 rounded-2xl border transition-all group relative ${theme.bg} ${theme.border} `}
                         >
                           {/* Live Now glowing badge */}
                           {isLive && (
-                            <div className="flex items-center gap-1.5 mb-1.5 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
+                            <div className="flex items-center gap-1.5 mb-1.5 px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
                               <span className="h-1.5 w-1.5 rounded-full bg-white" />
                               <span>ĐANG TRONG GIỜ DẠY</span>
                             </div>
@@ -731,14 +740,14 @@ export const AdminSchedulePage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenEditModal(schedule)}
-                              className="text-slate-400 hover:text-indigo-600 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
+                              className="text-slate-600 hover:text-indigo-800 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
                               title="Sửa lịch"
                             >
                               <Edit2 size={13} />
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-1 text-xs font-black text-indigo-700 mb-1">
+                          <div className="flex items-center gap-1 text-xs font-black text-indigo-800 mb-1">
                             <Clock size={13} />
                             <span>
                               {slot.startTime} – {slot.endTime}
@@ -751,8 +760,8 @@ export const AdminSchedulePage: React.FC = () => {
 
                           {/* Attached Lesson Badge (Bài mấy) */}
                           {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
-                            <div className="mt-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200/90 flex items-center gap-1.5 shadow-2xs">
-                              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 shrink-0" />
+                            <div className="mt-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200/90 flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0" />
                               <span className="text-[11px] font-black truncate" title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}>
                                 {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài học'}:{' '}
                                 {slot.lessonTitle
@@ -763,7 +772,7 @@ export const AdminSchedulePage: React.FC = () => {
                           )}
 
                           {slot.room && (
-                            <p className="text-[11px] text-slate-500 font-bold flex items-center gap-1 mt-1 truncate">
+                            <p className="text-[11px] text-slate-600 font-bold flex items-center gap-1 mt-1 truncate">
                               <MapPin size={11} />
                               <span>{slot.room}</span>
                             </p>
@@ -789,16 +798,16 @@ export const AdminSchedulePage: React.FC = () => {
             return (
               <div
                 key={sch._id}
-                className={`bg-white rounded-3xl border ${theme.border} p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between`}
+                className={`bg-white rounded-3xl border ${theme.border} p-6 transition-all flex flex-col justify-between`}
               >
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-indigo-600 block mb-1">
+                      <span className="text-xs font-black uppercase tracking-wider text-indigo-800 block mb-1">
                         Thời khóa biểu cố định
                       </span>
                       <h3 className="text-xl font-black text-slate-900 tracking-tight">{cName}</h3>
-                      <p className="text-xs font-bold text-slate-400 mt-0.5">
+                      <p className="text-xs font-bold text-slate-600 mt-0.5">
                         Năm học: {sch.academicYear || '2026-2027'}
                       </p>
                     </div>
@@ -807,7 +816,7 @@ export const AdminSchedulePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenEditModal(sch)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                         title="Chỉnh sửa lịch"
                       >
                         <Edit2 size={16} />
@@ -815,7 +824,7 @@ export const AdminSchedulePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDeleteSchedule(sch._id, cName)}
-                        className="p-2 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-rose-800 hover:text-rose-800 hover:bg-rose-50 transition-colors cursor-pointer"
                         title="Xóa lịch"
                       >
                         <Trash2 size={16} />
@@ -825,18 +834,18 @@ export const AdminSchedulePage: React.FC = () => {
 
                   {/* Teacher snippet */}
                   <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                    <div className="h-9 w-9 rounded-xl bg-indigo-700 text-white font-black text-xs flex items-center justify-center shrink-0">
                       {tName[0] || 'T'}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-black text-slate-900 truncate">{tName}</p>
-                      <p className="text-xs text-slate-500 font-semibold truncate">{tEmail}</p>
+                      <p className="text-xs text-slate-600 font-semibold truncate">{tEmail}</p>
                     </div>
                   </div>
 
                   {/* Weekly slots list */}
                   <div className="space-y-2">
-                    <p className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-600">
                       Các buổi học trong tuần ({sch.weeklySlots?.length || 0}):
                     </p>
                     <div className="space-y-1.5">
@@ -853,7 +862,7 @@ export const AdminSchedulePage: React.FC = () => {
                               {slot.startTime} – {slot.endTime}
                             </span>
                             {slot.room && (
-                              <span className="text-slate-500 font-semibold truncate">
+                              <span className="text-slate-600 font-semibold truncate">
                                 • {slot.room}
                               </span>
                             )}
@@ -875,9 +884,9 @@ export const AdminSchedulePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400">
+                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
                   <span>Màu thẻ: {sch.colorTag}</span>
-                  <span className={sch.isActive ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                  <span className={sch.isActive ? 'text-emerald-800 font-bold' : 'text-slate-600'}>
                     {sch.isActive ? '✓ Đang kích hoạt' : 'Tạm dừng'}
                   </span>
                 </div>
@@ -890,24 +899,24 @@ export const AdminSchedulePage: React.FC = () => {
       {/* ── MODAL: XẾP THỜI KHÓA BIỂU (CREATE / EDIT) ───────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 animate-scale-up">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl max-h-[92vh] flex flex-col border border-slate-200 animate-scale-up">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
                   <CalendarDays size={24} />
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-slate-900">
                     {editingSchedule ? 'Cập Nhật Thời Khóa Biểu' : 'Xếp Thời Khóa Biểu Cho Lớp'}
                   </h2>
-                  <p className="text-sm font-semibold text-slate-500">
+                  <p className="text-sm font-semibold text-slate-600">
                     Sắp xếp ngày và khung giờ dạy học định kỳ hàng tuần cho lớp
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl"
+                className="p-2 text-slate-600 hover:text-slate-700 rounded-xl"
               >
                 <X size={20} />
               </button>
@@ -915,18 +924,23 @@ export const AdminSchedulePage: React.FC = () => {
 
             {modalError && (
               <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold flex items-center gap-2">
-                <AlertCircle size={18} className="shrink-0 text-rose-600" />
+                <AlertCircle size={18} className="shrink-0 text-rose-800" />
                 <span>{modalError}</span>
               </div>
             )}
 
             <form onSubmit={handleSubmitModal} className="flex-1 overflow-y-auto py-5 space-y-5 pr-1">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="grid gap-2">Có hiệu lực từ<input type="date" required value={formData.effectiveFrom} onChange={event => setFormData(previous => ({ ...previous, effectiveFrom: event.target.value }))} /></label>
+                <label className="grid gap-2">Có hiệu lực đến (tùy chọn)<input type="date" min={formData.effectiveFrom} value={formData.effectiveTo} onChange={event => setFormData(previous => ({ ...previous, effectiveTo: event.target.value }))} /></label>
+                <label className="flex items-center gap-3"><input type="checkbox" checked={formData.isActive} onChange={event => setFormData(previous => ({ ...previous, isActive: event.target.checked }))} /> Kích hoạt lịch dạy</label>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Lớp học */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      Lớp Học <span className="text-rose-500">*</span>
+                      Lớp Học <span className="text-rose-800">*</span>
                     </label>
                     <button
                       type="button"
@@ -934,7 +948,7 @@ export const AdminSchedulePage: React.FC = () => {
                         setIsModalOpen(false);
                         handleOpenQuickAddClass();
                       }}
-                      className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                      className="text-xs font-bold text-indigo-800 hover:underline cursor-pointer"
                     >
                       + Thêm lớp mới
                     </button>
@@ -959,10 +973,12 @@ export const AdminSchedulePage: React.FC = () => {
                 {/* Giáo viên */}
                 <div>
                   <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                    Giáo Viên Giảng Dạy <span className="text-rose-500">*</span>
+                    Giáo Viên Giảng Dạy <span className="text-rose-800">*</span>
                   </label>
                   <select
                     value={formData.teacher}
+                    disabled
+                    title="Giáo viên theo phân công lớp. Thay đổi ở trang Lớp học."
                     onChange={(e) => setFormData((p) => ({ ...p, teacher: e.target.value }))}
                     required
                     className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600"
@@ -1016,12 +1032,12 @@ export const AdminSchedulePage: React.FC = () => {
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Khung Giờ Học Hàng Tuần <span className="text-rose-500">*</span>
+                    Khung Giờ Học Hàng Tuần <span className="text-rose-800">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={handleAddSlot}
-                    className="py-1.5 px-3 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-xs hover:bg-indigo-100 flex items-center gap-1 cursor-pointer"
+                    className="py-1.5 px-3 rounded-xl bg-indigo-50 text-indigo-800 font-bold text-xs hover:bg-indigo-100 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus size={14} />
                     <span>Thêm buổi học</span>
@@ -1037,7 +1053,7 @@ export const AdminSchedulePage: React.FC = () => {
                       {/* Row 1: Time, Day and Room */}
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">Thứ</label>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Thứ</label>
                           <select
                             value={slot.dayOfWeek}
                             onChange={(e) => handleSlotChange(index, 'dayOfWeek', Number(e.target.value))}
@@ -1054,7 +1070,7 @@ export const AdminSchedulePage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">Bắt đầu</label>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Bắt đầu</label>
                           <input
                             type="time"
                             value={slot.startTime}
@@ -1064,7 +1080,7 @@ export const AdminSchedulePage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">Kết thúc</label>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Kết thúc</label>
                           <input
                             type="time"
                             value={slot.endTime}
@@ -1075,7 +1091,7 @@ export const AdminSchedulePage: React.FC = () => {
 
                         <div className="flex items-center gap-2 pt-1 sm:pt-0">
                           <div className="flex-1">
-                            <label className="block text-[11px] font-bold text-slate-500 mb-1">Phòng học</label>
+                            <label className="block text-[11px] font-bold text-slate-600 mb-1">Phòng học</label>
                             <input
                               type="text"
                               placeholder="Phòng 101"
@@ -1089,7 +1105,7 @@ export const AdminSchedulePage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleRemoveSlot(index)}
-                              className="mt-4 p-2 text-rose-500 hover:bg-rose-100 rounded-xl cursor-pointer shrink-0"
+                              className="mt-4 p-2 text-rose-800 hover:bg-rose-100 rounded-xl cursor-pointer shrink-0"
                               title="Xóa buổi này"
                             >
                               <Trash2 size={16} />
@@ -1101,8 +1117,8 @@ export const AdminSchedulePage: React.FC = () => {
                       {/* Row 2: Lesson Assignment (Gắn buổi học cụ thể là bài mấy) */}
                       <div className="pt-2 border-t border-slate-200/70 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                         <div className="sm:col-span-7">
-                          <label className="block text-[11px] font-black uppercase tracking-wider text-indigo-700 mb-1 flex items-center gap-1.5">
-                            <BookOpen size={13} className="text-indigo-600" />
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-indigo-800 mb-1 flex items-center gap-1.5">
+                            <BookOpen size={13} className="text-indigo-800" />
                             <span>Gắn Bài Học Theo Giáo Trình (Bài mấy)</span>
                           </label>
                           <select
@@ -1141,7 +1157,7 @@ export const AdminSchedulePage: React.FC = () => {
                         </div>
 
                         <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
                             Bài Số
                           </label>
                           <input
@@ -1151,12 +1167,12 @@ export const AdminSchedulePage: React.FC = () => {
                             placeholder="Số bài"
                             value={slot.lessonNumber ?? ''}
                             onChange={(e) => handleSlotChange(index, 'lessonNumber', e.target.value ? Number(e.target.value) : null)}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm font-bold text-indigo-700"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm font-bold text-indigo-800"
                           />
                         </div>
 
                         <div className="sm:col-span-3">
-                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
                             Tiêu Đề / Ghi Chú Ca
                           </label>
                           <input
@@ -1185,7 +1201,7 @@ export const AdminSchedulePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={modalLoading}
-                  className="py-3 px-7 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-base shadow-md cursor-pointer"
+                  className="py-3 px-7 rounded-2xl bg-indigo-700 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-base cursor-pointer"
                 >
                   {modalLoading ? 'Đang lưu lịch...' : 'Lưu Thời Khóa Biểu'}
                 </button>
@@ -1198,20 +1214,20 @@ export const AdminSchedulePage: React.FC = () => {
       {/* ── MODAL: THÊM LỚP HỌC MỚI TRỰC TIẾP TỪ TKB ──────────────────────── */}
       {isQuickAddClassOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-lg shadow-2xl border border-slate-200 animate-scale-up space-y-5">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-lg border border-slate-200 animate-scale-up space-y-5">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
                   <School size={20} />
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-slate-900">Tạo Lớp Học Mới</h3>
-                  <p className="text-xs font-semibold text-slate-500">Tạo lớp và đồng bộ ngay vào danh sách xếp lịch</p>
+                  <p className="text-xs font-semibold text-slate-600">Tạo lớp và đồng bộ ngay vào danh sách xếp lịch</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsQuickAddClassOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl"
+                className="p-1.5 text-slate-600 hover:text-slate-700 rounded-xl"
               >
                 <X size={20} />
               </button>
@@ -1219,7 +1235,7 @@ export const AdminSchedulePage: React.FC = () => {
 
             {quickClassError && (
               <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-                <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                <AlertCircle size={16} className="shrink-0 text-rose-800" />
                 <span>{quickClassError}</span>
               </div>
             )}
@@ -1288,7 +1304,7 @@ export const AdminSchedulePage: React.FC = () => {
                         key={t._id}
                         value={t._id}
                         disabled={Boolean(assigned)}
-                        className={assigned ? 'text-slate-400 italic' : 'text-slate-900 font-bold'}
+                        className={assigned ? 'text-slate-600 italic' : 'text-slate-900 font-bold'}
                       >
                         {t.name} {assigned ? `[Đã có lớp: ${assigned}]` : '✓ Sẵn sàng'}
                       </option>
@@ -1308,7 +1324,7 @@ export const AdminSchedulePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={quickClassSubmitting}
-                  className="py-2.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-sm cursor-pointer"
+                  className="py-2.5 px-5 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm cursor-pointer"
                 >
                   {quickClassSubmitting ? 'Đang tạo...' : 'Tạo Lớp & Xếp Lịch'}
                 </button>

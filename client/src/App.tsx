@@ -1,4 +1,6 @@
 import React from 'react';
+import { StaffSurface } from './components/staff/StaffSurface';
+import { ClassRecognitionsPage } from './dashboards/shared/ClassRecognitionsPage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -10,6 +12,8 @@ import { LessonDetailPage } from './pages/child/LessonDetailPage';
 import { ActivityPlayPage } from './pages/child/ActivityPlayPage';
 import { TeacherLoginPage } from './dashboards/teacher/TeacherLoginPage';
 import { TeacherLayout, TeacherDashboard, TeacherClasses, TeacherClassDetail, TeacherContent, TeacherAssignments, TeacherAssignmentDetail, TeacherStudents, TeacherStudentDetail, TeacherAnalytics } from './dashboards/teacher/TeacherWorkspace';
+import { TeacherInbox } from './dashboards/teacher/TeacherInbox';
+import './styles/teacher.css';
 import { ClassroomSessionSetup } from './dashboards/teacher/ClassroomSessionSetup';
 import { LiveSessionPage } from './dashboards/teacher/LiveSessionPage';
 import { SessionSummaryPage } from './dashboards/teacher/SessionSummaryPage';
@@ -22,6 +26,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Admin Portal Pages
 import { AdminLoginPage } from './dashboards/admin/AdminLoginPage';
+import { AdminSettingsPage } from './dashboards/admin/AdminSettingsPage';
 import { AdminLayout } from './dashboards/admin/AdminLayout';
 import { AdminDashboardPage } from './dashboards/admin/AdminDashboardPage';
 import { AdminClassroomsPage } from './dashboards/admin/AdminClassroomsPage';
@@ -53,14 +58,14 @@ const ProtectedTeacherRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen bg-slate-50" />;
   if (!user || user.role !== 'TEACHER') return <Navigate to="/teacher/login" replace />;
-  return <>{children}</>;
+  return <StaffSurface className="teacher-surface">{children}</StaffSurface>;
 };
 
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen bg-slate-900" />;
   if (!user || user.role !== 'ADMIN') return <Navigate to="/admin/login" replace />;
-  return <>{children}</>;
+  return <StaffSurface>{children}</StaffSurface>;
 };
 
 export function App() {
@@ -132,7 +137,7 @@ export function App() {
           />
 
           {/* Teacher Routes (Classroom Teaching & Management) */}
-          <Route path="/teacher/login" element={<TeacherLoginPage />} />
+          <Route path="/teacher/login" element={<StaffSurface><TeacherLoginPage /></StaffSurface>} />
           <Route path="/teacher" element={<ProtectedTeacherRoute><TeacherLayout /></ProtectedTeacherRoute>}>
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="schedule" element={<TeacherTeachingSchedule />} />
@@ -144,6 +149,8 @@ export function App() {
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
             <Route path="analytics" element={<TeacherAnalytics />} />
+            <Route path="notifications" element={<TeacherInbox />} />
+            <Route path="recognitions" element={<ClassRecognitionsPage />} />
             <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
             <Route path="sentences" element={<SentenceTeachingPage />} />
             <Route path="lesson-planner" element={<TeacherLessonPlanner />} />
@@ -169,7 +176,7 @@ export function App() {
           />
 
           {/* Admin Routes (Curriculum, Sentence Library, Classrooms, Teachers, Users) */}
-          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/login" element={<StaffSurface><AdminLoginPage /></StaffSurface>} />
           <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="classrooms" element={<AdminClassroomsPage />} />
@@ -179,7 +186,8 @@ export function App() {
             <Route path="games" element={<AdminGamesPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
-            <Route path="settings" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="recognitions" element={<ClassRecognitionsPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="audit-logs" element={<AdminLogsPage />} />
             <Route path="logs" element={<AdminLogsPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />

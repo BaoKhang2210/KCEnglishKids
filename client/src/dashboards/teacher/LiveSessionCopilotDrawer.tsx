@@ -92,12 +92,12 @@ export const LiveSessionCopilotDrawer: React.FC<Props> = ({
     <aside
       role="dialog"
       aria-label="AI Teacher Copilot Drawer"
-      className="fixed inset-y-0 right-0 z-50 w-full sm:w-[480px] bg-slate-900/98 text-slate-100 shadow-2xl border-l border-white/15 backdrop-blur-xl flex flex-col transition-all duration-300 select-none animate-in slide-in-from-right"
+      className="fixed inset-y-0 right-0 z-50 w-full sm:w-[480px] bg-slate-900/98 text-slate-100 border-l border-white/15 backdrop-blur-xl flex flex-col transition-all duration-300 select-none animate-in slide-in-from-right"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 p-4 sm:p-5 bg-slate-950/70">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 shadow-md">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950">
             <Sparkles size={20} className="animate-spin-slow" />
           </div>
           <div>
@@ -277,7 +277,7 @@ export const LiveSessionCopilotDrawer: React.FC<Props> = ({
                     }}
                     className={`flex flex-col items-center justify-center p-2 rounded-xl text-center border transition-all cursor-pointer ${
                       effectivePhaseIndex === idx
-                        ? 'border-amber-400 bg-amber-400/20 text-white shadow-md'
+                        ? 'border-amber-400 bg-amber-400/20 text-white'
                         : 'border-white/10 bg-slate-800/60 text-slate-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
