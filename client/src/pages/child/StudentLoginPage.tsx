@@ -274,6 +274,56 @@ export const StudentLoginPage: React.FC = () => {
                 )}
               </button>
             </form>
+
+            {/* Quick Demo Fill Buttons */}
+            <div className="mt-4 pt-4 border-t border-amber-100 flex flex-col gap-2">
+              <span className="text-xs font-bold text-slate-500 text-center">
+                👉 Chạm để đăng nhập nhanh tài khoản mẫu (3 nhóm tuổi):
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdentifier('leo@kcenglishkids.com');
+                    setPassword('1232');
+                    sfx.playPop();
+                  }}
+                  className="flex flex-col items-center justify-center p-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all cursor-pointer text-center group"
+                >
+                  <span className="text-lg group-hover:scale-110 transition-transform">🦁</span>
+                  <span className="text-xs font-black text-amber-950">Leo</span>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-200/60 px-1.5 py-0.5 rounded-md mt-0.5">3–4 tuổi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdentifier('mia@kcenglishkids.com');
+                    setPassword('1232');
+                    sfx.playPop();
+                  }}
+                  className="flex flex-col items-center justify-center p-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-all cursor-pointer text-center group"
+                >
+                  <span className="text-lg group-hover:scale-110 transition-transform">🐼</span>
+                  <span className="text-xs font-black text-teal-950">Mia</span>
+                  <span className="text-[10px] font-bold text-teal-700 bg-teal-200/60 px-1.5 py-0.5 rounded-md mt-0.5">4–5 tuổi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdentifier('toby@kcenglishkids.com');
+                    setPassword('1232');
+                    sfx.playPop();
+                  }}
+                  className="flex flex-col items-center justify-center p-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-all cursor-pointer text-center group"
+                >
+                  <span className="text-lg group-hover:scale-110 transition-transform">🐰</span>
+                  <span className="text-xs font-black text-sky-950">Toby</span>
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-200/60 px-1.5 py-0.5 rounded-md mt-0.5">5–6 tuổi</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* ── Mobile Tagline badges ── */}

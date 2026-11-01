@@ -507,8 +507,8 @@ async function seedDatabase() {
       contact: '0901234567',
       avatar: 'lion',
       avatarUrl: createCardSvg('Leo', '#FFE082', '🦁'),
-      password: '123456',
-      pin: '1234',
+      password: '1232',
+      pin: '1232',
       ageGroup: ageGroupsMap['3-4']._id,
       ageGroupCode: '3-4',
       assignedClass: demoClass._id,
@@ -524,10 +524,10 @@ async function seedDatabase() {
       contact: '0902345678',
       avatar: 'panda',
       avatarUrl: createCardSvg('Mia', '#CFD8DC', '🐼'),
-      password: '123456',
-      pin: '5678',
-      ageGroup: ageGroupsMap['3-4']._id,
-      ageGroupCode: '3-4',
+      password: '1232',
+      pin: '1232',
+      ageGroup: ageGroupsMap['4-5']._id,
+      ageGroupCode: '4-5',
       assignedClass: demoClass._id,
       status: 'ACTIVE'
     });
@@ -541,10 +541,10 @@ async function seedDatabase() {
       contact: '0903456789',
       avatar: 'rabbit',
       avatarUrl: createCardSvg('Toby', '#F8BBD0', '🐰'),
-      password: '123456',
-      pin: '1111',
-      ageGroup: ageGroupsMap['4-5']._id,
-      ageGroupCode: '4-5',
+      password: '1232',
+      pin: '1232',
+      ageGroup: ageGroupsMap['5-6']._id,
+      ageGroupCode: '5-6',
       status: 'ACTIVE'
     });
     await childToby.save();
