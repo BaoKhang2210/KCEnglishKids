@@ -16,9 +16,15 @@ export const learningOutbox = {
     // If storage is unavailable do not claim the result has been saved.
     localStorage.setItem(key, JSON.stringify(entries));
     notify();
-    await this.flush(childId);
+    try {
+      await this.flush(childId);
+    } catch {
+      // Background network/502 errors handled gracefully, outbox retains entry
+    }
     const rejected=read().find(row=>row.payload.submissionId===submissionId && row.error);
     if(rejected)throw new Error(rejected.error);
+    const stillPending = read().some(row => row.payload.submissionId === submissionId);
+    return { success: true, offline: stillPending };
   },
   async flush(childId: string) {
     if (running) { await running; if (!this.pending(childId).length) return; }
@@ -37,6 +43,13 @@ export const learningOutbox = {
           localStorage.setItem(key, JSON.stringify(read().filter(item => item.payload.submissionId !== row.payload.submissionId)));
           notify();
         } catch (error: any) {
+          const status = error?.status;
+          if (status === 502 || status === 500 || status === 503 || status === 504 || error?.name === 'TypeError') {
+            if (import.meta.env?.DEV) {
+              console.warn(`[ProgressService] Server ${status || 'offline'}, saved to LocalStorage`);
+            }
+            break;
+          }
           if(error.status>=400&&error.status<500){
             localStorage.setItem(key,JSON.stringify(read().map(item=>item.payload.submissionId===row.payload.submissionId?{...item,error:error.message}:item)));
             blocked.add(row.lessonId);notify();

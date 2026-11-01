@@ -67,17 +67,19 @@ export const GamesTab: React.FC<GamesTabProps> = ({
         </div>
       </div>
 
-      {/* ── CENTER: 4 Game Cards Grid (2x2) ── */}
-      <div className="flex-1 min-h-0 w-full grid grid-cols-2 grid-rows-2 gap-2 sm:gap-4 my-2">
-        {games.map(game => (
-          <GameCard
-            key={game.id}
-            game={game}
-            isCompleted={completedGameIds.includes(game.id)}
-            isSuggested={game.id === suggestedGameId}
-            onSelect={onSelectGame}
-          />
-        ))}
+      {/* ── CENTER: 4 Game Cards Grid (2x2) with internal scroll if height is constrained ── */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden my-2 pr-0.5">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 h-full min-h-[280px]">
+          {games.map(game => (
+            <GameCard
+              key={game.id}
+              game={game}
+              isCompleted={completedGameIds.includes(game.id)}
+              isSuggested={game.id === suggestedGameId}
+              onSelect={onSelectGame}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

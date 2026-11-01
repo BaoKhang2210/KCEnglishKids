@@ -482,11 +482,11 @@ export function buildPracticeQuestions(
   const limits = getAgeOptionsLimits(ageGroup);
   const wordIds = uniqueWords.map((word) => word._id || (word as any).id || word.english);
   const variantByWordId = assignRoundOneVariants(wordIds, roundOneVariantsByAge[ageGroup] || ['A'], savedVariantByWordId);
-  // Round 3 keeps its per-lesson rotation; Round 2 is always Line Match now.
-  const useIndex = Math.max(0, (lessonNumber - 1) + 2 * (unitNumber - 1)) % USE_ACTIVITIES.length;
-  let use = USE_ACTIVITIES[useIndex];
+  // Round 3 is always 'Deliver It!' (same style as Unit 1 Lesson 1) for all lessons.
+  // Fallback to PUPPET if any word is non-deliverable (verb/action).
+  let use = USE_ACTIVITIES[0];
   if (use.type === 'DELIVER' && uniqueWords.some(hasNonDeliverableWord)) {
-    use = USE_ACTIVITIES[(useIndex + 1) % USE_ACTIVITIES.length];
+    use = USE_ACTIVITIES[1];
   }
 
   const makeChoices = (target: Vocabulary, count: number) => {

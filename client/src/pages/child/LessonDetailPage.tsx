@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { lessonsApi, stageProgressApi, topicsApi } from '../../services/api';
 import type { Lesson, Vocabulary } from '../../types';
-import { sfx } from '../../utils/audio';
+import { sfx, stopWordAudio } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
 import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2PracticeFlow';
 import { ScreenShell } from '../../components/layout/ScreenShell';
@@ -60,9 +60,14 @@ export const LessonDetailPage: React.FC = () => {
         if (cancelled) return;
         if (res.success) {
           if(user.role==='CHILD'){
-            const response = await stageProgressApi.getPlan(childId, id);
-            const saved = response.data;
-            if(cancelled)return;setPlan(saved);
+            try {
+              const response = await stageProgressApi.getPlan(childId, id);
+              const saved = response?.data;
+              if(cancelled)return;
+              if (saved) setPlan(saved);
+            } catch (err) {
+              if (import.meta.env.DEV) console.warn('[ProgressService] Error fetching plan:', err);
+            }
           }
           setLesson(res.data);
 
@@ -174,7 +179,11 @@ export const LessonDetailPage: React.FC = () => {
     return () => { window.removeEventListener('online', retry); window.removeEventListener('kc_learning_sync', status); };
   }, [childId]);
   const handleGameCompleted = async (gameId: string, _stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => {
-    if (!await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken})) return;
+    try {
+      await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken});
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 3 game:', e);
+    }
     const nextCompleted = Array.from(new Set([...completedGames, gameId]));
     setCompletedGames(nextCompleted);
     cache.setItem(`kc_stage3_games_${childId}_${id}`, JSON.stringify(nextCompleted));
@@ -185,8 +194,9 @@ export const LessonDetailPage: React.FC = () => {
     const topicId = typeof lesson?.topic === 'object' ? (lesson.topic as any)?._id : lesson?.topic;
     if (!topicId || !id) return;
     let cancelled = false;
+    const activeChildId = user?.role === 'CHILD' ? childId : undefined;
     topicsApi
-      .getLessonsByTopic(String(topicId), user?.ageGroupCode, childId)
+      .getLessonsByTopic(String(topicId), user?.ageGroupCode, activeChildId)
       .then((res: any) => {
         if (cancelled || !res?.success) return;
         const pool: Vocabulary[] = [];
@@ -200,7 +210,7 @@ export const LessonDetailPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [lesson, id, user?.ageGroupCode, childId]);
+  }, [lesson, id, user?.ageGroupCode, user?.role, childId]);
 
   const handleStartGame = (gameId: string) => {
     sfx.playPop();
@@ -224,19 +234,35 @@ export const LessonDetailPage: React.FC = () => {
       return;
     }
     sfx.playPop();
+    stopWordAudio();
+    setActiveGameId(null);
     setLockedStage(null);
     setActiveStage(stage);
     cache.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
   };
 
   const handleCompleteStage1 = async () => {
-    if (!await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)})) return;
-    sfx.playSuccess(); cache.setItem(`kc_stage1_${childId}_${id}`, 'true'); setActiveStage(2);
+    try {
+      await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)});
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 1:', e);
+    }
+    sfx.playSuccess();
+    cache.setItem(`kc_stage1_${childId}_${id}`, 'true');
+    setActiveStage(2);
   };
   const handleCompleteStage2 = async (stats?: {score: number; stars: number; answers: Array<{wordId: string; round: number; selectedId: string | null}>}) => {
     if (isStage2Completed && !stats?.answers.length) { setActiveStage(3); return; }
-    if (!stats?.answers.length || !await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token})) return;
-    sfx.playSuccess(); cache.setItem(`kc_stage2_${childId}_${id}`, 'true'); setActiveStage(3);
+    if (stats?.answers.length) {
+      try {
+        await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token});
+      } catch (e) {
+        if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 2:', e);
+      }
+    }
+    sfx.playSuccess();
+    cache.setItem(`kc_stage2_${childId}_${id}`, 'true');
+    setActiveStage(3);
   };
 
   const topicIcon = (lesson as any)?.topic?.icon || '🌟';
@@ -395,18 +421,8 @@ export const LessonDetailPage: React.FC = () => {
 
             {/* STAGE 3: VUI CHƠI */}
             {activeStage === 3 && (
-              <>
-                <GamesTab
-                  allowedGameIds={plan?.games.map((game: any) => game.id)}
-                  vocabularyList={lesson.vocabularyItems || []}
-                  unitNumber={unitNumber}
-                  lessonNumber={lessonNumber}
-                  completedGameIds={completedGames}
-                  isStage3Completed={isStage3Completed}
-                  onSelectGame={handleStartGame}
-                />
-
-                {activeGameId && (
+              <div className="relative flex flex-col flex-1 min-h-0 w-full h-full overflow-hidden">
+                {activeGameId ? (
                   <GameRunner
                     allowedGameIds={plan?.games.map((game: any) => game.id)}
                     key={activeGameId}
@@ -430,8 +446,18 @@ export const LessonDetailPage: React.FC = () => {
                     onGameComplete={handleGameCompleted}
                     onNextGame={(nextId) => setActiveGameId(nextId as GameId)}
                   />
+                ) : (
+                  <GamesTab
+                    allowedGameIds={plan?.games.map((game: any) => game.id)}
+                    vocabularyList={lesson.vocabularyItems || []}
+                    unitNumber={unitNumber}
+                    lessonNumber={lessonNumber}
+                    completedGameIds={completedGames}
+                    isStage3Completed={isStage3Completed}
+                    onSelectGame={handleStartGame}
+                  />
                 )}
-              </>
+              </div>
             )}
 
           </div>

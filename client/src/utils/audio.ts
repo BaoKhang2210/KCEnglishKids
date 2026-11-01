@@ -712,6 +712,27 @@ export const sfx = new SoundEffectsEngine();
 
 let currentAudio: HTMLAudioElement | null = null;
 let currentSafetyTimer: any = null;
+let currentPendingFinalize: (() => void) | null = null;
+
+/**
+ * Pre-cached Audio instances for near-zero latency
+ */
+const audioPreloadCache = new Map<string, HTMLAudioElement>();
+
+export const preloadWordAudio = (urls: (string | undefined)[]) => {
+  if (typeof window === 'undefined') return;
+  urls.forEach((url) => {
+    if (!url || !url.startsWith('http') || audioPreloadCache.has(url)) return;
+    try {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = url;
+      audioPreloadCache.set(url, audio);
+    } catch {
+      // Ignore preload errors
+    }
+  });
+};
 
 /**
  * Stops any currently playing word audio or speech synthesis immediately
@@ -720,6 +741,13 @@ export const stopWordAudio = () => {
   if (currentSafetyTimer) {
     clearTimeout(currentSafetyTimer);
     currentSafetyTimer = null;
+  }
+
+  // Finalize any pending promise so callers waiting on it are never blocked
+  if (currentPendingFinalize) {
+    const prevFinalize = currentPendingFinalize;
+    currentPendingFinalize = null;
+    prevFinalize();
   }
 
   if (currentAudio) {
@@ -745,7 +773,7 @@ export const stopWordAudio = () => {
  */
 export const playWordAudio = (word: string, audioUrl?: string): Promise<void> => {
   return new Promise((resolve) => {
-    // 1. Immediately halt any previously playing sounds or speech
+    // 1. Immediately halt any previously playing sounds or speech and finalize pending
     stopWordAudio();
 
     sfx.playPop();
@@ -755,6 +783,9 @@ export const playWordAudio = (word: string, audioUrl?: string): Promise<void> =>
     const finalize = () => {
       if (isHandled) return;
       isHandled = true;
+      if (currentPendingFinalize === finalize) {
+        currentPendingFinalize = null;
+      }
       if (currentSafetyTimer) {
         clearTimeout(currentSafetyTimer);
         currentSafetyTimer = null;
@@ -763,17 +794,27 @@ export const playWordAudio = (word: string, audioUrl?: string): Promise<void> =>
       resolve();
     };
 
+    currentPendingFinalize = finalize;
+
     const triggerSpeechFallback = () => {
       if (isHandled) return;
-      stopWordAudio();
+      if (currentAudio) {
+        try {
+          currentAudio.pause();
+          currentAudio.onended = null;
+          currentAudio.onerror = null;
+        } catch {}
+        currentAudio = null;
+      }
       fallbackSpeech(word, finalize);
     };
 
     // If valid http(s) audioUrl is provided, attempt HTML5 audio
     if (audioUrl && audioUrl.startsWith('http')) {
       try {
-        const audio = new Audio(audioUrl);
+        const audio = audioPreloadCache.get(audioUrl) || new Audio(audioUrl);
         currentAudio = audio;
+        audio.currentTime = 0;
 
         audio.onended = () => {
           finalize();
@@ -783,21 +824,15 @@ export const playWordAudio = (word: string, audioUrl?: string): Promise<void> =>
           triggerSpeechFallback();
         };
 
-        // Safety timeout in case remote audio hangs or network stalls
+        // Safety timeout in case remote audio hangs or network stalls (shortened to 1200ms)
         currentSafetyTimer = setTimeout(() => {
           if (!isHandled && (!audio.currentTime || audio.paused)) {
             triggerSpeechFallback();
           }
-        }, 2500);
+        }, 1200);
 
         audio.play().catch((err) => {
-          if (err?.name === 'AbortError') {
-            // Interrupted by user navigating or pausing, safely finalize
-            finalize();
-            return;
-          }
-          if (err?.name === 'NotAllowedError') {
-            // Browser autoplay blocked before user gesture, safely finalize without fallback loop
+          if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') {
             finalize();
             return;
           }
@@ -829,15 +864,26 @@ const fallbackSpeech = (text: string, onEnd: () => void) => {
         try {
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.lang = 'en-US';
-          utterance.rate = 0.85; // Natural child-appropriate speed
-          utterance.pitch = 1.1; // Gentle, friendly pitch
+          utterance.rate = 0.95; // Clear natural speed
+          utterance.pitch = 1.05; // Friendly tone
+
+          // Try to select an English female or natural voice if available
+          const voices = window.speechSynthesis.getVoices();
+          const preferredVoice = voices.find(
+            (v) => (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('Female')))
+          ) || voices.find((v) => v.lang.startsWith('en'));
+          if (preferredVoice) utterance.voice = preferredVoice;
+
           utterance.onend = safeEnd;
           utterance.onerror = safeEnd;
           window.speechSynthesis.speak(utterance);
+
+          // Utterance safety timeout
+          setTimeout(safeEnd, 2000);
         } catch (e) {
           safeEnd();
         }
-      }, 50);
+      }, 30);
     } catch (e) {
       safeEnd();
     }

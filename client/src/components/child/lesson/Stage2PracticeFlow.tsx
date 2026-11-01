@@ -18,12 +18,12 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { StoryBackdrop } from '../../StoryScene';
+
 import earlyLearning from '../../../../../shared/earlyLearning.json';
-import { createPortal } from 'react-dom';
+
 import { X, Volume2, ArrowRight, Check, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react';
 import type { Vocabulary, AgeGroupCode, ActivityQuestion } from '../../../types';
-import { sfx, playWordAudio, stopWordAudio } from '../../../utils/audio';
+import { sfx, playWordAudio, preloadWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
 import { useVocabStats } from '../../../hooks/useVocabStats';
 import {
@@ -44,6 +44,7 @@ import { LineMatchEngine, emptyLineMatchState, type LineMatchRoundState } from '
 import { KokoMascot, type MascotState } from '../KokoMascot';
 import { ListenChooseEngine } from '../games/ListenChooseEngine';
 import { ImageWordMatchEngine } from '../games/ImageWordMatchEngine';
+import { wordArt } from '../../../utils/learningArt';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -58,14 +59,19 @@ export const VocabImage: React.FC<{
   pulsing?: boolean;
 }> = ({ vocab, className = '', pulsing = false }) => {
   const [imgErr, setImgErr] = useState(false);
-  const hasImg = !!vocab.imageUrl && !imgErr;
+  const cleanArt = wordArt(vocab.english || '');
+  const rawUrl = vocab.imageUrl || '';
+  const resolvedUrl = (!rawUrl || rawUrl.startsWith('data:image/svg+xml')) && cleanArt?.url
+    ? cleanArt.url
+    : rawUrl;
+  const hasImg = !!resolvedUrl && !imgErr;
 
   return (
     <div className={`relative w-full h-full flex items-center justify-center overflow-hidden ${className} ${pulsing ? 'animate-bounce' : ''}`}>
       {hasImg ? (
         <img
-          src={vocab.imageUrl}
-          alt={vocab.english}
+          src={resolvedUrl}
+          alt=""
           className="max-w-full max-h-full object-contain select-none pointer-events-none drop-shadow-md"
           draggable={false}
           onError={() => setImgErr(true)}
@@ -73,7 +79,6 @@ export const VocabImage: React.FC<{
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center rounded-2xl bg-white/10 border-2 border-dashed border-white/30">
           <span className="text-[clamp(2rem,6vh,4rem)] select-none leading-none">🌟</span>
-          <span className="text-xs text-white/60 font-bold mt-1 capitalize">{vocab.english}</span>
         </div>
       )}
     </div>
@@ -174,14 +179,6 @@ const LTActivity: React.FC<LTActivityProps> = ({
           >
             <div className="flex-1 min-h-0 w-full flex items-center justify-center p-1">
               <VocabImage vocab={opt} className="w-full h-full" pulsing={isPulsing} />
-            </div>
-            <div className="shrink-0 w-full text-center pb-0.5">
-              <span
-                className="font-black text-amber-100 capitalize leading-tight block"
-                style={{ fontSize: 'clamp(0.9rem,3.2vh,1.5rem)' }}
-              >
-                {opt.english.toLowerCase()}
-              </span>
             </div>
             {showCheck && isTarget && (
               <div className="absolute inset-0 flex items-center justify-center bg-emerald-500/20 rounded-3xl animate-pop-in pointer-events-none">
@@ -301,31 +298,7 @@ export const ActivityChallenge: React.FC<ActivityChallengeProps> = ({ question, 
   return null;
 };
 
-const BreakDialog: React.FC<{ onClose: () => void; onSaveAndExit: () => void; returnFocusRef: React.RefObject<HTMLButtonElement | null> }> = ({ onClose, onSaveAndExit, returnFocusRef }) => {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.setTimeout(() => returnFocusRef.current?.focus(), 0);
-    };
-  }, [onClose, returnFocusRef]);
-  return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/70 p-4" onClick={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="practice-break-title" tabIndex={-1} onClick={(event) => event.stopPropagation()} className="story-surface story-break-dialog w-full max-w-md rounded-[2rem] border-2 border-amber-200 p-7 text-center text-white shadow-2xl">
-        <StoryBackdrop scene="rest"/>
-        <h2 id="practice-break-title" className="mb-3 text-3xl font-black">Cùng vươn vai nhé!</h2>
-        <p className="mb-4">Bé có thể nghỉ, chơi vận động với người lớn rồi quay lại.</p>
-        <button type="button" onClick={onClose} className="story-action is-primary mb-3 min-h-[80px] w-full rounded-3xl px-6 text-2xl font-black shadow-lg">▶ Chơi tiếp cùng Koko</button>
-        <button type="button" onClick={onSaveAndExit} className="story-action min-h-[80px] w-full rounded-3xl px-6 text-xl font-black">🏡 Lưu lại, bé nghỉ nhé</button>
-      </div>
-    </div>
-  );
-};
+// Break dialog removed
 
 // ── Subcomponent: GK Activity (Give to Koko) ──────────────────────────────────
 // Trẻ chọn item → Koko sáng lên → chạm Koko để "đưa" cho Koko
@@ -640,7 +613,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const [showSavedSummary, setShowSavedSummary] = useState(stage2Completed);
   const [showResumePrompt, setShowResumePrompt] = useState(Boolean(checkpoint && !stage2Completed));
   const [showSessionIntro, setShowSessionIntro] = useState(!checkpoint && !stage2Completed);
-  const [showBreakDialog, setShowBreakDialog] = useState(false);
+  // Break dialog removed — no longer interrupts practice flow
   const [roundTransition, setRoundTransition] = useState<{ kind: 'complete' | 'intro'; turn: 1 | 2 | 3 } | null>(null);
   const exitButtonRef = useRef<HTMLButtonElement>(null);
   const { statsMap, recordAttempt } = useVocabStats(childId);
@@ -820,15 +793,25 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     id: currentQ.id,
     promptText: currentQ.variant === 'B' ? 'What is this?' : currentQ.targetVocab.english,
     promptAudioUrl: currentQ.targetVocab.audioUrl,
-    promptImageUrl: currentQ.targetVocab.imageUrl,
+    promptImageUrl: ((!currentQ.targetVocab.imageUrl || currentQ.targetVocab.imageUrl.startsWith('data:image/svg+xml')) && wordArt(currentQ.targetVocab.english)?.url)
+      ? wordArt(currentQ.targetVocab.english)!.url
+      : currentQ.targetVocab.imageUrl,
     correctAnswer: currentQ.targetVocab.english,
-    options: currentQ.options.map((word) => ({
-      id: word._id || (word as any).id || word.english,
-      text: word.english,
-      vietnameseText: word.vietnamese,
-      imageUrl: word.imageUrl,
-      isCorrect: (word._id || (word as any).id || word.english) === currentQ.wordId,
-    })),
+    options: currentQ.options.map((word) => {
+      const cleanArt = wordArt(word.english || '');
+      const rawUrl = word.imageUrl || '';
+      const resolvedUrl = (!rawUrl || rawUrl.startsWith('data:image/svg+xml')) && cleanArt?.url
+        ? cleanArt.url
+        : rawUrl;
+
+      return {
+        id: word._id || (word as any).id || word.english,
+        text: word.english,
+        vietnameseText: word.vietnamese,
+        imageUrl: resolvedUrl,
+        isCorrect: (word._id || (word as any).id || word.english) === currentQ.wordId,
+      };
+    }),
     metadata: { imageUrl: currentQ.targetVocab.imageUrl, word: currentQ.targetVocab.english },
   } : null;
 
@@ -884,10 +867,8 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       setKokoMood('listening');
     }
 
-    if (showBreakDialog) return;
     const t = setTimeout(() => {
       if (currentQ.turn === 1 && currentQ.variant === 'B') {
-        // Round 1 B now speaks its target when the picture + word choices appear.
         playWordAudio(currentQ.targetVocab.english, currentQ.targetVocab.audioUrl);
       } else {
         playPrompt();
@@ -896,22 +877,15 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     return () => { if (t) clearTimeout(t); };
   }, [currentIdx, currentQ, isCompleted, showSavedSummary, showSessionIntro, showResumePrompt, roundTransition, playPrompt]);
 
-  const previousBreak = useRef(false);
   useEffect(() => {
-    if (showBreakDialog) stopWordAudio();
-    else if (previousBreak.current && !isCompleted && !showSessionIntro && !roundTransition) playPrompt();
-    previousBreak.current = showBreakDialog;
-  }, [showBreakDialog, isCompleted, showSessionIntro, roundTransition, playPrompt]);
-
-  useEffect(() => {
-    if (showBreakDialog || !currentQ || currentQ.turn !== 1 || isCompleted || showSavedSummary || showSessionIntro || showResumePrompt || roundTransition || wrongCount) return;
+    if (!currentQ || currentQ.turn !== 1 || isCompleted || showSavedSummary || showSessionIntro || showResumePrompt || roundTransition || wrongCount) return;
     const timer = window.setTimeout(() => {
       setBounceCorrect(true);
       if (currentQ.variant !== 'B') playPrompt();
       window.setTimeout(() => setBounceCorrect(false), 1800);
     }, 8000);
     return () => window.clearTimeout(timer);
-  }, [showBreakDialog, currentQ, currentIdx, wrongCount, isCompleted, showSavedSummary, showSessionIntro, showResumePrompt, roundTransition, playPrompt]);
+  }, [currentQ, currentIdx, wrongCount, isCompleted, showSavedSummary, showSessionIntro, showResumePrompt, roundTransition, playPrompt]);
 
   useEffect(() => {
     if (isCompleted || showSavedSummary || showResumePrompt || showSessionIntro || roundTransition || !questions.length) return;
@@ -940,12 +914,24 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         if (roundTransition.turn === 3) setIsCompleted(true);
         else setRoundTransition({ kind: 'intro', turn: (roundTransition.turn + 1) as 2 | 3 });
       } else {
-        setCurrentIdx((index) => Math.min(index + 1, questions.length - 1));
+        const nextTurn = roundTransition.turn;
+        const targetIdx = questions.findIndex((q) => q.turn === nextTurn);
+        if (targetIdx >= 0) {
+          setCurrentIdx(targetIdx);
+        } else {
+          setCurrentIdx((index) => Math.min(index + 1, questions.length - 1));
+        }
         setRoundTransition(null);
       }
-    }, roundTransition.kind === 'complete' ? 2000 : 1500);
+    }, roundTransition.kind === 'complete' ? 1800 : 1200);
     return () => window.clearTimeout(timer);
-  }, [roundTransition, questions.length]);
+  }, [roundTransition, questions]);
+
+  useEffect(() => {
+    if (vocabulary && vocabulary.length > 0) {
+      preloadWordAudio(vocabulary.map((v) => v.audioUrl));
+    }
+  }, [vocabulary]);
 
   // ── Correct handler ──────────────────────────────────────────────────────────
 
@@ -982,27 +968,53 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     // Keep Round 1 open until pronunciation finishes so the next prompt cannot cut it off.
     const pronunciation = playWordAudio(currentQ.targetVocab.english, currentQ.targetVocab.audioUrl);
 
+    let advanced = false;
     const advanceAfterCorrect = () => {
+      if (advanced) return;
+      advanced = true;
+
       if (currentIdx + 1 < questions.length) {
         const nextQuestion = questions[currentIdx + 1];
         if (nextQuestion.turn !== currentQ.turn) {
+          // Reached end of current round
           setRoundTransition({ kind: 'complete', turn: currentQ.turn as 1 | 2 | 3 });
+        } else if (currentQ.isRequeue) {
+          // After answering a requeue, check if all ORIGINAL words in this round are already done.
+          // If so, skip any remaining requeues and end the round immediately.
+          const originalDone = questions
+            .slice(0, currentIdx + 1)
+            .filter((q) => q.turn === currentQ.turn && !q.isRequeue).length;
+          const originalTotal = questions.filter((q) => q.turn === currentQ.turn && !q.isRequeue).length;
+          const nextHasMoreOriginal = questions
+            .slice(currentIdx + 1)
+            .some((q) => q.turn === currentQ.turn && !q.isRequeue);
+          if (originalDone >= originalTotal && !nextHasMoreOriginal) {
+            // All original words done — end round now
+            setRoundTransition({ kind: 'complete', turn: currentQ.turn as 1 | 2 | 3 });
+          } else {
+            setCurrentIdx((p) => p + 1);
+          }
         } else {
           setCurrentIdx((p) => p + 1);
           const pauseEvery = earlyLearning[effectiveAgeGroup].pauseEvery;
-          if ((currentIdx + 1) % pauseEvery === 0) setShowBreakDialog(true);
+          if ((currentIdx + 1) % pauseEvery === 0) { void pauseEvery; } // break dialog removed
         }
       } else {
         setRoundTransition({ kind: 'complete', turn: currentQ.turn as 1 | 2 | 3 });
         sfx.playSuccess();
       }
     };
+
     if (currentQ.turn === 1) {
-      void pronunciation.then(() => window.setTimeout(advanceAfterCorrect, 400));
+      // Race pronunciation with a 1100ms max guard so round transition is never stuck or delayed
+      const maxWait = new Promise<void>((r) => window.setTimeout(r, 1100));
+      void Promise.race([pronunciation, maxWait]).then(() => {
+        window.setTimeout(advanceAfterCorrect, 250);
+      });
     } else {
-      window.setTimeout(advanceAfterCorrect, 1500);
+      window.setTimeout(advanceAfterCorrect, 1000);
     }
-  }, [currentQ, wrongCount, currentIdx, questions, recordAttempt]);
+  }, [currentQ, wrongCount, currentIdx, questions, recordAttempt, effectiveAgeGroup]);
 
   // ── Wrong handler ────────────────────────────────────────────────────────────
 
@@ -1162,6 +1174,8 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     sfx.playPop();
     setShowSavedSummary(false);
     setCurrentIdx(0);
+    setQuestionOverride(plan.questions);
+    setRequeuedWordIds(new Set());
     setWrongCount(0);
     setSelectedId(null);
     setDisabledIds(new Set());
@@ -1206,7 +1220,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         round2: round2State,
       } satisfies Stage2Checkpoint));
     } catch { /* Saving is best effort; the child can still leave. */ }
-    setShowBreakDialog(false);
     if (onBackToStage1) onBackToStage1();
     else setShowSessionIntro(true);
   };
@@ -1236,7 +1249,13 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       if (roundTransition.turn === 3) setIsCompleted(true);
       else setRoundTransition({ kind: 'intro', turn: (roundTransition.turn + 1) as 2 | 3 });
     } else {
-      setCurrentIdx((index) => Math.min(index + 1, questions.length - 1));
+      const nextTurn = roundTransition.turn;
+      const targetIdx = questions.findIndex((q) => q.turn === nextTurn);
+      if (targetIdx >= 0) {
+        setCurrentIdx(targetIdx);
+      } else {
+        setCurrentIdx((index) => Math.min(index + 1, questions.length - 1));
+      }
       setRoundTransition(null);
     }
   };
@@ -1247,6 +1266,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   };
 
   const restartFromBeginning = () => {
+    sfx.playPop();
     try { localStorage.removeItem(checkpointKey); } catch { /* optional storage */ }
     setCurrentIdx(0);
     setQuestionOverride(plan.questions);
@@ -1258,9 +1278,18 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setRoundTransition(null);
     setShowResumePrompt(false);
     setShowSessionIntro(false);
+    setShowSavedSummary(false);
+    setIsCompleted(false);
+    setCurrentSession(null);
     setRound2State(emptyLineMatchState());
     round2InitialRef.current = null;
     sessionSavedRef.current = false;
+    setSelectedId(null);
+    setDisabledIds(new Set());
+    setBounceCorrect(false);
+    setShowCheck(false);
+    setWiggling(false);
+    setGkPicked(null);
   };
 
   // ── Completion / Summary screen ──────────────────────────────────────────────
@@ -1297,7 +1326,10 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
           {wordsNeedReview.length > 0 && <section><h3 className="text-xs font-black text-amber-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><span>📌</span> Nên ôn lại ({wordsNeedReview.length})</h3><div className="space-y-1.5">{wordsNeedReview.map((word) => <article key={word.wordId} className="flex items-center gap-3 rounded-2xl border border-amber-700/50 bg-amber-900/25 px-3 py-2"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-800/50 text-2xl">{word.emoji || '🌟'}</span><div className="min-w-0 flex-1"><p className="text-sm sm:text-base font-black text-amber-100 capitalize">{word.english}</p>{word.vietnamese && <p className="text-xs font-bold text-amber-400/80">{word.vietnamese}</p>}</div><span className="shrink-0 rounded-xl px-2 py-0.5 text-xs font-black bg-amber-700/60 text-amber-200">{word.wrongCount > 0 ? `Sai ${word.wrongCount}×` : 'Ôn thêm'}</span></article>)}</div></section>}
         </main>
         <div className="shrink-0 px-3 pb-3 pt-2 flex items-center gap-2 max-w-sm mx-auto w-full">
-          {wordsNeedReview.length > 0 && <button type="button" onClick={() => startPracticeAgain(true)} aria-label="Ôn lại từ cần ôn" className="flex-1 min-h-[52px] rounded-2xl bg-amber-600/80 hover:bg-amber-500/90 active:bg-amber-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 border-2 border-amber-400/70 shadow-lg active:scale-95 transition-all cursor-pointer"><RefreshCw className="w-4 h-4 stroke-[2.5]" /><span>Ôn lại</span></button>}
+          {wordsNeedReview.length > 0
+            ? <button type="button" onClick={() => startPracticeAgain(true)} aria-label="Ôn lại từ cần ôn" className="flex-1 min-h-[52px] rounded-2xl bg-amber-600/80 hover:bg-amber-500/90 active:bg-amber-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 border-2 border-amber-400/70 shadow-lg active:scale-95 transition-all cursor-pointer"><RefreshCw className="w-4 h-4 stroke-[2.5]" /><span>Ôn lại</span></button>
+            : <button type="button" onClick={restartFromBeginning} aria-label="Học lại từ đầu" className="flex-1 min-h-[52px] rounded-2xl border-2 border-slate-600 bg-slate-800/70 hover:bg-slate-700/80 active:bg-slate-900 text-slate-300 font-black text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"><RefreshCw className="w-4 h-4 stroke-[2.5]" /><span>Học lại</span></button>
+          }
           <button type="button" onClick={handleFinish} aria-label="Đến Khu vui chơi" className="flex-1 min-h-[52px] rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"><span>Khu vui chơi 🚀</span><ArrowRight className="w-4 h-4 stroke-[3]" /></button>
         </div>
       </div>
@@ -1346,15 +1378,20 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   if (!currentQ) return null;
 
   const roundQuestions = questions.filter((question) => question.turn === currentQ.turn && !question.isRequeue);
-  const roundDone = questions.slice(0, currentIdx).filter((question) => question.turn === currentQ.turn && !question.isRequeue).length;
+  const roundOriginalIndex = questions.slice(0, currentIdx + 1).filter((question) => question.turn === currentQ.turn && !question.isRequeue).length;
+  const currentWordDisplayNumber = Math.min(
+    roundQuestions.length,
+    Math.max(1, currentQ.isRequeue ? roundQuestions.length : roundOriginalIndex)
+  );
+
   // Round 2 (Line Match) progress = words correctly matched, not questions passed.
   const isLineMatch = currentQ.type === 'MATCH_LINES';
   const progressRatio = isLineMatch
     ? (roundTwoMatchedCount / Math.max(1, roundTwoQuestions.length)) * 100
-    : (roundDone / Math.max(1, roundQuestions.length)) * 100;
+    : (currentWordDisplayNumber / Math.max(1, roundQuestions.length)) * 100;
   const progressLabel = isLineMatch
     ? `${roundTwoMatchedCount}/${roundTwoQuestions.length} words`
-    : `${roundDone}/${roundQuestions.length} words`;
+    : `${currentWordDisplayNumber}/${roundQuestions.length} words`;
 
   const turnLabel =
     currentQ.turn === 1 ? 'Vòng 1: Nhận biết'
@@ -1377,14 +1414,14 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     : `Find the word that starts with ${currentQ.startingSound?.phoneme}`;
 
   const playScreen = (
-    <div className="stage2-practice-shell fixed inset-0 z-[90] w-full h-[100dvh] min-h-0 flex flex-col overflow-hidden select-none bg-slate-900 text-slate-100" role="dialog" aria-modal="true" aria-label="Luyện tập Chặng 2">
+    <div className="stage2-practice-shell w-full h-full min-h-0 flex flex-col overflow-hidden select-none bg-slate-900 text-slate-100">
 
       {/* TOP BAR */}
       <div className="shrink-0 h-14 min-h-14 px-3 flex items-center gap-3 border-b border-white/10 bg-slate-950/60 backdrop-blur-sm">
         <button
           type="button"
           ref={exitButtonRef}
-          onClick={() => { sfx.playPop(); setShowBreakDialog(true); }}
+          onClick={() => { sfx.playPop(); saveAndExit(); }}
           aria-label="Thoát"
           className="w-14 h-14 min-w-14 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-200 cursor-pointer active:scale-90 transition-all shrink-0"
         >
@@ -1540,8 +1577,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       <div className="shrink-0 h-11 min-h-11 px-4 flex items-center justify-center text-xl font-black text-emerald-200" aria-live="polite">
         {showCheck ? kokoBubble : wiggling ? 'Try again! You can do it!' : currentQ.type === 'MATCH_LINES' ? round2Feedback : ''}
       </div>
-      {showBreakDialog && <BreakDialog onClose={() => setShowBreakDialog(false)} onSaveAndExit={saveAndExit} returnFocusRef={exitButtonRef} />}
-    </div>
+      </div>
   );
-  return createPortal(playScreen, document.body);
+  return playScreen;
 };

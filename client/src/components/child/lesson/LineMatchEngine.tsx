@@ -30,6 +30,7 @@ import { Volume2, Check } from 'lucide-react';
 import type { AgeGroupCode } from '../../../types';
 import { playWordAudio, sfx } from '../../../utils/audio';
 import type { PracticeQuestion } from './buildPracticePlan';
+import { wordArt } from '../../../utils/learningArt';
 import {
   LINE_COLORS,
   LINE_MATCH_LAYOUT,
@@ -740,20 +741,27 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
                 </span>
               ) : (
                 <span className="lm-card-body lm-card-picture">
-                  {word.imageUrl ? (
-                    <img
-                      src={word.imageUrl}
-                      alt=""
-                      draggable={false}
-                      className="h-full w-full object-contain select-none pointer-events-none drop-shadow-md"
-                    />
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 opacity-40" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                      <rect x="3" y="5" width="18" height="14" rx="3" />
-                      <circle cx="9" cy="10" r="1.6" />
-                      <path d="M4 17l5-4 4 3 3-2 4 3" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
+                  {(() => {
+                    const cleanArt = wordArt(word.english || '');
+                    const rawUrl = word.imageUrl || '';
+                    const resolvedUrl = (!rawUrl || rawUrl.startsWith('data:image/svg+xml')) && cleanArt?.url
+                      ? cleanArt.url
+                      : rawUrl;
+                    return resolvedUrl ? (
+                      <img
+                        src={resolvedUrl}
+                        alt=""
+                        draggable={false}
+                        className="h-full w-full object-contain select-none pointer-events-none drop-shadow-md"
+                      />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 opacity-40" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="3" />
+                        <circle cx="9" cy="10" r="1.6" />
+                        <path d="M4 17l5-4 4 3 3-2 4 3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    );
+                  })()}
                 </span>
               )}
               {revealed && (

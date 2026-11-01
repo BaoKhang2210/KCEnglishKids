@@ -258,14 +258,47 @@ export const learningApi = {
 
 // §1.3.1 — 3-stage pipeline: per-lesson stage completion (server = source of truth)
 export const stageProgressApi = {
-  getPlan: (childId: string, lessonId: string) => api.get(`/children/${childId}/progress/${lessonId}/plan`),
-  getLessonProgress: (childId: string, lessonId: string) =>
-    api.get(`/children/${childId}/progress/${lessonId}`),
-  completeStage: (
+  getPlan: async (childId: string, lessonId: string) => {
+    try {
+      return await api.get(`/children/${childId}/progress/${lessonId}/plan`);
+    } catch (err: any) {
+      if (err?.status === 502 || err?.status === 500 || err?.status === 503 || err?.status === 504 || err?.name === 'TypeError') {
+        if (import.meta.env?.DEV) console.warn('[ProgressService] Server 502/offline getting plan, using fallback');
+        return { success: true, data: null, offline: true };
+      }
+      throw err;
+    }
+  },
+  getLessonProgress: async (childId: string, lessonId: string) => {
+    try {
+      return await api.get(`/children/${childId}/progress/${lessonId}`);
+    } catch (err: any) {
+      if (err?.status === 502 || err?.status === 500 || err?.status === 503 || err?.status === 504 || err?.name === 'TypeError') {
+        if (import.meta.env?.DEV) console.warn('[ProgressService] Server 502/offline getting progress, using localStorage fallback');
+        return { success: true, data: null, offline: true };
+      }
+      throw err;
+    }
+  },
+  completeStage: async (
     childId: string,
     lessonId: string,
     payload: { stage: 1 | 2 | 3; submissionId?: string; attemptToken?: string; visitedWordIds?: string[]; gameId?: string; answers?: Array<{wordId: string; round?: number; selectedId: string | null}> }
-  ) => api.put(`/children/${childId}/progress/${lessonId}/stage`, payload)
+  ) => {
+    try {
+      return await api.put(`/children/${childId}/progress/${lessonId}/stage`, payload);
+    } catch (err: any) {
+      if (err?.status === 502 || err?.status === 500 || err?.status === 503 || err?.status === 504 || err?.name === 'TypeError') {
+        if (import.meta.env?.DEV) console.warn('[ProgressService] Server 502/offline saving stage progress, fallback to local');
+        try {
+          const key = `kc_stage${payload.stage}_${childId}_${lessonId}`;
+          localStorage.setItem(key, 'true');
+        } catch {}
+        return { success: true, offline: true, data: payload };
+      }
+      throw err;
+    }
+  }
 };
 
 // Admin API

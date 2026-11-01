@@ -1,6 +1,7 @@
 import React from 'react';
 import { Volume2, Sparkles, Check, HelpCircle } from 'lucide-react';
 import type { ActivityQuestion, ActivityOption } from '../../../types';
+import { wordArt } from '../../../utils/learningArt';
 
 interface ListenChooseEngineProps {
   question: ActivityQuestion;
@@ -28,7 +29,7 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
   return (
     <div className="practice-a-layout flex h-full min-h-0 flex-col items-center justify-center gap-0 w-full max-w-[1320px] mx-auto">
       {/* Big Prompt Audio Button */}
-      <div className="practice-a-speaker mb-7 flex shrink-0 flex-col items-center text-center">
+      <div className="practice-a-speaker mb-3 flex shrink-0 flex-col items-center text-center">
         {!practiceMode && <span className="inline-flex items-center gap-2 bg-sky-200 text-sky-950 font-black px-5 py-2 rounded-full text-lg sm:text-2xl mb-3 border-2 border-sky-300 shadow-sm">
           <Sparkles className="w-5 h-5 text-sky-600" />
           {practiceMode ? 'Listen and choose!' : 'Chạm loa để nghe từ và chọn hình đúng nhé!'}
@@ -37,7 +38,7 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
         <button
           onClick={onPlayPrompt}
           aria-label="Nghe lại từ"
-          className="btn-kid w-[clamp(88px,22vh,120px)] h-[clamp(88px,22vh,120px)] rounded-full bg-gradient-to-tr from-sky-400 via-blue-500 to-indigo-600 hover:from-sky-300 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-sky-200/60"
+          className="btn-kid w-[clamp(64px,14vh,96px)] h-[clamp(64px,14vh,96px)] rounded-full bg-gradient-to-tr from-sky-400 via-blue-500 to-indigo-600 hover:from-sky-300 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-sky-200/60"
         >
           <Volume2 className="w-12 h-12 sm:w-14 sm:h-14" />
         </button>
@@ -55,7 +56,7 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
           : 'grid-cols-4 max-w-6xl';
 
         return (
-          <div className={`practice-a-choices mt-7 grid ${gridClass} grid-rows-1 gap-3 sm:gap-5 w-full mx-auto px-2 max-h-[min(42vh,280px)]`}>
+          <div className={`practice-a-choices mt-3 grid ${gridClass} grid-rows-1 gap-4 sm:gap-6 w-full mx-auto px-2`}>
             {question.options.map((opt, optionIndex) => {
               const isSelected = selectedOptionId === opt.id;
               const isRevealed = revealOptionId === opt.id && feedbackState === 'idle';
@@ -73,20 +74,26 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
                 }
               }
 
+              const cleanArt = wordArt(opt.text || '');
+              const rawImg = opt.imageUrl || '';
+              const resolvedImg = (!rawImg || rawImg.startsWith('data:image/svg+xml')) && cleanArt?.url
+                ? cleanArt.url
+                : rawImg;
+
               return (
                 <button
                   key={opt.id}
                   onClick={() => onSelectOption(opt)}
                   disabled={feedbackState !== 'idle' || disabledOptionIds.includes(opt.id)}
                   aria-label={practiceMode && feedbackState === 'idle' && !isRevealed ? `Lựa chọn hình ${optionIndex + 1}` : opt.text || 'Chọn hình'}
-                  className={`btn-kid min-w-0 min-h-[96px] h-full rounded-3xl border-4 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 text-center cursor-pointer shadow-xl hover:shadow-2xl transition-all relative overflow-hidden group ${cardStyle}`}
+                  className={`btn-kid min-w-0 min-h-[240px] h-full rounded-3xl border-4 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 text-center cursor-pointer shadow-xl hover:shadow-2xl transition-all relative overflow-hidden group ${cardStyle}`}
                 >
                   {/* Visual Card Image */}
-                  {!textChoiceMode && <div className="flex-1 min-h-0 w-full max-h-[min(28vh,210px)] aspect-square rounded-3xl bg-amber-50/70 group-hover:bg-amber-100 flex items-center justify-center p-3 transition-colors">
-                    {opt.imageUrl ? (
+                  {!textChoiceMode && <div className="flex-1 min-h-0 w-full max-h-[min(40vh,280px)] aspect-square rounded-3xl bg-amber-50/70 group-hover:bg-amber-100 flex items-center justify-center p-3 transition-colors">
+                    {resolvedImg ? (
                       <img
-                        src={opt.imageUrl}
-                        alt={practiceMode ? '' : opt.text}
+                        src={resolvedImg}
+                        alt=""
                         className="w-full h-full object-contain filter drop-shadow group-hover:scale-105 transition-transform"
                       />
                     ) : (
@@ -95,9 +102,9 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
                   </div>}
                   {textChoiceMode && <span className="flex-1 flex items-center justify-center text-3xl font-black text-slate-800 capitalize">{opt.text}</span>}
 
-                  {(!practiceMode || (feedbackState === 'correct' && opt.isCorrect)) && <span className="font-black text-2xl sm:text-3xl lg:text-4xl text-slate-800 capitalize leading-tight">{opt.text}</span>}
+                  {!practiceMode && <span className="font-black text-2xl sm:text-3xl lg:text-4xl text-slate-800 capitalize leading-tight">{opt.text}</span>}
 
-                  {opt.vietnameseText && (!practiceMode || (feedbackState === 'correct' && opt.isCorrect)) && (
+                  {opt.vietnameseText && !practiceMode && (
                     <span className="text-base sm:text-lg font-bold text-slate-500 leading-snug">
                       ({opt.vietnameseText})
                     </span>

@@ -42,4 +42,10 @@ describe('durable learning synchronization',()=>{
   expect(learningOutbox.pending('child-a')).toHaveLength(1);
   expect(learningOutbox.pending('child-a')[0].error).toBe('Lesson hidden');
  });
+ it('handles 502 Bad Gateway gracefully by saving offline without throwing',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('Bad Gateway',{status:502})));
+  const res = await learningOutbox.enqueue('child-a','lesson-a',{stage:1});
+  expect(res).toEqual({ success: true, offline: true });
+  expect(learningOutbox.pending('child-a')).toHaveLength(1);
+ });
 });

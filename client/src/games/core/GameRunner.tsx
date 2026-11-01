@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import type { GameConfig, GameDefinition, GameId } from './types';
 import { GAME_REGISTRY, getAvailableLessonGames } from '../registry';
 import { useGameSession } from './useGameSession';
@@ -11,6 +10,7 @@ import { vocabStatsService } from '../../services/vocabStatsService';
 import type { Vocabulary } from '../../types';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { useManagedTimeout } from '../shared/useManagedTimeout';
+import { GameIcon } from '../hub/GameIcon';
 
 interface GameRunnerProps {
   config: GameConfig;
@@ -98,7 +98,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
       });
     }
     dispatch({ type: 'TARGET_COMPLETED', wordId: targetVocab._id });
-  }, [targetVocab, state.status, state.targetIndex, attempts, isAssisted, config.childId, config.gameId, dispatch, playPraiseAudio]);
+  }, [targetVocab, state.status, state.targetIndex, attempts, isAssisted, config.childId, dispatch]);
 
   const handleWrong = useCallback((chosenVocabId?: string) => {
     if (!targetVocab || state.status !== 'playing') return;
@@ -121,7 +121,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
     } else {
       playEncouragementAudio();
     }
-  }, [targetVocab, state.status, config.childId, attempts, dispatch, playEncouragementAudio, handleCorrect, scheduleTimeout]);
+  }, [targetVocab, state.status, config.childId, attempts, dispatch, handleCorrect, scheduleTimeout]);
 
   const handleReplay = useCallback(() => {
     if (targetVocab) {
@@ -142,7 +142,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
     if (state.status !== 'complete') {
       completedOnceRef.current = false;
     }
-  }, [state.status, config.gameId, state.stars, onGameComplete]);
+  }, [state.status, config.gameId, state.stars, onGameComplete, state.targetOrder, state.attemptsPerTarget, state.assistedPerTarget]);
 
   const practicedWords = useMemo(() => {
     return state.targetOrder
@@ -157,57 +157,67 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
     return next && next.id !== config.gameId ? next.id : games.find((g) => g.id !== config.gameId)?.id;
   }, [unitNumber, lessonNumber, config.gameId, config.vocabularyList, allowedGameIds]);
 
-  return createPortal(
-    <GameFullscreenShell
-      title={definition.title}
-      categoryIcon={definition.icon}
-      currentIndex={state.targetIndex}
-      totalTargets={state.targetOrder.length}
-      stars={state.stars}
-      onBack={onExit}
-      onReplayAudio={hasStarted && state.status === 'playing' ? handleReplay : undefined}
-    >
-      {state.status === 'complete' ? (
-        <GameCompleteScreen
-          stars={state.stars}
-          practicedWords={practicedWords}
-          onPlayAgain={handleRestart}
-          onHome={onExit}
-          onNextGame={onNextGame && nextGameId ? () => onNextGame(nextGameId as GameId) : undefined}
-        />
-      ) : loadFailed || state.targetOrder.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-5 px-6 text-center text-white">
-          <KokoMascot state="thinking" size="lg" interactive={false} />
-          <p className="text-2xl font-black">Let’s play another time!</p>
-          <button type="button" onClick={onExit} className="min-h-16 min-w-44 rounded-3xl bg-amber-300 px-8 text-xl font-black text-slate-950 shadow-lg">Back</button>
-        </div>
-      ) : !hasStarted && !loadFailed ? (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-5 text-center text-white">
-          <KokoMascot state={hasCheckpoint ? 'encouraging' : 'waving'} size="lg" interactive={false} speechBubble={hasCheckpoint ? "Let's keep going!" : 'Ready to play?'} />
-          <div className="flex items-center gap-3 text-3xl font-black sm:text-4xl"><span aria-hidden>{definition.icon}</span>{definition.title}</div>
-          <p className="max-w-lg text-base font-bold text-indigo-100 sm:text-lg">{definition.subtitle}</p>
-          <button type="button" onClick={() => setHasStarted(true)} className="mt-2 min-h-16 min-w-48 rounded-3xl border-4 border-amber-100 bg-gradient-to-b from-amber-300 to-orange-400 px-8 text-2xl font-black text-slate-950 shadow-[0_6px_0_#b45309]">{hasCheckpoint ? "Continue!" : "Let's play!"}</button>
-          {hasCheckpoint && <button type="button" onClick={() => { handleRestart(); setHasStarted(true); }} className="min-h-12 rounded-2xl px-6 text-base font-bold text-indigo-100 underline underline-offset-4">Start over</button>}
-        </div>
-      ) : GameComponent && targetVocab ? (
-        <GameComponent
-          config={config}
-          targetVocab={targetVocab}
-          options={options}
-          attemptCount={attempts}
-          isAssisted={isAssisted}
-          onCorrect={handleCorrect}
-          onWrong={handleWrong}
-          onReplayAudio={handleReplay}
-          showGhostHint={attempts >= 2}
-        />
-      ) : (
-        <div className="flex flex-col items-center justify-center gap-3 text-white">
-          <div className="w-12 h-12 rounded-full border-4 border-amber-300 border-t-transparent animate-spin" />
-          <p className="text-sm font-bold">Getting ready…</p>
-        </div>
-      )}
-    </GameFullscreenShell>,
-    document.body
+  // Đặc biệt: Với Memory Match, tổng số mục tiêu hiển thị theo số cặp thẻ trên bàn chơi
+  const isMemoryMatch = config.gameId === 'memory-match';
+  const memoryPairCount = config.ageGroup === '3-4' ? 2 : config.ageGroup === '4-5' ? 3 : 4;
+  const displayTotalTargets = isMemoryMatch ? Math.min(memoryPairCount, config.vocabularyList.length) : state.targetOrder.length;
+  const displayCurrentIndex = isMemoryMatch ? Math.min(state.targetIndex, displayTotalTargets - 1) : state.targetIndex;
+
+  return (
+    <div className="relative flex flex-col flex-1 min-h-0 w-full h-full overflow-hidden">
+      <GameFullscreenShell
+        title={definition.title}
+        categoryIcon={<GameIcon gameId={config.gameId} className="w-7 h-7 sm:w-8 sm:h-8" />}
+        currentIndex={displayCurrentIndex}
+        totalTargets={displayTotalTargets}
+        stars={state.stars}
+        onBack={onExit}
+        onReplayAudio={hasStarted && state.status === 'playing' ? handleReplay : undefined}
+      >
+        {state.status === 'complete' ? (
+          <GameCompleteScreen
+            stars={state.stars}
+            practicedWords={practicedWords}
+            onPlayAgain={handleRestart}
+            onHome={onExit}
+            onNextGame={onNextGame && nextGameId ? () => onNextGame(nextGameId as GameId) : undefined}
+          />
+        ) : loadFailed || state.targetOrder.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-5 px-6 text-center text-white">
+            <KokoMascot state="thinking" size="lg" interactive={false} />
+            <p className="text-2xl font-black">Let’s play another time!</p>
+            <button type="button" onClick={onExit} className="min-h-16 min-w-44 rounded-3xl bg-amber-300 px-8 text-xl font-black text-slate-950 shadow-lg cursor-pointer">Back</button>
+          </div>
+        ) : !hasStarted && !loadFailed ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-5 text-center text-white">
+            <KokoMascot state={hasCheckpoint ? 'encouraging' : 'waving'} size="lg" interactive={false} speechBubble={hasCheckpoint ? "Let's keep going!" : 'Ready to play?'} />
+            <div className="flex items-center gap-3 text-3xl font-black sm:text-4xl">
+              <GameIcon gameId={config.gameId} className="w-12 h-12" />
+              {definition.title}
+            </div>
+            <p className="max-w-lg text-base font-bold text-indigo-100 sm:text-lg">{definition.subtitle}</p>
+            <button type="button" onClick={() => setHasStarted(true)} className="mt-2 min-h-16 min-w-48 rounded-3xl border-4 border-amber-100 bg-gradient-to-b from-amber-300 to-orange-400 px-8 text-2xl font-black text-slate-950 shadow-[0_6px_0_#b45309] cursor-pointer active:scale-95 transition-transform">{hasCheckpoint ? "Continue!" : "Let's play!"}</button>
+            {hasCheckpoint && <button type="button" onClick={() => { handleRestart(); setHasStarted(true); }} className="min-h-12 rounded-2xl px-6 text-base font-bold text-indigo-100 underline underline-offset-4 cursor-pointer">Start over</button>}
+          </div>
+        ) : GameComponent && targetVocab ? (
+          <GameComponent
+            config={config}
+            targetVocab={targetVocab}
+            options={options}
+            attemptCount={attempts}
+            isAssisted={isAssisted}
+            onCorrect={handleCorrect}
+            onWrong={handleWrong}
+            onReplayAudio={handleReplay}
+            showGhostHint={attempts >= 2}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-3 text-white">
+            <div className="w-12 h-12 rounded-full border-4 border-amber-300 border-t-transparent animate-spin" />
+            <p className="text-sm font-bold">Getting ready…</p>
+          </div>
+        )}
+      </GameFullscreenShell>
+    </div>
   );
 };
