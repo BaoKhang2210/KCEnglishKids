@@ -21,7 +21,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 
 import earlyLearning from '../../../../../shared/earlyLearning.json';
 
-import { X, Volume2, ArrowRight, Check, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react';
+import { X, Volume2, ArrowRight, Check, ThumbsUp, ThumbsDown, RefreshCw, Star } from 'lucide-react';
 import type { Vocabulary, AgeGroupCode, ActivityQuestion } from '../../../types';
 import { sfx, playWordAudio, preloadWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
@@ -109,7 +109,7 @@ export interface Stage2PracticeFlowProps {
   ageGroupCode?: string;
   unitNumber?: number;
   lessonNumber?: number;
-  onComplete: (stats?: { score: number; stars: number; answers: Array<{wordId: string; round: number; selectedId: string | null}> }) => void;
+  onComplete: (stats?: { answers: Array<{wordId: string; round: number; selectedId: string | null}> }) => void;
   onBackToStage1?: () => void;
 }
 
@@ -1212,7 +1212,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       const session = buildCurrentSession();
       vocabStatsService.saveStage2Session(session);
     }
-    onComplete({ score: 0, stars: 0, answers: evidenceRef.current });
+    onComplete({ answers: evidenceRef.current });
   };
 
   const saveAndExit = () => {
@@ -1329,10 +1329,11 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
           <h2 className="text-[clamp(1.3rem,3vh,1.8rem)] font-black text-white leading-tight">Hoàn thành Chặng 2!</h2>
           <p className="text-xs sm:text-sm font-bold text-slate-400 mt-0.5">{sessionDateStr} · {activeSession?.totalQuestions || totalQ} lượt luyện tập</p>
         </header>
-        <div className="shrink-0 px-3 py-2"><div className="grid grid-cols-3 gap-2 max-w-md mx-auto">
+        <div className="shrink-0 px-3 py-2"><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl mx-auto">
           <div className="rounded-2xl border-2 border-sky-700/60 bg-sky-900/40 p-2 text-center"><span className="block text-xl" aria-hidden>📚</span><span className="block text-[10px] sm:text-xs font-bold text-sky-300">Số từ</span><strong className="text-base sm:text-lg font-black text-sky-200">{wordsToDisplay.length}</strong></div>
           <div className="rounded-2xl border-2 border-emerald-700/60 bg-emerald-900/40 p-2 text-center"><span className="block text-xl" aria-hidden>🎯</span><span className="block text-[10px] sm:text-xs font-bold text-emerald-300">Đúng ngay</span><strong className="text-base sm:text-lg font-black text-emerald-200">{firstTryCount}</strong></div>
           <div className="rounded-2xl border-2 border-amber-700/60 bg-amber-900/40 p-2 text-center"><span className="block text-xl" aria-hidden>🔁</span><span className="block text-[10px] sm:text-xs font-bold text-amber-300">Lần sai</span><strong className="text-base sm:text-lg font-black text-amber-200">{totalWrongCount}</strong></div>
+          <div className="rounded-2xl border-2 border-yellow-600/70 bg-yellow-900/40 p-2 text-center" aria-label="Hoàn thành Chặng 2 nhận một sao"><span className="flex justify-center" aria-hidden><Star className="h-6 w-6 fill-yellow-300 text-yellow-300"/></span><span className="block text-[10px] sm:text-xs font-bold text-yellow-300">Phần thưởng Chặng 2</span><strong className="text-base sm:text-lg font-black text-yellow-100">Hoàn thành: +1 sao</strong></div>
         </div></div>
         <main className="flex-1 min-h-0 overflow-y-auto px-3 pb-1 space-y-2">
           {wordsConfident.length > 0 && <section><h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><span>✅</span> Đã ghi nhớ tốt ({wordsConfident.length})</h3><div className="space-y-1.5">{wordsConfident.map((word) => <article key={word.wordId} className="flex items-center gap-3 rounded-2xl border border-emerald-700/50 bg-emerald-900/30 px-3 py-2"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-800/60 text-2xl">{word.emoji || '🌟'}</span><div className="min-w-0 flex-1"><p className="text-sm sm:text-base font-black text-emerald-100 capitalize">{word.english}</p>{word.vietnamese && <p className="text-xs font-bold text-emerald-400/80">{word.vietnamese}</p>}</div><span className="shrink-0 rounded-xl px-2 py-0.5 text-xs font-black bg-emerald-700/60 text-emerald-200">Tự tin ✓</span></article>)}</div></section>}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useRewards } from '../../context/RewardContext';
 import { lessonsApi, stageProgressApi, topicsApi } from '../../services/api';
 import type { Lesson, Vocabulary } from '../../types';
 import { sfx, stopWordAudio } from '../../utils/audio';
@@ -26,6 +27,7 @@ const cache = {
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { refresh: refreshRewards } = useRewards();
   const navigate = useNavigate();
 
   const [plan,setPlan] = useState<any>(null);
@@ -163,9 +165,15 @@ export const LessonDetailPage: React.FC = () => {
     if(user?.role!=='CHILD')return true;
     const scope = childId + ':' + id;
     try {
-      await learningOutbox.enqueue(childId, id, payload);
+      const saved = await learningOutbox.enqueue(childId, id, payload);
       if (activeScope.current !== scope) return false;
-      setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : 'Đã lưu kết quả.');
+      const stagePending = learningOutbox.pending(childId).some(row => row.lessonId === id);
+      if (saved.offline || stagePending) {
+        setSyncNotice('Kết quả đang chờ đồng bộ. Kết nối mạng để ghi nhận sao và mở chặng tiếp theo.');
+        return false;
+      }
+      setSyncNotice(learningOutbox.pending(childId).length ? 'Đã lưu bài này. Một số kết quả khác vẫn đang chờ đồng bộ.' : 'Đã lưu kết quả.');
+      void refreshRewards();
       return true;
     } catch (error: any) {
       if (activeScope.current === scope) setSyncNotice(error.message || 'Chưa lưu được kết quả. Hãy kiểm tra bộ nhớ và thử lại.');
@@ -180,9 +188,11 @@ export const LessonDetailPage: React.FC = () => {
   }, [childId]);
   const handleGameCompleted = async (gameId: string, _stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => {
     try {
-      await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken});
+      const saved = await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken});
+      if (!saved) return;
     } catch (e) {
       if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 3 game:', e);
+      return;
     }
     const nextCompleted = Array.from(new Set([...completedGames, gameId]));
     setCompletedGames(nextCompleted);
@@ -243,21 +253,25 @@ export const LessonDetailPage: React.FC = () => {
 
   const handleCompleteStage1 = async () => {
     try {
-      await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)});
+      const saved = await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)});
+      if (!saved) return;
     } catch (e) {
       if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 1:', e);
+      return;
     }
     sfx.playSuccess();
     cache.setItem(`kc_stage1_${childId}_${id}`, 'true');
     setActiveStage(2);
   };
-  const handleCompleteStage2 = async (stats?: {score: number; stars: number; answers: Array<{wordId: string; round: number; selectedId: string | null}>}) => {
+  const handleCompleteStage2 = async (stats?: {answers: Array<{wordId: string; round: number; selectedId: string | null}>}) => {
     if (isStage2Completed && !stats?.answers.length) { setActiveStage(3); return; }
     if (stats?.answers.length) {
       try {
-        await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token});
+        const saved = await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token});
+        if (!saved) return;
       } catch (e) {
         if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 2:', e);
+        return;
       }
     }
     sfx.playSuccess();

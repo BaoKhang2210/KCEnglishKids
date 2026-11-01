@@ -304,6 +304,9 @@ export interface StudentCompetencyReport {
 
 export interface RewardSummary {
   totalStars: number;
+  maxStars?: number;
+  badgeProgressStars?: number;
+  starLedger?: StarLedger;
   teacherStars?: number;
   earnedStars: number;
   bonusStars: number;
@@ -316,6 +319,52 @@ export interface RewardSummary {
   grantedStickerIds: string[];
   chests: RewardChest[];
   explorerLevel?: ExplorerLevel;
+}
+
+export interface StarLedgerStage {
+  completed: boolean;
+  unlocked: boolean;
+  stars?: number;
+  completedGames?: number;
+  requiredGames?: number;
+}
+
+export interface StarLedgerLesson {
+  id: string;
+  lessonNumber: number;
+  title: string;
+  stars: number;
+  maxStars: number;
+  completed: boolean;
+  unlocked: boolean;
+  source: 'STAGE2' | 'ACTIVITIES';
+  stages: { stage1: StarLedgerStage; stage2: StarLedgerStage; stage3: StarLedgerStage };
+}
+
+export interface StarLedgerUnit {
+  id: string;
+  bookNumber: number;
+  unitNumber: number;
+  title: string;
+  icon?: string | null;
+  unlocked: boolean;
+  completed: boolean;
+  stars: number;
+  lessonStars: number;
+  bonusStars: number;
+  bonusReceived: boolean;
+  maxStars: number;
+  completedLessons: number;
+  totalLessons: number;
+  lessons: StarLedgerLesson[];
+}
+
+export interface StarLedger {
+  totalStars: number;
+  maxStars: number;
+  completedUnits: number;
+  completedLessons: number;
+  units: StarLedgerUnit[];
 }
 
 export interface RevealedChest {

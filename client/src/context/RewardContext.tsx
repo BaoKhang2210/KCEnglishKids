@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import type { RewardSummary, RevealedChest } from '../types';
 import { rewardsApi } from '../services/api';
 import { useAuth } from './AuthContext';
+import { learningOutbox } from '../services/learningOutbox';
 
 /**
  * §1.2.11 — RewardContext: the single place that fetches reward state.
@@ -12,6 +13,7 @@ import { useAuth } from './AuthContext';
 interface RewardContextType {
   rewards: RewardSummary | null;
   loading: boolean;
+  error: string | null;
   refresh: () => Promise<void>;
   revealChest: (unitId: string) => Promise<RevealedChest | null>;
 }
@@ -24,6 +26,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [rewards, setRewards] = useState<RewardSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const inFlightRef = useRef<Promise<void> | null>(null);
 
@@ -37,6 +40,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refresh = useCallback(async (): Promise<void> => {
     if (!childId) {
       setRewards(null);
+      setError(null);
       return;
     }
     // Dedupe concurrent refreshes (provider auto-load + page mount)
@@ -44,6 +48,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const fetchPromise = (async () => {
       setLoading(true);
+      setError(null);
       try {
         const res = await rewardsApi.getChildRewards(childId);
         if (mountedRef.current && res.success) {
@@ -51,6 +56,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       } catch (e) {
         console.warn('Could not load rewards:', e);
+        if (mountedRef.current) setError('Chưa tải được tiến độ sao. Bé thử lại nhé.');
       } finally {
         if (mountedRef.current) setLoading(false);
         inFlightRef.current = null;
@@ -64,6 +70,19 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!childId) return;
+    const sync = () => {
+      if (!learningOutbox.pending(childId).length) void refresh();
+    };
+    window.addEventListener('kc_learning_sync', sync);
+    window.addEventListener('focus', sync);
+    return () => {
+      window.removeEventListener('kc_learning_sync', sync);
+      window.removeEventListener('focus', sync);
+    };
+  }, [childId, refresh]);
 
   /** §1.2.14 — reveal is COSMETIC: the animation plays even if the API fails. */
   const revealChest = useCallback(
@@ -85,7 +104,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 
   return (
-    <RewardContext.Provider value={{ rewards, loading, refresh, revealChest }}>
+    <RewardContext.Provider value={{ rewards, loading, error, refresh, revealChest }}>
       {children}
     </RewardContext.Provider>
   );

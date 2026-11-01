@@ -14,14 +14,15 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { learningApi, topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
-import type { ProgressSummary, Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
+import { topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
+import type { Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildRecognitions } from '../../components/child/ChildRecognitions';
 import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
+import { StarCollectionSection } from '../../components/child/StarCollectionSection';
 import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
 import { DailyStreakBanner } from '../../components/child/DailyStreakBanner';
@@ -65,7 +66,6 @@ interface CurriculumUnit {
   lessons: CurriculumLesson[];
   totalLessons: number;
   completedLessons: number;
-  totalUnitStars: number;
   isCompleted: boolean;
 }
 
@@ -134,11 +134,10 @@ export const ChildHomePage: React.FC = () => {
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
   const [ageTopics, setAgeTopics] = useState<Topic[]>([]);
   const [vocabularyList, setVocabularyList] = useState<Vocabulary[]>([]);
-  const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // §1.2 — Reward chest flow (Màn 1: kệ rương, Màn 2: mở quà)
-  const { rewards, refresh: refreshRewards } = useRewards();
+  const { rewards, loading: rewardsLoading, error: rewardsError, refresh: refreshRewards } = useRewards();
   const [showChestShelf, setShowChestShelf] = useState(false);
   const [revealingChest, setRevealingChest] = useState<RewardChest | null>(null);
 
@@ -152,7 +151,7 @@ export const ChildHomePage: React.FC = () => {
 
   // Badges Category filter state
   const [badgeCategory, setBadgeCategory] = useState<'all' | 'journey' | 'stars' | 'skills'>('all');
-  const [rewardTab, setRewardTab] = useState<'badges' | 'stickers'>('badges');
+  const [rewardTab, setRewardTab] = useState<'badges' | 'stickers' | 'stars'>('stars');
   const [showcaseBadge, setShowcaseBadge] = useState<any>(null);
   const [selectedSticker, setSelectedSticker] = useState<any>(null);
   const [stickerRarityFilter, setStickerRarityFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
@@ -187,12 +186,11 @@ export const ChildHomePage: React.FC = () => {
         setLoading(true);
         const childId = (user as any).id || (user as any)._id;
 
-        // Fetch curriculum path, topics strictly for this child's age group, vocabulary, and progress
-        const [pathRes, topicsRes, vocabRes, progressRes] = await Promise.all([
+        // Fetch curriculum path, topics, and vocabulary for this child's age group.
+        const [pathRes, topicsRes, vocabRes] = await Promise.all([
           lessonsApi.getCurriculumPath(ageCode, childId),
           topicsApi.getTopics(ageCode), // Scoped strictly to child's age
           vocabularyApi.getVocabulary(ageCode), // Scoped strictly to child's age
-          learningApi.getChildProgress(childId),
         ]);
 
         if (pathRes.success && Array.isArray(pathRes.data)) {
@@ -219,8 +217,6 @@ export const ChildHomePage: React.FC = () => {
         }
         if (topicsRes.success) setAgeTopics(topicsRes.data);
         if (vocabRes.success) setVocabularyList(vocabRes.data);
-        if (progressRes.success) setProgress(progressRes.data);
-
         // Fetch daily learning streak
         if (childId) {
           try {
@@ -248,12 +244,24 @@ export const ChildHomePage: React.FC = () => {
     refreshRewards();
   }, [refreshRewards]);
 
-  // §1.2.18 — server-computed totals win (they include unit bonus stars);
-  // unit-derived values only serve as a first-paint fallback while loading.
-  const totalStars = rewards?.totalStars ?? (progress?.totalStars || units.reduce((acc, u) => acc + (u.totalUnitStars || 0), 0) || 0);
-  const completedLessons = rewards?.completedLessons ?? (progress?.completedLessonsCount || units.reduce((acc, u) => acc + (u.completedLessons || 0), 0) || 0);
-  const totalUnits = units.length || 9;
-  const completedUnits = rewards?.completedUnits ?? (units.filter(u => u.isCompleted).length || 0);
+  // The star ledger is the sole source for displayed journey stars.
+  const ledger = rewards?.starLedger;
+  const totalStars = ledger?.totalStars ?? 0;
+  const completedLessons = rewards?.completedLessons ?? ledger?.completedLessons ?? 0;
+  const totalUnits = ledger?.units.length ?? units.length;
+  const completedUnits = rewards?.completedUnits ?? ledger?.completedUnits ?? 0;
+  const ledgerCompletedUnits = ledger?.completedUnits ?? 0;
+  const ledgerUnitsById = new Map((ledger?.units || []).map(unit => [unit.id, unit]));
+  const displayUnits = units.map(unit => {
+    const starUnit = ledgerUnitsById.get(String(unit._id));
+    if (!starUnit) return { ...unit, lessons: unit.lessons.map(lesson => ({ ...lesson, stars: undefined })) };
+    const lessonsById = new Map(starUnit.lessons.map(lesson => [lesson.id, lesson]));
+    return { ...unit, isCompleted: starUnit.completed,
+      lessons: unit.lessons.map(lesson => {
+        const starLesson = lessonsById.get(String(lesson._id));
+        return starLesson ? { ...lesson, completed: starLesson.completed, stars: starLesson.stars } : lesson;
+      }) };
+  });
 
   // §1.2.16 — stickers are only granted by server chests (+ starter sticker)
   const unlockedStickers = React.useMemo(
@@ -262,7 +270,7 @@ export const ChildHomePage: React.FC = () => {
   );
 
   // Màn 1 — shelf data: every unit becomes a chest
-  const shelfUnits: ShelfUnit[] = units.map(u => ({
+  const shelfUnits: ShelfUnit[] = displayUnits.map(u => ({
     _id: u._id,
     unitNumber: u.unitNumber,
     topicName: u.topicName,
@@ -322,7 +330,7 @@ export const ChildHomePage: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
                 <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                <span>{totalStars} Sao</span>
+                <span>{ledger ? `${totalStars} Sao` : rewardsLoading ? 'Đang tải sao…' : '— Sao'}</span>
               </div>
               <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
                 <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
@@ -350,7 +358,7 @@ export const ChildHomePage: React.FC = () => {
                       Hành trình khám phá theo Unit
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
-                      Hành trình 9 Unit phiêu lưu
+                      Hành trình khám phá Unit
                     </h2>
                     <p className="text-sm font-bold text-slate-500">
                       {getBookBadgeText(ageCode)}
@@ -359,25 +367,25 @@ export const ChildHomePage: React.FC = () => {
                   <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
                     <Trophy className="w-5 h-5 text-amber-600" />
                     <span className="text-sm font-black text-amber-900">
-                      Đã xong: {completedUnits} / {totalUnits} Unit
+                      Unit hoàn thành: {ledger ? ledgerCompletedUnits : '…'} trên {totalUnits}
                     </span>
                   </div>
                 </div>
 
                 {/* Board-game journey map (2026-11 redesign) */}
-                {units.length > 0 && (
+                {displayUnits.length > 0 && (
                   <JourneyRoadmap
-                    units={units.map((u, i) => ({
+                    units={displayUnits.map((u, i) => ({
                       unitNumber: u.unitNumber,
                       topicName: u.topicName,
                       topicIcon: u.topicIcon,
                       isCompleted: !!u.isCompleted,
-                      accessible: i === 0 || !!units[i - 1]?.isCompleted
+                      accessible: i === 0 || !!displayUnits[i - 1]?.isCompleted || !!u.isCompleted
                     }))}
                     onNodeClick={i => {
-                      const roadmapUnits = units;
+                      const roadmapUnits = displayUnits;
                       const u = roadmapUnits[i];
-                      const unlocked = i === 0 || !!roadmapUnits[i - 1]?.isCompleted;
+                      const unlocked = i === 0 || !!roadmapUnits[i - 1]?.isCompleted || !!u.isCompleted;
                       if (!unlocked) {
                         handleLockedClick(`Bé ơi, hãy hoàn thành Unit ${i} trước để mở khóa Unit ${u.unitNumber} nhé! 🎒✨`);
                         return;
@@ -391,10 +399,11 @@ export const ChildHomePage: React.FC = () => {
 
                 {/* Units 1-9 Overview Cards */}
                 <div className="space-y-4 sm:space-y-5">
-                  {units.map((unit, unitIdx) => {
-                    const isUnitUnlocked = unitIdx === 0 || !!units[unitIdx - 1]?.isCompleted;
+                  {displayUnits.map((unit, unitIdx) => {
+                    const ledgerUnit = ledgerUnitsById.get(String(unit._id));
+                    const isUnitUnlocked = !!ledgerUnit?.unlocked || !!ledgerUnit?.completed || (unitIdx === 0 || !!displayUnits[unitIdx - 1]?.isCompleted);
                     const completedLessonCount = unit.lessons.filter(l => l.completed).length;
-                    const totalLessonCount = unit.lessons.length || 5;
+                    const totalLessonCount = unit.lessons.length;
 
                     const theme = UNIT_THEMES[unitIdx % UNIT_THEMES.length];
 
@@ -477,17 +486,11 @@ export const ChildHomePage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Right: Stars, Progress & Action button */}
+                          {/* Right: lesson completion and action */}
                           <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
-                            <div className="text-right hidden sm:block">
-                              <div className="flex items-center gap-1.5 justify-end">
-                                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                                <span className="text-xs sm:text-sm font-black text-amber-950">
-                                  {unit.totalUnitStars || 0} Stars
-                                </span>
-                              </div>
-                              <span className="text-xs font-bold text-slate-500 mt-0.5 block">
-                                {completedLessonCount} / {totalLessonCount} Lessons Done
+                            <div className="text-right">
+                              <span className="text-xs sm:text-sm font-black text-slate-700 block" aria-label={ledger && totalLessonCount ? `${completedLessonCount} trên ${totalLessonCount} bài học hoàn thành` : undefined}>
+                                {ledger ? totalLessonCount ? `${completedLessonCount}/${totalLessonCount} Lessons` : 'Chưa có Lessons' : rewardsLoading ? 'Đang tải tiến độ bài học…' : 'Chưa có tiến độ bài học'}
                               </span>
                             </div>
 
@@ -619,7 +622,7 @@ export const ChildHomePage: React.FC = () => {
             {/* ==================== TAB 4: HUY HIỆU CỦA BÉ ==================== */}
             {activeTab === 'badges' && (() => {
               const badgeProgress = {
-                totalStars,
+                totalStars: rewards?.badgeProgressStars ?? totalStars,
                 completedLessons,
                 completedUnits,
                 perfectLessons: rewards?.perfectLessons ?? 0,
@@ -643,19 +646,16 @@ export const ChildHomePage: React.FC = () => {
                         Góc phần thưởng của bé
                       </div>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
-                        {rewardTab === 'badges'
-                          ? `Huy hiệu của bé (${unlockedCount}/${evaluatedBadges.length} đã mở)`
-                          : `Bộ sưu tập Sticker (${unlockedStickers.length}/${ALL_STICKERS.length} đã mở)`}
+                        {rewardTab === 'badges' ? `Huy hiệu của bé (${unlockedCount}/${evaluatedBadges.length} đã mở)`
+                          : rewardTab === 'stickers' ? `Bộ sưu tập Sticker (${unlockedStickers.length}/${ALL_STICKERS.length} đã mở)` : 'Sổ sao theo Unit và Lesson'}
                       </h2>
                       <p className="text-sm font-bold text-slate-500">
-                        {rewardTab === 'badges'
-                          ? 'Mỗi huy hiệu có một mốc rõ ràng: sao, Lesson hoàn thành, Lesson 3 sao hoặc rương đã mở.'
-                          : 'Hoàn thành mọi Lesson trong Unit để nhận rương và sticker. Sao thưởng được cộng ngay khi Unit hoàn tất.'}
+                        {rewardTab === 'badges' ? 'Mỗi huy hiệu có một mốc rõ ràng: sao, Lesson hoàn thành, Lesson 3 sao hoặc rương đã mở.'
+                          : rewardTab === 'stickers' ? 'Hoàn thành mọi Lesson trong Unit để nhận rương và sticker. Sao thưởng được cộng ngay khi Unit hoàn tất.' : 'Theo dõi sao của từng bài và từng Unit.'}
                       </p>
                       {rewards && (
                         <p className="mt-1 text-xs font-bold text-slate-500">
-                          Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}.
-                          Sao Lesson tính trên tổng điểm tốt nhất của từng trò chơi trong Lesson: dưới 50% = 0, từ 50% = 1, từ 70% = 2, từ 90% = 3 sao. Mỗi Unit hoàn thành cộng 5 sao một lần.
+                          Tổng sao hành trình = tổng sao các Unit = sao Lesson + thưởng Unit. Thưởng lớp và huy hiệu được tính riêng.
                         </p>
                       )}
                     </div>
@@ -666,7 +666,7 @@ export const ChildHomePage: React.FC = () => {
                       </div>
                       <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
                         <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                        <span className="text-base font-black text-amber-900">{totalStars} Sao vàng</span>
+                        <span className="text-base font-black text-amber-900">{ledger ? `${totalStars} Sao vàng` : rewardsLoading ? 'Đang tải sao…' : 'Chưa tải được sao'}</span>
                       </div>
                       <button
                         type="button"
@@ -683,7 +683,7 @@ export const ChildHomePage: React.FC = () => {
                   </div>
 
                   {/* Badges / Stickers Switcher */}
-                  <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-slate-100 rounded-2xl max-w-md">
+                  <div className="grid grid-cols-1 gap-2.5 p-1.5 bg-slate-100 rounded-2xl max-w-3xl sm:grid-cols-3">
                     <button
                       type="button"
                       onClick={() => {
@@ -714,9 +714,14 @@ export const ChildHomePage: React.FC = () => {
                       <Gift className="w-4 h-4 text-rose-500" />
                       <span>Bộ sưu tập Sticker ({unlockedStickers.length})</span>
                     </button>
+                    <button type="button" onClick={() => { sfx.playPop(); setRewardTab('stars'); }} aria-pressed={rewardTab === 'stars'} className={`min-h-12 rounded-xl px-3 py-2.5 font-black text-xs sm:text-sm flex items-center justify-center gap-2 ${rewardTab === 'stars' ? 'bg-white text-amber-900 shadow-sm ring-2 ring-amber-300' : 'text-slate-500 hover:text-slate-800'}`}>
+                      <Star className="h-4 w-4 text-amber-500" />Sổ sao
+                    </button>
                   </div>
 
-                  {rewardTab === 'badges' ? (
+                  {rewardTab === 'stars' ? (
+                    <StarCollectionSection ledger={ledger} loading={rewardsLoading} error={rewardsError} onRetry={refreshRewards} />
+                  ) : rewardTab === 'badges' ? (
                     <>
                       {/* Badges Category Pills */}
                       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1131,7 +1136,7 @@ export const ChildHomePage: React.FC = () => {
           <BadgeShowcaseModal
             badge={showcaseBadge}
             currentProgress={getBadgeProgress(showcaseBadge, {
-              totalStars,
+              totalStars: rewards?.badgeProgressStars ?? totalStars,
               completedLessons,
               completedUnits,
               perfectLessons: rewards?.perfectLessons ?? 0,

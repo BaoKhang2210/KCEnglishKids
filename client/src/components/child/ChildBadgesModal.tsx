@@ -68,7 +68,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   if (!isOpen) return null;
 
   const badgeProgress = {
-    totalStars: effectiveTotalStars,
+    totalStars: rewards?.badgeProgressStars ?? effectiveTotalStars,
     completedLessons: effectiveCompletedLessons,
     completedUnits: effectiveCompletedUnits,
     perfectLessons: rewards?.perfectLessons ?? 0,
@@ -181,7 +181,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         </div>
         {rewards && (
           <p className="-mt-2 mb-4 text-[11px] font-bold text-slate-500 relative z-10">
-            Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}. Sao Lesson lấy điểm tốt nhất ở mọi trò chơi; mốc 50/70/90% lần lượt là 1/2/3 sao. Mỗi Unit cộng 5 sao một lần.
+            Tổng sao hành trình = tổng sao các Unit. Sao lớp và các khoản thưởng khác được theo dõi riêng; hoàn thành Unit nhận 5 sao một lần.
           </p>
         )}
 

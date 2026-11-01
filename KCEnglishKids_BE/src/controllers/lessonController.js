@@ -8,6 +8,7 @@ const getCurriculumPath = async (req, res, next) => {
   try {
     const ageGroup = req.query.ageGroup || (req.user && req.user.ageGroupCode) || '3-4';
     const childId = await require('../services/childAccess').privateChildQuery(req);
+    const starLedger = childId ? await require('../services/starLedgerService').computeStarLedger(childId) : null;
 
     // 1. Find the 9 Units for this age group
     const units = await CurriculumUnit.find({ ageGroupCode: ageGroup, status: 'ACTIVE' })
@@ -104,11 +105,18 @@ const getCurriculumPath = async (req, res, next) => {
       });
     });
 
+    const ledgerUnits = new Map((starLedger?.units || []).map(row => [row.id, row]));
     const curriculumPath = units.map(unit => {
       const unitLessons = lessonsByUnit[unit._id.toString()] || [];
+      const ledgerUnit = ledgerUnits.get(String(unit._id));
+      const ledgerLessons = new Map((ledgerUnit?.lessons || []).map(row => [row.id, row]));
+      const displayLessons = ledgerUnit ? unitLessons.map(lesson => {
+        const starLesson = ledgerLessons.get(String(lesson._id));
+        return starLesson ? { ...lesson, completed: starLesson.completed, stars: starLesson.stars, stages: starLesson.stages } : lesson;
+      }) : unitLessons;
       const unitTopic = unitLessons[0]?.topic || null;
-      const completedLessons = unitLessons.filter(l => l.completed).length;
-      const totalUnitStars = unitLessons.reduce((sum, l) => sum + (l.stars || 0), 0);
+      const completedLessons = ledgerUnit?.completedLessons ?? unitLessons.filter(l => l.completed).length;
+      const totalUnitStars = ledgerUnit?.stars ?? unitLessons.reduce((sum, l) => sum + (l.stars || 0), 0);
 
       return {
         _id: unit._id,
@@ -121,11 +129,12 @@ const getCurriculumPath = async (req, res, next) => {
         topicVietnameseName: unitTopic?.vietnameseName || '',
         topicIcon: unitTopic?.icon || '🎒',
         topicColor: unitTopic?.colorCode || '#F59E0B',
-        lessons: unitLessons,
-        totalLessons: unitLessons.length,
+        lessons: displayLessons,
+        totalLessons: displayLessons.length,
         completedLessons,
+        maxUnitStars: ledgerUnit?.maxStars,
         totalUnitStars,
-        isCompleted: unitLessons.length > 0 && completedLessons === unitLessons.length
+        isCompleted: ledgerUnit?.completed ?? (unitLessons.length > 0 && completedLessons === unitLessons.length)
       };
     });
 

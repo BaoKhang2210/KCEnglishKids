@@ -3,7 +3,6 @@ const { Progress, Vocabulary, CurriculumUnit } = require('../models');
 const Event = require('../models/LearningEvent');
 const { activeLesson, fail } = require('./childAccess');
 const { usable } = require('./gameRules');
-const { calculateStars } = require('./starService');
 const { checkAndGrantUnitCompletion } = require('./rewardService');
 
 function gradeStage(stage, payload, words, game, age) {
@@ -63,21 +62,31 @@ async function completeStage(childId, lessonId, body) {
   }
   if (event.payloadHash !== payloadHash || String(event.lesson) !== String(lessonId)) fail('Submission key already used for different evidence.', 409);
   const update = { $set: { topic: lesson.topic }, $max: {lastActivityAt: event.createdAt}, $setOnInsert: { child: childId, lesson: lessonId } };
-  if (stage === 1) update.$set.stage1Completed = true;
+  const previousStage3Complete = Boolean(previous?.stage3Completed) || new Set(previous?.stage3Games || []).size >= 2;
+  if (stage === 1) {
+    update.$set.stage1Completed = true;
+    update.$set.stars = 1 + Number(Boolean(previous?.stage2Completed)) + Number(previousStage3Complete);
+  }
   if (stage === 2) {
     update.$set.stage2Completed = true;
-    Object.assign(update.$max, { stage2Score: graded.score, stage2Stars: calculateStars(graded.score, 100) });
-    if(previous.stage3Completed) Object.assign(update.$max,{stars:calculateStars(graded.score,100),highestScore:graded.score});
+    Object.assign(update.$max, { stage2Score: graded.score, highestScore: graded.score });
+    // Bank one star for completing the practice, regardless of accuracy.
+    update.$set.stars = Number(Boolean(previous?.stage1Completed)) + 1 + Number(previousStage3Complete);
+    update.$max.highestScore = graded.score;
   }
-  if (stage === 3) update.$addToSet = { stage3Games: game.id };
+  if (stage === 3) {
+    update.$addToSet = { stage3Games: game.id };
+    const completedGames = new Set([...(previous?.stage3Games || []), game.id]);
+    const stage3Complete = Boolean(previousStage3Complete) || completedGames.size >= 2;
+    update.$set.stars = Number(Boolean(previous?.stage1Completed)) + Number(Boolean(previous?.stage2Completed)) + Number(stage3Complete);
+  }
   let progress;
   try {progress=await Progress.findOneAndUpdate({child:childId,lesson:lessonId},update,{upsert:true,returnDocument:'after',setDefaultsOnInsert:true});}
   catch(error){if(error.code!==11000)throw error;progress=await Progress.findOneAndUpdate({child:childId,lesson:lessonId},update,{returnDocument:'after'});}
   if (stage === 3 && progress.stage3Games.length >= 2) {
-    // Practice accuracy determines Lesson stars. Game stars are encouragement only.
+    // Finishing the second mini-game banks the Chặng 3 completion star.
     progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId, stage1Completed: true, stage2Completed: true }, {
-      $set: { completed: true, stage3Completed: true, completionSnapshot: { source: 'STAGES', recordedAt: new Date(), activityIds: [] } },
-      $max: { stars: progress.stage2Stars, highestScore: progress.stage2Score }
+      $set: { completed: true, stage3Completed: true, stars: 3, completionSnapshot: { source: 'STAGES', recordedAt: new Date(), activityIds: [] } }
     }, { returnDocument: 'after' });
     await Event.updateOne({ _id: event._id }, { $set: { lessonCompleted: true } });
   }

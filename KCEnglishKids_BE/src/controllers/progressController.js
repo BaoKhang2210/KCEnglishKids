@@ -13,20 +13,16 @@ const getChildProgress = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Child not found.' });
     }
 
-    const progressList = await Progress.find({ child: id })
+    const [progressList, starLedger] = await Promise.all([Progress.find({ child: id })
       .populate('topic', 'englishName vietnameseName icon colorCode')
       .populate('lesson', 'title vietnameseTitle difficulty')
-      .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl');
+      .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl'),
+    require('../services/starLedgerService').computeStarLedger(id)]);
 
     // Aggregate statistics
-    let totalStars = 0;
-    let completedLessonsCount = 0;
     const weakWordsMap = {};
 
     progressList.forEach(item => {
-      if (item.completed) totalStars += item.stars || 0;
-      if (item.completed) completedLessonsCount++;
-
       if (item.weakVocabulary && item.weakVocabulary.length > 0) {
         item.weakVocabulary.forEach(wv => {
           if (wv.vocabulary) {
@@ -54,8 +50,10 @@ const getChildProgress = async (req, res, next) => {
       success: true,
       data: {
         child,
-        totalStars,
-        completedLessonsCount,
+        totalStars: starLedger.totalStars,
+        completedLessonsCount: starLedger.completedLessons,
+        maxStars: starLedger.maxStars,
+        starLedger,
         progressList,
         weakVocabulary: Object.values(weakWordsMap),
         recentActivityResults: await require('../services/learningHistory').recentHistory(id,recentResults,5)
@@ -73,7 +71,7 @@ const getLessonProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
     const progress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
-      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage2Stars stage3Completed stage3Stars stage3Games'
+      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage3Completed stage3Stars stage3Games'
     );
     res.status(200).json({ success: true, data: progress });
   } catch (error) {

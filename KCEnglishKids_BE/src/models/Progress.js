@@ -30,6 +30,7 @@ const progressSchema = new mongoose.Schema(
       activityIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Activity' }]
     },
     stars: {
+      // Canonical stage-completion star total (one for each of the 3 stages).
       type: Number,
       default: 0,
       min: 0,
@@ -57,6 +58,7 @@ const progressSchema = new mongoose.Schema(
       default: 0
     },
     stage2Stars: {
+      // Deprecated legacy practice rating; the current stage flow no longer writes or reads it.
       type: Number,
       default: 0,
       min: 0,
@@ -67,6 +69,8 @@ const progressSchema = new mongoose.Schema(
       default: false
     },
     stage3Stars: {
+      // Deprecated display-era field. Stage 3 games now record completion only;
+      // retained for backward compatibility and excluded from the star ledger.
       type: Number,
       default: 0,
       min: 0,

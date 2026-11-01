@@ -51,21 +51,26 @@ export const learningOutbox = {
           localStorage.setItem(key, JSON.stringify(read().filter(item => item.payload.submissionId !== row.payload.submissionId)));
           notify();
         } catch (error: any) {
-          const status = error?.status;
+          const status = Number(error?.status) || 0;
+          const message = error instanceof Error ? error.message : String(error ?? 'Lỗi kết nối khi đồng bộ kết quả.');
           if (status === 502 || status === 500 || status === 503 || status === 504 || error?.name === 'TypeError') {
             if (import.meta.env?.DEV) {
               console.warn(`[ProgressService] Server ${status || 'offline'}, saved to LocalStorage`);
             }
             break;
           }
-          if(error.status>=400&&error.status<500){
-            localStorage.setItem(key,JSON.stringify(read().map(item=>item.payload.submissionId===row.payload.submissionId?{...item,error:error.message}:item)));
+          if(status>=400&&status<500){
+            localStorage.setItem(key,JSON.stringify(read().map(item=>item.payload.submissionId===row.payload.submissionId?{...item,error:message}:item)));
             blocked.add(row.lessonId);notify();
-            if(error.status===401)break;
+            if(status===401)break;
           }else break;
         } // Keep evidence; one invalid lesson must not block unrelated vocabulary.
       }
     })();
-    try { await running; } finally { running = null; notify(); }
+    try { await running; } catch (error) {
+      // Unexpected sync failures must leave the outbox intact without creating
+      // an unhandled rejection from fire-and-forget retry/focus handlers.
+      if (import.meta.env?.DEV) console.warn('[ProgressService] Sync deferred; result remains in LocalStorage.', error);
+    } finally { running = null; notify(); }
   },
 };

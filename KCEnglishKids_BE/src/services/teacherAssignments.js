@@ -1,5 +1,6 @@
 const { ActivityResult, Activity } = require('../models');
 const { idOf, accuracy } = require('./teacherRules');
+const { resolveLessonStars } = require('./starLedgerService');
 const recipients = (assignment, room) => assignment.recipients !== undefined
   ? assignment.recipients.map(idOf)
   : assignment.assignedToType === 'STUDENT' ? [idOf(assignment.student)] : (room.students || []).map(idOf);
@@ -27,7 +28,7 @@ async function submissions(assignment, students) {
     const practice=event&&practiceRows.find(row=>idOf(row.child)===idOf(student)&&new Date(row.createdAt)<=new Date(event.createdAt));
     const answers=(practice?.answers||[]).map(answer=>({...answer,promptText:'Vòng '+answer.round,vocabularyId:{_id:answer.wordId,english:answer.english,vietnamese:answer.vietnamese,imageUrl:answer.imageUrl}}));
     if (event && progress?.stage3Completed) return { student, hasSubmitted:true, submission:{
-      _id:event._id, source:'STAGES', completed:true, score:practice?.score ?? progress.stage2Score, stars:progress.stars,
+      _id:event._id, source:'STAGES', completed:true, score:practice?.score ?? progress.stage2Score, stars:resolveLessonStars(progress),
       correctCount:answers.filter(a=>a.isCorrect).length, incorrectCount:answers.filter(a=>!a.isCorrect).length,
       answers, submittedAt:event.createdAt, createdAt:event.createdAt,
       teacherFeedback:assignment.reviews?.find(review=>idOf(review.child)===idOf(student))||null
