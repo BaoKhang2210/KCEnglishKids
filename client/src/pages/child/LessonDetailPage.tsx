@@ -12,16 +12,30 @@ import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer
 import { GamesTab, REQUIRED_GAMES_TO_COMPLETE } from '../../games/hub/GamesTab';
 import { GameRunner } from '../../games/core/GameRunner';
 import type { GameId } from '../../games/core/types';
-import { getLessonGames } from '../../games/registry';
+import { learningOutbox } from '../../services/learningOutbox';
+import { getAvailableLessonGames } from '../../games/registry';
 import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
+
+const childIdFor = (user: any) => user?._id || user?.id || 'child_guest';
+const cache = {
+  getItem(key: string) { try { return localStorage.getItem(key); } catch { return null; } },
+  setItem(key: string, value: string) { try { localStorage.setItem(key, value); } catch { /* UI cache only */ } },
+  removeItem(key: string) { try { localStorage.removeItem(key); } catch { /* UI cache only */ } },
+};
 
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [plan,setPlan] = useState<any>(null);
+  const [loadError,setLoadError] = useState('');
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncNotice, setSyncNotice] = useState('');
+  const [, refresh] = useState(0);
+  const activeScope = useRef('');
+  activeScope.current = childIdFor(user) + ':' + id;
   const [activeStage, setActiveStage] = useState<1 | 2 | 3>(1);
   const [lockedStage, setLockedStage] = useState<1 | 2 | 3 | null>(null);
   const lockedStageTriggerRef = useRef<HTMLElement | null>(null);
@@ -36,38 +50,55 @@ export const LessonDetailPage: React.FC = () => {
       return;
     }
 
+    let cancelled = false;
+    setLoading(true); setLesson(null); setPlan(null); setLoadError('');setCompletedGames([]);
     const fetchLesson = async () => {
       try {
         if (!id) return;
+        await learningOutbox.flush(childId);
         const res = await lessonsApi.getLessonById(id);
+        if (cancelled) return;
         if (res.success) {
+          if(user.role==='CHILD'){
+            const response = await stageProgressApi.getPlan(childId, id);
+            const saved = response.data;
+            if(cancelled)return;setPlan(saved);
+          }
           setLesson(res.data);
 
           try {
             const progRes = await stageProgressApi.getLessonProgress(childId, id);
-            if (progRes.success && progRes.data) {
+            if (cancelled) return;
+            const hasPending = learningOutbox.pending(childId).some(row => row.lessonId === id);
+            if (hasPending) setCompletedGames(JSON.parse(cache.getItem(`kc_stage3_games_${childId}_${id}`) || '[]'));
+            if (!hasPending && !progRes.data) {
+              for (const stage of [1,2,3]) cache.removeItem(`kc_stage${stage}_${childId}_${id}`);
+              cache.removeItem(`kc_stage3_games_${childId}_${id}`);
+            }
+            if (progRes.success && progRes.data && !hasPending) {
+              setCompletedGames(progRes.data.stage3Games || []);
               if (progRes.data.stage1Completed) {
-                localStorage.setItem(`kc_stage1_${childId}_${id}`, 'true');
+                cache.setItem(`kc_stage1_${childId}_${id}`, 'true');
               } else {
-                localStorage.removeItem(`kc_stage1_${childId}_${id}`);
+                cache.removeItem(`kc_stage1_${childId}_${id}`);
               }
               if (progRes.data.stage2Completed) {
-                localStorage.setItem(`kc_stage2_${childId}_${id}`, 'true');
+                cache.setItem(`kc_stage2_${childId}_${id}`, 'true');
               } else {
-                localStorage.removeItem(`kc_stage2_${childId}_${id}`);
+                cache.removeItem(`kc_stage2_${childId}_${id}`);
               }
               if (progRes.data.stage3Completed) {
-                localStorage.setItem(`kc_stage3_${childId}_${id}`, 'true');
-              }
+                cache.setItem(`kc_stage3_${childId}_${id}`, 'true');
+              } else cache.removeItem(`kc_stage3_${childId}_${id}`);
             }
           } catch {
             /* offline fallback */
           }
 
-          const savedStage1 = localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
-          const savedStage2 = localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+          const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
+          const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
-          const savedActive = localStorage.getItem(`kc_stage_active_${childId}_${id}`);
+          const savedActive = cache.getItem(`kc_stage_active_${childId}_${id}`);
           if (savedActive === '3' && savedStage2) {
             setActiveStage(3);
           } else if (savedActive === '2' && savedStage1) {
@@ -81,13 +112,14 @@ export const LessonDetailPage: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('Failed to load lesson:', err);
+        if(!cancelled)setLoadError((err as Error).message || 'Chưa mở được bài. Hãy kiểm tra mạng.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchLesson();
+    return () => { cancelled = true; };
   }, [id, user, navigate, childId]);
 
   const activities = (lesson as any)?.activities || [];
@@ -104,7 +136,7 @@ export const LessonDetailPage: React.FC = () => {
   const [distractorPool, setDistractorPool] = useState<Vocabulary[]>([]);
   const [completedGames, setCompletedGames] = useState<string[]>(() => {
     try {
-      const stored = localStorage.getItem(`kc_stage3_games_${childId}_${id}`);
+      const stored = cache.getItem(`kc_stage3_games_${childId}_${id}`);
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -112,28 +144,41 @@ export const LessonDetailPage: React.FC = () => {
   });
 
   const isStage1Completed =
-    localStorage.getItem(`kc_stage1_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
 
   const isStage2Completed =
-    localStorage.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
   const isStage3Completed =
     completedGames.length >= REQUIRED_GAMES_TO_COMPLETE ||
-    localStorage.getItem(`kc_stage3_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage3_${childId}_${id}`) === 'true';
 
-  const handleGameCompleted = (gameId: string) => {
+  const persistStage = async (payload: Record<string, unknown>) => {
+    if (!id) return false;
+    if(user?.role!=='CHILD')return true;
+    const scope = childId + ':' + id;
+    try {
+      await learningOutbox.enqueue(childId, id, payload);
+      if (activeScope.current !== scope) return false;
+      setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : 'Đã lưu kết quả.');
+      return true;
+    } catch (error: any) {
+      if (activeScope.current === scope) setSyncNotice(error.message || 'Chưa lưu được kết quả. Hãy kiểm tra bộ nhớ và thử lại.');
+      return false;
+    }
+  };
+  useEffect(() => {
+    const status = () => { setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : ''); refresh(n => n + 1); };
+    const retry = () => { void learningOutbox.flush(childId); };
+    window.addEventListener('online', retry); window.addEventListener('kc_learning_sync', status); status();
+    return () => { window.removeEventListener('online', retry); window.removeEventListener('kc_learning_sync', status); };
+  }, [childId]);
+  const handleGameCompleted = async (gameId: string, _stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => {
+    if (!await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken})) return;
     const nextCompleted = Array.from(new Set([...completedGames, gameId]));
     setCompletedGames(nextCompleted);
-    try {
-      localStorage.setItem(`kc_stage3_games_${childId}_${id}`, JSON.stringify(nextCompleted));
-    } catch {}
-
-    if (nextCompleted.length >= REQUIRED_GAMES_TO_COMPLETE) {
-      localStorage.setItem(`kc_stage3_${childId}_${id}`, 'true');
-      stageProgressApi
-        .completeStage(childId, id!, { stage: 3, score: 100, stars: 3 })
-        .catch(err => console.warn('Stage 3 sync failed:', err));
-    }
+    cache.setItem(`kc_stage3_games_${childId}_${id}`, JSON.stringify(nextCompleted));
+    if (nextCompleted.length >= REQUIRED_GAMES_TO_COMPLETE) cache.setItem(`kc_stage3_${childId}_${id}`, 'true');
   };
 
   useEffect(() => {
@@ -181,31 +226,17 @@ export const LessonDetailPage: React.FC = () => {
     sfx.playPop();
     setLockedStage(null);
     setActiveStage(stage);
-    localStorage.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
+    cache.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
   };
 
-  const handleCompleteStage1 = () => {
-    sfx.playSuccess();
-    localStorage.setItem(`kc_stage1_${childId}_${id}`, 'true');
-    setActiveStage(2);
-    localStorage.setItem(`kc_stage_active_${childId}_${id}`, '2');
-    stageProgressApi
-      .completeStage(childId, id!, { stage: 1 })
-      .catch(err => console.warn('Stage 1 sync failed — kept offline:', err));
+  const handleCompleteStage1 = async () => {
+    if (!await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)})) return;
+    sfx.playSuccess(); cache.setItem(`kc_stage1_${childId}_${id}`, 'true'); setActiveStage(2);
   };
-
-  const handleCompleteStage2 = (stats?: { score: number; stars: number }) => {
-    sfx.playSuccess();
-    localStorage.setItem(`kc_stage2_${childId}_${id}`, 'true');
-    setActiveStage(3);
-    localStorage.setItem(`kc_stage_active_${childId}_${id}`, '3');
-    stageProgressApi
-      .completeStage(childId, id!, {
-        stage: 2,
-        score: Math.max(0, Math.round(stats?.score || 0)),
-        stars: Math.min(3, Math.max(0, Math.round(stats?.stars || 0)))
-      })
-      .catch(err => console.warn('Stage 2 sync failed — kept offline:', err));
+  const handleCompleteStage2 = async (stats?: {score: number; stars: number; answers: Array<{wordId: string; round: number; selectedId: string | null}>}) => {
+    if (isStage2Completed && !stats?.answers.length) { setActiveStage(3); return; }
+    if (!stats?.answers.length || !await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token})) return;
+    sfx.playSuccess(); cache.setItem(`kc_stage2_${childId}_${id}`, 'true'); setActiveStage(3);
   };
 
   const topicIcon = (lesson as any)?.topic?.icon || '🌟';
@@ -313,6 +344,7 @@ export const LessonDetailPage: React.FC = () => {
 
   return (
     <>
+    {syncNotice && <div role="status" className="fixed bottom-2 left-2 right-2 z-[200] rounded-xl bg-amber-100 p-2 text-sm text-slate-900 text-center">{syncNotice} <button className="underline font-bold" onClick={() => void learningOutbox.flush(childId)}>Đồng bộ lại</button></div>}
     <ScreenShell
       completedCount={completedCount}
       titleBar={titleBarElement}
@@ -325,7 +357,7 @@ export const LessonDetailPage: React.FC = () => {
       ) : !lesson ? (
         <div className="w-full h-full flex items-center justify-center">
           <div className="bg-white rounded-3xl p-8 text-center border-4 border-dashed border-amber-200 max-w-sm">
-            <p className="font-black text-slate-600 text-base">Không tìm thấy Lesson.</p>
+            <p className="font-black text-slate-600 text-base">{loadError || 'Không tìm thấy bài học.'}</p>
           </div>
         </div>
       ) : (
@@ -334,7 +366,7 @@ export const LessonDetailPage: React.FC = () => {
           <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             {/* STAGE 1: KHÁM PHÁ */}
             {activeStage === 1 && (
-              <ExploreSceneStage
+              <ExploreSceneStage key={childId + ':' + id}
                 vocabulary={lesson.vocabularyItems || []}
                 bigQuestion={(lesson as any)?.bigQuestion || `What do we do in ${lesson.title}?`}
                 storyTitle={lesson.title}
@@ -345,7 +377,7 @@ export const LessonDetailPage: React.FC = () => {
             {/* STAGE 2: HỌC & NÓI / LUYỆN TẬP 3 VÒNG */}
             {activeStage === 2 && (
               <div className="w-full h-full min-h-0 flex flex-col overflow-hidden">
-                <Stage2PracticeFlow
+                <Stage2PracticeFlow key={childId + ':' + id}
                   vocabulary={lesson.vocabularyItems || []}
                   lessonId={id || ''}
                   stage2Completed={isStage2Completed}
@@ -354,7 +386,7 @@ export const LessonDetailPage: React.FC = () => {
                   lessonNumber={lessonNumber}
                   onBackToStage1={() => {
                     setActiveStage(1);
-                    localStorage.setItem(`kc_stage_active_${childId}_${id}`, '1');
+                    cache.setItem(`kc_stage_active_${childId}_${id}`, '1');
                   }}
                   onComplete={handleCompleteStage2}
                 />
@@ -365,6 +397,7 @@ export const LessonDetailPage: React.FC = () => {
             {activeStage === 3 && (
               <>
                 <GamesTab
+                  allowedGameIds={plan?.games.map((game: any) => game.id)}
                   vocabularyList={lesson.vocabularyItems || []}
                   unitNumber={unitNumber}
                   lessonNumber={lessonNumber}
@@ -375,8 +408,11 @@ export const LessonDetailPage: React.FC = () => {
 
                 {activeGameId && (
                   <GameRunner
+                    allowedGameIds={plan?.games.map((game: any) => game.id)}
                     key={activeGameId}
                     config={{
+                      targetOrder:plan?.games.find((game:any)=>game.id===activeGameId)?.targetOrder,
+                      attemptToken:plan?.games.find((game:any)=>game.id===activeGameId)?.attemptToken,
                       unitId: (lesson as any)?.unit?._id
                         || (lesson as any)?.curriculumUnits?.[0]?._id
                         || (lesson as any)?.unitId
@@ -418,7 +454,7 @@ export const LessonDetailPage: React.FC = () => {
       stage2Completed={isStage2Completed}
       stage3Completed={isStage3Completed}
       activeStage={activeStage}
-      games={getLessonGames(unitNumber, lessonNumber).map((game) => ({
+      games={getAvailableLessonGames(lesson?.vocabularyItems || [], unitNumber, lessonNumber, plan?.games.map((game: any) => game.id)).map((game) => ({
         _id: game.id,
         title: game.title,
         vietnameseTitle: game.subtitle,
@@ -434,7 +470,7 @@ export const LessonDetailPage: React.FC = () => {
           const target = isStage1Completed ? (isStage2Completed ? 3 : 2) : 1;
           closeLockedStage();
           setActiveStage(target);
-          localStorage.setItem(`kc_stage_active_${childId}_${id}`, target.toString());
+          cache.setItem(`kc_stage_active_${childId}_${id}`, target.toString());
         }}
         onClose={closeLockedStage}
       />

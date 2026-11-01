@@ -26,6 +26,12 @@ const Attendance = require('./Attendance');
 const Schedule = require('./Schedule');
 
 module.exports = {
+  HomePracticePlan: require('./HomePracticePlan'),
+  LearningObservation: require('./LearningObservation'),
+  GameCatalogSetting: require('./GameCatalogSetting'),
+  SchoolRecognition: require('./SchoolRecognition'),
+  LearningEvent: require('./LearningEvent'),
+  MasteryEvent: require('./MasteryEvent'),
   AgeGroup,
   CurriculumBook,
   CurriculumUnit,

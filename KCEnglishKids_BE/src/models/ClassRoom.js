@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { TEACHING_STATUSES, normalizeClassName } = require('../services/classroomRules');
 
 const classRoomSchema = new mongoose.Schema(
   {
@@ -9,6 +10,7 @@ const classRoomSchema = new mongoose.Schema(
       unique: true
     },
     deletionPending: { type: Boolean, default: false },
+    normalizedName: { type: String, required: true },
     deletionStudentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     description: {
       type: String,
@@ -63,5 +65,10 @@ const classRoomSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-classRoomSchema.index({ teacher: 1 }, { name: 'one_teacher_per_active_class', unique: true, partialFilterExpression: { status: { $in: ['ACTIVE', 'UPCOMING', 'COMPLETED'] } } });
+classRoomSchema.pre('validate', function () {
+  this.name = this.name?.normalize('NFC').trim().replace(/\s+/gu, ' ');
+  this.normalizedName = normalizeClassName(this.name);
+});
+classRoomSchema.index({ normalizedName: 1 }, { unique: true, name: 'unique_normalized_class_name' });
+classRoomSchema.index({ teacher: 1 }, { name: 'one_teacher_per_current_class', unique: true, partialFilterExpression: { status: { $in: TEACHING_STATUSES } } });
 module.exports = mongoose.model('ClassRoom', classRoomSchema);

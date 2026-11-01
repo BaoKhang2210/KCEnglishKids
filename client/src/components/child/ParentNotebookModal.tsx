@@ -22,7 +22,7 @@ import { type Stage2PracticeSession } from '../../services/vocabStatsService';
 import { sfx } from '../../utils/audio';
 
 interface ReplyItem {
-  senderRole: 'TEACHER' | 'PARENT';
+  senderRole: 'TEACHER' | 'PARENT' | 'FAMILY';
   senderName: string;
   message: string;
   createdAt: string;
@@ -511,7 +511,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                       <div className="flex flex-wrap items-center gap-3 text-xs text-indigo-100 mt-1">
                         {scheduleData.classroom.teacher && (
                           <span className="flex items-center gap-1 font-semibold">
-                            <UserCheck size={13} /> GVCN: {scheduleData.classroom.teacher.name}
+                            <UserCheck size={13} /> giáo viên: {scheduleData.classroom.teacher.name}
                           </span>
                         )}
                         {scheduleData.classroom.room && (

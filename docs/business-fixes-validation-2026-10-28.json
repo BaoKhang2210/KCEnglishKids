@@ -1,0 +1,94 @@
+{
+  "checkedAt": "2026-10-28T06:55:38.465Z",
+  "method": "Real MongoDB and localhost HTTP in isolated temporary QA databases; databases removed after test.",
+  "scenarios": 17,
+  "passed": 17,
+  "failed": 0,
+  "outcomes": [
+    {
+      "name": "private learning sessions and all alternative child paths enforce identity/class scope",
+      "status": "passed",
+      "durationMs": 193
+    },
+    {
+      "name": "stage skipping, invalid evidence, wrong age and locked lessons do not write progress",
+      "status": "passed",
+      "durationMs": 57
+    },
+    {
+      "name": "teacher creates a frozen Lesson assignment before learning starts",
+      "status": "passed",
+      "durationMs": 28
+    },
+    {
+      "name": "three real stages persist server-graded accuracy; retries and concurrent tabs do not duplicate events",
+      "status": "passed",
+      "durationMs": 193
+    },
+    {
+      "name": "Lesson completion appears in homework, supports review replacement and uses FAMILY identity",
+      "status": "passed",
+      "durationMs": 126
+    },
+    {
+      "name": "completing the Unit and retrying a final game grants one chest only",
+      "status": "passed",
+      "durationMs": 172
+    },
+    {
+      "name": "activity grading rejects empty/duplicate indexes; repeated submission is one result and stable session score",
+      "status": "passed",
+      "durationMs": 312
+    },
+    {
+      "name": "mastery events merge two devices, retry once, and stale absolute sync cannot overwrite counts",
+      "status": "passed",
+      "durationMs": 60
+    },
+    {
+      "name": "streak reads and preview do not mutate users or fabricate study dates",
+      "status": "passed",
+      "durationMs": 39
+    },
+    {
+      "name": "publication checklist and history guards reject destructive content edits",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "name": "signed plans reject another child, tampered targets, and an unsigned completion",
+      "status": "passed",
+      "durationMs": 45
+    },
+    {
+      "name": "personal review, family week summary and teacher statistics include the three-stage path",
+      "status": "passed",
+      "durationMs": 150
+    },
+    {
+      "name": "new lessons stay in draft until media and game readiness pass",
+      "status": "passed",
+      "durationMs": 87
+    },
+    {
+      "name": "attendance and LIVE scoring run on real MongoDB, reject absent awards and deduplicate operations",
+      "status": "passed",
+      "durationMs": 201
+    },
+    {
+      "name": "closed-period recognition publishes once and reaches only its winning child",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "name": "full backup restores BSON, indexes and credentials into a second empty QA database",
+      "status": "passed",
+      "durationMs": 1415
+    },
+    {
+      "name": "registration has no shared PIN and changing PIN revokes the old JWT without weakening the password",
+      "status": "passed",
+      "durationMs": 481
+    }
+  ]
+}

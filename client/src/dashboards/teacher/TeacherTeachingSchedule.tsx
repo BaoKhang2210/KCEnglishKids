@@ -1,4 +1,5 @@
-import { vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
+import { forecastLessons, scheduleEffectiveAt, scheduleSlotAppliesOn, slotKey, countsTowardCurriculum } from '../../utils/teachingSchedule';
+import { vietnamDate, vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -270,7 +271,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
     const map: Record<string, ClassroomSession[]> = {};
 
     filteredSessions.forEach((s) => {
-      const dateKey = (s.startedAt || s.createdAt || '').split('T')[0];
+      const timestamp = s.startedAt || s.createdAt;
+      const dateKey = timestamp ? vietnamDate(new Date(timestamp)) : '';
       if (dateKey) {
         if (!map[dateKey]) map[dateKey] = [];
         map[dateKey].push(s);
@@ -305,12 +307,13 @@ export const TeacherTeachingSchedule: React.FC = () => {
     const currentDay = currentVnTime.getDay(); // 0 is Sun, 1 is Mon
     const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
 
+    const activeSchedules = mySchedules.filter(schedule => scheduleEffectiveAt(schedule));
     const relevantSchedules = selectedClassId && selectedClassId !== 'ALL'
-      ? mySchedules.filter((s: any) => {
+      ? activeSchedules.filter((s: any) => {
           const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
           return String(cId) === String(selectedClassId);
         })
-      : mySchedules;
+      : activeSchedules;
 
     if (relevantSchedules.length === 0) {
       return {
@@ -428,6 +431,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
     const taughtLessonMap: Record<string, { count: number; lastDate: string; avgScore: number; lastSessionId: string }> = {};
 
     roadmapSessions.forEach((s) => {
+      if (!countsTowardCurriculum(s)) return;
       const lessonId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
       if (lessonId) {
         if (!taughtLessonMap[lessonId]) {
@@ -500,6 +504,10 @@ export const TeacherTeachingSchedule: React.FC = () => {
     return bookRoadmap.lessons.find((l: any) => l.isNext) || bookRoadmap.lessons.find((l: any) => !l.isCompleted) || null;
   }, [bookRoadmap]);
 
+  const lessonForecast = useMemo(() => forecastLessons(
+    filteredMySchedules, bookRoadmap.lessons, vietnamDate(), currentWeekDays[6].dateString
+  ), [filteredMySchedules, bookRoadmap, currentWeekDays]);
+
   const lastLessonTaught = useMemo(() => {
     const taught = bookRoadmap.lessons.filter((l: any) => l.isCompleted);
     return taught.length > 0 ? taught[taught.length - 1] : null;
@@ -547,7 +555,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
               )}
               {classes.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name} ({c.ageGroupCode} tuổi) {classes.length === 1 ? '• Lớp chủ nhiệm của tôi' : ''}
+                  {c.name} ({c.ageGroupCode} tuổi) {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
                 </option>
               ))}
             </select>
@@ -861,10 +869,10 @@ export const TeacherTeachingSchedule: React.FC = () => {
           </div>
 
           {/* 7-Days Timetable Grid (Optimized, no overlap) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
             {currentWeekDays.map((day) => {
               const daySessions = calendarDaySessions[day.dateString] || [];
-              const dayFixedSlots = fixedTimetableByDay[day.dayNum] || [];
+              const dayFixedSlots = (fixedTimetableByDay[day.dayNum] || []).filter(({ schedule, slot }) => scheduleSlotAppliesOn(schedule, slot, day.dateString));
 
               return (
                 <div
@@ -900,10 +908,14 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         return (
                           <div
                             key={fIdx}
-                            className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} flex items-center justify-between`}
+                            className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-2`}
                           >
-                            <span className="truncate">{cName}</span>
-                            <span className="font-black text-slate-900">{slot.startTime}</span>
+                            <p className="text-sm font-black break-words">{cName}</p>
+                            <p className="font-black text-slate-900">{slot.startTime} – {slot.endTime}</p>
+                            {slot.room && <p>Phòng: {slot.room}</p>}
+                            {slot.subjectNote && <p>{slot.subjectNote}</p>}
+                            <p className="text-[11px] uppercase text-slate-500">{day.dateString < vietnamDate() ? "Theo lịch" : "Bài học dự kiến"}</p>
+                            <p className="break-words">{lessonForecast.get(slotKey(schedule._id, day.dateString, slot.startTime))?.vietnameseTitle || lessonForecast.get(slotKey(schedule._id, day.dateString, slot.startTime))?.title || (day.dateString < vietnamDate() ? "Lịch cố định" : "Ôn tập / chờ phân bài")}</p>
                           </div>
                         );
                       })}
@@ -919,14 +931,14 @@ export const TeacherTeachingSchedule: React.FC = () => {
                     {daySessions.length === 0 ? (
                       <div className="h-32 flex flex-col items-center justify-center text-center p-3 text-slate-700">
                         <Calendar size={22} className="mb-1.5 opacity-40" />
-                        <span className="text-xs font-medium italic">Chưa mở buổi dạy</span>
+                        <span className="text-xs font-medium italic">Chưa ghi nhận buổi dạy</span>
                       </div>
                     ) : (
                       daySessions.map((s: any) => {
                         const lessonTitle = s.lesson?.title || s.title || 'Buổi học tiếng Anh';
                         const roomName = s.classroom?.name || 'Lớp';
-                        const scoreCount = s.summary?.studentsScored ?? (Array.isArray(s.scores) ? s.scores.length : 0);
-                        const avg = s.summary?.averageScore;
+                        const scoreCount = (s.studentScores || []).filter((row: any) => !['ABSENT', 'EXCUSED'].includes(row.attendance)).length;
+                        const stars = s.summary?.totalStars;
 
                         return (
                           <div
@@ -941,13 +953,13 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                 {s.startedAt ? new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Dạy'}
                               </span>
                             </div>
-                            <h5 className="text-xs font-black text-slate-900 line-clamp-1" title={lessonTitle}>
+                            <h5 className="text-sm font-black text-slate-900 break-words" title={lessonTitle}>
                               {lessonTitle}
                             </h5>
                             <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600 border-t border-slate-50 pt-1.5">
                               <span>👥 {scoreCount} bé</span>
-                              {avg !== undefined && (
-                                <span className="font-bold text-amber-800">⭐ {avg}đ</span>
+                              {stars !== undefined && (
+                                <span className="font-bold text-amber-800">⭐ {stars} sao</span>
                               )}
                             </div>
                             <Link

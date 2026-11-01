@@ -21,7 +21,7 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/images', express.static(path.resolve(__dirname, '../../client/public/images'), { maxAge: '30d', immutable: true }));
 
@@ -32,6 +32,11 @@ app.get('/api/health', (req, res) => {
     message: 'KCEnglishKids Backend API is running smoothly!',
     timestamp: new Date().toISOString()
   });
+});
+
+app.get('/api/ready', (req, res) => {
+  const ready = require('mongoose').connection.readyState === 1;
+  res.status(ready ? 200 : 503).json({ ready });
 });
 
 // API Routes

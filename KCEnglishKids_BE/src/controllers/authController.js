@@ -1,6 +1,7 @@
 const { jwtSecret } = require('../config/auth');
 const jwt = require('jsonwebtoken');
 const { User, AgeGroup } = require('../models');
+const recovery = require('../services/accountRecovery');
 
 const generateToken = (id, role, extra = {}) => {
   return jwt.sign(
@@ -15,7 +16,9 @@ const generateToken = (id, role, extra = {}) => {
 // @access  Public
 const getChildAvatars = async (req, res, next) => {
   try {
-    const children = await User.find({ role: 'CHILD', status: 'ACTIVE' })
+    if (!['TEACHER', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Access denied.' });
+    const allowed = req.user.role === 'ADMIN' ? {} : { _id: { $in: await require('../services/teacherAccess').studentIds(req) } };
+    const children = await User.find({ role: 'CHILD', status: 'ACTIVE', ...allowed })
       .select('_id name avatar avatarUrl ageGroupCode')
       .sort({ name: 1 });
 
@@ -38,6 +41,7 @@ const childLogin = async (req, res, next) => {
 
     // Mode 1: Home login using Gmail (email) OR Phone number + Password
     const loginIdentifier = (identifier || email || phone || contact || '').trim();
+    if (password && /^(1234|(\d)\2{3})$/.test(password)) return res.status(401).json({success:false,message:'Thông tin đăng nhập không hợp lệ. Liên hệ giáo viên để đặt lại mật khẩu/PIN.'});
     if (loginIdentifier && password) {
       const child = await User.findOne({
         role: 'CHILD',
@@ -53,7 +57,7 @@ const childLogin = async (req, res, next) => {
       if (!child) {
         return res.status(401).json({
           success: false,
-          message: 'Tài khoản Gmail hoặc Số điện thoại chưa được đăng ký.'
+          message: 'Thông tin đăng nhập không hợp lệ.'
         });
       }
 
@@ -62,14 +66,12 @@ const childLogin = async (req, res, next) => {
       if (child.password) {
         isMatch = await child.matchPassword(password);
       }
-      if (!isMatch && child.pin) {
-        isMatch = await child.matchPin(password);
-      }
+
 
       if (!isMatch) {
         return res.status(401).json({
           success: false,
-          message: 'Mật khẩu không chính xác. Vui lòng thử lại!'
+          message: 'Thông tin đăng nhập không hợp lệ.'
         });
       }
 
@@ -127,7 +129,7 @@ const childLogin = async (req, res, next) => {
       });
     }
 
-    const isMatch = await child.matchPin(pin);
+    const isMatch = child.pin && !['1234','0000','1111','2222','3333','4444','5555','6666','7777','8888','9999'].includes(String(pin)) && await child.matchPin(pin);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -301,6 +303,8 @@ const childRegister = async (req, res, next) => {
       });
     }
 
+    if (pin && /^(1234|(\d)\2{3})$/.test(String(pin))) return res.status(400).json({success:false,message:'Chọn PIN khó đoán hơn.'});
+    if ((pin && !/^\d{4}$/.test(String(pin))) || (password && (typeof password !== 'string' || password.length < 8))) return res.status(400).json({ success: false, message: 'Mật khẩu tối thiểu 8 ký tự; PIN gồm 4 chữ số.' });
     const regIdentifier = (identifier || email || phone || '').trim();
     const isEmail = regIdentifier.includes('@');
     const userEmail = isEmail ? regIdentifier.toLowerCase() : undefined;
@@ -333,7 +337,7 @@ const childRegister = async (req, res, next) => {
       phone: userPhone,
       contact: regIdentifier,
       password: password || pin,
-      pin: pin || '1234',
+      pin: pin || undefined,
       avatar: avatarKey,
       avatarUrl: `data:image/svg+xml;utf8,${encodeURIComponent(
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" rx="40" fill="#FFE082"/><text x="100" y="125" font-size="95" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`
@@ -387,6 +391,7 @@ const changePin = async (req, res, next) => {
       });
     }
     const newPinStr = String(newPin).trim();
+    if (/^(1234|(\d)\2{3})$/.test(newPinStr)) return res.status(400).json({success:false,message:'Chọn PIN khó đoán hơn.'});
     if (!/^\d{4}$/.test(newPinStr)) {
       return res.status(400).json({
         success: false,
@@ -411,14 +416,19 @@ const changePin = async (req, res, next) => {
       });
     }
 
-    // Set new PIN and password (pre-save hook will hash them)
+    // A classroom PIN must not replace the family's stronger password.
     child.pin = newPinStr;
-    child.password = newPinStr;
+    // Optionally let the child store their two "secret friend" pictures during the same visit.
+    if (req.body.recoveryPictures !== undefined) {
+      child.recoverySecret = { kind: 'PICTURES', hash: await recovery.picturesHash(req.body.recoveryPictures), updatedAt: new Date() };
+    }
+    child.authVersion = (child.authVersion || 0) + 1;
     await child.save();
 
     res.json({
       success: true,
-      message: 'Đổi mã PIN và mật khẩu học tập thành công! 🎉'
+      message: 'Đổi PIN thành công. Vui lòng đăng nhập lại.',
+      token: generateToken(child._id, child.role, { authVersion: child.authVersion })
     });
   } catch (error) {
     next(error);
@@ -430,6 +440,8 @@ const changePin = async (req, res, next) => {
 // @access  Public
 const lookupStudent = async (req, res, next) => {
   try {
+    if (!['TEACHER', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Liên hệ giáo viên để khôi phục tài khoản.' });
+    const allowed = req.user.role === 'ADMIN' ? {} : { _id: { $in: await require('../services/teacherAccess').studentIds(req) } };
     const { phone } = req.body;
     if (!phone || !phone.trim()) {
       return res.status(400).json({
@@ -441,7 +453,7 @@ const lookupStudent = async (req, res, next) => {
     const cleanPhone = phone.trim();
     const students = await User.find({
       role: 'CHILD',
-      status: 'ACTIVE',
+      status: 'ACTIVE', ...allowed,
       $or: [
         { phone: cleanPhone },
         { contact: cleanPhone },
@@ -454,7 +466,7 @@ const lookupStudent = async (req, res, next) => {
     if (!students || students.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy tài khoản bé nào gắn với Số điện thoại này. Bố mẹ vui lòng liên hệ giáo viên chủ nhiệm để được cấp lại tài khoản nhé!'
+        message: 'Không tìm thấy tài khoản bé nào gắn với Số điện thoại này. Bố mẹ vui lòng liên hệ giáo viên để được cấp lại tài khoản nhé!'
       });
     }
 
@@ -477,6 +489,116 @@ const lookupStudent = async (req, res, next) => {
   }
 };
 
+// ── Self-service account recovery ────────────────────────────────────────────
+// @desc    Static picture options used for the child "secret friend" chooser
+// @route   GET /api/auth/recovery-options
+// @access  Public
+const recoveryOptions = (req, res) => res.json({ success: true, data: recovery.PICTURES });
+
+// @desc    Start child PIN recovery: identify the child, receive shuffled pictures
+// @route   POST /api/auth/recovery-begin
+// @access  Public
+const recoveryBegin = async (req, res, next) => {
+  try {
+    res.json({ success: true, data: await recovery.beginChild(req.body.identifier) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Finish child PIN recovery: verify secret friends, set new PIN, sign the child in
+// @route   POST /api/auth/recovery-complete
+// @access  Public
+const recoveryComplete = async (req, res, next) => {
+  try {
+    const child = await recovery.completeChild(req.body.token, req.body.pictures, req.body.newPin);
+    const token = generateToken(child._id, child.role, {
+      name: child.name,
+      authVersion: child.authVersion || 0,
+      ageGroupCode: child.ageGroupCode
+    });
+    res.json({
+      success: true,
+      token,
+      message: 'Đặt lại PIN thành công. Bé vào học thôi nào!',
+      user: {
+        id: child._id,
+        _id: child._id,
+        name: child.name,
+        role: child.role,
+        avatar: child.avatar,
+        avatarUrl: child.avatarUrl,
+        ageGroupCode: child.ageGroupCode
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Start teacher password recovery with the stored recovery code
+// @route   POST /api/auth/teacher-recovery-begin
+// @access  Public
+const teacherRecoveryBegin = async (req, res, next) => {
+  try {
+    res.json({ success: true, data: await recovery.beginTeacher(req.body.email) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Finish teacher recovery: verify code, set new password
+// @route   POST /api/auth/teacher-recovery-complete
+// @access  Public
+const teacherRecoveryComplete = async (req, res, next) => {
+  try {
+    await recovery.completeTeacher(req.body.token, req.body.code, req.body.newPassword);
+    res.json({ success: true, message: 'Đã đổi mật khẩu. Cô đăng nhập lại bằng mật khẩu mới nhé.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Whether the logged-in account already has a recovery secret
+// @route   GET /api/auth/recovery-status
+// @access  Private
+const recoveryStatus = (req, res) => res.json({ success: true, data: recovery.status(req.user) });
+
+// @desc    Child (re)sets the secret friend pair; current PIN proves identity
+// @route   POST /api/auth/recovery-setup
+// @access  Private
+const recoverySetup = async (req, res, next) => {
+  try {
+    const child = await User.findById(req.user._id);
+    if (!child || child.role !== 'CHILD') {
+      return res.status(403).json({ success: false, message: 'Only children can set their secret friends.' });
+    }
+    if (!await child.matchPin(String(req.body.currentPin || '').trim())) {
+      return res.status(401).json({ success: false, message: 'Mã PIN hiện tại chưa chính xác.' });
+    }
+    await recovery.setChildPictures(child, req.body.pictures);
+    res.json({ success: true, message: 'Đã lưu hai bạn bí mật của bé.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Staff rotates their one-time recovery code (shown exactly once)
+// @route   POST /api/auth/recovery-code
+// @access  Private (TEACHER/ADMIN)
+const recoveryCodeRotate = async (req, res, next) => {
+  try {
+    if (!['TEACHER', 'ADMIN'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Chỉ giáo viên hoặc quản trị viên mới có mã khôi phục.' });
+    }
+    const teacher = await User.findById(req.user._id);
+    const code = await recovery.rotateRecoveryCode(teacher);
+    res.json({ success: true, data: { code }, message: 'Mã chỉ hiển thị một lần — cô lưu lại nơi an toàn nhé.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getChildAvatars,
   childLogin,
@@ -485,7 +607,15 @@ module.exports = {
   teacherLogin,
   getMe,
   changePin,
-  lookupStudent
+  lookupStudent,
+  recoveryOptions,
+  recoveryBegin,
+  recoveryComplete,
+  teacherRecoveryBegin,
+  teacherRecoveryComplete,
+  recoveryStatus,
+  recoverySetup,
+  recoveryCodeRotate
 };
 
 

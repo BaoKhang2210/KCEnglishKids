@@ -56,5 +56,6 @@ const learningSessionSchema = new mongoose.Schema(
 
 learningSessionSchema.index({ child: 1, status: 1 });
 learningSessionSchema.index({ child: 1, lesson: 1 });
+learningSessionSchema.index({ child: 1, lesson: 1, status: 1 }, {unique:true,partialFilterExpression:{status:'IN_PROGRESS'}});
 
 module.exports = mongoose.model('LearningSession', learningSessionSchema);

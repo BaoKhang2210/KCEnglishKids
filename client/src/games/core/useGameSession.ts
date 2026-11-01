@@ -88,7 +88,7 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
     (!definition.requiresTransparentImage || isTransparentImage(v))
   );
   const initialTargets = useRef(
-    buildTargetSequence(eligibleVocabulary, targetCount, definition.supportedWordTypes)
+    config.targetOrder || buildTargetSequence(eligibleVocabulary, targetCount, definition.supportedWordTypes)
   ).current;
 
   const [state, dispatch] = useReducer(gameSessionReducer, {
@@ -107,12 +107,13 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
 
   // Kiểm tra checkpoint khi mount
   useEffect(() => {
+    if (config.preview) return;
     try {
       const saved = localStorage.getItem(cpKey);
       if (saved) {
         const parsed: GameCheckpoint = JSON.parse(saved);
         if (
-          parsed.lessonId === config.lessonId &&
+          parsed.lessonId === config.lessonId && parsed.attemptToken === config.attemptToken &&
           parsed.gameId === config.gameId &&
           parsed.targetIndex < parsed.targetOrder.length
         ) {
@@ -122,7 +123,7 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
           const remainingIds = parsed.targetOrder.slice(parsed.targetIndex).filter(id => activeIds.has(id));
           const knownIds = new Set([...completedIds, ...remainingIds]);
           const addedIds = eligibleVocabulary.map(v => v._id).filter(id => !knownIds.has(id));
-          const validOrder = [...completedIds, ...remainingIds, ...addedIds];
+          const validOrder = [...completedIds, ...remainingIds, ...addedIds].slice(0, targetCount);
           if (validOrder.length > 0) {
             skipNextSaveRef.current = true;
             setHasCheckpoint(true);
@@ -153,8 +154,10 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
       skipNextSaveRef.current = false;
       return;
     }
+    if (config.preview) return;
     if (state.status === 'playing' && state.targetOrder.length > 0) {
       const cp: GameCheckpoint = {
+        attemptToken: config.attemptToken,
         gameId: config.gameId,
         lessonId: config.lessonId,
         childId: config.childId || 'guest',
@@ -190,7 +193,7 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
     hasCheckpoint,
     restart: () => {
       setHasCheckpoint(false);
-      const newSeq = buildTargetSequence(eligibleVocabulary, targetCount, definition.supportedWordTypes);
+      const newSeq = config.targetOrder || buildTargetSequence(eligibleVocabulary, targetCount, definition.supportedWordTypes);
       dispatch({ type: 'RESTART_SESSION', targetOrder: newSeq });
     },
   };

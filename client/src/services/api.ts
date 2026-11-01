@@ -1,3 +1,4 @@
+import { browserStorage } from '../utils/browserStorage';
 import { fetchAllPages } from './adminPagination';
 import type {
   ParentNoteRequest,
@@ -13,22 +14,69 @@ const BASE_URL = '/api';
 const operationId = () => globalThis.crypto?.randomUUID?.() || 'op-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 
 const getHeaders = () => {
-  const token = localStorage.getItem('kc_token');
+  const token = browserStorage.getItem('kc_token');
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
 };
 
+async function handleResponse(res: Response) {
+  const contentType = res.headers.get('content-type') || '';
+  let data: any = null;
+
+  if (contentType.includes('application/json')) {
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+  } else {
+    try {
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!res.ok) {
+    const message =
+      data?.message ||
+      (res.status === 502 || res.status === 503 || res.status === 504
+        ? 'Không thể kết nối đến máy chủ Backend (Port 5000). Vui lòng đảm bảo backend server đang chạy.'
+        : res.status === 404
+        ? 'Không tìm thấy API yêu cầu (404 Not Found).'
+        : `Yêu cầu thất bại (${res.status}): ${res.statusText || 'Lỗi kết nối'}`);
+    throw Object.assign(new Error(message), { status: res.status, data });
+  }
+
+  if (data === null) {
+    throw Object.assign(
+      new Error('Phản hồi từ máy chủ không đúng định dạng JSON. Hãy đảm bảo Backend (Port 5000) đang chạy bình thường.'),
+      { status: res.status }
+    );
+  }
+
+  return data;
+}
+
 export const api = {
+  async media(endpoint: string, signal?: AbortSignal) {
+    const res = await fetch(`${BASE_URL}${endpoint}`, { signal, headers: getHeaders() });
+    if (!res.ok) throw new Error('Không tải được minh chứng.');
+    return res.blob();
+  },
   async get(endpoint: string, signal?: AbortSignal) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       signal,
       headers: getHeaders()
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
+    return handleResponse(res);
   },
 
   async post(endpoint: string, body: any, signal?: AbortSignal) {
@@ -38,9 +86,7 @@ export const api = {
       signal,
       body: JSON.stringify(body)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
+    return handleResponse(res);
   },
 
   async patch(endpoint: string, body?: any) {
@@ -49,18 +95,16 @@ export const api = {
       headers: getHeaders(),
       body: body ? JSON.stringify(body) : undefined
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
+    return handleResponse(res);
   },
 
   async put(endpoint: string, body: any) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'PUT', headers: getHeaders(), body: JSON.stringify(body)
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(body)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
+    return handleResponse(res);
   },
 
   async delete(endpoint: string) {
@@ -68,9 +112,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders()
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
+    return handleResponse(res);
   }
 };
 
@@ -98,7 +140,10 @@ export const aiApi = {
   evaluatePronunciation: (body: SpeakingRequest, signal?: AbortSignal) =>
     assistantPost<SpeakingFeedback>('/ai/evaluate-pronunciation', body, signal),
   generateLessonPlan: (body: LessonPlanRequest, signal?: AbortSignal) =>
-    assistantPost<LessonPlan>('/ai/generate-lesson-plan', body, signal)
+    assistantPost<LessonPlan>('/ai/generate-lesson-plan', body, signal),
+  // §3.7 — Class-wide vocabulary gap report (rule-based backend, no LLM).
+  detectClassGaps: (classRoomId: string, lessonId?: string) =>
+    api.get(`/ai/class-gaps?classRoomId=${classRoomId}${lessonId ? `&lessonId=${lessonId}` : ''}`)
 };
 
 // Auth API
@@ -128,10 +173,22 @@ export const authApi = {
   teacherLogin: (payload: { email: string; password: string }) =>
     api.post('/auth/teacher-login', payload),
   getMe: () => api.get('/auth/me'),
-  changePin: (payload: { currentPin: string; newPin: string }) =>
+  changePin: (payload: { currentPin: string; newPin: string; recoveryPictures?: string[] }) =>
     api.post('/auth/change-pin', payload),
   lookupStudent: (phone: string) =>
-    api.post('/auth/lookup-student', { phone })
+    api.post('/auth/lookup-student', { phone }),
+  // Self-service account recovery (no email/SMS gateway needed).
+  recoveryOptions: () => api.get('/auth/recovery-options'),
+  recoveryBegin: (identifier: string) => api.post('/auth/recovery-begin', { identifier }),
+  recoveryComplete: (payload: { token: string; pictures: string[]; newPin: string }) =>
+    api.post('/auth/recovery-complete', payload),
+  teacherRecoveryBegin: (email: string) => api.post('/auth/teacher-recovery-begin', { email }),
+  teacherRecoveryComplete: (payload: { token: string; code: string; newPassword: string }) =>
+    api.post('/auth/teacher-recovery-complete', payload),
+  recoveryStatus: () => api.get('/auth/recovery-status'),
+  recoverySetup: (payload: { currentPin: string; pictures: string[] }) =>
+    api.post('/auth/recovery-setup', payload),
+  rotateRecoveryCode: () => api.post('/auth/recovery-code', {})
 };
 
 // Topics API
@@ -193,19 +250,21 @@ export const learningApi = {
     childId?: string;
     answers: any[];
     duration: number;
-  }) => api.post('/learning/activity-results', data),
+    submissionId?: string;
+  }) => api.post('/learning/activity-results', { ...data, submissionId: data.submissionId || operationId() }),
   getChildProgress: (childId: string) =>
     api.get(`/children/${childId}/progress`)
 };
 
 // §1.3.1 — 3-stage pipeline: per-lesson stage completion (server = source of truth)
 export const stageProgressApi = {
+  getPlan: (childId: string, lessonId: string) => api.get(`/children/${childId}/progress/${lessonId}/plan`),
   getLessonProgress: (childId: string, lessonId: string) =>
     api.get(`/children/${childId}/progress/${lessonId}`),
   completeStage: (
     childId: string,
     lessonId: string,
-    payload: { stage: 1 | 2 | 3; score?: number; stars?: number }
+    payload: { stage: 1 | 2 | 3; submissionId?: string; attemptToken?: string; visitedWordIds?: string[]; gameId?: string; answers?: Array<{wordId: string; round?: number; selectedId: string | null}> }
   ) => api.put(`/children/${childId}/progress/${lessonId}/stage`, payload)
 };
 
@@ -234,7 +293,8 @@ export const adminApi = {
   toggleLessonStatus: (id: string) =>
     api.patch(`/admin/lessons/${id}/status`),
 
-  createVocabulary: (data: { english: string; vietnamese: string; pronunciation?: string; category?: string; ageGroupCodes?: string[]; sourceUnits?: string[]; lessonId?: string }) =>
+  getLessonReadiness: (id: string) => api.get(`/admin/curriculum/lessons/${id}/readiness`),
+  createVocabulary: (data: { imageUrl?: string; audioUrl?: string; wordType?: string; status?: string; english: string; vietnamese: string; pronunciation?: string; category?: string; ageGroupCodes?: string[]; sourceUnits?: string[]; lessonId?: string }) =>
     api.post('/admin/curriculum/vocabularies', data),
   updateVocabulary: (id: string, data: any) =>
     api.put(`/admin/curriculum/vocabularies/${id}`, data),
@@ -500,7 +560,7 @@ export const teacherApi = {
   getStudentOverview: (studentId: string) => api.get(`/teacher/students/${studentId}/overview`),
   getStudentHistory: (studentId: string) => api.get(`/teacher/students/${studentId}/history`),
   getStudentNotes: (studentId: string) => api.get(`/teacher/students/${studentId}/notes`),
-  createTeacherNote: (data: { studentId: string; lessonId?: string; noteType: string; content: string; isHomeroomOnly?: boolean }) =>
+  createTeacherNote: (data: { studentId: string; lessonId?: string; noteType: string; content: string }) =>
     api.post('/teacher/notes', data),
   getAssignments: (classRoomId?: string, status?: string) => {
     const params = new URLSearchParams();
@@ -568,13 +628,12 @@ export const classroomSessionApi = {
   deleteDraft: (id: string) => api.delete(`/teacher/classroom-sessions/${id}`),
   startSession: (id: string) =>
     api.post(`/teacher/classroom-sessions/${id}/start`, {}),
-  endSession: (id: string) =>
-    api.post(`/teacher/classroom-sessions/${id}/end`, {}),
+  endSession: (id: string, data: { coverage: 'COMPLETE' | 'CONTINUE' | 'REVIEW'; goalsCovered: string[]; reflection?: string }) =>
+    api.post(`/teacher/classroom-sessions/${id}/end`, data),
   scoreStudent: (
     id: string,
     data: {
       studentId: string;
-      points?: number;
       stars?: number;
       correctDelta?: number;
       incorrectDelta?: number;
@@ -584,7 +643,6 @@ export const classroomSessionApi = {
     id: string,
     data: {
       studentIds: string[];
-      points?: number;
       stars?: number;
       correctDelta?: number;
       incorrectDelta?: number;
@@ -620,9 +678,9 @@ export const vocabMasteryApi = {
       streak: number;
     }>
   ) => api.post(`/children/${childId}/vocabulary-mastery`, { records }),
-  recordPractice: (childId: string, vocabId: string, isCorrect: boolean) =>
+  recordPractice: (childId: string, vocabId: string, isCorrect: boolean, submissionId = operationId()) =>
     api.post(`/children/${childId}/vocabulary-mastery/${vocabId}/record`, {
-      isCorrect
+      isCorrect, submissionId
     }),
   getStudentMastery: (studentId: string) =>
     api.get(`/teacher/students/${studentId}/vocabulary-mastery`)

@@ -68,8 +68,7 @@ function summarize(session) {
     totalStars: rows.reduce((n, row) => n + row.stars, 0),
     totalPoints: rows.reduce((n, row) => n + row.points, 0),
     studentsNeedingPractice: observed.filter(row => accuracy(row) < 50).map(row => row.student),
-    topPerformers: [...rows].filter(row => row.stars > 0 || row.points > 0)
-      .sort((a, b) => b.stars - a.stars || b.points - a.points).slice(0, 3).map(row => row.student)
+    topPerformers: rows.filter(row => row.stars > 0 && row.stars === Math.max(...rows.map(item => item.stars))).map(row => row.student)
   };
   return session.summary;
 }
@@ -78,11 +77,12 @@ function requireLive(session) {
 }
 function applyScore(session, body, studentIds) {
   requireLive(session);
+  if (body.points !== undefined && body.points !== 0) fail('Buổi dạy chỉ ghi nhận sao và câu trả lời; không sử dụng điểm.');
   const operationId = text(body.operationId, 100);
   if (!/^[\w-]{8,100}$/.test(operationId)) fail('Thiếu mã thao tác để chống cộng điểm lặp.');
   if ((session.appliedOperations || []).includes(operationId)) return false;
   if (!Array.isArray(studentIds) || !studentIds.length || new Set(studentIds.map(idOf)).size !== studentIds.length) fail('Danh sách học sinh không hợp lệ hoặc bị lặp.');
-  const fields = { points: 100, stars: 10, correctDelta: 1, incorrectDelta: 1 };
+  const fields = { stars: 10, correctDelta: 1, incorrectDelta: 1 };
   for (const [key, max] of Object.entries(fields)) {
     const value = body[key] ?? 0;
     if (!Number.isInteger(value) || Math.abs(value) > max) fail(`Giá trị ${key} không hợp lệ.`);
@@ -94,7 +94,7 @@ function applyScore(session, body, studentIds) {
   });
   if ((session.appliedOperations || []).length >= 20000) fail('Buổi học đã vượt giới hạn thao tác. Vui lòng kết thúc buổi học.');
   for (const row of rows) {
-    for (const [field, delta] of [['points', 'points'], ['stars', 'stars'], ['correctCount', 'correctDelta'], ['incorrectCount', 'incorrectDelta']]) {
+    for (const [field, delta] of [['stars', 'stars'], ['correctCount', 'correctDelta'], ['incorrectCount', 'incorrectDelta']]) {
       row[field] = Math.max(0, (row[field] || 0) + (body[delta] || 0));
     }
   }

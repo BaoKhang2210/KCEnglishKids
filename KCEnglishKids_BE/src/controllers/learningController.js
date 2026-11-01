@@ -16,6 +16,7 @@ const startSession = async (req, res, next) => {
       });
     }
 
+    await require('../services/childAccess').assertChildAccess(req, effectiveChildId, true);
     const session = await getOrCreateSession(effectiveChildId, lessonId);
 
     res.status(200).json({
@@ -41,13 +42,9 @@ const getSession = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Learning session not found.' });
     }
 
-    res.status(200).json({
-      success: true,
-      data: session
-    });
-  } catch (error) {
-    next(error);
-  }
+    await require('../services/childAccess').assertChildAccess(req, session.child);
+    res.status(200).json({ success: true, data: session });
+  } catch (error) { next(error); }
 };
 
 // @desc    Submit Activity Result & Calculate Stars/Progress
@@ -65,13 +62,14 @@ const submitActivityResult = async (req, res, next) => {
       });
     }
 
+    await require('../services/childAccess').assertChildAccess(req, childId, true);
     const result = await processActivityResult({
       childId,
       activityId,
       lessonId,
       sessionId,
       answers,
-      duration
+      duration, submissionId: req.body.submissionId
     });
 
     res.status(201).json({

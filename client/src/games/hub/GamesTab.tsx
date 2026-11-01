@@ -12,6 +12,7 @@ interface GamesTabProps {
   vocabularyList: Vocabulary[];
   unitNumber?: number;
   lessonNumber?: number;
+  allowedGameIds?: string[];
   completedGameIds: string[];
   isStage3Completed?: boolean;
   onSelectGame: (gameId: string) => void;
@@ -21,14 +22,15 @@ export const GamesTab: React.FC<GamesTabProps> = ({
   vocabularyList = EMPTY_VOCABULARY,
   unitNumber = 1,
   lessonNumber = 1,
+  allowedGameIds,
   completedGameIds = [],
   isStage3Completed = false,
   onSelectGame,
 }) => {
   // 4 games được chọn theo xoay vòng cho Lesson
   const games = useMemo(() => {
-    return getAvailableLessonGames(vocabularyList || [], unitNumber, lessonNumber);
-  }, [unitNumber, lessonNumber, vocabularyList]);
+    return getAvailableLessonGames(vocabularyList || [], unitNumber, lessonNumber, allowedGameIds);
+  }, [unitNumber, lessonNumber, vocabularyList, allowedGameIds]);
 
   const completedCount = completedGameIds.length;
   const suggestedGameId = games.find(g => !completedGameIds.includes(g.id))?.id;

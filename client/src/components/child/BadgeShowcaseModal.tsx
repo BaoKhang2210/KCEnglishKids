@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { X, Sparkles, Trophy, Lock, Bell, ArrowRight } from 'lucide-react';
 import type { BadgeItem } from '../../data/badges';
 import { getReqFullLabel } from '../../data/labels';
@@ -55,7 +56,12 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white rounded-[36px] border-4 border-amber-300 shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 relative overflow-hidden animate-pop-in text-center">
+      <motion.div
+        initial={{ scale: 0.86, opacity: 0, y: 24 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+        className="bg-white rounded-[36px] border-4 border-amber-300 shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 relative overflow-hidden text-center"
+      >
         {/* Sunburst glowing background when unlocked */}
         {badge.unlocked && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] pointer-events-none opacity-25 animate-sunburst">
@@ -147,7 +153,7 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
             {/* Candy Jelly Progress Bar */}
             <div className="w-full h-3.5 bg-slate-200 rounded-full overflow-hidden p-0.5 shadow-inner">
               <div
-                className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 rounded-full transition-all duration-700"
+                className="progress-rail-shine h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 rounded-full transition-all duration-700"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -194,7 +200,7 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

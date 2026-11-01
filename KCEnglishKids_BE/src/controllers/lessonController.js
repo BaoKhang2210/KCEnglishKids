@@ -7,7 +7,7 @@ const { calculateLessonStars } = require('../services/starService');
 const getCurriculumPath = async (req, res, next) => {
   try {
     const ageGroup = req.query.ageGroup || (req.user && req.user.ageGroupCode) || '3-4';
-    const childId = (req.user && req.user.role === 'CHILD') ? req.user._id : req.query.childId;
+    const childId = await require('../services/childAccess').privateChildQuery(req);
 
     // 1. Find the 9 Units for this age group
     const units = await CurriculumUnit.find({ ageGroupCode: ageGroup, status: 'ACTIVE' })
@@ -19,7 +19,7 @@ const getCurriculumPath = async (req, res, next) => {
     // 2. Find lessons for these units
     const lessons = await Lesson.find({ curriculumUnits: { $in: unitIds }, status: 'ACTIVE' })
       .populate('topic', 'englishName vietnameseName colorCode icon slug imageUrl')
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType')
+      .populate({path:'vocabularyItems',select:'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType',match:{status:'ACTIVE'}})
       .sort({ displayOrder: 1, lessonNumber: 1 })
       .lean();
 
@@ -30,7 +30,7 @@ const getCurriculumPath = async (req, res, next) => {
       progressDocs.forEach(p => {
         if (p.lesson) {
           progressMap.set(p.lesson.toString(), {
-            completed: p.completed,
+            completed: p.completed, completionSnapshot: p.completionSnapshot,
             stars: p.completed ? (p.stars || 0) : 0,
             highestScore: p.highestScore || 0
           });
@@ -71,7 +71,7 @@ const getCurriculumPath = async (req, res, next) => {
         const currentStars = existing ? existing.stars : 0;
         const isCompleted = Boolean(existing && existing.completed);
         progressMap.set(lid, {
-          completed: isCompleted,
+          completed: isCompleted, completionSnapshot: existing?.completionSnapshot,
           stars: currentStars,
           highestScore: existing ? Math.max(existing.highestScore, ar.score || 0) : (ar.score || 0)
         });
@@ -80,7 +80,7 @@ const getCurriculumPath = async (req, res, next) => {
       // Existing Progress records may contain the old best-single-activity
       // rating. Derive completed Lesson stars from activity results instead.
       progressMap.forEach((progress, lessonId) => {
-        if (!progress.completed) return;
+        if (!progress.completed || progress.completionSnapshot?.source === 'STAGES') return;
         const rating = calculateLessonStars(
           activitiesByLesson.get(lessonId) || [],
           resultsByLesson.get(lessonId) || []
@@ -146,12 +146,12 @@ const getCurriculumPath = async (req, res, next) => {
 const getLessonById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const childId = (req.user && req.user.role === 'CHILD') ? req.user._id : req.query.childId;
+    const childId = await require('../services/childAccess').privateChildQuery(req);
 
     const lesson = await Lesson.findOne({ _id: id, status: 'ACTIVE' })
       .populate('topic', 'englishName vietnameseName colorCode icon slug imageUrl')
       .populate('curriculumUnits', 'unitNumber bigQuestion storyTitle')
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType exampleSentence exampleSentenceVietnamese')
+      .populate({path:'vocabularyItems',select:'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType exampleSentence exampleSentenceVietnamese',match:{status:'ACTIVE'}})
       .populate({ path: 'languageContents', select: 'contentType english vietnamese pronunciation difficulty imageMedia', match: { status: 'ACTIVE' }, populate: { path: 'imageMedia', select: 'url altText' } });
 
     if (!lesson) {

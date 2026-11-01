@@ -721,7 +721,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
           const revealed = matched;
           const leftSlot = Math.max(0, boardWordIds.indexOf(wordId));
           const colorIndex = leftSlot;
-          const textCard = item.isAbstractVisual && ageGroup === '5-6';
+          const textCard = item.type === 'LOOK_WORD' && ageGroup === '5-6';
           return (
             <button
               key={`right-${wordId}-${orderSlot}`}

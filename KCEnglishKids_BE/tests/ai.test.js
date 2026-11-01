@@ -157,3 +157,57 @@ test('generateLessonPlan: customizes for age 5-6 with story_song style', () => {
   assert.equal(plan.meta.teachingStyle, 'story_song');
   assert.ok(plan.phases[0].activities.some(a => a.type === 'story'));
 });
+
+test('detectClassGaps: flags unpracticed and weak words, keeps healthy words out of gaps', () => {
+  const { detectClassGaps } = require('../src/services/aiService');
+  const students = ['s1', 's2', 's3', 's4'];
+  const vocabularies = [
+    { _id: 'v1', english: 'Apple', vietnamese: 'Quả táo', difficulty: 1 },
+    { _id: 'v2', english: 'Elephant', vietnamese: 'Con voi', difficulty: 2 },
+    { _id: 'v3', english: 'Banana', vietnamese: 'Quả chuối', difficulty: 1 }
+  ];
+  const masteryRows = [
+    // v1: all 4 students mastered -> healthy
+    ...students.map(student => ({ student, vocabulary: 'v1', attemptCount: 5, correctCount: 5, masteryLevel: 3 })),
+    // v2: only 2/4 practiced, accuracy 50% -> critical gap
+    { student: 's1', vocabulary: 'v2', attemptCount: 4, correctCount: 2, masteryLevel: 2 },
+    { student: 's2', vocabulary: 'v2', attemptCount: 4, correctCount: 2, masteryLevel: 2 },
+    // v3: practiced by everyone but retention 1/4 -> watch gap
+    { student: 's1', vocabulary: 'v3', attemptCount: 3, correctCount: 3, masteryLevel: 3 },
+    { student: 's2', vocabulary: 'v3', attemptCount: 3, correctCount: 3, masteryLevel: 2 },
+    { student: 's3', vocabulary: 'v3', attemptCount: 3, correctCount: 3, masteryLevel: 2 },
+    { student: 's4', vocabulary: 'v3', attemptCount: 3, correctCount: 3, masteryLevel: 2 }
+  ];
+  const result = detectClassGaps({ students, vocabularies, masteryRows });
+
+  assert.equal(result.meta.studentCount, 4);
+  assert.equal(result.meta.wordCount, 3);
+  assert.deepEqual(result.healthy.map(w => w.english), ['Apple']);
+  assert.deepEqual(result.gaps.map(w => w.english), ['Elephant', 'Banana']);
+  assert.equal(result.gaps[0].severity, 'critical');
+  assert.equal(result.gaps[0].accuracyPercent, 50);
+  assert.equal(result.gaps[1].severity, 'watch');
+  assert.ok(result.gaps[0].suggestion.includes('Elephant'));
+});
+
+test('detectClassGaps: words with no mastery rows at all become critical gaps', () => {
+  const { detectClassGaps } = require('../src/services/aiService');
+  const result = detectClassGaps({
+    students: ['s1', 's2'],
+    vocabularies: [{ _id: 'v9', english: 'Tiger', vietnamese: 'Con hổ' }],
+    masteryRows: []
+  });
+  assert.equal(result.meta.gapCount, 1);
+  assert.equal(result.gaps[0].severity, 'critical');
+  assert.equal(result.gaps[0].accuracyPercent, null);
+  assert.ok(result.gaps[0].reasons.includes('chưa bé nào luyện tập'));
+});
+
+test('detectClassGaps: empty inputs yield an empty but well-formed report', () => {
+  const { detectClassGaps } = require('../src/services/aiService');
+  const result = detectClassGaps({});
+  assert.deepEqual(result.meta, { studentCount: 0, wordCount: 0, gapCount: 0, threshold: 70 });
+  assert.deepEqual(result.gaps, []);
+  assert.deepEqual(result.healthy, []);
+  assert.equal(result.generative, false);
+});

@@ -1,0 +1,10 @@
+import {describe,it,expect,vi} from 'vitest';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const source=readFileSync(new URL('../../public/learning-assets-sw.js',import.meta.url),'utf8');
+function worker(){const handlers:Record<string,(event:any)=>void>={};const saved={ok:true,body:'cached picture'};const cache={match:vi.fn(async()=>saved),put:vi.fn()};const network=vi.fn(async()=>({ok:true}));const context={URL,fetch:network,caches:{open:vi.fn(async()=>cache)},self:{location:{origin:'https://school.example'},skipWaiting:vi.fn(),clients:{claim:vi.fn()},addEventListener:(name:string,fn:(event:any)=>void)=>{handlers[name]=fn;}}};runInNewContext(source,context);return{handlers,context,saved};}
+describe('public learning asset cache',()=>{
+ it('never intercepts API, private evidence or third-party requests',()=>{const {handlers}=worker();for(const url of ['https://school.example/api/teacher/observations/1/media','https://school.example/api/auth/me','https://other.example/images/cat.svg']){const respondWith=vi.fn();handlers.fetch({request:{method:'GET',url},respondWith});expect(respondWith).not.toHaveBeenCalled();}});
+ it('returns a previously downloaded public image without the network',async()=>{const {handlers,context,saved}=worker();let promise:Promise<unknown>|undefined;handlers.fetch({request:{method:'GET',url:'https://school.example/images/cat.svg'},respondWith:(value:Promise<unknown>)=>{promise=value;}});expect(await promise).toEqual(saved);expect(context.fetch).not.toHaveBeenCalled();});
+ it('rejects cache requests that try to include private data or leave the app origin',()=>{const {handlers,context}=worker();for(const urls of [['/images/../api/auth/me'],['https://outside.example/audio/file.mp3']]){const postMessage=vi.fn();handlers.message({data:{type:'CACHE_LEARNING_ASSETS',urls},ports:[{postMessage}],waitUntil:vi.fn()});expect(postMessage).toHaveBeenCalledWith({error:'Danh sách học liệu không hợp lệ.'});}expect(context.caches.open).not.toHaveBeenCalled();});
+});

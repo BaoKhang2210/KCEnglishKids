@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-10-31T23:36:35.299Z",
+  "checks": [
+    {
+      "role": "ADMIN",
+      "endpoint": "/admin/game-catalog",
+      "status": 200,
+      "success": true
+    },
+    {
+      "role": "ADMIN",
+      "endpoint": "/recognitions/school?kind=WEEK&date=2026-10-19",
+      "status": 200,
+      "success": true
+    },
+    {
+      "role": "TEACHER",
+      "endpoint": "/teacher/dashboard",
+      "status": 200,
+      "success": true
+    },
+    {
+      "role": "TEACHER",
+      "endpoint": "/teacher/classes",
+      "status": 200,
+      "success": true
+    },
+    {
+      "role": "TEACHER",
+      "endpoint": "/teacher/students",
+      "status": 200,
+      "success": true
+    },
+    {
+      "role": "TEACHER",
+      "endpoint": "/teacher/students/:id/overview",
+      "status": 200
+    },
+    {
+      "role": "TEACHER",
+      "endpoint": "/teacher/tasks",
+      "status": 200,
+      "success": true
+    },
+    {
+      "role": "TEACHER",
+      "endpoint": "/teacher/my-schedule",
+      "status": 200,
+      "success": true
+    },
+    {
+      "check": "At least two compatible games for every active lesson",
+      "success": true
+    }
+  ],
+  "stage3Games": 12,
+  "activeAnimalActivities": 0,
+  "requiredAnimalCalls": []
+}

@@ -5,7 +5,7 @@
  * Import từ đây thay vì copy-paste chuỗi ở từng component.
  */
 
-export type BadgeReqType = 'lesson' | 'unit' | 'star' | 'perfectLesson' | 'openedChest';
+export type BadgeReqType = 'lesson' | 'unit' | 'star' | 'perfectLesson' | 'openedChest' | 'streak';
 
 export const UNIT_LABEL = 'Unit';
 export const LESSON_LABEL = 'Lesson';
@@ -17,6 +17,7 @@ export const getReqUnitLabel = (reqType: string): string => {
   if (reqType === 'unit') return UNIT_LABEL;
   if (reqType === 'perfectLesson') return 'Lesson 3 sao';
   if (reqType === 'openedChest') return 'rương đã mở';
+  if (reqType === 'streak') return '🔥 ngày';
   return LESSON_LABEL;
 };
 
@@ -26,6 +27,7 @@ export const getReqFullLabel = (reqType: string, requirement: number): string =>
   if (reqType === 'unit') return `${requirement} Unit – Lesson 🎒`;
   if (reqType === 'perfectLesson') return `${requirement} Lesson đạt 3 sao 🌟`;
   if (reqType === 'openedChest') return `Mở ${requirement} rương quà 🎁`;
+  if (reqType === 'streak') return `${requirement} ngày học liên tiếp 🔥`;
   return `${requirement} ${LESSON_LABEL} đã hoàn thành 📚`;
 };
 

@@ -1,0 +1,43 @@
+{
+  "checkedAt": "2026-11-01T04:46:25.522Z",
+  "isolatedDatabase": true,
+  "applicationDatabaseChanged": false,
+  "checks": [
+    {
+      "check": "Age-specific teaching guide reads actual lesson vocabulary",
+      "passed": true
+    },
+    {
+      "check": "Child and unrelated teacher cannot create observations",
+      "passed": true
+    },
+    {
+      "check": "Real BSON observation and image persist once; retries and conflicting reuse are enforced",
+      "passed": true
+    },
+    {
+      "check": "Family sees its own evidence; private image requires authorization and cannot leak to another child",
+      "passed": true
+    },
+    {
+      "check": "End-of-Unit board derives support level from actual teacher observations",
+      "passed": true
+    },
+    {
+      "check": "Ending a partial lesson preserves curriculum position",
+      "passed": true
+    },
+    {
+      "check": "Complete requires all taught goals; ending retries advance curriculum only once",
+      "passed": true
+    },
+    {
+      "check": "Full backup 3.3 includes private evidence in BSON Extended JSON and passes restore preflight",
+      "passed": true
+    },
+    {
+      "check": "Only the author or admin can void evidence; family, media, and Unit board omit it and retries cannot resurrect it",
+      "passed": true
+    }
+  ]
+}

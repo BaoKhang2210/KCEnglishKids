@@ -61,10 +61,10 @@ const optionalProtect = async (req, res, next) => {
 /**
  * §3.1.11/§3.1.12 — ownership guard for routes scoped to a child.
  * Use AFTER `protect`. A CHILD may only access their own profile;
- * TEACHER/ADMIN may access any (needed for classroom/admin views).
+ * TEACHER is limited to assigned classrooms; ADMIN uses administrative scope.
  */
 const ownChildOr403 = (paramName = 'childId') => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'Authorization token required.' });
     }
@@ -80,8 +80,13 @@ const ownChildOr403 = (paramName = 'childId') => {
         message: 'Access forbidden: you can only access your own data.'
       });
     }
-
-    return next();
+    try {
+      if (req.user.role !== 'CHILD') {
+        if (!['TEACHER', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Access denied.' });
+        await require('../services/teacherAccess').child(req, targetId);
+      }
+      return next();
+    } catch (error) { return next(error); }
   };
 };
 

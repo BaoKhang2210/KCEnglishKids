@@ -1,6 +1,7 @@
 import type { Vocabulary } from '../../types';
 import type { WordType } from './types';
 import { wordArt } from '../../utils/learningArt';
+import { vocabularyMeaning } from '../../utils/vocabularySemantics';
 
 const NUMBER_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const COLOR_WORDS = ['red', 'blue', 'yellow', 'green', 'orange', 'purple', 'pink', 'black', 'white', 'brown', 'gray', 'grey'];
@@ -62,7 +63,7 @@ export function buildTargetSequence(
   supportedWordTypes: WordType[],
   priorityWordIds?: string[]
 ): string[] {
-  const eligible = vocabList.filter(v => supportedWordTypes.includes(getWordType(v)));
+  const eligible = [...new Map(vocabList.filter(v => supportedWordTypes.includes(getWordType(v))).map(word => [vocabularyMeaning(word), word])).values()];
   const poolSource = eligible;
   if (poolSource.length === 0 || targetCount <= 0) return [];
 
@@ -102,7 +103,10 @@ export function pickDistractors(
 ): Vocabulary[] {
   if (neededCount <= 0) return [];
 
-  const othersInLesson = lessonVocab.filter(v => v._id !== targetId);
+  const target = [...lessonVocab, ...distractorPool].find(word => word._id === targetId);
+  const targetMeaning = target ? vocabularyMeaning(target) : null;
+  const distinctFromTarget = (word: Vocabulary) => word._id !== targetId && vocabularyMeaning(word) !== targetMeaning && !(target?.imageUrl && word.imageUrl === target.imageUrl);
+  const othersInLesson = [...new Map(lessonVocab.filter(distinctFromTarget).map(word => [vocabularyMeaning(word), word])).values()];
   const shuffledLesson = shuffleArray(othersInLesson);
 
   if (shuffledLesson.length >= neededCount) {
@@ -112,9 +116,9 @@ export function pickDistractors(
   const result = [...shuffledLesson];
   const neededFromPool = neededCount - result.length;
 
-  const poolOthers = distractorPool.filter(
-    v => v._id !== targetId && !result.some(r => r._id === v._id)
-  );
+  const poolOthers = [...new Map(distractorPool.filter(
+    v => distinctFromTarget(v) && !result.some(r => r._id === v._id || vocabularyMeaning(r) === vocabularyMeaning(v))
+  ).map(word => [vocabularyMeaning(word), word])).values()];
 
   const shuffledPool = shuffleArray(poolOthers);
   result.push(...shuffledPool.slice(0, neededFromPool));

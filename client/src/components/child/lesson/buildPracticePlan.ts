@@ -26,6 +26,7 @@
 import type { Vocabulary, AgeGroupCode } from '../../../types';
 import type { WordStats } from '../../../services/vocabStatsService';
 import { PRACTICE_ROUNDS_PER_LESSON } from '../../../config/lessonConfig';
+import { vocabularyMeaning } from '../../../utils/vocabularySemantics';
 
 export { PRACTICE_ROUNDS_PER_LESSON };
 
@@ -38,9 +39,9 @@ export type RoundOneVariant = 'A' | 'B';
 
 // Change this single map to restrict Round 1 modes for an age group.
 export const roundOneVariantsByAge: Record<AgeGroupCode, RoundOneVariant[]> = {
-  '3-4': ['A', 'B'],
-  '4-5': ['A', 'B'],
-  '5-6': ['A', 'B'],
+  '3-4': ['A'],
+  '4-5': ['A'],
+  '5-6': ['A'],
 };
 
 export interface PracticeQuestion {
@@ -174,12 +175,13 @@ export function pickDistractors(
   target: Vocabulary,
   pool: Vocabulary[],
   count: number,
-  confusions?: Record<string, number>
+  confusions?: Record<string, number>,
+  allowSharedArtwork = false,
 ): Vocabulary[] {
   const targetId = target._id || (target as any).id || target.english;
-  const available = pool.filter(
-    (v) => (v._id || (v as any).id || v.english) !== targetId
-  );
+  const available = [...new Map(pool.filter(
+    (v) => (v._id || (v as any).id || v.english) !== targetId && vocabularyMeaning(v) !== vocabularyMeaning(target) && (allowSharedArtwork || !(target.imageUrl && v.imageUrl === target.imageUrl))
+  ).map(word => [vocabularyMeaning(word), word])).values()];
 
   if (available.length === 0) return [];
 
@@ -538,9 +540,7 @@ export function buildPracticeQuestions(
     };
 
     const imageAssets = question.options.map((option) => option.imageUrl).filter((asset): asset is string => !!asset);
-    question.isAbstractVisual = turn === 2
-      ? roundTwoAbstractIds.has(wordId)
-      : word.visualType === 'abstract' || new Set(imageAssets).size < imageAssets.length;
+    question.isAbstractVisual = roundTwoAbstractIds.has(wordId) || new Set(imageAssets).size < imageAssets.length;
 
     if (mode.type === 'PUPPET') {
       const isTrueClaim = Math.random() < 1 / 3;
@@ -570,7 +570,8 @@ export function buildPracticeQuestions(
       ), previousWordId)
       : rotateAwayFromPrevious(uniqueWords
         .filter((word) => {
-          if (turn !== 2 || ageGroup === '5-6') return true;
+          if (turn !== 2) return true;
+          if (ageGroup === '5-6') return !word.imageUrl || !uniqueWords.some(other => other._id !== word._id && other.imageUrl === word.imageUrl);
           const id = word._id || (word as any).id || word.english;
           return !roundTwoAbstractIds.has(id);
         })

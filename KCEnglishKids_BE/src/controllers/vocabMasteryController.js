@@ -90,48 +90,12 @@ exports.syncMastery = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Practice counts must be consistent non-negative integers.' });
     }
 
-    const ops = records
-      .filter((r) => validId(r.vocabularyId))
-      .map((r) => {
-        const correctCount = Number(r.correctCount) || 0;
-        const wrongCount = Number(r.wrongCount) || 0;
-        const attemptCount = Number(r.attemptCount) || 0;
-        const streak = Number(r.streak) || 0;
-        const masteryLevel = calculateMasteryLevel({ correctCount, wrongCount, attemptCount, streak });
+    // Absolute counters from older clients cannot safely merge across devices.
+    // Accept only an initial import. Existing counters are owned by event writes.
+    const ops=records.map(r=>({updateOne:{filter:{student:childId,vocabulary:r.vocabularyId},update:{$setOnInsert:{correctCount:r.correctCount,wrongCount:r.wrongCount,attemptCount:r.attemptCount,streak:r.streak,masteryLevel:calculateMasteryLevel(r),lastReviewedAt:new Date()}},upsert:true}}));
+    await VocabularyMastery.bulkWrite(ops);
+    res.json({success:true,message:'Existing mastery is preserved. Use practice events for new answers.'});
 
-        return {
-          updateOne: {
-            filter: { student: childId, vocabulary: r.vocabularyId },
-            update: {
-              $set: {
-                correctCount,
-                wrongCount,
-                attemptCount,
-                streak,
-                masteryLevel,
-                lastReviewedAt: new Date()
-              }
-            },
-            upsert: true
-          }
-        };
-      });
-
-    if (ops.length === 0) {
-      return res.status(400).json({ success: false, message: 'No valid records provided.' });
-    }
-
-    const result = await VocabularyMastery.bulkWrite(ops);
-
-    res.json({
-      success: true,
-      message: `Synced ${ops.length} vocabulary mastery records.`,
-      data: {
-        matched: result.matchedCount,
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount
-      }
-    });
   } catch (e) {
     next(e);
   }
@@ -152,30 +116,28 @@ exports.recordPractice = async (req, res, next) => {
     const { isCorrect } = req.body;
     if (typeof isCorrect !== 'boolean') return res.status(400).json({ success: false, message: 'isCorrect must be a boolean.' });
     await requireVocabulary([vocabId]);
-    const correct = isCorrect === true || isCorrect === 'true';
-
-    let record = await VocabularyMastery.findOne({
-      student: childId,
-      vocabulary: vocabId
-    });
-
-    if (!record) {
-      record = new VocabularyMastery({
-        student: childId,
-        vocabulary: vocabId
-      });
-    }
-
-    record.attemptCount += 1;
-    if (correct) {
-      record.correctCount += 1;
-      record.streak += 1;
-    } else {
-      record.wrongCount += 1;
-      record.streak = 0; // reset streak on wrong
-    }
-    // masteryLevel auto-recalculated in pre-save hook
-    await record.save();
+    const submissionId=req.body.submissionId;
+    if(typeof submissionId!=='string'||!/^[a-zA-Z0-9_-]{8,120}$/.test(submissionId)) return res.status(400).json({success:false,message:'submissionId required.'});
+    const Event=require('../models/MasteryEvent');
+    // Capture the legacy baseline only once before accepting new events.
+    await VocabularyMastery.updateOne({student:childId,vocabulary:vocabId},[
+      {$set:{student:new mongoose.Types.ObjectId(childId),vocabulary:new mongoose.Types.ObjectId(vocabId),baselineCorrect:{$ifNull:['$baselineCorrect',{$ifNull:['$correctCount',0]}]},baselineWrong:{$ifNull:['$baselineWrong',{$ifNull:['$wrongCount',0]}]}}}
+    ],{upsert:true,updatePipeline:true});
+    let event;
+    try{ event=await Event.findOneAndUpdate({child:childId,submissionId},{$setOnInsert:{vocabulary:vocabId,isCorrect}},{upsert:true,returnDocument: 'after',setDefaultsOnInsert:true}); }
+    catch(error){if(error.code!==11000)throw error;event=await Event.findOne({child:childId,submissionId});}
+    if(String(event.vocabulary)!==String(vocabId)||event.isCorrect!==isCorrect)return res.status(409).json({success:false,message:'Submission key reused.'});
+    const events=await Event.find({child:childId,vocabulary:vocabId}).sort({createdAt:1,_id:1}).lean();
+    const baseline=await VocabularyMastery.findOne({student:childId,vocabulary:vocabId});
+    const correctCount=baseline.baselineCorrect+events.filter(e=>e.isCorrect).length;
+    const wrongCount=baseline.baselineWrong+events.filter(e=>!e.isCorrect).length;
+    const streak=events.reduce((n,e)=>e.isCorrect?n+1:0,0),lastReviewedAt=events.at(-1).createdAt;
+    await VocabularyMastery.updateOne({student:childId,vocabulary:vocabId},[
+      {$set:{correctCount:{$max:[{$ifNull:['$correctCount',0]},correctCount]},wrongCount:{$max:[{$ifNull:['$wrongCount',0]},wrongCount]},streak:{$cond:[{$lte:[{$ifNull:['$lastReviewedAt',new Date(0)]},lastReviewedAt]},streak,'$streak']},lastReviewedAt:{$max:[{$ifNull:['$lastReviewedAt',new Date(0)]},lastReviewedAt]}}},
+      {$set:{attemptCount:{$add:['$correctCount','$wrongCount']}}},
+      {$set:{masteryLevel:{$switch:{branches:[{case:{$or:[{$gte:['$streak',3]},{$and:[{$gte:['$attemptCount',5]},{$gte:['$correctCount',{$multiply:['$attemptCount',0.8]}]}]}]},then:3},{case:{$gte:['$attemptCount',2]},then:2},{case:{$gte:['$attemptCount',1]},then:1}],default:0}}}}
+    ],{updatePipeline:true});
+    const record=await VocabularyMastery.findOne({student:childId,vocabulary:vocabId});
 
     res.json({ success: true, data: record });
   } catch (e) {

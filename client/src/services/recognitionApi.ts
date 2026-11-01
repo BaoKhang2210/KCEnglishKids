@@ -2,7 +2,7 @@ import { api } from './api';
 
 export type RecognitionKind = 'WEEK' | 'MONTH';
 export interface RecognitionReward { title: string; symbol: string; description: string; suggestion: string }
-export interface RecognitionRow { child: string; name: string; avatarUrl: string; stars: number; sessions: number; winner: boolean }
+export interface RecognitionRow { child: string; name: string; avatarUrl: string; stars: number; sessions: number; winner: boolean; eligible?: boolean; starsPerSession?: number | null; rank?: number | null }
 export interface RecognitionPreview {
   className: string;
   period: { kind: RecognitionKind; date: string; start: string; end: string; lastDate: string };
@@ -10,12 +10,15 @@ export interface RecognitionPreview {
   reward: RecognitionReward;
   published: { _id: string; publishedAt: string } | null;
   canPublish: boolean;
+  minimumSessions?: number;
 }
 export interface ChildRecognition {
   _id: string; className: string; kind: RecognitionKind; periodStart: string; periodEnd: string;
   publishedAt: string; reward: RecognitionReward; name: string; stars: number; readAt: string | null;
 }
 export const recognitionApi = {
+  schoolPreview: (kind: RecognitionKind, date: string): Promise<{ data: RecognitionPreview }> => api.get('/recognitions/school?kind=' + kind + '&date=' + encodeURIComponent(date)),
+  schoolPublish: (kind: RecognitionKind, date: string) => api.post('/recognitions/school/publish', { kind, date }),
   classes: (): Promise<{ data: { _id: string; name: string; status: string }[] }> => api.get('/recognitions/classes'),
   preview: (classId: string, kind: RecognitionKind, date: string): Promise<{ data: RecognitionPreview }> =>
     api.get('/recognitions/classes/' + classId + '?kind=' + kind + '&date=' + encodeURIComponent(date)),

@@ -22,13 +22,17 @@ exports.createAssignment = wrap(async (req, res) => {
   if (lesson.ageGroupCode && room.ageGroupCode && lesson.ageGroupCode !== room.ageGroupCode) fail('Bài giao không phù hợp nhóm tuổi của lớp.');
   if (b.activityId && (!validId(b.activityId) || !await Activity.exists({ _id: b.activityId, lesson: b.lessonId, status: 'ACTIVE' }))) fail('Hoạt động không thuộc bài học hoặc đã bị ẩn.');
   const activitySnapshot = await Activity.find({ lesson: b.lessonId, status: 'ACTIVE', ...(b.activityId ? { _id: b.activityId } : {}) }).distinct('_id');
-  if (!activitySnapshot.length) fail('Bài học chưa có hoạt động đang mở để giao bài.');
+  if (!activitySnapshot.length) {
+    if(b.activityId || !lesson.vocabularyItems?.length) fail('Bài học chưa có hoạt động đang mở để giao bài.');
+    await require('../services/contentReadiness').assertPublishable(lesson);
+  }
   const target = b.assignedToType || 'CLASS';
   if (target === 'STUDENT' && !room.students.some(s => idOf(s) === b.studentId)) fail('Học sinh không thuộc lớp.');
   const recipients = target === 'STUDENT' ? [b.studentId] : room.students;
   if (!recipients.length) fail('Lớp chưa có học sinh để giao bài.');
+  const contentSnapshot = await Activity.find({ _id: { $in: activitySnapshot } }).lean();
   const item = await Assignment.create({ teacher: req.user._id, classRoom: room._id, assignedToType: target,
-    student: target === 'STUDENT' ? b.studentId : null, recipients, activitySnapshot, lesson: b.lessonId, activity: b.activityId || null,
+    student: target === 'STUDENT' ? b.studentId : null, recipients, activitySnapshot, contentSnapshot, completionMode: b.activityId ? 'ACTIVITY' : 'LESSON', lesson: b.lessonId, activity: b.activityId || null,
     ...rules.assignmentDates(b.startDate, b.dueDate), instructions: rules.text(b.instructions) });
   res.status(201).json({ success: true, data: item });
 });
@@ -71,7 +75,7 @@ exports.reviewAssignmentSubmission = wrap(async (req, res) => {
   const { data } = await homework.submissions(item, [student]);
   const submission = data[0];
   if (!submission?.hasSubmitted) fail('Học sinh chưa hoàn thành đầy đủ bài được giao.');
-  const feedback = { child: childId, result: submission.submission._id, comment, bonusStars, reviewedAt: new Date(), teacher: req.user._id };
+  const feedback = { child: childId, result: submission.submission.source === 'STAGES' ? undefined : submission.submission._id, comment, bonusStars, reviewedAt: new Date(), teacher: req.user._id };
   // One atomic replacement per (assignment, child). Editing a review replaces its award.
   const matchingReview = { $filter: { input: { $ifNull: ['$reviews', []] }, as: 'review', cond: { $eq: ['$$review.child', student._id] } } };
   const newReview = { $let: { vars: { previous: { $arrayElemAt: [matchingReview, 0] } }, in: {
@@ -79,7 +83,7 @@ exports.reviewAssignmentSubmission = wrap(async (req, res) => {
       { revision: { $add: [{ $ifNull: ['$$previous.revision', 0] }, 1] } }]
   } } };
   const reviewExpression = { $concatArrays: [ { $filter: { input: { $ifNull: ['$reviews', []] }, as: 'review', cond: { $ne: ['$$review.child', student._id] } } }, [newReview] ] };
-  const saved = await Assignment.findOneAndUpdate({ _id: item._id, status: { $ne: 'CANCELLED' }, ...scope(req) }, [{ $set: { reviews: reviewExpression, updatedAt: new Date() } }], { new: true });
+  const saved = await Assignment.findOneAndUpdate({ _id: item._id, status: { $ne: 'CANCELLED' }, ...scope(req) }, [{ $set: { reviews: reviewExpression, updatedAt: new Date() } }], { updatePipeline: true, returnDocument: 'after' });
   if (!saved) fail('Bài giao vừa thay đổi. Vui lòng tải lại.', 409);
   const savedReview = saved.reviews.find(review => idOf(review.child) === childId);
   let notification = null;

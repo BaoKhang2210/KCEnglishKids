@@ -1,4 +1,5 @@
 import React from 'react';
+import { KokoMascot } from './child/KokoMascot';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -41,7 +42,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       return (
         <div className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-sky-50 flex items-center justify-center p-6">
           <div className="bg-white rounded-4xl border-4 border-amber-200 shadow-2xl p-10 max-w-lg w-full text-center">
-            <div className="text-7xl mb-4 animate-soft-bounce">🐻</div>
+            <div className="flex justify-center mb-4">
+              <KokoMascot state="thinking" size="lg" interactive={false} />
+            </div>
             <h1 className="text-3xl font-black text-slate-800 mb-3">
               Ôi! Koko bị vấp một chút rồi!
             </h1>

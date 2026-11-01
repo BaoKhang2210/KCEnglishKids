@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardList, GraduationCap, History, LayoutDashboard, LogOut, Menu, MessageSquare, Sparkles, Users, X } from 'lucide-react';
+import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardList, HandHeart, History, LayoutDashboard, LogOut, Menu, MessageSquare, Sparkles, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/teacher.css';
 
@@ -8,18 +8,20 @@ const groups = [
   { title: 'Không gian giảng dạy', links: [
     { to: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
     { to: 'schedule', label: 'Lịch dạy & lộ trình', icon: CalendarDays },
-    { to: 'classes', label: 'Lớp phụ trách', icon: GraduationCap },
     { to: 'students', label: 'Hồ sơ học sinh', icon: Users }
   ] },
   { title: 'Chuẩn bị & tổ chức', links: [
     { to: 'lesson-planner', label: 'Soạn giáo án', icon: Sparkles },
     { to: 'content', label: 'Kho học liệu', icon: BookOpen },
+    { to: 'learning-studio', label: 'Xưởng học liệu', icon: Sparkles },
     { to: 'assignments', label: 'Bài tập & nhận xét', icon: ClipboardList },
     { to: 'classroom-sessions', label: 'Nhật ký buổi dạy', icon: History }
   ] },
   { title: 'Đồng hành cùng học sinh', links: [
+    { to: 'home-practice', label: 'Bài ôn cô duyệt', icon: HandHeart },
     { to: 'notifications', label: 'Trao đổi phụ huynh', icon: MessageSquare },
     { to: 'analytics', label: 'Theo dõi tiến bộ', icon: ChartNoAxesCombined },
+    { to: 'unit-review', label: 'Quan sát cuối Unit', icon: ClipboardList },
     { to: 'recognitions', label: 'Ghi nhận & động viên', icon: Award }
   ] }
 ];
@@ -46,7 +48,7 @@ export const TeacherLayout = () => {
       <div className="teacher-profile"><span className="teacher-avatar">{user?.name?.split(' ').filter(Boolean).slice(-2).map(part => part[0]).join('') || 'GV'}</span><div><strong>{user?.name || 'Giáo viên'}</strong><small>Giáo viên phụ trách</small></div><button title="Đăng xuất" aria-label="Đăng xuất" onClick={() => { logout(); navigate('/teacher/login'); }}><LogOut size={19} /></button></div>
     </aside>
     <div className="teacher-body">
-      <header className="teacher-topbar"><div className="teacher-topbar-title"><button className="teacher-menu-button" aria-label="Mở menu" aria-expanded={open} onClick={() => setOpen(true)}><Menu size={22} /></button><span>Giảng dạy <span aria-hidden="true">/</span> <b>{current?.label || 'Học liệu'}</b></span></div><Link to="/teacher/classes" className="teacher-topbar-action">Chuẩn bị buổi dạy <ArrowUpRight size={17} /></Link></header>
+      <header className="teacher-topbar"><div className="teacher-topbar-title"><button className="teacher-menu-button" aria-label="Mở menu" aria-expanded={open} onClick={() => setOpen(true)}><Menu size={22} /></button><span>Giảng dạy <span aria-hidden="true">/</span> <b>{current?.label || 'Học liệu'}</b></span></div><Link to="/teacher/classroom-sessions/new" className="teacher-topbar-action">Chuẩn bị buổi dạy <ArrowUpRight size={17} /></Link></header>
       <main id="teacher-main" tabIndex={-1} className="teacher-main"><Outlet /></main>
       <footer className="teacher-footer">KCEnglishKids · Mỗi giờ học, một bước tiến nhỏ.</footer>
     </div>

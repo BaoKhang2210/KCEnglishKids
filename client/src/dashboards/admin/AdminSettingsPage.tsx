@@ -79,7 +79,7 @@ export const AdminSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-5xl mx-auto">
+    <div className="space-y-8 animate-fade-in w-full">
       {/* Alert toast notification */}
       {alert && (
         <div

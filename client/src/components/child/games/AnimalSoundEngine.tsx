@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Volume2, Sparkles, Check, Music } from 'lucide-react';
 import type { ActivityQuestion, ActivityOption } from '../../../types';
-import { playWordAudio, sfx } from '../../../utils/audio';
+import { sfx } from '../../../utils/audio';
+import { playAnimalSound, stopAnimalSound } from '../../../utils/animalAudio';
 
 interface AnimalSoundEngineProps {
   question: ActivityQuestion;
@@ -16,6 +17,7 @@ export const AnimalSoundEngine: React.FC<AnimalSoundEngineProps> = ({
 }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioError, setAudioError] = useState('');
 
   // Common animal sound cues
   const animalSounds: Record<string, string> = {
@@ -32,15 +34,16 @@ export const AnimalSoundEngine: React.FC<AnimalSoundEngineProps> = ({
   };
 
   const soundFromMeta = question.metadata?.soundText;
-  const wordLower = (question.correctAnswer || question.promptText || '').toLowerCase().trim();
+  const correctOption = question.options.find(option => option.isCorrect);
+  const wordLower = (question.metadata?.animal || correctOption?.text || question.correctAnswer || '').toLowerCase().trim();
   const soundText = soundFromMeta || animalSounds[wordLower] || `Listen! It says "${question.promptText}"!`;
 
-  const handlePlaySound = () => {
+  const handlePlaySound = async () => {
+    setAudioError('');
     setIsPlaying(true);
-    // Strip emojis for clean TTS speech
-    const cleanSpeech = soundText.replace(/[^\w\s!]/gi, '').trim() || soundText;
-    playWordAudio(cleanSpeech, question.promptAudioUrl);
-    setTimeout(() => setIsPlaying(false), 1500);
+    try { await playAnimalSound(wordLower); }
+    catch (error) { setAudioError(error instanceof Error ? error.message : 'Không phát được tiếng kêu.'); }
+    finally { setIsPlaying(false); }
   };
 
   useEffect(() => {
@@ -48,8 +51,8 @@ export const AnimalSoundEngine: React.FC<AnimalSoundEngineProps> = ({
     const timer = setTimeout(() => {
       handlePlaySound();
     }, 300);
-    return () => clearTimeout(timer);
-  }, [question.promptText]);
+    return () => { clearTimeout(timer); stopAnimalSound(); };
+  }, [question]);
 
   const handleSelect = (opt: ActivityOption) => {
     if (disabled || selectedId) return;
@@ -99,6 +102,7 @@ export const AnimalSoundEngine: React.FC<AnimalSoundEngineProps> = ({
         </div>
       </div>
 
+      {audioError && <p role="alert" className="mb-4 rounded-xl bg-rose-50 p-3 text-rose-800">{audioError}</p>}
       {/* Animal Choice Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8 w-full">
         {question.options.map((opt) => {

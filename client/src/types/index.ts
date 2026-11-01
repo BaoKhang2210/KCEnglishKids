@@ -369,6 +369,9 @@ export interface SessionSummary {
 }
 
 export interface ClassroomSession {
+  teachingGuide?: import('../components/teacher/TeachingGuidePanel').TeachingGuide;
+  teachingGoals?: {key:string;label:string}[];
+  teachingOutcome?: {coverage:'COMPLETE'|'CONTINUE'|'REVIEW';goalsCovered:string[];reflection?:string};
   _id: string;
   classroom: any;
   teacher: User | string;

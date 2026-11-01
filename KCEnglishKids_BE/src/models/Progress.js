@@ -25,7 +25,7 @@ const progressSchema = new mongoose.Schema(
       default: false
     },
     completionSnapshot: {
-      source: { type: String, enum: ['LEGACY_PROGRESS', 'CURRENT_ACTIVITIES'] },
+      source: { type: String, enum: ['LEGACY_PROGRESS', 'CURRENT_ACTIVITIES', 'STAGES'] },
       recordedAt: Date,
       activityIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Activity' }]
     },
@@ -72,6 +72,7 @@ const progressSchema = new mongoose.Schema(
       min: 0,
       max: 3
     },
+    stage3Games: { type: [String], default: [] },
     weakVocabulary: [
       {
         vocabulary: {

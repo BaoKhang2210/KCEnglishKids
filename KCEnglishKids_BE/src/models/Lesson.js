@@ -41,6 +41,16 @@ const lessonSchema = new mongoose.Schema(
         type: String
       }
     ],
+    pedagogyRevision: { type: Number, default: 0 },
+    teachingProfile: {
+      type: new mongoose.Schema({
+        focusVocabulary: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vocabulary' }],
+        goals: [{ _id: false, key: String, label: String }],
+        phases: [{ _id: false, key: String, title: String, action: String }],
+        materials: String,
+        homeActivity: { title: String, steps: [String] }
+      }, { _id: false }), default: undefined
+    },
     estimatedDuration: {
       type: Number, // in minutes
       default: 10

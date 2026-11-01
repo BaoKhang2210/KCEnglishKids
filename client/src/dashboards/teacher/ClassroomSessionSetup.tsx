@@ -1,3 +1,5 @@
+import { TeachingGuidePanel } from '../../components/teacher/TeachingGuidePanel';
+import { scheduleEffectiveAt, countsTowardCurriculum } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock } from '../../utils/vietnamTime';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -13,7 +15,6 @@ import {
   Search,
   Flame,
   Sparkles,
-  History,
   Lock,
   AlertTriangle
 } from 'lucide-react';
@@ -98,7 +99,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     teacherApi
       .getClasses()
       .then((res) => {
-        const list = res.data || [];
+        const list = (res.data || []).filter((room: any) => room.status === 'ACTIVE');
         setAllClasses(list);
         if (!activeClassId && list.length > 0) {
           setActiveClassId(String(list[0]._id));
@@ -126,7 +127,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         setClassroom(classData);
         setContent(cnt.data);
         const list = (prevSess.data || []) as any[];
-        setPreviousSessions(list.filter(item => item.status === 'COMPLETED'));
+        setPreviousSessions(list.filter(countsTowardCurriculum));
         const maxPrev = list.reduce((m: number, s: any) => Math.max(m, Number(s.sessionNumber) || 0), 0);
         const nextNum = maxPrev > 0 ? maxPrev + 1 : (list.length + 1);
         setSessionNumber(nextNum);
@@ -138,7 +139,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         if (!selectedLessonId) {
           const activeClassScheds = schedList.filter((s: any) => {
             const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
-            return String(cId) === String(activeClassId);
+            return String(cId) === String(activeClassId) && scheduleEffectiveAt(s);
           });
           let slotLessonId: string | null = null;
           const currentDay = getVietnamNow().getDay();
@@ -160,7 +161,11 @@ export const ClassroomSessionSetup: React.FC = () => {
             setSelectedLessonId(String(slotLessonId));
           } else if (classData?.currentLesson) {
             const cId = typeof classData.currentLesson === 'object' ? classData.currentLesson._id : classData.currentLesson;
-            if (cId) setSelectedLessonId(String(cId));
+            const completed = new Set([
+              ...(classData.completedLessons || []).map((item: any) => String(item?._id || item)),
+              ...list.filter(countsTowardCurriculum).map(item => String(item.lesson?._id || item.lesson))
+            ]);
+            if (cId && !completed.has(String(cId))) setSelectedLessonId(String(cId));
           }
         }
 
@@ -283,12 +288,10 @@ export const ClassroomSessionSetup: React.FC = () => {
     }
 
     const acts = content.activities.filter(
-      (a: any) => String(a.lesson) === selectedLessonId
+      (a: any) => String(a.lesson?._id || a.lesson) === selectedLessonId
     );
     setLessonActivities(acts);
-    if (selectedActivityIds.length === 0) {
-      setSelectedActivityIds(acts.map((a: any) => a._id));
-    }
+    setSelectedActivityIds(acts.map((a: any) => String(a._id)));
   }, [selectedLessonId, content, sessionNumber]);
 
   const toggleActivity = (id: string) => {
@@ -495,7 +498,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         const q = searchQuery.toLowerCase();
         const tMatch = (item.title || '').toLowerCase().includes(q);
         const vnMatch = (item.vietnameseTitle || '').toLowerCase().includes(q);
-        const uMatch = (item.unit?.title || '').toLowerCase().includes(q);
+        const uMatch = (item.unit?.title || item.unit?.bigQuestion || '').toLowerCase().includes(q);
         const topMatch = (item.topic?.englishName || '').toLowerCase().includes(q);
         if (!tMatch && !vnMatch && !uMatch && !topMatch) return false;
       }
@@ -745,195 +748,8 @@ export const ClassroomSessionSetup: React.FC = () => {
               </div>
             </div>
 
-            {/* Schedule Table View */}
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <div className="">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-xs font-black text-slate-700 uppercase tracking-wider">
-                    <tr>
-                      <th className="py-3.5 px-4">Thứ tự Sách</th>
-                      <th className="py-3.5 px-4">Chủ đề & Unit</th>
-                      <th className="py-3.5 px-4">Bài học (Lesson)</th>
-                      <th className="py-3.5 px-3 text-center">Từ vựng</th>
-                      <th className="py-3.5 px-3 text-center">Hoạt động</th>
-                      <th className="py-3.5 px-4 text-center">Trạng thái lộ trình</th>
-                      <th className="py-3.5 px-4 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredSchedule.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-10 text-center text-slate-600 text-sm font-semibold">
-                          Không tìm thấy bài học nào phù hợp với bộ lọc trong {targetBookTitle}.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredSchedule.map((item: any, idx: number) => {
-                        const isSelected = selectedLessonId === item._id;
-                        return (
-                          <tr
-                            key={`${item._id}-${idx}`}
-                            onClick={() => setSelectedLessonId(item._id)}
-                            className={`cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'bg-teal-50 font-bold ring-2 ring-inset ring-teal-500'
-                                : item.isAdminAssigned
-                                ? 'bg-amber-100/40 hover:bg-amber-100/70'
-                                : item.isNextToTeach
-                                ? 'bg-amber-50/50 hover:bg-amber-50/90'
-                                : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            {/* Sequential Book Order */}
-                            <td className="py-4 px-4">
-                              <span className={`inline-flex items-center justify-center rounded-xl px-3 py-1 text-xs font-black ${
-                                item.isAdminAssigned
-                                  ? 'bg-amber-300 text-amber-950 border border-amber-400'
-                                  : item.isNextToTeach
-                                  ? 'bg-amber-200 text-amber-950 border border-amber-300'
-                                  : 'bg-teal-100 text-teal-900'
-                              }`}>
-                                Bài {item.bookOrderIndex || idx + 1}
-                              </span>
-                            </td>
-
-                            {/* Book & Unit */}
-                            <td className="py-4 px-4 text-xs">
-                              <div className="font-extrabold text-slate-900 text-sm">
-                                Unit {item.unit?.unitNumber || 1}
-                              </div>
-                              <div className="text-slate-600 font-medium">
-                                {item.unit?.title || 'Chủ đề mầm non'}
-                              </div>
-                            </td>
-
-                            {/* Lesson Title */}
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-2">
-                                <p className="font-extrabold text-slate-900 text-base">{item.title}</p>
-                                {item.isAdminAssigned && (
-                                  <span className="rounded-full bg-amber-700 text-white px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider">
-                                    🎯 Kế hoạch Admin
-                                  </span>
-                                )}
-                                {!item.isAdminAssigned && item.isNextToTeach && (
-                                  <span className="rounded-full bg-amber-200 text-amber-950 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
-                                    Đề xuất dạy
-                                  </span>
-                                )}
-                              </div>
-                              {item.vietnameseTitle && (
-                                <p className="text-xs text-slate-600 italic mt-0.5">{item.vietnameseTitle}</p>
-                              )}
-                            </td>
-
-                            {/* Vocab count */}
-                            <td className="py-4 px-3 text-center">
-                              <span className="rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-900 border border-amber-200">
-                                {item.vocabCount} từ
-                              </span>
-                            </td>
-
-                            {/* Activity count */}
-                            <td className="py-4 px-3 text-center">
-                              <span className="rounded-xl bg-purple-50 px-2.5 py-1 text-xs font-black text-purple-900 border border-purple-200">
-                                {item.activityCount} game
-                              </span>
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-4 px-4 text-center">
-                              {isSelected ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-teal-700 px-3 py-1 text-xs font-black text-white">
-                                  Đang chọn
-                                </span>
-                              ) : item.isAdminAssigned ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-amber-950">
-                                  🎯 Phân công hiện tại
-                                </span>
-                              ) : item.isNextToTeach ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-950 border border-amber-300">
-                                  ⭐ Bài tiếp theo
-                                </span>
-                              ) : item.isLastTaught ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900 border border-emerald-300">
-                                  <CheckCircle2 size={13} className="text-emerald-800" /> Vừa dạy gần nhất
-                                </span>
-                              ) : item.isTaught ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                                  <CheckCircle2 size={13} className="text-slate-600" /> Đã dạy
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
-                                  Chưa dạy
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Action Button */}
-                            <td className="py-4 px-4 text-right">
-                              {item.isTaught ? (
-                                <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (item.lastSessionId) {
-                                        navigate(`/teacher/classroom-sessions/${item.lastSessionId}/summary`);
-                                      } else {
-                                        navigate(`/teacher/classroom-sessions?search=${encodeURIComponent(item.title)}&classroomId=${activeClassId}`);
-                                      }
-                                    }}
-                                    className="rounded-xl px-3 py-1.5 text-xs font-black bg-emerald-100 text-emerald-900 hover:bg-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer"
-                                  >
-                                    <History size={13} />
-                                    <span>Xem nhật ký</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedLessonId(item._id);
-                                    }}
-                                    className={`rounded-xl px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-teal-700 text-white'
-                                        : 'text-inherit hover:text-slate-800 underline'
-                                    }`}
-                                  >
-                                    {isSelected ? 'Đã chọn' : 'Dạy lại'}
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedLessonId(item._id);
-                                  }}
-                                  className={`rounded-xl px-4 py-2 text-xs font-black transition-all cursor-pointer ${
-                                    isSelected
-                                      ? 'bg-teal-700 text-white'
-                                      : item.isAdminAssigned || item.isNextToTeach
-                                      ? 'bg-amber-700 text-white hover:bg-amber-700'
-                                      : 'border border-slate-200 bg-white text-slate-700 hover:border-teal-500 hover:text-teal-800'
-                                  }`}
-                                >
-                                  {isSelected ? 'Đã chọn ✓' : item.isAdminAssigned ? 'Chọn bài này 🎯' : 'Chọn bài'}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
             {/* Selected Lesson Bar & Continue */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100 pt-5">
+            <div className="sticky top-0 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-slate-200 rounded-2xl bg-white p-4 shadow-lg">
               <div className="text-sm">
                 {selectedLesson ? (
                   <div className="flex items-center gap-2.5 text-slate-800">
@@ -970,6 +786,143 @@ export const ClassroomSessionSetup: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Schedule Table View */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <div className="">
+                <table className="w-full min-w-[760px] text-left text-sm border-collapse">
+                  <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-xs font-black text-slate-700 uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3.5 px-4">STT</th>
+                      <th className="py-3.5 px-4">Chủ đề & Unit</th>
+                      <th className="py-3.5 px-4">Bài học (Lesson)</th>
+                      <th className="py-3.5 px-3 text-center">Từ vựng</th>
+                      <th className="py-3.5 px-3 text-center whitespace-nowrap">Hoạt động</th>
+                      <th className="py-3.5 px-4 text-center">Trạng thái lộ trình</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredSchedule.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center text-slate-600 text-sm font-semibold">
+                          Không tìm thấy bài học nào phù hợp với bộ lọc trong {targetBookTitle}.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSchedule.map((item: any, idx: number) => {
+                        const isSelected = selectedLessonId === item._id;
+                        return (
+                          <tr
+                            key={`${item._id}-${idx}`}
+                            tabIndex={0}
+                            aria-selected={isSelected}
+                            onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedLessonId(item._id); } }}
+                            onClick={() => setSelectedLessonId(item._id)}
+                            className={`cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'bg-teal-50 font-bold ring-2 ring-inset ring-teal-500'
+                                : item.isAdminAssigned
+                                ? 'bg-amber-100/40 hover:bg-amber-100/70'
+                                : item.isNextToTeach
+                                ? 'bg-amber-50/50 hover:bg-amber-50/90'
+                                : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            {/* Sequential Book Order */}
+                            <td className="py-4 px-4">
+                              <span className={`inline-flex items-center justify-center rounded-xl px-3 py-1 text-xs font-black ${
+                                item.isAdminAssigned
+                                  ? 'bg-amber-300 text-amber-950 border border-amber-400'
+                                  : item.isNextToTeach
+                                  ? 'bg-amber-200 text-amber-950 border border-amber-300'
+                                  : 'bg-teal-100 text-teal-900'
+                              }`}>
+                                {item.bookOrderIndex || idx + 1}
+                              </span>
+                            </td>
+
+                            {/* Book & Unit */}
+                            <td className="py-4 px-4 text-xs">
+                              <div className="font-extrabold text-slate-900 text-sm">
+                                Unit {item.unit?.unitNumber || 1}
+                              </div>
+                              <div className="text-slate-600 font-medium">
+                                {item.unit?.title || item.unit?.bigQuestion || 'Chủ đề mầm non'}
+                              </div>
+                            </td>
+
+                            {/* Lesson Title */}
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-2">
+                                <p className="font-extrabold text-slate-900 text-base">{item.title}</p>
+                                {item.isAdminAssigned && (
+                                  <span className="rounded-full bg-amber-700 text-white px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider">
+                                    🎯 Kế hoạch Admin
+                                  </span>
+                                )}
+                                {!item.isAdminAssigned && item.isNextToTeach && (
+                                  <span className="rounded-full bg-amber-200 text-amber-950 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
+                                    Đề xuất dạy
+                                  </span>
+                                )}
+                              </div>
+                              {item.vietnameseTitle && (
+                                <p className="text-xs text-slate-600 italic mt-0.5">{item.vietnameseTitle}</p>
+                              )}
+                            </td>
+
+                            {/* Vocab count */}
+                            <td className="py-4 px-3 text-center">
+                              <span className="rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-900 border border-amber-200">
+                                {item.vocabCount} từ
+                              </span>
+                            </td>
+
+                            {/* Activity count */}
+                            <td className="py-4 px-3 text-center">
+                              <span className="whitespace-nowrap inline-flex rounded-xl bg-purple-50 px-2.5 py-1 text-xs font-black text-purple-900 border border-purple-200">
+                                {item.activityCount} game
+                              </span>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-4 px-4 text-center">
+                              {isSelected ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-teal-700 px-3 py-1 text-xs font-black text-white">
+                                  Đang chọn
+                                </span>
+                              ) : item.isAdminAssigned ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-amber-950">
+                                  🎯 Phân công hiện tại
+                                </span>
+                              ) : item.isNextToTeach ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-950 border border-amber-300">
+                                  ⭐ Bài tiếp theo
+                                </span>
+                              ) : item.isLastTaught ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900 border border-emerald-300">
+                                  <CheckCircle2 size={13} className="text-emerald-800" /> Vừa dạy gần nhất
+                                </span>
+                              ) : item.isTaught ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                  <CheckCircle2 size={13} className="text-slate-600" /> Đã dạy
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
+                                  Chưa dạy
+                                </span>
+                              )}
+                            </td>
+
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -1049,7 +1002,8 @@ export const ClassroomSessionSetup: React.FC = () => {
 
             {/* Activities list */}
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <TeachingGuidePanel lessonId={selectedLessonId} compact/>
+                <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Trò chơi tương tác ({selectedActivityIds.length}/{lessonActivities.length})
                 </h3>
@@ -1095,7 +1049,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <p className="font-extrabold text-slate-900 text-sm truncate">{a.title}</p>
                           <p className="text-xs text-slate-600 mt-0.5">
-                            Dạng: {a.activityType?.replace(/_/g, ' ')} · {a.questionCount || 5} câu hỏi
+                            Dạng: {a.activityType?.replace(/_/g, ' ')} · {a.questions?.length ?? a.questionCount ?? 0} câu hỏi
                           </p>
                         </div>
                       </button>
@@ -1127,6 +1081,8 @@ export const ClassroomSessionSetup: React.FC = () => {
                 ))}
               </div>
             </div>
+
+<p className="text-sm text-slate-600">Thời lượng dùng để theo dõi đồng hồ và nhắc chuyển sang tổng kết khi hết giờ. Giáo viên chủ động kết thúc; hệ thống không tự chốt buổi học.</p>
 
             {/* Step 2 Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">

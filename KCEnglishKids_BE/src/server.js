@@ -1,21 +1,13 @@
-const dotenv = require('dotenv');
+require('dotenv').config();
+require('./config/auth').jwtSecret();
 const connectDB = require('./config/db');
 const app = require('./app');
-
-// Load environment variables
-dotenv.config();
-require('./config/auth').jwtSecret();
-
-// Connect to Database
-connectDB();
-
-const PORT = process.env.PORT || 5000;
-
-const server = app.listen(PORT, () => {
-  console.log(`[Server Running]: http://localhost:${PORT}`);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error(`[Unhandled Rejection]: ${err.message}`);
-  server.close(() => process.exit(1));
+let server;
+connectDB().then(() => {
+  server = app.listen(process.env.PORT || 5000, () => console.log('KCEnglishKids API ready.'));
+}).catch(error => { console.error(error.message); process.exitCode = 1; });
+process.on('unhandledRejection', () => {
+  console.error('Unhandled server error.');
+  if (server) server.close(() => process.exit(1));
+  else process.exit(1);
 });

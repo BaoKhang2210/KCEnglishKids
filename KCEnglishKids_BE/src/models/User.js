@@ -30,6 +30,22 @@ const userSchema = new mongoose.Schema(
     pin: {
       type: String // Hashed 4-digit PIN for CHILD
     },
+    // Self-service account recovery secret (never leaves the API layer):
+    // CHILD → bcrypt hash of the sorted pair of "secret friend" picture ids;
+    // TEACHER → bcrypt hash of a one-time shown recovery code.
+    recoverySecret: {
+      kind: {
+        type: String,
+        enum: ['PICTURES', 'CODE']
+      },
+      hash: {
+        type: String,
+        select: false
+      },
+      updatedAt: {
+        type: Date
+      }
+    },
     name: {
       type: String,
       required: true,

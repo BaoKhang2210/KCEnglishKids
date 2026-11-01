@@ -16,8 +16,9 @@ interface GameRunnerProps {
   config: GameConfig;
   unitNumber?: number;
   lessonNumber?: number;
+  allowedGameIds?: string[];
   onExit: () => void;
-  onGameComplete: (gameId: string, stars: number) => void;
+  onGameComplete: (gameId: string, stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => void;
   onNextGame?: (nextGameId: string) => void;
 }
 
@@ -25,6 +26,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   config,
   unitNumber = 1,
   lessonNumber = 1,
+  allowedGameIds,
   onExit,
   onGameComplete,
   onNextGame,
@@ -135,7 +137,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   useEffect(() => {
     if (state.status === 'complete' && !completedOnceRef.current) {
       completedOnceRef.current = true;
-      onGameComplete(config.gameId, state.stars);
+      onGameComplete(config.gameId, state.stars, state.targetOrder.map(wordId => ({wordId, selectedId: !state.attemptsPerTarget[wordId] && !state.assistedPerTarget[wordId] ? wordId : null})));
     }
     if (state.status !== 'complete') {
       completedOnceRef.current = false;
@@ -149,11 +151,11 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   }, [state.targetOrder, config.vocabularyList]);
 
   const nextGameId = useMemo(() => {
-    const games = getAvailableLessonGames(config.vocabularyList, unitNumber, lessonNumber);
+    const games = getAvailableLessonGames(config.vocabularyList, unitNumber, lessonNumber, allowedGameIds);
     const idx = games.findIndex((g) => g.id === config.gameId);
     const next = games[(idx + 1) % Math.max(games.length, 1)];
     return next && next.id !== config.gameId ? next.id : games.find((g) => g.id !== config.gameId)?.id;
-  }, [unitNumber, lessonNumber, config.gameId, config.vocabularyList]);
+  }, [unitNumber, lessonNumber, config.gameId, config.vocabularyList, allowedGameIds]);
 
   return createPortal(
     <GameFullscreenShell
@@ -175,7 +177,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
         />
       ) : loadFailed || state.targetOrder.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-5 px-6 text-center text-white">
-          <span className="text-6xl" aria-hidden>🐻</span>
+          <KokoMascot state="thinking" size="lg" interactive={false} />
           <p className="text-2xl font-black">Let’s play another time!</p>
           <button type="button" onClick={onExit} className="min-h-16 min-w-44 rounded-3xl bg-amber-300 px-8 text-xl font-black text-slate-950 shadow-lg">Back</button>
         </div>

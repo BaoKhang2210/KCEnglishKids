@@ -2,7 +2,7 @@ import type { Vocabulary } from '../types';
 import { vocabMasteryApi } from './api';
 import { wordArt } from '../utils/learningArt';
 
-let syncTimeout: any = null;
+import { learningOutbox } from './learningOutbox';
 
 export interface WordMasteryDetail {
   _id: string;
@@ -21,6 +21,7 @@ export interface WordMasteryDetail {
   reviewCount: number;
   gamesPlayedCount: number;
   gamesCorrectCount: number;
+  practiceStreak?: number;
   lastPracticedAt: number;
   masteryScore: number; // 0 - 100%
   source: 'JOURNEY' | 'TOPIC';
@@ -84,26 +85,7 @@ export const vocabMasteryService = {
       localStorage.setItem(this.getStorageKey(childId), JSON.stringify(record));
       window.dispatchEvent(new CustomEvent('kc_vocab_mastery_updated', { detail: { childId } }));
 
-      // Debounced background sync to Backend DB
-      if (childId && childId !== 'default' && childId !== 'guest') {
-        if (syncTimeout) clearTimeout(syncTimeout);
-        syncTimeout = setTimeout(() => {
-          const records = Object.values(record.vocabDetails)
-            .filter((v) => v.vocabId && v.vocabId.length === 24)
-            .map((v) => ({
-              vocabularyId: v.vocabId,
-              correctCount: (v.rememberCount || 0) + (v.gamesCorrectCount || 0),
-              wrongCount: (v.reviewCount || 0) + Math.max(0, (v.gamesPlayedCount || 0) - (v.gamesCorrectCount || 0)),
-              attemptCount: (v.rememberCount || 0) + (v.reviewCount || 0) + (v.gamesPlayedCount || 0),
-              streak: Math.min((v.rememberCount || 0) + (v.gamesCorrectCount || 0), v.status === 'MASTERED' ? 3 : (v.rememberCount > 0 ? 1 : 0))
-            }));
-          if (records.length > 0) {
-            vocabMasteryApi.syncMastery(childId, records).catch((err) => {
-              console.warn('[vocabMastery] Background sync error:', err);
-            });
-          }
-        }, 2000);
-      }
+
     } catch (e) {
       console.error('Failed to save vocab mastery:', e);
     }
@@ -125,7 +107,7 @@ export const vocabMasteryService = {
         const vId = v._id || v.id || sr.vocabulary;
         if (!vId) continue;
 
-        if (!local.vocabDetails[vId]) {
+        if (!local.vocabDetails[vId] || !learningOutbox.pending(childId).some(row => row.lessonId === 'mastery:' + vId)) {
           local.vocabDetails[vId] = {
             _id: vId,
             vocabId: vId,
@@ -145,9 +127,10 @@ export const vocabMasteryService = {
             masteryScore: sr.masteryLevel >= 3 ? 90 : Math.round(((sr.correctCount || 0) / Math.max(1, sr.attemptCount || 1)) * 100),
             source: 'TOPIC'
           };
-          if (sr.masteryLevel >= 3 && !local.masteredIds.includes(vId)) {
-            local.masteredIds.push(vId);
-          }
+          local.masteredIds=local.masteredIds.filter(id=>id!==vId);
+          local.reviewIds=local.reviewIds.filter(id=>id!==vId);
+          if(sr.masteryLevel>=3)local.masteredIds.push(vId);
+          else if(sr.wrongCount>0)local.reviewIds.push(vId);
           updated = true;
         }
       }
@@ -225,6 +208,7 @@ export const vocabMasteryService = {
     data.vocabDetails[vId] = existing;
 
     this.saveMastery(childId, data);
+    void learningOutbox.enqueueMastery(childId, vId, action === 'remember').catch(() => {});
   },
 
   /**
@@ -262,6 +246,7 @@ export const vocabMasteryService = {
     item.masteryScore = calculateScore(item);
     data.vocabDetails[vocabId] = item;
     this.saveMastery(childId, data);
+    void learningOutbox.enqueueMastery(childId, vocabId, item.status === 'MASTERED').catch(() => {});
   },
 
   /**
@@ -273,20 +258,23 @@ export const vocabMasteryService = {
     if (!item) return;
 
     item.gamesPlayedCount = (item.gamesPlayedCount || 0) + 1;
+    item.practiceStreak = isCorrect ? (item.practiceStreak || 0) + 1 : 0;
     if (isCorrect) {
       item.gamesCorrectCount = (item.gamesCorrectCount || 0) + 1;
-      // If performed well in game, solidify mastery
-      if (item.gamesCorrectCount >= 2 && item.status !== 'MASTERED') {
-        item.status = 'MASTERED';
-        if (!data.masteredIds.includes(vocabId)) data.masteredIds.push(vocabId);
-        data.reviewIds = data.reviewIds.filter(id => id !== vocabId);
-      }
     }
+    const attempts=item.rememberCount+item.reviewCount+item.gamesPlayedCount;
+    const correct=item.rememberCount+item.gamesCorrectCount;
+    item.status=item.practiceStreak>=3 || attempts>=5 && correct/attempts>=0.8 ? 'MASTERED' : isCorrect ? 'LEARNING' : 'REVIEW';
+    data.masteredIds=data.masteredIds.filter(id=>id!==vocabId);
+    data.reviewIds=data.reviewIds.filter(id=>id!==vocabId);
+    if(item.status==='MASTERED')data.masteredIds.push(vocabId);
+    if(item.status==='REVIEW')data.reviewIds.push(vocabId);
 
     item.lastPracticedAt = Date.now();
     item.masteryScore = calculateScore(item);
     data.vocabDetails[vocabId] = item;
     this.saveMastery(childId, data);
+    void learningOutbox.enqueueMastery(childId, vocabId, isCorrect).catch(() => {});
   },
 
   /**
@@ -315,18 +303,15 @@ export const vocabMasteryService = {
           category: (v as any).category,
           topicName: (v as any).topicName,
           status: 'LEARNING',
-          rememberCount: 1,
+          rememberCount: 0,
           reviewCount: 0,
           gamesPlayedCount: 0,
           gamesCorrectCount: 0,
           lastPracticedAt: Date.now(),
-          masteryScore: 65,
+          masteryScore: 0,
           source: 'JOURNEY'
         };
         data.vocabDetails[vId] = detail;
-        if (!data.masteredIds.includes(vId)) {
-          data.masteredIds.push(vId);
-        }
         changed = true;
       }
     });

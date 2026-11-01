@@ -1,0 +1,5 @@
+{
+  "3-4": { "choices": 2, "reviewWords": 4, "pauseEvery": 4, "label": "Nghe, chỉ và làm theo", "adultRole": "Người lớn cùng chơi; chấp nhận chỉ tranh, cử chỉ hoặc nói theo." },
+  "4-5": { "choices": 3, "reviewWords": 6, "pauseEvery": 6, "label": "Nghe, gọi tên và chơi cùng bạn", "adultRole": "Gợi ý ngắn khi cần; cho bé thời gian đáp bằng lời hoặc hành động." },
+  "5-6": { "choices": 4, "reviewWords": 6, "pauseEvery": 8, "label": "Nghe và dùng từ trong tình huống", "adultRole": "Khuyến khích câu ngắn; đọc chữ là lựa chọn hỗ trợ, không phải điều kiện hoàn thành." }
+}

@@ -49,4 +49,20 @@ function rankClassroomStars(students, sessions) {
   return ranking.map(row => ({ ...row, winner: maximum > 0 && row.stars === maximum }));
 }
 
-module.exports = { recognitionPeriod, rewardFor, rankClassroomStars };
+function rankSchoolStars(students, sessions, minimumSessions) {
+  const rows = rankClassroomStars(students, sessions).map(row => ({
+    ...row, eligible: row.sessions >= minimumSessions,
+    starsPerSession: row.sessions ? Math.round(100 * row.stars / row.sessions) / 100 : null,
+    winner: false
+  }));
+  // Compare exact fractions; rounded display values must never create or break ties.
+  rows.sort((a, b) => Number(b.eligible) - Number(a.eligible) ||
+    (b.stars * (a.sessions || 1) - a.stars * (b.sessions || 1)) || a.name.localeCompare(b.name, 'vi'));
+  const best = rows.find(row => row.eligible && row.stars > 0);
+  for (const row of rows) {
+    row.winner = Boolean(best && row.eligible && row.stars * best.sessions === best.stars * row.sessions);
+    row.rank = row.eligible && row.stars > 0 ? 1 + rows.filter(other => other.eligible && other.stars * row.sessions > row.stars * other.sessions).length : null;
+  }
+  return rows;
+}
+module.exports = { recognitionPeriod, rewardFor, rankClassroomStars, rankSchoolStars };

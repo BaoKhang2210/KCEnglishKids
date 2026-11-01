@@ -4,6 +4,7 @@ import { ArrowLeft, Star } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { activitiesApi, learningApi, adminApi } from '../../services/api';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
+import { learningOutbox } from '../../services/learningOutbox';
 import type { Activity, ActivityQuestion, ActivityOption } from '../../types';
 import { ResultModal } from '../../components/child/ResultModal';
 import { KokoMascot } from '../../components/child/KokoMascot';
@@ -39,6 +40,9 @@ export const ActivityPlayPage: React.FC = () => {
   const [resultData, setResultData] = useState<any>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const submissionRef = useRef('');
+  const payloadRef = useRef<any>(null);
+  const submittingRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
   const questionStartRef = useRef<number>(Date.now());
 
@@ -53,6 +57,8 @@ export const ActivityPlayPage: React.FC = () => {
       try {
         if (!id) return;
         setLoading(true);
+        submissionRef.current = globalThis.crypto?.randomUUID?.() || 'op-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        payloadRef.current = null;
         setCurrentIdx(0);
         setSelectedOptionId(null);
         setFeedbackState('idle');
@@ -171,7 +177,7 @@ export const ActivityPlayPage: React.FC = () => {
     const allAnswers = (activity.questions || []).map((q, idx) => ({
       questionIndex: idx,
       promptText: q.promptText,
-      selectedOptionId: q.options?.[0]?.id || `pair_${idx}`,
+      selectedOptionId: String((q.vocabulary as any)?._id || q.vocabulary || q.correctAnswer || ''),
       isCorrect: true,
       vocabularyId: q.vocabulary,
       responseTimeMs: 2000
@@ -196,15 +202,18 @@ export const ActivityPlayPage: React.FC = () => {
 
     const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     try {
       setSubmitError(null);
-      const res = await learningApi.submitActivityResult({
+      payloadRef.current ||= {
         activityId: activity._id,
         lessonId,
         childId: user?.id || (user as any)?._id,
         answers,
-        duration: durationSeconds
-      });
+        duration: durationSeconds, submissionId: submissionRef.current
+      };
+      const res = await learningApi.submitActivityResult(payloadRef.current);
 
       if (res.success) {
         setResultData(res.data);
@@ -214,8 +223,11 @@ export const ActivityPlayPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to submit results:', err);
+      if(!err.status || err.status>=500) {
+        try {await learningOutbox.enqueue(childId,'activity:'+activity._id,payloadRef.current);} catch { /* Error is visible below. */ }
+      }
       setSubmitError(err?.message || 'Có lỗi khi kết nối. Bé thử lại nhé!');
-    }
+    } finally { submittingRef.current = false; }
   };
 
   const handleRetry = () => {
@@ -226,6 +238,8 @@ export const ActivityPlayPage: React.FC = () => {
     setFeedbackState('idle');
     setIsFinished(false);
     startTimeRef.current = Date.now();
+    submissionRef.current = globalThis.crypto?.randomUUID?.() || 'op-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    payloadRef.current = null;
   };
 
   const handleFinish = () => {

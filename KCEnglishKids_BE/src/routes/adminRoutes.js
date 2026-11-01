@@ -81,10 +81,15 @@ router.use((req, res, next) => {
 });
 
 router.get('/dashboard', protect, authorize('ADMIN'), getDashboardStats);
+router.get('/curriculum/lessons/:id/pedagogy',protect,authorize('ADMIN'),require('../controllers/teachingProfileController').get);
+router.put('/curriculum/lessons/:id/pedagogy',protect,authorize('ADMIN'),require('../controllers/teachingProfileController').save);
 router.get('/curriculum', protect, authorize('ADMIN'), getCurriculum);
 router.get('/curriculum/deep', protect, authorize('ADMIN'), getDeepCurriculum);
+router.get('/curriculum/lessons/:id/readiness', protect, authorize('ADMIN'), async(req,res,next)=>{try{const lesson=await require('../models').Lesson.findById(req.params.id);if(!lesson)return res.status(404).json({success:false,message:'Lesson not found.'});res.json({success:true,data:await require('../services/contentReadiness').lessonReadiness(lesson)});}catch(error){next(error);}});
 
 // Activity & Games Management (Kho Trò chơi & Hoạt động)
+router.get('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').get);
+router.put('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').update);
 router.get('/activities', protect, authorize('ADMIN'), getAdminActivities);
 router.get('/activities/:id', protect, authorize('ADMIN'), getAdminActivityById);
 router.post('/activities', protect, authorize('ADMIN'), createAdminActivity);

@@ -4,6 +4,8 @@ const c = require('../controllers/recognitionController');
 const router = express.Router();
 
 router.use(protect);
+router.get('/school', authorize('ADMIN'), c.schoolPreview);
+router.post('/school/publish', authorize('ADMIN'), c.schoolPublish);
 router.get('/mine', authorize('CHILD'), c.childInbox);
 router.patch('/mine/:id/read', authorize('CHILD'), c.read);
 router.get('/classes', authorize('TEACHER', 'ADMIN'), c.classes);

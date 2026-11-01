@@ -5,8 +5,8 @@ echo           KCEnglishKids - Interactive Learning Platform
 echo ==============================================================
 echo.
 
-echo [1/2] Khoi dong Backend API (Port 5000)...
-start "KCEnglishKids - Backend (Port 5000)" cmd /k "cd /d %~dp0KCEnglishKids_BE && npm start"
+echo [1/2] Khoi dong Backend API (Port 5000, nodemon tu tai dong khi sua code)...
+start "KCEnglishKids - Backend (Port 5000)" cmd /k "cd /d %~dp0KCEnglishKids_BE && npm run dev"
 
 timeout /t 3 /nobreak >nul
 

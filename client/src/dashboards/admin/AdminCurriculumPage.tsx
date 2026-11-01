@@ -53,6 +53,7 @@ export const AdminCurriculumPage: React.FC = () => {
     english: '',
     vietnamese: '',
     pronunciation: '',
+    imageUrl: '', audioUrl: '', mediaSource:'',mediaLicense:'',wordType: 'noun', status: 'HIDDEN',
     category: 'General'
   });
 
@@ -288,7 +289,8 @@ export const AdminCurriculumPage: React.FC = () => {
       english: '',
       vietnamese: '',
       pronunciation: '',
-      category: 'General'
+      imageUrl: '', audioUrl: '', mediaSource:'',mediaLicense:'',wordType: 'noun', status: 'HIDDEN',
+    category: 'General'
     });
     setVocabModal({ mode: 'create', lessonId, data: null });
   };
@@ -298,6 +300,7 @@ export const AdminCurriculumPage: React.FC = () => {
       english: vocab.word || vocab.english || '',
       vietnamese: vocab.vietnamese || '',
       pronunciation: vocab.pronunciation || '',
+      mediaSource:vocab.mediaSource||'',mediaLicense:vocab.mediaLicense||'',imageUrl:vocab.imageUrl || '', audioUrl:vocab.audioUrl || '',wordType:vocab.wordType || 'noun',status:vocab.status || 'ACTIVE',
       category: vocab.category || 'General'
     });
     setVocabModal({ mode: 'edit', lessonId, data: vocab });
@@ -314,6 +317,7 @@ export const AdminCurriculumPage: React.FC = () => {
       if (vocabModal?.mode === 'create') {
         const ageGroupCode = selectedBookNum === 1 ? '3-4' : selectedBookNum === 2 ? '4-5' : '5-6';
         const res = await adminApi.createVocabulary({
+          ...vocabForm,
           english: vocabForm.english,
           vietnamese: vocabForm.vietnamese,
           pronunciation: vocabForm.pronunciation,
@@ -328,6 +332,7 @@ export const AdminCurriculumPage: React.FC = () => {
         }
       } else if (vocabModal?.mode === 'edit' && vocabModal.data) {
         const res = await adminApi.updateVocabulary(vocabModal.data._id, {
+          ...vocabForm,
           english: vocabForm.english,
           vietnamese: vocabForm.vietnamese,
           pronunciation: vocabForm.pronunciation,
@@ -842,7 +847,7 @@ export const AdminCurriculumPage: React.FC = () => {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
-                              <span className={lesson.status === 'ACTIVE' ? 'rounded-lg bg-emerald-50 px-2 py-1 text-emerald-800' : 'rounded-lg bg-slate-100 px-2 py-1 text-slate-600'}>{lesson.status === 'ACTIVE' ? 'Đang sử dụng' : 'Đã ngừng'}</span>
+                              <button type="button" className="underline text-indigo-800" onClick={async()=>{try{const report=await adminApi.getLessonReadiness(lesson._id);showAlert(report.data.ready?'success':'error', report.data.ready?'Đủ điều kiện xuất bản. Hãy nghe thử audio và xem ảnh trước khi kích hoạt.':report.data.issues.join(' '));}catch(error:any){showAlert('error',error.message);}}}>Kiểm tra xuất bản</button><span className={lesson.status === 'ACTIVE' ? 'rounded-lg bg-emerald-50 px-2 py-1 text-emerald-800' : 'rounded-lg bg-slate-100 px-2 py-1 text-slate-600'}>{lesson.status === 'ACTIVE' ? 'Đang sử dụng' : 'Đã ngừng'}</span>
                               <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-indigo-800" onClick={async () => { try { await adminApi.toggleLessonStatus(lesson._id); await loadCurriculum(); } catch (error: any) { showAlert('error', error.message); } }}>{lesson.status === 'ACTIVE' ? 'Tạm ngừng' : 'Khôi phục'}</button>
                               <button
                                 onClick={() => handleOpenCreateVocab(lesson._id)}
@@ -1421,6 +1426,14 @@ export const AdminCurriculumPage: React.FC = () => {
                 />
               </div>
 
+              <label className="block text-sm font-bold">URL ảnh (HTTPS hoặc /images/…)<input className="w-full border rounded-xl p-2" value={vocabForm.imageUrl} onChange={e=>setVocabForm({...vocabForm,imageUrl:e.target.value})}/></label>
+              {vocabForm.imageUrl && <img className="h-24 object-contain" src={vocabForm.imageUrl} alt={vocabForm.english}/>}
+              <label className="block text-sm font-bold">URL audio (bỏ trống để dùng giọng đọc thiết bị)<input className="w-full border rounded-xl p-2" value={vocabForm.audioUrl} onChange={e=>setVocabForm({...vocabForm,audioUrl:e.target.value})}/></label>
+              {vocabForm.audioUrl && <audio controls src={vocabForm.audioUrl}/>}
+              <label className="block text-sm font-bold">Nguồn ảnh<input className="w-full border rounded-xl p-2" value={vocabForm.mediaSource} onChange={e=>setVocabForm({...vocabForm,mediaSource:e.target.value})}/></label>
+              <label className="block text-sm font-bold">Giấy phép / quyền sử dụng<input className="w-full border rounded-xl p-2" value={vocabForm.mediaLicense} onChange={e=>setVocabForm({...vocabForm,mediaLicense:e.target.value})}/></label>
+              <label className="block text-sm font-bold">Loại từ<select value={vocabForm.wordType} onChange={e=>setVocabForm({...vocabForm,wordType:e.target.value})}>{['noun','verb','number','color','adjective'].map(type=><option key={type}>{type}</option>)}</select></label>
+              <label className="block text-sm font-bold">Trạng thái<select value={vocabForm.status} onChange={e=>setVocabForm({...vocabForm,status:e.target.value})}><option value="HIDDEN">Nháp / ẩn</option><option value="ACTIVE">Hoạt động (cần ảnh)</option><option value="INACTIVE">Ngừng sử dụng</option></select></label>
               <div className="flex items-center justify-end gap-3 pt-3">
                 <button
                   type="button"

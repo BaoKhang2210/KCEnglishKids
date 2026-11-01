@@ -1,6 +1,8 @@
+import gameRules from '../../../shared/learningGames.json';
 import type { GameDefinition, GameId } from './core/types';
 import type { Vocabulary } from '../types';
 import { getWordType, isTransparentImage } from './core/targetSelector';
+import { vocabularyMeaning } from '../utils/vocabularySemantics';
 
 export const GAME_REGISTRY: Record<GameId, GameDefinition> = {
   'bubble-pop': {
@@ -189,13 +191,16 @@ export function getAvailableLessonGames(
   vocabularyList: Vocabulary[],
   unitNumber: number = 1,
   lessonNumber: number = 1,
+  allowedGameIds?: string[],
 ): GameDefinition[] {
-  return getLessonGames(unitNumber, lessonNumber).filter(game => {
+  const preferred = getLessonGames(unitNumber, lessonNumber);
+  const pool = allowedGameIds ? allowedGameIds.map(id => GAME_REGISTRY[id as GameId]).filter(Boolean) : [...preferred, ...Object.values(GAME_REGISTRY).filter(game => !preferred.some(item => item.id === game.id))];
+  return pool.map(game => ({ ...game, minVocab: gameRules.find(rule => rule.id === game.id)?.minVocab ?? game.minVocab })).filter(game => {
     const usableWords = vocabularyList.filter(word =>
       game.supportedWordTypes.includes(getWordType(word)) &&
       (!game.requiresImage || Boolean(word.imageUrl)) &&
       (!game.requiresTransparentImage || isTransparentImage(word))
     );
-    return usableWords.length >= game.minVocab;
-  });
+    return new Set(usableWords.map(vocabularyMeaning)).size >= game.minVocab;
+  }).slice(0, Math.max(4, preferred.length));
 }

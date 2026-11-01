@@ -6,7 +6,7 @@ export interface BadgeItem {
   category: 'journey' | 'stars' | 'skills';
   categoryName: string;
   requirement: number;
-  reqType: 'lesson' | 'unit' | 'star' | 'perfectLesson' | 'openedChest';
+  reqType: 'lesson' | 'unit' | 'star' | 'perfectLesson' | 'openedChest' | 'streak';
   color: string;
   badgeBg: string;
   tier: 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -20,6 +20,8 @@ export interface BadgeProgress {
   completedUnits: number;
   perfectLessons: number;
   openedChests: number;
+  /** Chuỗi ngày học gần nhất (streak) — §3.3 Duolingo-style badges. */
+  streakDays?: number;
 }
 
 export const getBadgeProgress = (badge: BadgeItem, progress: BadgeProgress): number => {
@@ -28,6 +30,7 @@ export const getBadgeProgress = (badge: BadgeItem, progress: BadgeProgress): num
     case 'unit': return progress.completedUnits;
     case 'perfectLesson': return progress.perfectLessons;
     case 'openedChest': return progress.openedChests;
+    case 'streak': return progress.streakDays ?? 0;
     default: return progress.completedLessons;
   }
 };
@@ -267,6 +270,53 @@ export const ALL_BADGES: BadgeItem[] = [
     ribbonColor: 'bg-amber-500'
   },
 
+  // §3.3 (2026-11) — Huy hiệu chuỗi ngày học, kiểu Duolingo
+  {
+    id: 'b_flame_3',
+    icon: '🔥',
+    name: 'Ngọn Lửa Nhỏ',
+    desc: 'Học 3 ngày liên tiếp',
+    category: 'stars',
+    categoryName: 'Ngôi sao',
+    requirement: 3,
+    reqType: 'streak',
+    color: 'from-orange-400 to-red-400',
+    badgeBg: 'bg-orange-100 text-orange-900 border-orange-300',
+    tier: 'silver',
+    tierName: 'Huy Chương Bạc',
+    ribbonColor: 'bg-orange-600'
+  },
+  {
+    id: 'b_flame_7',
+    icon: '📅',
+    name: 'Cả Tuần Chăm Chỉ',
+    desc: 'Học đủ 7 ngày liên tiếp',
+    category: 'stars',
+    categoryName: 'Ngôi sao',
+    requirement: 7,
+    reqType: 'streak',
+    color: 'from-sky-400 to-indigo-500',
+    badgeBg: 'bg-sky-100 text-sky-900 border-sky-300',
+    tier: 'gold',
+    tierName: 'Huy Chương Vàng',
+    ribbonColor: 'bg-sky-600'
+  },
+  {
+    id: 'b_flame_30',
+    icon: '🌋',
+    name: 'Núi Lửa Bùng Nổ',
+    desc: 'Học 30 ngày liên tiếp siêu chăm chỉ',
+    category: 'stars',
+    categoryName: 'Ngôi sao',
+    requirement: 30,
+    reqType: 'streak',
+    color: 'from-rose-500 via-orange-500 to-amber-400',
+    badgeBg: 'bg-rose-100 text-rose-900 border-rose-300',
+    tier: 'diamond',
+    tierName: 'Huy Chương Kim Cương',
+    ribbonColor: 'bg-rose-600'
+  },
+
   // Nhóm 3: Kỹ năng & Trò chơi (5 huy hiệu)
   {
     id: 'b_quiz_master',
@@ -327,6 +377,36 @@ export const ALL_BADGES: BadgeItem[] = [
     tier: 'gold',
     tierName: 'Huy Chương Vàng',
     ribbonColor: 'bg-fuchsia-500'
+  },
+  {
+    id: 'b_perfect_5',
+    icon: '🥇',
+    name: 'Siêu Nhân 3 Sao',
+    desc: 'Đạt 3 sao ở 5 Lesson khác nhau',
+    category: 'skills',
+    categoryName: 'Kỹ năng',
+    requirement: 5,
+    reqType: 'perfectLesson',
+    color: 'from-yellow-400 to-orange-500',
+    badgeBg: 'bg-yellow-100 text-yellow-900 border-yellow-300',
+    tier: 'gold',
+    tierName: 'Huy Chương Vàng',
+    ribbonColor: 'bg-yellow-600'
+  },
+  {
+    id: 'b_chest_collector',
+    icon: '🗝️',
+    name: 'Nhà Sưu Tầm Rương',
+    desc: 'Mở 5 rương quà bí mật',
+    category: 'skills',
+    categoryName: 'Kỹ năng',
+    requirement: 5,
+    reqType: 'openedChest',
+    color: 'from-purple-400 via-fuchsia-400 to-pink-500',
+    badgeBg: 'bg-purple-100 text-purple-900 border-purple-300',
+    tier: 'diamond',
+    tierName: 'Huy Chương Kim Cương',
+    ribbonColor: 'bg-purple-600'
   },
   {
     id: 'b_master',

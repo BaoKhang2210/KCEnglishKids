@@ -54,19 +54,11 @@ describe('buildPracticeQuestions & buildPracticePlan standardization', () => {
     }
   });
 
-  it('assigns balanced Round 1 variants with no run of three and preserves checkpoint assignments', () => {
-    for (const count of [5, 6, 7]) {
-      const plan = buildPracticeQuestions(mockVocabs.slice(0, count), '4-5');
-      const roundOne = plan.questions.filter((question) => question.turn === 1);
-      const counts = roundOne.reduce((result, question) => {
-        result[question.variant!] = (result[question.variant!] || 0) + 1;
-        return result;
-      }, {} as Record<string, number>);
-      expect(Math.abs((counts.A || 0) - (counts.B || 0))).toBeLessThanOrEqual(1);
-      expect(roundOne.every((question) => question.activityId === (question.variant === 'A' ? 'listen-choose' : 'look-choose-word'))).toBe(true);
-      for (let index = 2; index < roundOne.length; index += 1) {
-        expect(roundOne[index].variant === roundOne[index - 1].variant && roundOne[index].variant === roundOne[index - 2].variant).toBe(false);
-      }
+  it('does not require word reading for children aged three to six, including checkpoints saved with word choices', () => {
+    for (const age of ['3-4','4-5','5-6'] as const) {
+      const plan = buildPracticeQuestions(mockVocabs, age, {}, undefined, 3, 1, 1, { w1: 'B' });
+      expect(plan.questions.filter(question => question.turn === 1).every(question => question.type === 'LT' && question.variant === 'A')).toBe(true);
+      expect(plan.questions.every(question => question.type !== 'LOOK_WORD')).toBe(true);
     }
 
     const saved = { w1: 'B', w2: 'A' } as const;

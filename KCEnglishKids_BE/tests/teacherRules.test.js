@@ -34,7 +34,7 @@ test('scores require a live session, bounded integers, a present child and a sta
 });
 test('retrying the same score operation never awards stars twice; a distinct operation does', () => {
   const item = session();
-  const body = { operationId: 'operation-1', stars: 2, points: 5 };
+  const body = { operationId: 'operation-1', stars: 2 };
   assert.equal(rules.applyScore(item, body, [id(1), id(3)]), true);
   assert.equal(rules.applyScore(item, body, [id(1), id(3)]), false);
   assert.equal(item.studentScores[0].stars, 2);

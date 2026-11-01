@@ -14,6 +14,9 @@ const normalizeText = (value) => (value == null ? '' : value.toString().trim().t
 const gradeActivityAnswers = (activity, answers = []) => {
   const questions = activity.questions || [];
 
+  if (!Array.isArray(answers) || !questions.length || answers.length !== questions.length ||
+    answers.some(a => !a || !Number.isInteger(a.questionIndex) || a.questionIndex < 0 || a.questionIndex >= questions.length || !Number.isFinite(a.responseTimeMs ?? 0) || (a.responseTimeMs ?? 0) < 0) ||
+    new Set(answers.map(a => a.questionIndex)).size !== questions.length) throw Object.assign(new Error('Answer every question exactly once.'), { statusCode: 400 });
   return answers.map((ans, fallbackIdx) => {
     const questionIndex = Number.isInteger(ans.questionIndex) ? ans.questionIndex : fallbackIdx;
     const question = questions[questionIndex];
@@ -29,7 +32,7 @@ const gradeActivityAnswers = (activity, answers = []) => {
       };
     }
 
-    const vocabularyId = question.vocabulary || ans.vocabularyId || null;
+    const vocabularyId = question.vocabulary || null;
     const base = {
       questionIndex,
       selectedOptionId: ans.selectedOptionId ?? null,
@@ -40,7 +43,7 @@ const gradeActivityAnswers = (activity, answers = []) => {
 
     // Completion-based game — matching all pairs counts as correct.
     if (activity.activityType === 'MEMORY_CARD') {
-      return { ...base, isCorrect: true };
+      return { ...base, isCorrect: String(ans.selectedOptionId || '') === String(question.vocabulary || question.correctAnswer || '') };
     }
 
     // 1) Canonical path: match the selected option id against server options.
@@ -78,24 +81,11 @@ const gradeActivityAnswers = (activity, answers = []) => {
 const getOrCreateSession = async (childId, lessonId) => {
   const { User } = require('../models');
   if (!await User.exists({ _id: childId, role: 'CHILD', status: 'ACTIVE' }) || !await Lesson.exists({ _id: lessonId, status: 'ACTIVE' })) throw Object.assign(new Error('Học sinh hoặc bài học không hoạt động.'), { statusCode: 400 });
-  let session = await LearningSession.findOne({
-    child: childId,
-    lesson: lessonId,
-    status: 'IN_PROGRESS'
-  });
-
-  if (!session) {
-    session = await LearningSession.create({
-      child: childId,
-      lesson: lessonId,
-      status: 'IN_PROGRESS',
-      startedAt: new Date(),
-      lastActivityAt: new Date()
-    });
-  } else {
-    session.lastActivityAt = new Date();
-    await session.save();
-  }
+  await require('./childAccess').activeLesson(childId, lessonId);
+  const filter={child:childId,lesson:lessonId,status:'IN_PROGRESS'};
+  let session;
+  try{session=await LearningSession.findOneAndUpdate(filter,{$set:{lastActivityAt:new Date()},$setOnInsert:{startedAt:new Date()}},{upsert:true,returnDocument:'after',setDefaultsOnInsert:true});}
+  catch(error){if(error.code!==11000)throw error;session=await LearningSession.findOne(filter);if(!session)throw error;}
 
   return session;
 };
@@ -111,7 +101,8 @@ const processActivityResult = async ({
   lessonId,
   sessionId,
   answers = [],
-  duration = 0
+  duration = 0,
+  submissionId
 }) => {
   const { User } = require('../models');
   if (!await User.exists({ _id: childId, role: 'CHILD', status: 'ACTIVE' })) throw Object.assign(new Error('Chỉ được lưu kết quả cho học sinh đang hoạt động.'), { statusCode: 400 });
@@ -121,16 +112,24 @@ const processActivityResult = async ({
     throw new Error('Activity not found');
   }
 
+  await require('./childAccess').activeLesson(childId, lessonId);
+  if (typeof submissionId !== 'string' || !/^[a-zA-Z0-9_-]{8,120}$/.test(submissionId) || !Number.isFinite(duration) || duration < 0 || duration > 86400) throw Object.assign(new Error('Valid submissionId and duration required.'), {statusCode:400});
+  // Validate before any session/result write.
+  const gradedAnswers = gradeActivityAnswers(activity, answers);
+  const payloadHash = require('node:crypto').createHash('sha256').update(JSON.stringify({activityId,lessonId,answers,duration})).digest('hex');
+  const existing=await ActivityResult.findOne({child:childId,submissionId});
+  if(existing&&existing.payloadHash!==payloadHash)throw Object.assign(new Error('Submission ID already used for different answers.'),{statusCode:409});
   let session;
-  if (sessionId) {
+  if(existing)session=await LearningSession.findOne({_id:existing.session,child:childId,lesson:lessonId});
+  if (!existing && sessionId) {
     session = await LearningSession.findOne({ _id: sessionId, child: childId, lesson: lessonId });
+    if (!session) throw Object.assign(new Error('Session does not belong to this child and lesson.'), {statusCode:403});
   }
   if (!session) {
     session = await getOrCreateSession(childId, lessonId);
   }
 
   // Evaluate answers — server-side grading (§3.2.1)
-  const gradedAnswers = gradeActivityAnswers(activity, answers);
   let correctCount = 0;
   let incorrectCount = 0;
 
@@ -148,7 +147,9 @@ const processActivityResult = async ({
   const starsEarned = calculateStars(totalScore, maxScore);
 
   // 1. Create ActivityResult
-  const activityResult = await ActivityResult.create({
+
+  let activityResult;
+  const document = {
     child: childId,
     activity: activityId,
     lesson: lessonId,
@@ -160,8 +161,13 @@ const processActivityResult = async ({
     attempts: 1,
     duration,
     completed: true,
-    answers: gradedAnswers
-  });
+    answers: gradedAnswers, submissionId, payloadHash
+  };
+  try { activityResult = await ActivityResult.findOneAndUpdate({child:childId,submissionId}, {$setOnInsert:document}, {upsert:true,returnDocument: 'after',setDefaultsOnInsert:true}); }
+  catch(error) { if(error.code!==11000) throw error; activityResult=await ActivityResult.findOne({child:childId,submissionId}); }
+  if(String(activityResult.session)!==String(session._id))session=await LearningSession.findOne({_id:activityResult.session,child:childId,lesson:lessonId});
+  if(!session)throw Object.assign(new Error('Result session missing.'),{statusCode:409});
+  if(activityResult.payloadHash!==payloadHash) throw Object.assign(new Error('Submission ID already used for different answers.'),{statusCode:409});
 
   // 2. Update Session (dedupe hardened: ObjectId vs string compare)
   session.lastActivityAt = new Date();
@@ -172,7 +178,7 @@ const processActivityResult = async ({
   if (!alreadyDone) {
     session.completedActivities.push(activityId);
   }
-  session.totalScore = (session.totalScore || 0) + totalScore;
+  // Recomputed below from persisted best results; retry never increments totals.
   session.stars = Math.max(session.stars || 0, starsEarned);
 
   // A Lesson's stars are based on its best result for every active activity.
@@ -182,17 +188,18 @@ const processActivityResult = async ({
     .lean();
   const lessonActivityResults = lessonActivities.length
     ? await ActivityResult.find({ child: childId, lesson: lessonId, activity: { $in: lessonActivities.map((item) => item._id) } })
-      .select('activity score')
+      .select('activity score answers createdAt')
       .lean()
     : [];
   const lessonRating = calculateLessonStars(lessonActivities, lessonActivityResults);
+  session.totalScore = lessonRating.score || 0;
 
   if (lessonRating.completed) {
     session.status = 'COMPLETED';
     session.completedAt = new Date();
   }
   session.stars = lessonRating.completed ? lessonRating.stars : 0;
-  await session.save();
+  await LearningSession.updateOne({_id:session._id},{$max:{totalScore:session.totalScore,stars:session.stars},$addToSet:{completedActivities:activityId},$set:{lastActivityAt:new Date(),currentActivity:activityId,...(lessonRating.completed?{status:'COMPLETED',completedAt:new Date()}:{})}});
 
   // 3. Update or create Progress (§1.2.20 — upsert, no E11000 race)
   const lesson = await Lesson.findById(lessonId);
@@ -207,59 +214,39 @@ const processActivityResult = async ({
       {
         $setOnInsert: { topic: topicId, completed: false, weakVocabulary: [] },
         $max: { highestScore: totalScore },
-        $inc: { attempts: 1 },
+
         $set: { lastActivityAt: new Date() }
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
     );
 
+    progress.attempts = lessonActivityResults.length;
     // "Lesson complete" is owned by Progress.completed (§4.11) — set once ALL
     // activities of the lesson are done (session.status === 'COMPLETED').
     if (lessonRating.completed && !progress.completed) {
       progress.completed = true;
     }
-    if (lessonRating.completed) {
+    if (lessonRating.completed && progress.completionSnapshot?.source !== 'STAGES') {
       progress.stars = lessonRating.stars;
       progress.completionSnapshot = { source: 'CURRENT_ACTIVITIES', recordedAt: new Date(), activityIds: lessonActivities.map(a => a._id) };
     } else if (!progress.completed) {
       progress.stars = 0;
     }
 
-    // §4.10 — weakVocabulary must be able to shrink: correct answers accumulate
-    // streaks; after 2 consecutive correct answers the mistakeCount decreases,
-    // and the entry is removed once it reaches 0.
-    const weakMap = new Map();
-    for (const entry of progress.weakVocabulary || []) {
-      if (entry.vocabulary) weakMap.set(entry.vocabulary.toString(), entry);
-    }
-
-    for (const ans of gradedAnswers) {
-      if (!ans.vocabularyId) continue;
-      const key = ans.vocabularyId.toString();
-
-      if (ans.isCorrect) {
-        const entry = weakMap.get(key);
-        if (!entry) continue;
-        entry.consecutiveCorrect = (entry.consecutiveCorrect || 0) + 1;
-        if (entry.consecutiveCorrect >= 2) {
-          entry.consecutiveCorrect = 0;
-          entry.mistakeCount = (entry.mistakeCount || 1) - 1;
-        }
-      } else {
-        const entry = weakMap.get(key);
-        if (entry) {
-          entry.mistakeCount = (entry.mistakeCount || 0) + 1;
-          entry.consecutiveCorrect = 0;
-        } else {
-          progress.weakVocabulary.push({ vocabulary: ans.vocabularyId, mistakeCount: 1, consecutiveCorrect: 0 });
-        }
+    // Rebuild from distinct persisted submissions, so retry and late responses
+    // cannot count mistakes twice. This also repairs a partially saved request.
+    const weak = new Map();
+    for (const row of [...lessonActivityResults].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))) {
+      for (const ans of row.answers || []) {
+        if(!ans.vocabularyId) continue;
+        const key=String(ans.vocabularyId), value=weak.get(key)||{vocabulary:ans.vocabularyId,mistakeCount:0,consecutiveCorrect:0};
+        if(ans.isCorrect) { value.consecutiveCorrect++; if(value.consecutiveCorrect>=2){value.mistakeCount=Math.max(0,value.mistakeCount-1);value.consecutiveCorrect=0;} }
+        else {value.mistakeCount++;value.consecutiveCorrect=0;}
+        weak.set(key,value);
       }
     }
-
-    // Drop entries that dropped to 0 mistakes
-    progress.weakVocabulary = progress.weakVocabulary.filter((entry) => (entry.mistakeCount || 0) > 0);
-
-    await progress.save();
+    progress.weakVocabulary=[...weak.values()].filter(v=>v.mistakeCount>0);
+    await Progress.updateOne({_id:progress._id},{$max:{stars:progress.stars,highestScore:progress.highestScore,attempts:progress.attempts},$set:{weakVocabulary:progress.weakVocabulary,...(progress.completed?{completed:true,completionSnapshot:progress.completionSnapshot}:{})}});
     lessonCompleted = Boolean(progress.completed);
 
     // §1.2.9 — unit completion hook (idempotent)

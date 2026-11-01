@@ -1,5 +1,4 @@
-const { Progress, User, ActivityResult, Lesson, LearningSession } = require('../models');
-const { getOrCreateSession } = require('../services/learningService');
+const { Progress, User, ActivityResult } = require('../models');
 
 // @desc    Get child learning progress summary and weak words
 // @route   GET /api/children/:childId/progress
@@ -59,7 +58,7 @@ const getChildProgress = async (req, res, next) => {
         completedLessonsCount,
         progressList,
         weakVocabulary: Object.values(weakWordsMap),
-        recentActivityResults: recentResults
+        recentActivityResults: await require('../services/learningHistory').recentHistory(id,recentResults,5)
       }
     });
   } catch (error) {
@@ -74,7 +73,7 @@ const getLessonProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
     const progress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
-      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage2Stars stage3Completed stage3Stars'
+      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage2Stars stage3Completed stage3Stars stage3Games'
     );
     res.status(200).json({ success: true, data: progress });
   } catch (error) {
@@ -82,61 +81,14 @@ const getLessonProgress = async (req, res, next) => {
   }
 };
 
-// @desc    Mark Stage 1 (flashcards) or Stage 2 (practice studio) complete.
-//          Stage 2 also pushes the real practice score into the active
-//          LearningSession so points are never wasted (§1.3.1).
+// @desc    Verify learning evidence and reconcile canonical stage progress.
 // @route   PUT /api/children/:childId/progress/:lessonId/stage
 // @access  Private (own child)
 const updateStageProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
-    const stage = Number(req.body.stage);
-    if (![1, 2, 3].includes(stage)) {
-      return res.status(400).json({ success: false, message: 'stage must be 1, 2, or 3.' });
-    }
-
-    const lesson = await Lesson.findById(lessonId).select('topic');
-    if (!lesson) {
-      return res.status(404).json({ success: false, message: 'Lesson not found.' });
-    }
-
-    const score = Math.max(0, Number(req.body.score) || 0);
-    const stars = Math.min(3, Math.max(0, Number(req.body.stars) || 0));
-
-    // Upsert on the unique {child, lesson} pair — Stage 2 keeps the best score
-    const update = {
-      $set: {
-        child: childId,
-        lesson: lessonId,
-        topic: lesson.topic,
-        lastActivityAt: new Date()
-      }
-    };
-    if (stage === 1) {
-      update.$set.stage1Completed = true;
-    } else if (stage === 2) {
-      update.$set.stage2Completed = true;
-      update.$max = { stage2Score: score, stage2Stars: stars };
-    } else {
-      update.$set.stage3Completed = true;
-      update.$set.completed = true;
-      update.$max = { stage3Stars: stars, stars };
-    }
-
-    const progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId }, update, {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true
-    });
-
-    // §1.3.1 — practice points must not be wasted: add them to the open session
-    if ((stage === 2 || stage === 3) && (score > 0 || stars > 0)) {
-      const session = await getOrCreateSession(childId, lessonId);
-      session.totalScore = (session.totalScore || 0) + score;
-      session.stars = Math.max(session.stars || 0, stars);
-      await session.save();
-    }
-
+    await require('../services/childAccess').assertChildAccess(req, childId, true);
+    const progress = await require('../services/stageLearning').completeStage(childId, lessonId, req.body);
     res.status(200).json({ success: true, data: progress });
   } catch (error) {
     next(error);

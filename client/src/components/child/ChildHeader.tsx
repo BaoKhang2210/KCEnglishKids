@@ -90,8 +90,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   return (
     <>
       {/* Compact ChildHeader: fixed slim height so 100dvh screens never overflow */}
-      <header className="mx-2 sm:mx-4 rounded-[22px] border border-amber-900/70 border-t-0 bg-[#13110e]/95 px-3 sm:px-6 h-14 sm:h-16 sticky top-0 z-30 shadow-[0_8px_24px_rgba(0,0,0,0.32)] outline-none ring-0 flex items-center overflow-x-auto no-scrollbar shrink-0">
-        <div className="max-w-[1700px] min-w-max w-full mx-auto flex items-center justify-between gap-3 sm:gap-4">
+      <header className="w-full border-b border-amber-200/70 bg-[#fffdf8]/95 backdrop-blur-md px-4 sm:px-8 h-16 sm:h-20 sticky top-0 z-30 shadow-[0_4px_20px_rgba(245,158,11,0.06)] outline-none ring-0 flex items-center shrink-0">
+        <div className="w-full flex items-center justify-between gap-3 sm:gap-6">
           
           {/* Brand Logo & Mascot Mini */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -109,25 +109,25 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 >
                   KCEnglishKids
                 </span>
-                <span className="block text-[10px] lg:text-[11px] font-black text-amber-600 uppercase tracking-wider">
+                <span className="block text-[10px] lg:text-[11px] font-black text-amber-700 uppercase tracking-wider">
                   Mầm Non 3–6 Tuổi
                 </span>
               </div>
             </button>
 
             {/* Desktop navigation: 5 destinations */}
-            <div className="hidden xl:flex items-center gap-2 2xl:gap-4 ml-4 2xl:ml-6 pl-4 2xl:pl-6 border-l-[3px] border-amber-200 flex-shrink-0">
+            <div className="hidden xl:flex items-center gap-2 2xl:gap-4 ml-4 2xl:ml-6 pl-4 2xl:pl-6 border-l-2 border-amber-200/80 flex-shrink-0">
               
               <button
                 onClick={() => handleNav('path')}
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isPathActive
                     ? 'bg-amber-400 text-amber-950 shadow-[inset_0_-3px_0_#b45309]'
-                    : 'text-stone-300 hover:bg-amber-300/10 hover:text-amber-200 border-2 border-transparent hover:border-amber-800 hover:shadow-sm'
+                    : 'text-slate-600 hover:bg-amber-100/70 hover:text-amber-900 border-2 border-transparent hover:border-amber-200 shadow-2xs'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
-                <Map className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isPathActive ? 'text-amber-900' : 'text-slate-500'}`} />
+                <Map className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isPathActive ? 'text-amber-900' : 'text-slate-400'}`} />
                 <span className="text-[14px] 2xl:text-[16px] leading-none">Hành trình</span>
               </button>
 
@@ -136,7 +136,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isTopicsActive
                     ? 'bg-emerald-500 text-white shadow-[inset_0_-3px_0_#047857]'
-                    : 'text-stone-300 hover:bg-emerald-300/10 hover:text-emerald-200 border-2 border-transparent hover:border-emerald-800 hover:shadow-sm'
+                    : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 border-2 border-transparent hover:border-emerald-200 shadow-2xs'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -149,7 +149,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isVocabActive
                     ? 'bg-rose-500 text-white shadow-[inset_0_-3px_0_#be123c]'
-                    : 'text-stone-300 hover:bg-rose-300/10 hover:text-rose-200 border-2 border-transparent hover:border-rose-800 hover:shadow-sm'
+                    : 'text-slate-600 hover:bg-rose-50 hover:text-rose-900 border-2 border-transparent hover:border-rose-200 shadow-2xs'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -162,7 +162,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isGamesActive
                     ? 'bg-sky-500 text-white shadow-[inset_0_-3px_0_#0369a1]'
-                    : 'text-stone-300 hover:bg-sky-300/10 hover:text-sky-200 border-2 border-transparent hover:border-sky-800 hover:shadow-sm'
+                    : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900 border-2 border-transparent hover:border-sky-200 shadow-2xs'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -175,7 +175,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isBadgesActive
                     ? 'bg-purple-500 text-white shadow-[inset_0_-3px_0_#6d28d9]'
-                    : 'text-stone-300 hover:bg-purple-300/10 hover:text-purple-200 border-2 border-transparent hover:border-purple-800 hover:shadow-sm'
+                    : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900 border-2 border-transparent hover:border-purple-200 shadow-2xs'
                 }`}
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
@@ -207,7 +207,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                     sfx.playPop();
                     setShowBadgesModal(true);
                   }}
-                  className="hidden lg:flex items-center gap-2 sm:gap-3 bg-[#211d18] hover:bg-[#2b251d] border border-amber-900/80 hover:border-amber-600 pl-1.5 pr-3 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-sm"
+                  className="hidden lg:flex items-center gap-2 sm:gap-3 bg-amber-50/90 hover:bg-amber-100 border-2 border-amber-200/80 hover:border-amber-300 pl-1.5 pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs"
                   title={`Hồ sơ của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel}`}
                 >
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0">
@@ -222,10 +222,10 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                     )}
                   </div>
                   <span className="flex flex-col items-start leading-tight">
-                    <span className="font-black text-[15px] sm:text-[17px] text-white whitespace-nowrap" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
+                    <span className="font-black text-[15px] sm:text-[16px] text-slate-800 whitespace-nowrap" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
                       {user.name}
                     </span>
-                    <span className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-300 whitespace-nowrap">
+                    <span className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 whitespace-nowrap">
                       <BookOpen className="h-3 w-3" aria-hidden="true" />
                       {currentOption.book} <span className="text-amber-100/80">· {currentOption.ageLabel}</span>
                     </span>

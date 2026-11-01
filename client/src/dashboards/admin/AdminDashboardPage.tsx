@@ -112,7 +112,7 @@ export const AdminDashboardPage: React.FC = () => {
   const quickActions = [
     {
       title: 'Lớp học & Trẻ em',
-      desc: 'Gán giáo viên chủ nhiệm, thêm xóa học sinh theo lớp, nhập xuất danh sách Excel.',
+      desc: 'Gán giáo viên, thêm xóa học sinh theo lớp, nhập xuất danh sách Excel.',
       to: '/admin/classrooms',
       icon: School,
       color: 'indigo',

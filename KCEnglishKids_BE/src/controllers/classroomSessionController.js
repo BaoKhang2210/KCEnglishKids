@@ -3,6 +3,7 @@ const access = require('../services/teacherAccess');
 const rules = require('../services/teacherRules');
 const { activeScheduleFilter } = require('../services/scheduleRules');
 const ai = require('../services/aiService');
+const { lessonGuide, closureDecision } = require('../services/earlyLearning');
 const { idOf, validId, fail } = rules;
 const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
 const wrap = handler => async (req, res, next) => { try { await handler(req, res); } catch (error) { next(error); } };
@@ -31,10 +32,10 @@ async function checkTiming(req, classroom) {
   if (req.user.role === 'ADMIN') return;
   const schedules = await Schedule.find({ classroom, teacher: req.user._id, ...activeScheduleFilter() });
   const slots = schedules.flatMap(item => item.weeklySlots || []);
-  // Classes without a timetable support an ad-hoc lesson; preparation is always allowed.
+  // Preparation is allowed anytime; teaching requires an effective admin timetable.
   if (!slots.length) {
     if (await Schedule.exists({ classroom, teacher: req.user._id, isActive: true })) fail('Thời khóa biểu của lớp chưa có hiệu lực hoặc đã hết hiệu lực. Vui lòng kiểm tra với quản trị viên.', 409);
-    return;
+    fail('Lớp chưa có thời khóa biểu. Vui lòng liên hệ quản trị viên để xếp lịch trước khi bắt đầu.', 409);
   }
   const clock = rules.vnClock();
   const mins = value => value.split(':').reduce((n, part) => n * 60 + Number(part), 0);
@@ -45,7 +46,7 @@ async function checkTiming(req, classroom) {
 async function populateSession(item, summary = false) {
   await item.populate('classroom', 'name ageGroupCode teacher');
   await item.populate('teacher', 'name avatar avatarUrl');
-  await item.populate({ path: 'lesson', select: 'title vietnameseTitle description vocabularyItems languageContents topic curriculumUnits', populate: [
+  await item.populate({ path: 'lesson', select: 'title vietnameseTitle description ageGroupCode learningObjectives vocabularyItems languageContents topic curriculumUnits', populate: [
     { path: 'vocabularyItems', select: 'english vietnamese pronunciation audioUrl imageUrl category' },
     { path: 'languageContents', match: { status: 'ACTIVE' } },
     { path: 'curriculumUnits', select: 'unitNumber bookNumber bigQuestion title' },
@@ -57,7 +58,10 @@ async function populateSession(item, summary = false) {
     await item.populate('summary.studentsNeedingPractice', 'name avatar avatarUrl');
     await item.populate('summary.topPerformers', 'name avatar avatarUrl');
   }
-  return item;
+  const data = item.toObject ? item.toObject() : item;
+  data.teachingGuide = data.teachingGuideSnapshot || lessonGuide(data.lesson, data.ageGroup);
+  if (data.teachingGoals?.length) data.teachingGuide.goals = data.teachingGoals;
+  return data;
 }
 exports.getSessions = wrap(async (req, res) => {
   const query = scope(req);
@@ -110,7 +114,7 @@ exports.createSession = wrap(async (req, res) => {
   const session = await ClassroomSession.create({ classroom: room._id, teacher: req.user._id, lesson: lesson?._id || null,
     title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
     status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,
-    activities: activityIds, lessonPlan: plan,
+    activities: activityIds, lessonPlan: plan, teachingGoals: lessonGuide(lesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(lesson,room.ageGroupCode),
     studentScores: roster.map(student => ({ student, attendance: map.get(idOf(student)) || 'PRESENT' }))
   });
   if (records) {
@@ -140,13 +144,17 @@ exports.startSession = wrap(async (req, res) => {
   res.json({ success: true, data: item });
 });
 exports.endSession = wrap(async (req, res) => {
-  const item = await saveSession(req, session => {
+  const item = await saveSession(req, async session => {
     if (session.status === 'COMPLETED') return false;
     rules.requireLive(session);
+    const lesson = session.lesson ? await Lesson.findById(session.lesson).populate('vocabularyItems') : null;
+    const guide = session.teachingGuideSnapshot || lessonGuide(lesson,session.ageGroup);
+    if(session.teachingGoals?.length)guide.goals=session.teachingGoals;
+    session.teachingOutcome = closureDecision(req.body||{},guide,session.studentScores);
     session.status = 'COMPLETED'; session.endedAt = new Date(); rules.summarize(session);
   }, true);
   // Idempotent progress update is also retried when the end request is repeated.
-  if (item.lesson) await ClassRoom.updateOne({ _id: item.classroom, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: item.lesson } });
+  if (item.lesson && item.teachingOutcome?.coverage === 'COMPLETE') await ClassRoom.updateOne({ _id: item.classroom, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: item.lesson } });
   res.json({ success: true, data: await populateSession(item, true) });
 });
 exports.scoreStudent = wrap(async (req, res) => {

@@ -7,6 +7,16 @@ const vocab = (id: string, extra: Partial<Vocabulary> = {}): Vocabulary => ({
 });
 
 describe('Stage 3 vocabulary selection', () => {
+  it('keeps synonyms and identical pictures out of distractors, including the unit fallback', () => {
+    const target = vocab('dad', { english: 'Dad', imageUrl: '/father.svg' });
+    const father = vocab('father', { imageUrl: '/different-father.svg' });
+    const man = vocab('man', { imageUrl: '/father.svg' });
+    const picks = pickDistractors('dad', [target, father, man], [vocab('mom', { english: 'Mom' }), vocab('mother'), vocab('dog')], 4);
+    expect(picks).toHaveLength(2);
+    expect(picks.some(word => ['dad', 'father', 'man'].includes(word._id))).toBe(false);
+    expect(buildTargetSequence([target, father, vocab('dog')], 2, ['noun'])).toHaveLength(2);
+    expect(new Set(buildTargetSequence([target, father, vocab('dog')], 2, ['noun']))).toContain('dog');
+  });
   it('infers common word types and defaults to nouns', () => {
     expect(getWordType(vocab('one'))).toBe('number');
     expect(getWordType(vocab('jump'))).toBe('verb');

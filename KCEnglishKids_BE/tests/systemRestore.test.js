@@ -26,6 +26,12 @@ test('restore refuses a non-empty destination before writing anything', async ()
   assert.equal(db.writes, 0);
   assert.equal(db.contents.users[0].name, 'Existing');
 });
+test('complete older v3 backups initialize new event collections; v3.1 requires them',()=>{
+ const old=payload();delete old.collections.learningevents;delete old.collections.masteryevents;
+ assert.ok(validateBackup(old).has('learningevents'));assert.deepEqual(old.collections.learningevents,[]);
+ const current={...payload(),version:'3.1.0'};delete current.collections.learningevents;
+ assert.throws(()=>validateBackup(current),/missing collections/);
+});
 test('restore preserves original BSON types and credential hashes', async () => {
   const backup = payload();
   backup.collections.users = [{ _id: new mongoose.Types.ObjectId(), createdAt: new Date(), password: 'synthetic-password-hash', pin: 'synthetic-pin-hash' }];

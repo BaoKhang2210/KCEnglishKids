@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
+const { vocabularyArtOverride } = require('./vocabulary_art_overrides');
 const root = path.resolve(__dirname, '../..');
 const cache = path.join(root, '.tmp/asset-source');
 const output = path.join(root, 'client/public/images');
@@ -88,6 +89,11 @@ function glyph(emoji, x = 32, y = 32, width = 256, height = width) {
   return normalized.replace(/<svg\b[^>]*>/, tag => tag.replace(/\s(width|height|x|y)="[^"]*"/g, '').replace('>', ` x="${x}" y="${y}" width="${width}" height="${height}">`));
 }
 const wrap = (label, body, w = 320, h = 320) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img"><title>${esc(label)}</title>${body}</svg>`;
+const writeArtwork = (filename, content) => {
+  const normalized = value => value.replace(/g\d+_/g, 'g_');
+  if (fs.existsSync(filename) && normalized(fs.readFileSync(filename, 'utf8')) === normalized(content)) return;
+  fs.writeFileSync(filename, content);
+};
 function composition(items, baby = false) {
   if (items.length === 1) return glyph(items[0]);
   if (baby) return glyph(items[0], 0, 30, 240) + glyph(items[1], 170, 155, 135);
@@ -153,29 +159,31 @@ async function main() {
     }
   }));
   for (const dir of ['vocabulary', 'animations', 'topics', 'symbols', 'licenses']) fs.mkdirSync(path.join(output, dir), { recursive: true });
-  const manifest = { version: 'learning-art-v1', source: 'Microsoft Fluent Emoji + KCEnglishKids educational compositions', revision, license: 'MIT', vocabulary: {}, topics: {}, symbols: {} };
+  const manifest = { version: 'learning-art-v2', source: 'Microsoft Fluent Emoji + KCEnglishKids educational compositions', revision, license: 'MIT', vocabulary: {}, topics: {}, symbols: {} };
   for (const v of VOCABULARY_DATA) {
     const k = key(v.normalizedText); let body; let type = 'symbol';
-    if (colors[k]) { type = 'color'; body = `<path d="M85 50Q180 15 250 75Q300 150 245 240Q150 300 75 250Q15 155 85 50" fill="${colors[k]}" stroke="${k === 'white' ? '#CBD5E1' : colors[k]}" stroke-width="8"/><ellipse cx="115" cy="95" rx="32" ry="18" fill="white" opacity=".35" transform="rotate(-30 115 95)"/>`; }
+    const semanticArt = vocabularyArtOverride(k, { glyph, rect, line });
+    if (semanticArt) { type = ['aunt', 'uncle', 'cousin', 'brother', 'sister'].includes(k) ? 'scene' : 'diagram'; body = semanticArt; }
+    else if (colors[k]) { type = 'color'; body = `<path d="M85 50Q180 15 250 75Q300 150 245 240Q150 300 75 250Q15 155 85 50" fill="${colors[k]}" stroke="${k === 'white' ? '#CBD5E1' : colors[k]}" stroke-width="8"/><ellipse cx="115" cy="95" rx="32" ry="18" fill="white" opacity=".35" transform="rotate(-30 115 95)"/>`; }
     else if (numbers[k]) { type = 'number'; const n = numbers[k], cols = n <= 3 ? n : n <= 8 ? 4 : 5, rows = Math.ceil(n / cols), size = Math.min(90, 260 / cols, 260 / rows); body = Array.from({ length: n }, (_, i) => `<circle cx="${160 - (cols - 1) * size / 2 + i % cols * size}" cy="${160 - (rows - 1) * size / 2 + Math.floor(i / cols) * size}" r="${size * .34}" fill="${['#FB7185', '#FBBF24', '#34D399', '#38BDF8', '#A78BFA'][i % 5]}"/>`).join(''); }
     else if (diagramKeys.has(k)) { type = 'diagram'; body = diagram(k); }
     else if (scenes[k]) { type = 'scene'; body = composition(scenes[k], ['calf', 'lamb', 'duckling', 'foal'].includes(k)); }
     else body = glyph(glyphFor(v));
-    const file = `/images/vocabulary/${k}-v1.svg`;
-    fs.writeFileSync(path.join(root, 'client/public', file), wrap(v.en, body));
-    const animationUrl = `/images/animations/${k}-v1.svg`;
-    fs.writeFileSync(path.join(root, 'client/public', animationUrl), wrap(v.en, '<style>@media(prefers-reduced-motion:no-preference){.art{transform-origin:160px 210px;animation:float 3.2s ease-in-out infinite}@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-9px) rotate(2deg)}}}</style><g class="art">' + body + '</g>'));
+    const file = `/images/vocabulary/${k}-${semanticArt ? 'v2' : 'v1'}.svg`;
+    writeArtwork(path.join(root, 'client/public', file), wrap(v.en, body));
+    const animationUrl = `/images/animations/${k}-${semanticArt ? 'v2' : 'v1'}.svg`;
+    writeArtwork(path.join(root, 'client/public', animationUrl), wrap(v.en, '<style>@media(prefers-reduced-motion:no-preference){.art{transform-origin:160px 210px;animation:float 3.2s ease-in-out infinite}@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-9px) rotate(2deg)}}}</style><g class="art">' + body + '</g>'));
     manifest.vocabulary[k] = { english: v.en, url: file, animationUrl, isTransparent: type === 'symbol' && !['verb', 'phrase', 'adjective'].includes(v.pos), visualType: type === 'scene' || ['verb', 'phrase', 'adjective'].includes(v.pos) ? 'abstract' : 'concrete', kind: type };
   }
   for (const topic of TOPICS_DATA) {
     const items = topicGlyphs[topic.slug]; if (!items) throw new Error('Missing topic ' + topic.slug);
     const body = `<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="${topic.colorCode}" stop-opacity=".16"/><stop offset="1" stop-color="#FFFDF6"/></linearGradient></defs><rect width="640" height="400" rx="38" fill="url(#sky)"/><circle cx="555" cy="65" r="33" fill="#FDE68A"/><path d="M0 315Q175 235 350 320Q500 255 640 300V400H0Z" fill="${topic.colorCode}" opacity=".18"/>` + glyph(items[0], 25, 65, 275) + glyph(items[1], 265, 115, 190) + glyph(items[2], 440, 100, 175);
     const file = `/images/topics/${topic.slug}-v1.svg`;
-    fs.writeFileSync(path.join(root, 'client/public', file), wrap(topic.englishName, body, 640, 400)); manifest.topics[topic.slug] = { url: file, isTransparent: false };
+    writeArtwork(path.join(root, 'client/public', file), wrap(topic.englishName, body, 640, 400)); manifest.topics[topic.slug] = { url: file, isTransparent: false };
   }
   for (const emoji of new Set([...extra, ...required])) {
     const k = [...emoji].map(c => c.codePointAt(0).toString(16)).join('-');
-    const file = `/images/symbols/${k}.svg`; fs.writeFileSync(path.join(root, 'client/public', file), wrap(unicodeNames.get(emoji.replace(/\uFE0F/g, '')) || 'Illustration', glyph(emoji)));
+    const file = `/images/symbols/${k}.svg`; writeArtwork(path.join(root, 'client/public', file), wrap(unicodeNames.get(emoji.replace(/\uFE0F/g, '')) || 'Illustration', glyph(emoji)));
     manifest.symbols[emoji] = file;
   }
   if (fs.existsSync(path.join(cache, 'fluent-license.txt'))) fs.copyFileSync(path.join(cache, 'fluent-license.txt'), path.join(output, 'licenses/fluent-emoji-MIT.txt'));
