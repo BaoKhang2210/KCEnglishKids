@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { Vocabulary } from '../../../types';
 import { playWordAudio, stopWordAudio, sfx } from '../../../utils/audio';
+import { wordArt } from '../../../utils/learningArt';
 import { KokoMascot } from '../KokoMascot';
 
 /**
@@ -494,7 +495,12 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
 
   const wordKey = (currentWord?.english || '').toLowerCase().trim();
   const fallbackEmoji = EMOJI_MAP[wordKey] || (currentWord as any)?.category || '🌟';
-  const hasImage = Boolean(currentWord?.imageUrl && !imageErrorMap[currentWord._id || currentWord.english]);
+  const cleanArt = wordArt(currentWord?.english || '');
+  const rawImgUrl = currentWord?.animationUrl || currentWord?.imageUrl || '';
+  const resolvedImgUrl = (!rawImgUrl || rawImgUrl.startsWith('data:image/svg+xml')) && cleanArt?.url
+    ? cleanArt.url
+    : rawImgUrl;
+  const hasImage = Boolean(resolvedImgUrl && !imageErrorMap[currentWord._id || currentWord.english]);
 
   // Animation trượt ngang khi chuyển thẻ
   let slideClass = '';
@@ -569,7 +575,7 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
               <div className="relative z-20 flex-1 min-h-0 w-full flex items-center justify-center p-3">
                 {hasImage ? (
                   <img
-                    src={currentWord.animationUrl || currentWord.imageUrl}
+                    src={resolvedImgUrl}
                     alt={currentWord.english}
                     onError={() => {
                       setImageErrorMap(prev => ({
@@ -622,11 +628,11 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
               {/* Viền nét đứt bên trong */}
               <div className="absolute inset-2.5 sm:inset-3 rounded-[24px] border-2 border-dashed border-amber-300/40 pointer-events-none z-10" />
 
-              {/* Hình ảnh thu nhỏ ở phía trên mặt sau */}
+              {/* Hình ảnh minh họa ở phía trên mặt sau */}
               <div className="relative z-20 w-36 h-36 sm:w-44 sm:h-44 rounded-3xl bg-slate-800/60 border-2 border-slate-700/70 p-3 flex items-center justify-center shadow-inner shrink-0">
                 {hasImage ? (
                   <img
-                    src={currentWord.imageUrl}
+                    src={resolvedImgUrl}
                     alt={currentWord.english}
                     className="max-h-full max-w-full object-contain filter drop-shadow-md"
                     draggable={false}
@@ -636,20 +642,22 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
                 )}
               </div>
 
-              {/* Tên từ tiếng Anh chữ rất lớn và đậm ở giữa */}
-              <div className="relative z-20 shrink-0 w-full flex items-center justify-center text-center px-2">
-                <h2
-                  className="font-black text-amber-300 tracking-tight leading-none uppercase font-display drop-shadow-md break-words max-w-full"
-                  style={{
-                    fontSize:
-                      currentWord.english.length > 10
-                        ? 'clamp(2rem, 5.5vh, 2.8rem)'
-                        : 'clamp(2.5rem, 7vh, 3.8rem)'
-                  }}
-                >
-                  {currentWord.english}
-                </h2>
-              </div>
+              {/* Nhãn chữ tiếng Anh: chỉ hiển thị khi đã lật sang mặt sau (isFlipped) */}
+              {isFlipped && (
+                <div className="relative z-20 shrink-0 w-full flex items-center justify-center text-center px-2 animate-fade-in">
+                  <h2
+                    className="font-black text-amber-300 tracking-tight leading-none uppercase font-display drop-shadow-md break-words max-w-full"
+                    style={{
+                      fontSize:
+                        currentWord.english.length > 10
+                          ? 'clamp(2rem, 5.5vh, 2.8rem)'
+                          : 'clamp(2.5rem, 7vh, 3.8rem)'
+                    }}
+                  >
+                    {currentWord.english}
+                  </h2>
+                </div>
+              )}
             </div>
           </div>
         </div>
