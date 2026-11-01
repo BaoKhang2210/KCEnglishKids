@@ -66,10 +66,10 @@ exports.updateUser = handler(async (req, res) => {
   if (has(body, 'dob')) user.dob = I.parseDob(body.dob);
   if (has(body, 'status')) {
     if (!['ACTIVE', 'INACTIVE', 'LOCKED'].includes(body.status)) throw I.fail('Trạng thái không hợp lệ.');
-    if (user.role === 'TEACHER' && body.status !== 'ACTIVE' && await ClassRoom.exists({ teacher: user._id, status: { $ne: 'INACTIVE' } })) throw I.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản này.');
+    if (user.role === 'TEACHER' && body.status !== 'ACTIVE' && await ClassRoom.exists({ teacher: user._id, status: { $in: ['ACTIVE', 'UPCOMING'] } })) throw I.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản này.');
     user.status = body.status;
   }
-  if (user.role === 'TEACHER' && has(body, 'assignedClass') && !room && await ClassRoom.exists({ teacher: user._id, status: { $ne: 'INACTIVE' } })) throw I.fail('Hãy chọn giáo viên thay thế tại trang Lớp học trước khi gỡ phân công.');
+  if (user.role === 'TEACHER' && has(body, 'assignedClass') && !room && await ClassRoom.exists({ teacher: user._id, status: { $in: ['ACTIVE', 'UPCOMING'] } })) throw I.fail('Hãy chọn giáo viên thay thế tại trang Lớp học trước khi gỡ phân công.');
   await user.validate();
   await I.atomic(async () => {
     if (user.role === 'CHILD' && has(body, 'assignedClass')) {
@@ -86,7 +86,10 @@ exports.updateUser = handler(async (req, res) => {
       if (!age) throw I.fail('Nhóm tuổi không hợp lệ.');
       user.ageGroupCode = body.ageGroupCode; user.ageGroup = age._id;
     }
-    if (user.role === 'TEACHER' && room) { await I.syncTeacher(room, user._id); user.assignedClass = room._id; }
+    if (user.role === 'TEACHER' && room) {
+      if (!['ACTIVE', 'UPCOMING'].includes(room.status)) throw I.fail('Chỉ phân công tài khoản giáo viên vào lớp đang hoạt động hoặc sắp mở.');
+      await I.syncTeacher(room, user._id); user.assignedClass = room._id;
+    }
     await user.save();
   });
   await I.audit(req, 'UPDATE_USER', 'User', user._id, { name: user.name, role: user.role });
@@ -138,12 +141,15 @@ exports.deleteClassroom = handler(async (req, res) => {
   }
   const ids = room.deletionStudentIds || [];
   await I.atomic(async () => {
-    for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion']) await models[name].deleteMany({ child: { $in: ids } });
+    for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent']) await models[name].deleteMany({ child: { $in: ids } });
+    await models.LearningObservation.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
+    await models.HomePracticePlan.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
     for (const name of ['TeacherNote', 'VocabularyMastery']) await models[name].deleteMany({ student: { $in: ids } });
     await models.Assignment.deleteMany({ $or: [{ classRoom: room._id }, { student: { $in: ids } }] });
     await models.ParentNotification.deleteMany({ child: { $in: ids } });
     await ClassRecognition.deleteMany({ classroom: room._id });
     await ClassRecognition.updateMany({ 'winners.child': { $in: ids } }, { $pull: { winners: { child: { $in: ids } }, ranking: { child: { $in: ids.map(String) } } } });
+    await models.SchoolRecognition.updateMany({ 'winners.child': { $in: ids } }, { $pull: { winners: { child: { $in: ids } }, ranking: { child: { $in: ids.map(String) } } } });
     for (const name of ['Attendance', 'ClassroomSession', 'Schedule']) await models[name].deleteMany({ classroom: room._id });
     await models.Attendance.updateMany({ 'records.student': { $in: ids } }, { $pull: { records: { student: { $in: ids } } } });
     await ClassroomSession.updateMany({ 'studentScores.student': { $in: ids } }, { $pull: { studentScores: { student: { $in: ids } }, 'questionResults.$[].studentAnswers': { student: { $in: ids } }, 'summary.topPerformers': { $in: ids }, 'summary.studentsNeedingPractice': { $in: ids } } });
@@ -226,7 +232,7 @@ exports.exportSystemBackup = handler(async (req, res) => {
   for (const model of Object.values({ ...models, ClassRecognition })) {
     collections[model.collection.name] = await model.collection.find({}).toArray();
   }
-  const payload = { system: 'KCEnglishKids', exportType: 'FULL_SYSTEM_BACKUP', version: '3.0.0', format: 'mongodb-extended-json', exportedAt: new Date(), collections };
+  const payload = { system: 'KCEnglishKids', exportType: 'FULL_SYSTEM_BACKUP', version: '3.4.0', format: 'mongodb-extended-json', exportedAt: new Date(), collections };
   await I.audit(req, 'EXPORT_SYSTEM_BACKUP', 'System', undefined, { totalCollections: Object.keys(collections).length });
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Disposition', `attachment; filename="KCEnglishKids_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json"`);

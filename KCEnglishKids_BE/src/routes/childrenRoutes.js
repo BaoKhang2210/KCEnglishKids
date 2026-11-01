@@ -8,6 +8,11 @@ const {
 const vocabMasteryController = require('../controllers/vocabMasteryController');
 const { getChildRewards, revealChildChest } = require('../controllers/rewardController');
 const { protect, ownChildOr403 } = require('../middlewares/authMiddleware');
+const early = require('../controllers/earlyLearningController');
+router.get('/:childId/home-practice',protect,ownChildOr403(),require('../controllers/homePracticeController').family);
+router.get('/:childId/lesson-guide/:id', protect, ownChildOr403(), early.guide);
+router.get('/:childId/observations', protect, ownChildOr403(), early.familyList);
+router.get('/:childId/observations/:id/media', protect, ownChildOr403(), early.media);
 
 /**
  * §3.1.2/§3.1.11/§3.1.12 — every :childId route is `protect` + `ownChildOr403`.
@@ -18,10 +23,16 @@ const { protect, ownChildOr403 } = require('../middlewares/authMiddleware');
  */
 
 // Progress summary + weak vocabulary
+router.get('/:childId/review-plan', protect, ownChildOr403(), async(req,res,next)=>{try{res.json({success:true,data:await require('../services/learningInsights').reviewPlan(req.params.childId)});}catch(error){next(error);}});
+router.get('/:childId/weekly-summary', protect, ownChildOr403(), async(req,res,next)=>{try{res.json({success:true,data:await require('../services/learningInsights').weeklySummary(req.params.childId)});}catch(error){next(error);}});
 router.get('/:childId/progress', protect, ownChildOr403(), getChildProgress);
 
 // §1.3.1 — 3-stage pipeline: per-lesson stage state (server is source of truth)
 router.get('/:childId/progress/:lessonId', protect, ownChildOr403(), getLessonProgress);
+router.get('/:childId/progress/:lessonId/plan', protect, ownChildOr403(), async(req,res,next)=>{try{
+  await require('../services/childAccess').assertChildAccess(req,req.params.childId,true);
+  res.json({success:true,data:await require('../services/learningPlan').createPlan(req.params.childId,req.params.lessonId)});
+}catch(error){next(error);}});
 router.put('/:childId/progress/:lessonId/stage', protect, ownChildOr403(), updateStageProgress);
 
 // Vocabulary mastery (Phase 5)

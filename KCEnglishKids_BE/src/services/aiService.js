@@ -461,6 +461,97 @@ function generateLessonPlan({
   };
 }
 
+// ─── Class Gap Detection (§3.7) ───────────────────────────────────────────────
+// Rule-based analysis of class-wide vocabulary mastery. A word is a "gap" when
+// fewer than GAP_DEFAULT_THRESHOLD (70%) of the class reached MASTERED or the
+// overall answer accuracy on that word stays under the same threshold.
+const GAP_DEFAULT_THRESHOLD = 0.7;
+const gapPercent = value => Math.round(value * 100);
+
+function detectClassGaps({ students = [], vocabularies = [], masteryRows = [], threshold = GAP_DEFAULT_THRESHOLD } = {}) {
+  const studentIds = new Set(students.map(id => String(id?._id || id)));
+  const studentCount = studentIds.size;
+  const wordById = new Map();
+  for (const vocab of vocabularies) {
+    if (vocab?._id) wordById.set(String(vocab._id), vocab);
+  }
+  const rowsByVocab = new Map();
+  for (const row of masteryRows) {
+    const vocabId = String(row?.vocabulary?._id || row?.vocabulary || '');
+    if (!vocabId || !wordById.has(vocabId)) continue;
+    if (!rowsByVocab.has(vocabId)) rowsByVocab.set(vocabId, []);
+    rowsByVocab.get(vocabId).push(row);
+  }
+
+  const gaps = [];
+  const healthy = [];
+  for (const [vocabId, word] of wordById) {
+    const rows = rowsByVocab.get(vocabId) || [];
+    const attempts = rows.reduce((sum, row) => sum + (row.attemptCount || 0), 0);
+    const correct = rows.reduce((sum, row) => sum + (row.correctCount || 0), 0);
+    const practicedStudents = new Set(rows.filter(row => (row.attemptCount || 0) > 0).map(row => String(row.student?._id || row.student)));
+    const masteredStudents = rows.filter(row => (row.masteryLevel || 0) >= 3).length;
+    const accuracy = attempts > 0 ? correct / attempts : 0;
+    const coverage = studentCount > 0 ? practicedStudents.size / studentCount : 0;
+    const masteredRate = studentCount > 0 ? masteredStudents / studentCount : 0;
+    const summary = {
+      vocabularyId: vocabId,
+      english: word.english,
+      vietnamese: word.vietnamese,
+      difficulty: word.difficulty || 1,
+      practicedStudents: practicedStudents.size,
+      masteredStudents,
+      coveragePercent: gapPercent(coverage),
+      accuracyPercent: attempts > 0 ? gapPercent(accuracy) : null,
+      masteredPercent: gapPercent(masteredRate)
+    };
+    const neverPracticed = practicedStudents.size === 0;
+    const weakAccuracy = attempts > 0 && accuracy < threshold;
+    const lowRetention = masteredRate < threshold;
+    if (!neverPracticed && !weakAccuracy && !lowRetention) {
+      healthy.push(summary);
+      continue;
+    }
+    const reasons = [];
+    if (neverPracticed) reasons.push('chưa bé nào luyện tập');
+    if (weakAccuracy) reasons.push(`độ đúng toàn lớp ${summary.accuracyPercent}%`);
+    if (coverage < 0.5 && !neverPracticed) reasons.push(`mới ${summary.practicedStudents}/${studentCount} bé từng luyện`);
+    if (lowRetention) reasons.push(`chỉ ${summary.masteredPercent}% bé đạt mức Thành thạo`);
+    const severity = neverPracticed || (attempts > 0 && accuracy <= 0.5) ? 'critical' : 'watch';
+    gaps.push({
+      ...summary,
+      severity,
+      reasons,
+      suggestion: neverPracticed
+        ? `Giới thiệu lại "${word.english} (${word.vietnamese})" bằng flashcard và trò chơi TPR đầu giờ.`
+        : severity === 'critical'
+          ? `Ôn gấp "${word.english} (${word.vietnamese})": cho bé nghe phát âm, gọi tên đồ vật thật trong lớp.`
+          : `Tổ chức trò chơi ôn tập với "${word.english} (${word.vietnamese})" và giao thêm 1 hoạt động về nhà.`
+    });
+  }
+
+  const severityRank = { critical: 0, watch: 1 };
+  gaps.sort((a, b) =>
+    (severityRank[a.severity] - severityRank[b.severity]) ||
+    (a.masteredPercent - b.masteredPercent) ||
+    ((a.accuracyPercent ?? 0) - (b.accuracyPercent ?? 0))
+  );
+  healthy.sort((a, b) => b.masteredPercent - a.masteredPercent);
+
+  return {
+    meta: {
+      studentCount,
+      wordCount: wordById.size,
+      gapCount: gaps.length,
+      threshold: gapPercent(threshold)
+    },
+    gaps,
+    healthy,
+    source: 'pedagogical_engine',
+    generative: false
+  };
+}
+
 module.exports = {
   currentStreak,
   answerAccuracy,
@@ -469,5 +560,6 @@ module.exports = {
   generateParentNote,
   normalizeTranscript,
   evaluatePronunciation,
-  generateLessonPlan
+  generateLessonPlan,
+  detectClassGaps
 };

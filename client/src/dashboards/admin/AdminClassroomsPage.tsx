@@ -128,7 +128,7 @@ export const AdminClassroomsPage: React.FC = () => {
     const map = new Map<string, string>();
     classrooms.forEach((c) => {
       const tId = c.teacher?._id || (typeof c.teacher === 'string' ? c.teacher : null);
-      if (tId && c.status !== 'INACTIVE') {
+      if (tId && ['ACTIVE', 'UPCOMING'].includes(c.status)) {
         map.set(String(tId), c.name);
       }
     });
@@ -1086,10 +1086,10 @@ export const AdminClassroomsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Giáo viên chủ nhiệm (1-1) */}
+              {/* Giáo viên (1-1) */}
               <div>
                 <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-2">
-                  Giáo Viên Phụ Trách <span className="text-rose-800">* (Mỗi GV chỉ dạy 1 lớp)</span>
+                  Giáo Viên Phụ Trách <span className="text-rose-800">* (Mỗi GV chỉ có 1 lớp đang hoạt động/sắp mở)</span>
                 </label>
                 <select
                   required
@@ -1109,7 +1109,7 @@ export const AdminClassroomsPage: React.FC = () => {
                         disabled={Boolean(assigned)}
                         className={assigned ? 'text-slate-600 italic' : 'text-slate-900 font-bold'}
                       >
-                        {t.name} ({t.email}) {assigned ? `[Đã chủ nhiệm: ${assigned}]` : '✓ Sẵn sàng'}
+                        {t.name} ({t.email}) {assigned ? `[Đã giảng dạy: ${assigned}]` : '✓ Sẵn sàng'}
                       </option>
                     );
                   })}

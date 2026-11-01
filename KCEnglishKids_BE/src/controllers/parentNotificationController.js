@@ -22,6 +22,7 @@ async function prepare(req, body) {
     if (!row) fail('Học sinh không thuộc buổi dạy.', 403);
   }
   if (templateType === 'SESSION_REPORT' && !session) fail('Báo cáo buổi học cần liên kết một buổi dạy đã kết thúc.');
+  if(session){const old=await ParentNotification.findOne({sourceKey:'session:'+session._id+':'+child._id}).lean();if(old)return old;}
   const room = session?.classroom || (child.assignedClass ? await ClassRoom.findById(child.assignedClass).select('name') : null);
   const accuracy = row && rules.present(row) ? rules.accuracy(row) : null;
   const mastery = templateType === 'PROGRESS_UPDATE' ? await VocabularyMastery.find({ student: child._id }).select('masteryLevel') : [];
@@ -34,19 +35,44 @@ async function prepare(req, body) {
   }
   if (mastery.length) lines.push('Từ vựng đã vững: ' + mastery.filter(item => item.masteryLevel === 3).length + '/' + mastery.length + ' từ đã luyện.');
   if (teacherNote) lines.push(teacherNote);
+  let learningSnapshot;
+  if(session&&body.basisToken){
+    const report=require('../services/familyLearningReport');
+    await session.populate('lesson','title vietnameseTitle');
+    learningSnapshot=report.snapshot(await report.row(session,child,row),body);
+    lines.push(...report.lines(learningSnapshot));
+  }
   return { teacher: req.user._id, child: child._id, session: session?._id || null,
     childName: child.name, className: room?.name || '', sessionDate: session?.startedAt || null,
     recipientContact: child.parentContact || child.contact || child.phone || '',
     subject: rules.text(body.subject, 200) || (session ? 'Báo cáo buổi học' : 'Trao đổi cùng gia đình'),
     teacherNote, content: lines.join('\n'), templateType, score: accuracy ?? 0, accuracy: accuracy ?? 0, stars,
     vocabTotal: mastery.length, vocabMastered: mastery.filter(item => item.masteryLevel === 3).length,
-    status: 'SENT', channel: 'IN_APP', sentAt: new Date(),
+    status: 'SENT', channel: 'IN_APP', sentAt: new Date(), learningSnapshot,
     ...(session ? { sourceKey: 'session:' + session._id + ':' + child._id } : {}) };
 }
 async function deliver(values) {
   // Delivery is the parent inbox inside this app. No email/SMS transport is configured.
-  return inbox.publish(values);
+  return values._id?values:inbox.publish(values);
 }
+exports.reportDraft=wrap(async(req,res)=>{
+  if(!validId(req.params.id))fail('Mã buổi học không hợp lệ.');
+  const session=await ClassroomSession.findOne({_id:req.params.id,...scope(req),status:'COMPLETED'}).populate('lesson','title vietnameseTitle').populate('studentScores.student','name');
+  if(!session)fail('Không tìm thấy buổi dạy đã kết thúc được phân công.',403);
+  await access.classroom(req,session.classroom);
+  const report=require('../services/familyLearningReport');
+  const rows=await Promise.all(session.studentScores.map(async score=>{
+    const child=await access.child(req,idOf(score.student));
+    const existing=await ParentNotification.findOne({sourceKey:'session:'+session._id+':'+child._id}).select('content').lean();
+    return {...await report.row(session,child,score),sentContent:existing?.content||null};
+  }));
+  res.json({success:true,data:{rows}});
+});
+exports.reportPreview=wrap(async(req,res)=>{
+  if(!validId(req.params.id)||!Array.isArray(req.body.childReports)||!req.body.childReports.length||req.body.childReports.length>200)fail('Danh sách báo cáo không hợp lệ.');
+  const values=await Promise.all(req.body.childReports.map(body=>prepare(req,{...body,sessionId:req.params.id,templateType:'SESSION_REPORT'})));
+  res.json({success:true,data:values.map(value=>({childId:idOf(value.child),content:value.content}))});
+});
 exports.sendNotification = wrap(async (req, res) => {
   const data = await deliver(await prepare(req, req.body));
   res.status(201).json({ success: true, channel: 'IN_APP', data });
@@ -81,7 +107,7 @@ exports.replyAsTeacher = wrap(async (req, res) => {
   const thread = await ParentNotification.findOne({ _id: req.params.id, ...scope(req) });
   if (!thread) fail('Không tìm thấy trao đổi được phân công.', 403);
   await access.child(req, thread.child);
-  const data = await ParentNotification.findOneAndUpdate({ _id: thread._id, ...scope(req) }, { $push: { replies: { senderRole: 'TEACHER', senderName: req.user.name, message, createdAt: new Date() } } }, { new: true, runValidators: true });
+  const data = await ParentNotification.findOneAndUpdate({ _id: thread._id, ...scope(req) }, { $push: { replies: { senderRole: 'TEACHER', senderName: req.user.name, message, createdAt: new Date() } } }, { returnDocument: 'after', runValidators: true });
   res.json({ success: true, data });
 });
 
@@ -109,16 +135,16 @@ exports.replyAsParent = async (req, res, next) => {
   try {
     const { childId, id } = req.params;
     if (req.user.role !== 'CHILD' || idOf(req.user._id) !== childId) return res.status(403).json({ success: false, message: 'Chỉ tài khoản gia đình của học sinh mới được phản hồi với vai trò phụ huynh.' });
-    const { message, parentName } = req.body;
+    const { message } = req.body;
     if (!validId(childId) || !validId(id)) return bad(res, 'Invalid IDs.');
     const cleanMessage = rules.text(message);
     if (!cleanMessage) return bad(res, 'Message is required.');
     const notif = await ParentNotification.findOneAndUpdate({ _id: id, child: childId, status: 'SENT' }, { $push: { replies: {
-      senderRole: 'PARENT',
-      senderName: rules.text(parentName, 100) || 'Phụ huynh',
+      senderRole: 'FAMILY',
+      senderName: 'Gia đình ' + (req.user.name || ''),
       message: cleanMessage,
       createdAt: new Date()
-    } } }, { new: true, runValidators: true });
+    } } }, { returnDocument: 'after', runValidators: true });
     if (!notif) return bad(res, 'Notification not found.');
 
     res.json({ success: true, data: notif });
@@ -140,7 +166,7 @@ exports.markAsReadByParent = async (req, res, next) => {
     const notif = await ParentNotification.findOneAndUpdate(
       { _id: id, child: childId },
       { readAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!notif) return bad(res, 'Notification not found.');
 

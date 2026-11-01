@@ -1,3 +1,4 @@
+import { SessionClosureForm, type Coverage } from '../../components/teacher/SessionClosureForm';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -32,14 +33,16 @@ import {
   Gift,
   LogOut
 } from 'lucide-react';
-import { classroomSessionApi, sentenceApi, teacherApi, aiApi } from '../../services/api';
+import { classroomSessionApi, sentenceApi, teacherApi } from '../../services/api';
 import type { ClassroomSession, StudentSessionScore, User, LessonPlan } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { playAnimalSound, stopAnimalSound } from '../../utils/animalAudio';
 import { sfx, playWordAudio } from '../../utils/audio';
+import { ClassroomActivities } from '../../components/teacher/ClassroomActivities';
 import { KokoSpeakingCoach } from '../../components/child/KokoSpeakingCoach';
+import { KokoMascot } from '../../components/child/KokoMascot';
 import type { SentencePattern } from './SentenceTeachingPage';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
-import { LiveSessionCopilotDrawer } from './LiveSessionCopilotDrawer';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const initials = (name?: string) =>
@@ -143,43 +146,29 @@ export const LiveSessionPage: React.FC = () => {
   // Joyous visual celebration state for scoring individual & whole-class
   const [celebrationEffect, setCelebrationEffect] = useState<{
     show: boolean;
-    type: 'stars' | 'points' | 'correct' | 'all';
+    type: 'stars' | 'correct' | 'all';
     message: string;
     studentName?: string;
     count?: number;
   } | null>(null);
 
-  // Auto-end Overtime Logic (Prevent sessions from running indefinitely)
+  // Planned duration is a reminder; the teacher decides when to close the lesson.
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
   const [overtimeSnoozeUntil, setOvertimeSnoozeUntil] = useState<number>(0);
 
   // Exit / End Session Modal state
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [coverage,setCoverage]=useState<Coverage>('CONTINUE');
+  const [goalsCovered,setGoalsCovered]=useState<string[]>([]);
+  const [reflection,setReflection]=useState('');
 
   // Classroom teaching views
   const [activeTab, setActiveTab] = useState<ViewTab>('presentation');
+  useEffect(() => () => stopAnimalSound(), [activeTab]);
   const [currentVocabIndex, setCurrentVocabIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // AI Teacher Copilot Drawer state
-  const [copilotOpen, setCopilotOpen] = useState(false);
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
-  const [copilotLoading, setCopilotLoading] = useState(false);
-
-  // Keyboard shortcut: Alt+K to toggle copilot drawer, Esc to close
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        setCopilotOpen((prev) => !prev);
-      }
-      if (e.key === 'Escape' && copilotOpen) {
-        setCopilotOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [copilotOpen]);
 
   // Warm-up Phase state (Ôn tập từ vựng, mẫu câu hoặc Nhảy Koko Freeze Dance)
   const [previousLesson, setPreviousLesson] = useState<any | null>(null);
@@ -245,6 +234,11 @@ export const LiveSessionPage: React.FC = () => {
   const [animalGameIndex, setAnimalGameIndex] = useState(0);
   const [animalSelectedChoiceId, setAnimalSelectedChoiceId] = useState<string | null>(null);
   const [animalResultStatus, setAnimalResultStatus] = useState<'correct' | 'wrong' | null>(null);
+
+  useEffect(() => {
+    setAnswers({});
+    return () => stopAnimalSound();
+  }, [classroomGameMode, gameQuestionIdx, mysteryVocabIndex, animalGameIndex]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -323,23 +317,7 @@ export const LiveSessionPage: React.FC = () => {
       const lessonId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
       void loadSentencePatterns(lessonId, s.ageGroup || s.classroom?.ageGroupCode);
 
-      // Load AI Lesson Plan for Live Teacher Copilot & Classroom Execution
-      const curClassId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
-      if (s.lessonPlan) {
-        setLessonPlan(s.lessonPlan);
-      } else if (lessonId) {
-        setCopilotLoading(true);
-        aiApi.generateLessonPlan({
-          lessonId: String(lessonId),
-          classroomId: curClassId ? String(curClassId) : undefined,
-          durationMinutes: (s.plannedDuration === 15 ? 15 : s.plannedDuration === 35 ? 35 : 25) as any
-        })
-          .then((res) => {
-            if (res.data) setLessonPlan(res.data);
-          })
-          .catch((err) => console.warn('Could not load AI lesson plan for copilot:', err))
-          .finally(() => setCopilotLoading(false));
-      }
+      setLessonPlan(s.lessonPlan || null);
 
       // Fetch the immediately preceding lesson (bài học ngay trước đó) for Warm-up
       try {
@@ -461,16 +439,16 @@ export const LiveSessionPage: React.FC = () => {
 
   // Check if session has exceeded planned duration
   useEffect(() => {
-    if (!session || session.status === 'COMPLETED' || isOvertimeModalOpen) return;
+    if (!session || session.status === 'COMPLETED' || isOvertimeModalOpen || isExitModalOpen) return;
     const planned = session.plannedDuration || 35;
     if (elapsed >= planned && !showWarn) {
       setShowWarn(true);
     }
-    // If running over planned + 15 mins and not snoozed, trigger auto-end prompt modal
+    // Offer a reminder after 15 extra minutes, without ending the session.
     if (elapsed >= planned + 15 && Date.now() > overtimeSnoozeUntil) {
       setIsOvertimeModalOpen(true);
     }
-  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen]);
+  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen, isExitModalOpen]);
 
   // Safe vocabulary pool from lesson or built-in preschool dataset
   const activeVocabList = useMemo(() => {
@@ -542,13 +520,13 @@ export const LiveSessionPage: React.FC = () => {
   };
 
   // ── Question result submission ─────────────────────────────────────────────
-  const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '') => {
+  const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '', answerMap = answers) => {
     if (!session || scoringRef.current) return;
     scoringRef.current = true;
     try {
       const activity = session.activities?.find(item => item._id === activityId);
       const linkedActivity = activity?.questions?.[qIndex] ? activityId : undefined;
-      const studentAnswers = Object.entries(answers).filter(([studentId]) => session.studentScores.some(row => {
+      const studentAnswers = Object.entries(answerMap).filter(([studentId]) => session.studentScores.some(row => {
         const id = typeof row.student === 'string' ? row.student : row.student._id;
         return id === studentId && !['ABSENT', 'EXCUSED'].includes(row.attendance || '');
       })).map(([studentId, result]) => ({ studentId, result }));
@@ -562,7 +540,7 @@ export const LiveSessionPage: React.FC = () => {
   // ── Per-student scoring with Joyous Celebration & Instant Real-time Feedback ──────
   const applyScore = async (
     studentId: string,
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
     customMessage?: string
   ) => {
@@ -570,7 +548,7 @@ export const LiveSessionPage: React.FC = () => {
     scoringRef.current = true;
     try {
       await classroomSessionApi.scoreStudent(sessionId, { studentId, ...opts });
-      const update = (row: StudentSessionScore) => ({ ...row, stars: Math.max(0, row.stars + (opts.stars || 0)), points: Math.max(0, row.points + (opts.points || 0)), correctCount: Math.max(0, row.correctCount + (opts.correctDelta || 0)), incorrectCount: Math.max(0, row.incorrectCount + (opts.incorrectDelta || 0)) });
+      const update = (row: StudentSessionScore) => ({ ...row, stars: Math.max(0, row.stars + (opts.stars || 0)), correctCount: Math.max(0, row.correctCount + (opts.correctDelta || 0)), incorrectCount: Math.max(0, row.incorrectCount + (opts.incorrectDelta || 0)) });
       const matches = (row: StudentSessionScore) => (typeof row.student === 'string' ? row.student : row.student._id) === studentId;
       setSession(prev => prev ? { ...prev, studentScores: prev.studentScores.map(row => matches(row) ? update(row) : row) } : prev);
       setSpotlightStudent(prev => prev && matches(prev) ? update(prev) : prev);
@@ -580,12 +558,12 @@ export const LiveSessionPage: React.FC = () => {
       if (actionType === 'applause') sfx.playApplause(); else sfx.playStarFanfare();
       setCelebrationEffect({ show: true, type: 'stars', message: customMessage || 'Hoan hô ' + name + '! Cùng tiếp tục cố gắng nhé.', studentName: name, count: opts.stars || 0 });
       setTimeout(() => setCelebrationEffect(null), 2800);
-    } catch (e: any) { showToast(e.message || 'Chưa xác nhận được việc lưu điểm. Vui lòng kiểm tra lại.'); await load(); }
+    } catch (e: any) { showToast(e.message || 'Chưa xác nhận được việc lưu sao. Vui lòng kiểm tra lại.'); await load(); }
     finally { scoringRef.current = false; }
   };
   const applyBulkScore = async (
     studentIds: string[],
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     successMsg?: string
   ) => {
     if (!studentIds.length || scoringRef.current) return;
@@ -593,14 +571,14 @@ export const LiveSessionPage: React.FC = () => {
     try {
       await classroomSessionApi.scoreBulk(sessionId, { studentIds, ...opts });
       sfx.playStarFanfare();
-      showToast(successMsg || 'Đã lưu điểm động viên cho học sinh.');
+      showToast(successMsg || 'Đã lưu sao động viên cho học sinh.');
       await load();
-    } catch (e: any) { showToast(e.message || 'Chưa lưu được điểm. Vui lòng kiểm tra lại.'); await load(); }
+    } catch (e: any) { showToast(e.message || 'Chưa lưu được sao. Vui lòng kiểm tra lại.'); await load(); }
     finally { scoringRef.current = false; }
   };
 
-  // 1. Chấm điểm tất cả các bé đang có trạng thái Đúng (✓)
-  const handleAwardAllCorrect = (stars = 1, points = 5) => {
+  // 1. Ghi nhận tất cả các bé đang có trạng thái Đúng (✓)
+  const handleAwardAllCorrect = (stars = 1) => {
     const correctStudentIds = Object.entries(answers)
       .filter(([_, ans]) => ans === 'CORRECT')
       .map(([sid]) => sid);
@@ -612,15 +590,15 @@ export const LiveSessionPage: React.FC = () => {
 
     void applyBulkScore(
       correctStudentIds,
-      { stars, points },
-      `⭐ Đã thưởng +${stars} Sao & +${points}đ cho ${correctStudentIds.length} bé trả lời đúng!`
+      { stars },
+      `⭐ Đã thưởng +${stars} Sao cho ${correctStudentIds.length} bé trả lời đúng!`
     );
   };
 
   // 2. Thưởng CẢ LỚP cùng lúc (sửa lỗi thông báo báo +0 sao)
-  const handleAwardWholeClass = (stars = 1, points = 5) => {
+  const handleAwardWholeClass = (stars = 1) => {
     if (!session?.studentScores || session.studentScores.length === 0) return;
-    const allIds = session.studentScores.map(sc =>
+    const allIds = session.studentScores.filter(sc => !['ABSENT', 'EXCUSED'].includes(sc.attendance || '')).map(sc =>
       typeof sc.student === 'string' ? sc.student : (sc.student as User)._id || ''
     ).filter(Boolean);
 
@@ -630,13 +608,13 @@ export const LiveSessionPage: React.FC = () => {
 
     void applyBulkScore(
       allIds,
-      { stars, points },
+      { stars },
       message
     );
   };
 
   // 3. Thưởng các bé được tick chọn trong Multi-Select Mode
-  const handleAwardSelected = (opts: { stars?: number; points?: number; correctDelta?: number }, label: string) => {
+  const handleAwardSelected = (opts: { stars?: number; correctDelta?: number }, label: string) => {
     if (selectedStudentIds.length === 0) {
       showToast('⚠️ Vui lòng chọn ít nhất 1 học sinh!');
       return;
@@ -678,7 +656,7 @@ export const LiveSessionPage: React.FC = () => {
     if (ending || scoringRef.current) return;
     setEnding(true);
     try {
-      await classroomSessionApi.endSession(sessionId);
+      await classroomSessionApi.endSession(sessionId, {coverage, goalsCovered, reflection});
       navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
     } catch (e: any) { showToast(e.message || 'Chưa lưu được tổng kết. Vui lòng thử lại.'); }
     finally { setEnding(false); }
@@ -696,8 +674,11 @@ export const LiveSessionPage: React.FC = () => {
     navigate('/teacher/classes');
   };
 
-  // ── Auto end session when overtime expires ────────────────────────────────
-  const handleAutoEnd = handleCompleteAndExit;
+  const handleOvertimeClosure = () => {
+    setIsOvertimeModalOpen(false);
+    setOvertimeSnoozeUntil(Date.now() + 15 * 60 * 1000);
+    setIsExitModalOpen(true);
+  };
 
   if (pageError && !session) return <div className="min-h-screen p-8"><div className="teacher-error" role="alert">{pageError}<button onClick={() => void load()}>Thử lại</button></div><Link to="/teacher/classroom-sessions" className="teacher-button mt-5">Về nhật ký buổi dạy</Link></div>;
 
@@ -713,10 +694,10 @@ export const LiveSessionPage: React.FC = () => {
   if (session.status === 'SCHEDULED') return <div className="min-h-screen bg-slate-50 p-8"><div className="teacher-panel mx-auto max-w-xl"><p className="teacher-eyebrow">KẾ HOẠCH ĐÃ LƯU</p><h1 className="text-2xl font-bold">{session.title}</h1><p className="my-4">Buổi học chưa bắt đầu. Hãy kiểm tra danh sách trước khi mở lớp.</p><p className="text-sm text-slate-500 mb-5">{session.studentScores.length} học sinh · {session.plannedDuration} phút</p>{pageError && <p role="alert" className="text-red-700 mb-4">{pageError}</p>}<div className="flex flex-wrap gap-3"><button className="teacher-button primary" disabled={ending} onClick={async () => { setEnding(true); try { await classroomSessionApi.startSession(sessionId); await load(); } catch(e: any) { setPageError(e.message); } finally { setEnding(false); } }}>Bắt đầu buổi dạy</button><Link className="teacher-button" to="/teacher/classroom-sessions">Về nhật ký</Link></div></div></div>;
 
   const scores = (session.studentScores || []).filter(row => !['ABSENT', 'EXCUSED'].includes(row.attendance || ''));
-  const currentAct = session.activities?.[session.currentActivityIndex] || null;
   const correct = scores.reduce((n, s) => n + s.correctCount, 0);
   const totalStars = scores.reduce((n, s) => n + s.stars, 0);
-  const celebratedStudents = scores.map(row => typeof row.student === 'object' ? row.student : { _id: row.student, name: 'Học sinh' });
+  const starRanking = [...scores].sort((a, b) => b.stars - a.stars);
+  const rankFor = (stars: number) => 1 + starRanking.filter(row => row.stars > stars).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-white select-none">
@@ -729,8 +710,8 @@ export const LiveSessionPage: React.FC = () => {
       )}
 
       {/* ── Top bar: Header & Master Status ───────────────────────────────────────── */}
-      <header className="flex items-center justify-between border-b border-white/10 px-5 py-3 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
-        <div className="flex items-center gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+        <div className="flex flex-1 basis-72 items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-xl text-amber-950 font-black">
             🏫
           </div>
@@ -760,7 +741,7 @@ export const LiveSessionPage: React.FC = () => {
         </div>
 
         {/* View Mode Switcher Tabs (Desktop / Laptop) */}
-        <div className="hidden lg:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15">
+        <div className="order-3 hidden w-full overflow-x-auto lg:flex items-center bg-slate-800/90 p-1.5 rounded-2xl border border-white/15 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
           <button
             type="button"
             onClick={() => setActiveTab('warmup')}
@@ -840,7 +821,7 @@ export const LiveSessionPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 text-sm">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
           {/* Elapsed time */}
           <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 sm:px-3 py-1 font-bold text-xs">
             <Clock size={14} className="text-amber-300" />
@@ -859,22 +840,6 @@ export const LiveSessionPage: React.FC = () => {
             <Star size={14} className="fill-amber-400 text-amber-400" />
             {totalStars} sao
           </span>
-
-          {/* AI Teacher Copilot Live Button */}
-          <button
-            type="button"
-            onClick={() => setCopilotOpen(!copilotOpen)}
-            className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              copilotOpen
-                ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 scale-105'
-                : 'bg-white/10 hover:bg-white/20 text-amber-300 border border-amber-400/40'
-            }`}
-            title="Mở ngăn kéo Trợ lý nhắc bài AI (Alt+K)"
-          >
-            <Sparkles size={16} className={copilotOpen ? 'text-amber-950' : 'text-amber-300'} />
-            <span className="hidden xs:inline">Kịch bản AI</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-amber-200 hidden md:inline">Copilot</span>
-          </button>
 
           <button
             type="button"
@@ -1238,7 +1203,7 @@ export const LiveSessionPage: React.FC = () => {
                   <div className="mb-6">
                     {freezeState === 'idle' && (
                       <div className="flex flex-col items-center gap-3">
-                        <div className="text-7xl sm:text-8xl animate-bounce">🐒</div>
+                        <KokoMascot state="waving" size="lg" interactive={false} />
                         <h2 className="text-3xl sm:text-5xl font-black text-cyan-300 font-display">
                           Koko Freeze Dance!
                         </h2>
@@ -1309,7 +1274,7 @@ export const LiveSessionPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            handleAwardWholeClass(1, 5);
+                            handleAwardWholeClass(1);
                             showToast('⭐ Cả lớp đứng im xuất sắc! +1 sao cho tất cả các bé!');
                           }}
                           className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 text-slate-950 font-black text-sm sm:text-base px-6 py-3.5 rounded-2xl active:scale-95 transition-all cursor-pointer"
@@ -1362,7 +1327,7 @@ export const LiveSessionPage: React.FC = () => {
 
                 <div className="space-y-2.5">
                   <button
-                    onClick={() => handleAwardWholeClass(1, 5)}
+                    onClick={() => handleAwardWholeClass(1)}
                     className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-sm py-3 px-4 rounded-2xl active:scale-95 transition-all cursor-pointer"
                   >
                     <Star size={18} className="fill-white" />
@@ -1401,14 +1366,14 @@ export const LiveSessionPage: React.FC = () => {
                         {(spotlightStudent.student as User)?.name || 'Học sinh'}
                       </p>
                       <p className="text-xs text-amber-300 font-bold">
-                        ⭐ {spotlightStudent.stars} sao · {spotlightStudent.points}đ
+                        ⭐ {spotlightStudent.stars} sao
                       </p>
                     </div>
                     <button
                       onClick={() => {
                         const sid = typeof spotlightStudent.student === 'string' ? spotlightStudent.student : (spotlightStudent.student as User)._id;
                         if (sid) {
-                          applyScore(sid, { stars: 1, points: 5, correctDelta: 1 });
+                          applyScore(sid, { stars: 1, correctDelta: 1 });
                           showToast(`⭐ Đã thưởng sao cho ${(spotlightStudent.student as User)?.name}!`);
                         }
                       }}
@@ -1646,14 +1611,14 @@ export const LiveSessionPage: React.FC = () => {
               {/* Master whole-class award buttons */}
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <button
-                  onClick={() => handleAwardWholeClass(1, 5)}
+                  onClick={() => handleAwardWholeClass(1)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <Star size={14} className="fill-amber-400" />
                   <span>Cả lớp +1 ⭐</span>
                 </button>
                 <button
-                  onClick={() => handleAwardWholeClass(0, 5)}
+                  onClick={() => handleAwardWholeClass(0)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-300 hover:bg-sky-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <ThumbsUp size={14} />
@@ -1699,7 +1664,7 @@ export const LiveSessionPage: React.FC = () => {
                       <div className="flex shrink-0 items-center gap-2">
                         <button
                           onClick={() => {
-                            void applyScore(sid, { stars: 1, points: 5 });
+                            void applyScore(sid, { stars: 1 });
                             showToast(`⭐ +1 Sao cho ${sName}!`);
                           }}
                           className="min-h-11 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-sm cursor-pointer active:scale-95"
@@ -2001,7 +1966,7 @@ export const LiveSessionPage: React.FC = () => {
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
                   <Award size={18} className="text-teal-400" />
-                  <h3 className="font-black text-base text-white">Chấm Điểm Mẫu Câu</h3>
+                  <h3 className="font-black text-base text-white">Ghi nhận mẫu câu</h3>
                 </div>
                 <span className="text-xs font-bold text-slate-400">{scores.length} học sinh</span>
               </div>
@@ -2009,18 +1974,18 @@ export const LiveSessionPage: React.FC = () => {
               {/* Master whole-class award buttons */}
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <button
-                  onClick={() => handleAwardWholeClass(1, 5)}
+                  onClick={() => handleAwardWholeClass(1)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <Star size={14} className="fill-amber-400" />
                   <span>Cả lớp +1 ⭐</span>
                 </button>
                 <button
-                  onClick={() => handleAwardWholeClass(0, 5)}
+                  onClick={() => handleAwardWholeClass(0)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 hover:bg-teal-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <ThumbsUp size={14} />
-                  <span>Khen nói hay +5đ</span>
+                  <span>Vỗ tay khen nói hay</span>
                 </button>
               </div>
 
@@ -2048,7 +2013,7 @@ export const LiveSessionPage: React.FC = () => {
                           <p className="text-xs font-bold text-white truncate">{sName}</p>
                           <p className="text-[11px] text-teal-300 flex items-center gap-1 font-semibold">
                             <Star size={10} className="fill-amber-400 text-amber-400" />
-                            {sc.stars} sao &bull; {sc.points}đ
+                            {sc.stars} sao
                           </p>
                         </div>
                       </div>
@@ -2056,7 +2021,7 @@ export const LiveSessionPage: React.FC = () => {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => {
-                            void applyScore(sid, { stars: 1, points: 5 });
+                            void applyScore(sid, { stars: 1 });
                             showToast(`⭐ +1 Sao cho ${sName}!`);
                           }}
                           className="px-2 py-1 rounded-lg bg-teal-400 hover:bg-teal-300 text-teal-950 font-black text-xs cursor-pointer active:scale-95"
@@ -2085,6 +2050,8 @@ export const LiveSessionPage: React.FC = () => {
         {/* ========================================================================= */}
         {activeTab === 'games' && (
           <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-purple-500/40 p-6 sm:p-8">
+            <ClassroomActivities session={session} onSave={submitQuestionResult} />
+            <details className="rounded-2xl border border-white/20 p-4" hidden={!session.activities.length}><summary className="cursor-pointer text-lg font-bold text-white">Trò chơi chung bổ sung</summary>
             {/* Game Header & Mode selection */}
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6">
               <div className="flex items-center gap-3">
@@ -2094,7 +2061,7 @@ export const LiveSessionPage: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-black text-white">Trò Chơi Tương Tác Lớp Học</h2>
                   <p className="text-xs sm:text-sm font-bold text-slate-400">
-                    Sử dụng chính các từ vựng bé học ở nhà &bull; Cả lớp cùng tham gia & Chấm điểm tức thì!
+                    Sử dụng chính các từ vựng bé học ở nhà &bull; Cả lớp cùng tham gia & Ghi nhận tức thì!
                   </p>
                 </div>
               </div>
@@ -2142,7 +2109,7 @@ export const LiveSessionPage: React.FC = () => {
                 <Sparkles size={14} />
                 {classroomGameMode === 'mystery-box'
                   ? `Món đồ ${mysteryVocabIndex + 1} / ${activeVocabList.length}`
-                  : `Câu hỏi ${gameQuestionIdx + 1} / ${activeVocabList.length}`}
+                  : classroomGameMode === 'animal-sound' ? `Câu hỏi ${animalGameIndex % ANIMAL_ROSTER.length + 1} / ${ANIMAL_ROSTER.length}` : `Câu hỏi ${gameQuestionIdx % activeVocabList.length + 1} / ${activeVocabList.length}`}
               </span>
 
               {classroomGameMode === 'mystery-box' && (
@@ -2242,7 +2209,7 @@ export const LiveSessionPage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             sfx.playSuccess();
-                            handleAwardWholeClass(1, 5);
+                            handleAwardWholeClass(1);
                             showToast(`⭐ Cả lớp gọi đúng "${currentMysteryVocab.english}"! +1 sao!`);
                           }}
                           className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-white font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer"
@@ -2349,7 +2316,7 @@ export const LiveSessionPage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             sfx.playStarFanfare();
-                            handleAwardWholeClass(1, 5);
+                            handleAwardWholeClass(1);
                             showToast(`⭐ Thưởng cả lớp trả lời đúng câu hỏi!`);
                           }}
                           className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
@@ -2485,7 +2452,7 @@ export const LiveSessionPage: React.FC = () => {
                             type="button"
                             onClick={() => {
                               sfx.playStarFanfare();
-                              handleAwardWholeClass(1, 5);
+                              handleAwardWholeClass(1);
                               showToast(`⭐ Thưởng cả lớp trả lời đúng!`);
                             }}
                             className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
@@ -2541,7 +2508,7 @@ export const LiveSessionPage: React.FC = () => {
                         type="button"
                         onClick={() => {
                           sfx.playPop();
-                          sfx.playAnimal(currentAnimal.id);
+                          void playAnimalSound(currentAnimal.id).catch(() => showToast("Không phát được tiếng kêu. Vui lòng thử lại."));
                         }}
                         className="px-8 py-4 rounded-3xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-lg sm:text-xl flex items-center gap-3 active:scale-95 transition-all ring-6 ring-amber-300/30 animate-pulse cursor-pointer"
                       >
@@ -2624,7 +2591,7 @@ export const LiveSessionPage: React.FC = () => {
                             type="button"
                             onClick={() => {
                               sfx.playStarFanfare();
-                              handleAwardWholeClass(1, 5);
+                              handleAwardWholeClass(1);
                               showToast(`⭐ Thưởng cả lớp trả lời đúng con vật!`);
                             }}
                             className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
@@ -2656,7 +2623,7 @@ export const LiveSessionPage: React.FC = () => {
                           onClick={() => {
                             setAnimalSelectedChoiceId(null);
                             setAnimalResultStatus(null);
-                            playWordAudio(currentAnimal.soundText);
+                            void playAnimalSound(currentAnimal.id).catch(() => showToast("Không phát được tiếng kêu. Vui lòng thử lại."));
                           }}
                           className="ml-auto underline hover:text-white cursor-pointer"
                         >
@@ -2741,16 +2708,20 @@ export const LiveSessionPage: React.FC = () => {
               {/* Master Bulk Award Button for Game */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
                 <button
-                  onClick={() => handleAwardAllCorrect(1, 5)}
+                  onClick={() => handleAwardAllCorrect(1)}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm sm:text-base active:scale-95 cursor-pointer"
                 >
                   <Star size={18} className="fill-yellow-200 text-yellow-200" />
-                  <span>⭐ Thưởng tất cả các bé đúng (+1 Sao & +5đ)</span>
+                  <span>⭐ Thưởng tất cả các bé đúng (+1 Sao)</span>
                 </button>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => submitQuestionResult(currentAct?._id, gameQuestionIdx, currentVocab.english)}
+                    onClick={() => {
+                      const index = classroomGameMode === 'animal-sound' ? animalGameIndex % ANIMAL_ROSTER.length : classroomGameMode === 'mystery-box' ? mysteryVocabIndex : gameQuestionIdx;
+                      const word = classroomGameMode === 'animal-sound' ? ANIMAL_ROSTER[index].name : classroomGameMode === 'mystery-box' ? currentMysteryVocab.english : currentVocab.english;
+                      void submitQuestionResult(undefined, index, classroomGameMode + ': ' + word);
+                    }}
                     className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm cursor-pointer active:scale-95"
                     title="Ghi nhận vào tiến trình học của cả lớp"
                   >
@@ -2761,8 +2732,9 @@ export const LiveSessionPage: React.FC = () => {
                   <button
                     onClick={() => {
                       sfx.playPop();
-                      setGameQuestionIdx(i => (i + 1) % activeVocabList.length);
-                      setCurrentVocabIndex(i => (i + 1) % activeVocabList.length);
+                      if (classroomGameMode === 'animal-sound') { setAnimalGameIndex(i => i + 1); setAnimalSelectedChoiceId(null); setAnimalResultStatus(null); }
+                      else if (classroomGameMode === 'mystery-box') { setMysteryVocabIndex(i => (i + 1) % activeVocabList.length); setIsMysteryBoxOpen(false); }
+                      else { setGameQuestionIdx(i => (i + 1) % activeVocabList.length); setCurrentVocabIndex(i => (i + 1) % activeVocabList.length); setListenPickSelectedId(null); setListenPickStatus(null); setTfSelectedResult(null); }
                     }}
                     className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-sm cursor-pointer active:scale-95"
                   >
@@ -2772,11 +2744,12 @@ export const LiveSessionPage: React.FC = () => {
                 </div>
               </div>
             </div>
+            </details>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 4: WRAP-UP & CELEBRATION (Tổng Kết & Lễ Trao Thưởng Sao Vàng)        */}
+        {/* TAB 4: WRAP-UP & CELEBRATION (Tổng kết & xếp hạng sao)        */}
         {/* ========================================================================= */}
         {activeTab === 'wrapup' && (
           <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-amber-400/50 p-6 sm:p-8 space-y-7">
@@ -2806,9 +2779,13 @@ export const LiveSessionPage: React.FC = () => {
               </button>
             </div>
 
-            <section className="rounded-3xl border border-teal-400/30 bg-teal-950/30 p-6 sm:p-8">
-              <div className="text-center mb-6"><p className="text-teal-300 text-sm font-bold">MỖI NỖ LỰC ĐỀU ĐÁNG ĐƯỢC GHI NHẬN</p><h3 className="text-xl sm:text-2xl font-bold text-white mt-2">Cảm ơn các bé đã cùng học hôm nay!</h3></div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{celebratedStudents.map(student => <div key={student._id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-teal-300/20 text-teal-200 font-bold mb-3">{initials(student.name)}</div><strong className="text-sm text-white">{student.name}</strong><p className="text-xs text-teal-200 mt-2">Hẹn gặp bé ở buổi học tới 🌱</p></div>)}</div>
+            <section className="rounded-3xl border border-amber-400/30 bg-amber-950/20 p-5">
+              <h3 className="text-2xl font-black text-amber-200 mb-4">Bảng xếp hạng sao buổi học</h3>
+              <p className="text-sm text-slate-300 mb-4">Xếp theo sao kiếm được trong buổi học. Các bé bằng sao có cùng thứ hạng.</p>
+              <div className="overflow-x-auto"><table className="w-full text-left text-white"><thead><tr className="border-b border-white/20"><th className="p-3">Hạng</th><th className="p-3">Học sinh</th><th className="p-3">Sao kiếm được</th></tr></thead><tbody>{starRanking.map(row => {
+                const student = typeof row.student === 'object' ? row.student : { _id: row.student, name: 'Học sinh' };
+                return <tr key={student._id} className="border-b border-white/10"><td className="p-3 font-black">{row.stars > 0 ? rankFor(row.stars) : '—'}</td><td className="p-3 font-bold">{student.name}</td><td className="p-3 text-amber-200 font-black">⭐ {row.stars}</td></tr>;
+              })}</tbody></table></div>
             </section>
 
             {/* Goodbye Song Card */}
@@ -2839,9 +2816,9 @@ export const LiveSessionPage: React.FC = () => {
             {/* Finish Session Call to Action */}
             <div className="pt-2 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-emerald-900/60 to-teal-900/60 p-5 rounded-3xl border border-emerald-500/30">
               <div>
-                <h4 className="text-base font-black text-white">Kết Thúc Tiết Học & Xuất Báo Cáo</h4>
+                <h4 className="text-base font-black text-white">Khép lại buổi dạy</h4>
                 <p className="text-xs text-slate-300 font-medium">
-                  Lưu lại toàn bộ kết quả phát biểu, số sao và chuẩn bị gửi thông báo về ứng dụng phụ huynh.
+                  Ghi nhận nội dung đã dạy, lưu số sao và xem tổng kết trước khi gửi báo cáo cho gia đình.
                 </p>
               </div>
               <button
@@ -2851,14 +2828,14 @@ export const LiveSessionPage: React.FC = () => {
                 className="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 text-slate-950 font-black text-sm sm:text-base px-8 py-3.5 rounded-2xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
                 <StopCircle size={18} />
-                <span>{ending ? 'Đang hoàn tất…' : 'Hoàn Tất Tiết Học & Xuất Báo Cáo'}</span>
+                <span>{ending ? 'Đang hoàn tất…' : 'Ghi nhận & Kết thúc buổi dạy'}</span>
               </button>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: FULL CLASSROOM GRID & BULK GRADING (Lưới Quản Lý & Chấm Điểm)       */}
+        {/* TAB 5: FULL CLASSROOM GRID & BULK GRADING (Lưới quản lý & ghi nhận sao)       */}
         {/* ========================================================================= */}
         {activeTab === 'grid' && (
           <div className="flex-1 flex flex-col w-full max-w-[2200px] 2xl:max-w-none mx-auto">
@@ -2875,7 +2852,7 @@ export const LiveSessionPage: React.FC = () => {
                       Danh Sách Học Sinh ({scores.length} bạn)
                     </h2>
                     <p className="text-xs text-slate-400 font-bold">
-                      Nhấn vào từng ô để đánh dấu Đúng (✓) hoặc kích hoạt chấm điểm hàng loạt
+                      Nhấn vào từng ô để đánh dấu Đúng (✓) hoặc kích hoạt ghi nhận hàng loạt
                     </p>
                   </div>
                 </div>
@@ -2901,7 +2878,7 @@ export const LiveSessionPage: React.FC = () => {
 
                   {/* Award all correct button */}
                   <button
-                    onClick={() => handleAwardAllCorrect(1, 5)}
+                    onClick={() => handleAwardAllCorrect(1)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm active:scale-95 cursor-pointer"
                   >
                     <Star size={15} className="fill-yellow-200 text-yellow-200" />
@@ -2910,7 +2887,7 @@ export const LiveSessionPage: React.FC = () => {
 
                   {/* Award whole class */}
                   <button
-                    onClick={() => handleAwardWholeClass(1, 5)}
+                    onClick={() => handleAwardWholeClass(1)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-black text-xs sm:text-sm cursor-pointer active:scale-95"
                   >
                     <Trophy size={15} />
@@ -3010,19 +2987,19 @@ export const LiveSessionPage: React.FC = () => {
                 </span>
 
                 <button
-                  onClick={() => handleAwardSelected({ stars: 1, points: 5 }, '+1 Sao')}
+                  onClick={() => handleAwardSelected({ stars: 1 }, '+1 Sao')}
                   className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1 cursor-pointer active:scale-95"
                 >
                   <Star size={14} className="fill-amber-950" />
-                  +1 ⭐ (+5đ)
+                  +1 ⭐
                 </button>
 
                 <button
-                  onClick={() => handleAwardSelected({ stars: 3, points: 15 }, '+3 Sao')}
+                  onClick={() => handleAwardSelected({ stars: 3 }, '+3 Sao')}
                   className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-xs sm:text-sm flex items-center gap-1 cursor-pointer active:scale-95"
                 >
                   <Sparkles size={14} />
-                  +3 ⭐ (+15đ)
+                  +3 ⭐
                 </button>
 
                 <button
@@ -3094,18 +3071,6 @@ export const LiveSessionPage: React.FC = () => {
         />
       )}
 
-      {/* ── AI Teacher Copilot Teleprompter Drawer ─────────────────────────── */}
-      <LiveSessionCopilotDrawer
-        isOpen={copilotOpen}
-        onClose={() => setCopilotOpen(false)}
-        activeTab={activeTab}
-        lessonPlan={lessonPlan}
-        loading={copilotLoading}
-        currentVocab={currentVocab}
-        currentSentence={patterns[currentPatternIndex]}
-        onSelectTab={setActiveTab}
-      />
-
       {/* ── Visual Joyous Scoring Celebration Effect ─────────────────────────── */}
       {celebrationEffect && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-4">
@@ -3130,7 +3095,7 @@ export const LiveSessionPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Overtime Auto-End Prompt Modal ──────────────────────────────────── */}
+      {/* ── Overtime reminder ──────────────────────────────────── */}
       {isOvertimeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-amber-400 p-6 text-center">
@@ -3139,7 +3104,7 @@ export const LiveSessionPage: React.FC = () => {
             </div>
             <h3 className="text-xl font-black text-white">Buổi dạy đã quá giờ dự kiến!</h3>
             <p className="text-sm text-slate-300 mt-2">
-              Thời gian học dự kiến ({session.plannedDuration || 35} phút) đã kết thúc. Để đảm bảo dữ liệu buổi học được bảo toàn và không bị treo phòng học, bạn có thể kết thúc và lưu tổng kết khi đã sẵn sàng.
+              Buổi dạy đã vượt thời lượng dự kiến {session.plannedDuration || 35} phút. Bạn có thể tiếp tục hoạt động phù hợp với trẻ hoặc ghi nhận nội dung đã dạy để khép lại buổi học.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
@@ -3151,14 +3116,14 @@ export const LiveSessionPage: React.FC = () => {
                 }}
                 className="flex-1 rounded-2xl border border-white/20 bg-white/10 py-3 text-xs font-bold text-white hover:bg-white/20 transition-all cursor-pointer"
               >
-                Dạy thêm 15 phút
+                Nhắc lại sau 15 phút
               </button>
               <button
                 type="button"
-                onClick={handleAutoEnd}
+                onClick={handleOvertimeClosure}
                 className="flex-1 rounded-2xl bg-teal-600 hover:bg-teal-500 py-3 text-xs font-black text-white transition-all cursor-pointer"
               >
-                Kết thúc & Lưu ngay
+                Ghi nhận & Kết thúc
               </button>
             </div>
           </div>
@@ -3168,7 +3133,7 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Modal Xác Nhận Kết Thúc Hoặc Thoát Buổi Học ────────────────── */}
       {isExitModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-lg bg-slate-900 border-2 border-white/20 rounded-3xl p-6 text-white space-y-5 animate-pop-in">
+          <div role="dialog" aria-modal="true" aria-label="Ghi nhận nội dung và kết thúc buổi học" className="relative w-full max-w-lg max-h-[92dvh] overflow-y-auto bg-slate-900 border-2 border-white/20 rounded-3xl p-6 text-white space-y-5 animate-pop-in">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -3191,6 +3156,7 @@ export const LiveSessionPage: React.FC = () => {
 
             {/* Options */}
             <div className="space-y-3">
+              <SessionClosureForm guide={session.teachingGuide} coverage={coverage} onCoverage={setCoverage} covered={goalsCovered} onCovered={setGoalsCovered} reflection={reflection} onReflection={setReflection}/>
               {/* Option 1: Complete and view summary */}
               <button
                 type="button"
@@ -3201,14 +3167,14 @@ export const LiveSessionPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-black text-emerald-300 flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-emerald-400" />
-                    Hoàn Tất Buổi Học & Xuất Báo Cáo
+                    Kết thúc buổi dạy & Xem tổng kết
                   </span>
                   <span className="text-[11px] font-bold bg-emerald-500 text-slate-950 px-2.5 py-0.5 rounded-full">
-                    {ending ? 'Đang lưu…' : 'Khuyên Dùng'}
+                    {ending ? 'Đang lưu…' : 'Lưu buổi dạy'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                  Chốt toàn bộ số sao thưởng, điểm số và chuyển sang trang tổng kết để gửi phiếu nhận xét về Sổ liên lạc của phụ huynh.
+                  Lưu số sao cùng nội dung đã chọn ở trên và mở tổng kết. Bạn xem lại báo cáo trước khi bấm gửi cho phụ huynh.
                 </p>
               </button>
 
@@ -3225,7 +3191,7 @@ export const LiveSessionPage: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                  Lưu lại các điểm số hiện tại của bé và thoát ra ngoài danh sách buổi dạy. Bạn có thể tiếp tục buổi học này bất kỳ lúc nào.
+                  Lưu lại các số sao hiện tại của bé và thoát ra ngoài danh sách buổi dạy. Bạn có thể tiếp tục buổi học này bất kỳ lúc nào.
                 </p>
               </button>
 
@@ -3359,14 +3325,13 @@ const StudentCard = ({
           {name}
         </p>
 
-        {/* Stars and points pill */}
+        {/* Stars pill */}
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs font-bold text-slate-300 bg-white/5 py-1 px-2.5 rounded-full border border-white/5">
           <span className="flex items-center gap-1 text-amber-300">
             <Star size={11} className="fill-amber-400 text-amber-400" />
             {score.stars}
           </span>
           <span className="text-slate-500">&bull;</span>
-          <span>{score.points}đ</span>
         </div>
       </div>
 
@@ -3379,7 +3344,7 @@ const StudentCard = ({
           }}
           className="flex-1 rounded-xl bg-white/10 hover:bg-white/20 py-1.5 text-xs font-black text-white transition-colors cursor-pointer"
         >
-          Chấm điểm
+          Ghi nhận
         </button>
         <button
           onClick={(e) => {
@@ -3408,7 +3373,7 @@ const SpotlightModal = ({
   onClose: () => void;
   onPickAnother: () => void;
   onApply: (
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
     customMessage?: string
   ) => void;
@@ -3419,7 +3384,7 @@ const SpotlightModal = ({
   const [awardKey, setAwardKey] = useState(0);
 
   const handleReward = (
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     actionType: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct',
     badgeText: string,
     celebrationText: string
@@ -3483,7 +3448,7 @@ const SpotlightModal = ({
             type="button"
             onClick={() =>
               handleReward(
-                { points: 5 },
+                {},
                 'applause',
                 '👏 Hoan hô!',
                 `👏 Cả lớp vỗ tay hoan hô ${name}!`
@@ -3502,7 +3467,7 @@ const SpotlightModal = ({
             type="button"
             onClick={() =>
               handleReward(
-                { stars: 1, points: 10 },
+                { stars: 1 },
                 'loud_clear',
                 '+1 ⭐ 🗣️',
                 `🗣️ ${name} nói to, rõ ràng và rất tự tin! +1 ⭐`
@@ -3521,7 +3486,7 @@ const SpotlightModal = ({
             type="button"
             onClick={() =>
               handleReward(
-                { stars: 3, points: 15, correctDelta: 1 },
+                { stars: 3, correctDelta: 1 },
                 'excellent_pronunciation',
                 '+3 ⭐ 🌟',
                 `🌟 Tuyệt vời! ${name} phát âm cực kỳ chuẩn! +3 ⭐`
@@ -3540,7 +3505,7 @@ const SpotlightModal = ({
             type="button"
             onClick={() =>
               handleReward(
-                { correctDelta: 1, points: 5 },
+                { correctDelta: 1 },
                 'correct',
                 '🎯 Trả lời đúng!',
                 `🎯 Hoan hô! ${name} trả lời hoàn toàn chính xác!`
@@ -3586,7 +3551,7 @@ const ScoringModal = ({
   score: StudentSessionScore;
   onClose: () => void;
   onApply: (
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
     customMessage?: string
   ) => void;
@@ -3597,7 +3562,7 @@ const ScoringModal = ({
   const [awardKey, setAwardKey] = useState(0);
 
   const handleReward = (
-    opts: { stars?: number; points?: number; correctDelta?: number; incorrectDelta?: number },
+    opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
     badgeText?: string,
     customMessage?: string
@@ -3628,7 +3593,7 @@ const ScoringModal = ({
             )}
             <h3 className="text-xl font-black text-white">{name}</h3>
             <p className="text-xs text-slate-300 font-bold mt-0.5">
-              ⭐ {score.stars || 0} sao &bull; {score.points || 0} điểm &bull; ✓ {score.correctCount || 0} đúng
+              ⭐ {score.stars || 0} sao &bull; ✓ {score.correctCount || 0} đúng
             </p>
           </div>
         </div>
@@ -3637,13 +3602,13 @@ const ScoringModal = ({
         <div className="mb-4 grid grid-cols-2 gap-2.5">
           <ActionBtn
             label="✓ Đúng"
-            sub="+5 điểm"
+            sub="ghi nhận câu trả lời"
             color="emerald"
             onClick={() =>
               handleReward(
-                { correctDelta: 1, points: 5 },
+                { correctDelta: 1 },
                 'correct',
-                '+1 Đúng (+5đ)',
+                '+1 Đúng ',
                 `🎯 Hoan hô! ${name} trả lời đúng!`
               )
             }
@@ -3663,50 +3628,30 @@ const ScoringModal = ({
           />
           <ActionBtn
             label="⭐ +1 Sao"
-            sub="khen ngợi (+10đ)"
+            sub="khen ngợi"
             color="amber"
             onClick={() =>
               handleReward(
-                { stars: 1, points: 10 },
+                { stars: 1 },
                 'loud_clear',
-                '+1 ⭐ (+10đ)',
+                '+1 ⭐ ',
                 `🗣️ ${name} cố gắng rất tốt! +1 ⭐`
               )
             }
           />
           <ActionBtn
             label="🎉 +3 Sao"
-            sub="xuất sắc! (+15đ)"
+            sub="xuất sắc!"
             color="violet"
             onClick={() =>
               handleReward(
-                { stars: 3, points: 15, correctDelta: 1 },
+                { stars: 3, correctDelta: 1 },
                 'excellent_pronunciation',
-                '+3 ⭐ (+15đ)',
+                '+3 ⭐ ',
                 `🌟 Xuất sắc! Thưởng ${name} 3 sao vàng!`
               )
             }
           />
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {[5, 10, 20].map((pts) => (
-            <button
-              key={pts}
-              type="button"
-              onClick={() =>
-                handleReward(
-                  { points: pts },
-                  'applause',
-                  `+${pts}đ`,
-                  `👏 Thưởng ${pts} điểm cho ${name}!`
-                )
-              }
-              className="rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-black text-slate-300 hover:bg-white/10 cursor-pointer active:scale-95 transition-all"
-            >
-              +{pts} điểm
-            </button>
-          ))}
         </div>
 
         <button

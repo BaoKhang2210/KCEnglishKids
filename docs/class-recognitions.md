@@ -1,4 +1,10 @@
-# Giao diện nhân viên và vinh danh lớp
+# Giao diện nhân viên và vinh danh lớp/trường
+
+## Cập nhật 01/11/2026 — vinh danh toàn trường
+
+Admin dùng **Vinh danh của trường**; giáo viên giữ **Ghi nhận & động viên** trong lớp. Quy tắc lớp ở dưới chỉ áp dụng trong phạm vi lớp. Vinh danh trường dùng tổng sao từ buổi lớp COMPLETED trong kỳ chia số buổi trẻ tham gia (PRESENT/LATE), tối thiểu 2 buổi tuần/4 buổi tháng. Bỏ ABSENT/EXCUSED, sao tự học, thưởng Unit và điểm. So sánh tỷ lệ chính xác, đồng tỷ lệ đồng hạng; không cộng sao khi công bố.
+
+API ADMIN: `GET /api/recognitions/school?kind=WEEK|MONTH&date=YYYY-MM-DD`, `POST /api/recognitions/school/publish` với kind/date. SchoolRecognition lưu bản chốt theo unique `(kind, periodStart)`, chính sách, minimumSessions, ranking và winners. Hộp thư trẻ gộp phần thưởng lớp/trường; trẻ chỉ đọc phần của mình. Chỉ công bố kỳ đã kết thúc và có trẻ đủ điều kiện, retry không sinh thưởng trùng. Xem [báo cáo sửa hệ thống](system-revision-2026-11-01.md).
 
 ## Dễ đọc và phù hợp quy trình dạy học
 
@@ -6,7 +12,7 @@ Các màn quản lý dùng nền sáng, màu chữ đậm và cùng một bảng
 
 ## Quy tắc vinh danh
 
-- Trong menu admin và giáo viên, chọn **Vinh danh của lớp**.
+- Trong menu giáo viên, chọn **Ghi nhận & động viên** để vinh danh lớp; admin dùng vinh danh trường theo quy tắc phía trên.
 - Tuần bắt đầu 00:00 thứ Hai, kết thúc 00:00 thứ Hai kế tiếp. Tháng là tháng dương lịch. Ranh giới luôn dùng giờ Việt Nam, không phụ thuộc múi giờ máy chủ.
 - Mỗi lớp tính riêng, theo tổng sao của các buổi có trạng thái COMPLETED và endedAt thuộc kỳ [bắt đầu, kết thúc). Buổi LIVE, sao tự học, điểm số, sao thưởng Unit không tham gia.
 - Chỉ học sinh CHILD đang ACTIVE, có trong danh sách lớp lúc xét. Bỏ qua điểm danh ABSENT/EXCUSED. Học sinh đến trễ vẫn được ghi nhận.

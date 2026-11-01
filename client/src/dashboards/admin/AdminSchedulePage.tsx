@@ -1029,10 +1029,11 @@ export const AdminSchedulePage: React.FC = () => {
               </div>
 
               {/* Danh sách các buổi học trong tuần */}
+              <p className="text-sm text-slate-600">Mỗi khung giờ là một buổi học cố định mỗi tuần. Để trống bài học để tự đề xuất bài chưa dạy tiếp theo; chọn bài cố định khi cần ôn tập.</p>
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Khung Giờ Học Hàng Tuần <span className="text-rose-800">*</span>
+                    Khung Giờ Học Hàng Tuần ({formData.weeklySlots.length} buổi/tuần) <span className="text-rose-800">*</span>
                   </label>
                   <button
                     type="button"

@@ -16,7 +16,16 @@
     "assets:install": "node scripts/install_learning_assets.js",
     "migrate:atlas": "node scripts/migrate_to_atlas.js",
     "test:admin": "node --test tests/admin*.test.js tests/system*.test.js",
-    "backup:restore": "node scripts/restore_system_backup.js"
+    "backup:restore": "node scripts/restore_system_backup.js",
+    "test:business": "node --test audits/business-flows.acceptance.js",
+    "audit:games": "node audits/game-coverage.audit.js",
+    "migrate:business": "node scripts/migrate_business_integrity.js",
+    "migrate:teaching": "node scripts/migrate_teaching_system.js",
+    "migrate:vocabulary": "node scripts/migrate_lesson_vocabulary.js",
+    "audit:vocabulary": "node scripts/audit_vocabulary_images.js",
+    "verify:teaching": "node scripts/verify_teaching_revision.js",
+    "migrate:early-learning": "node scripts/migrate_early_learning.js",
+    "verify:early-learning": "node scripts/verify_early_learning.js"
   },
   "keywords": [],
   "author": "",

@@ -1,0 +1,3892 @@
+{
+  "checkedAt": "2026-10-31T23:33:27.926Z",
+  "scope": "All database vocabulary compared with repository reference; original textbooks were not supplied.",
+  "counts": {
+    "database": 409,
+    "referenceWords": 409,
+    "seedWords": 409,
+    "units": 27,
+    "lessons": 108
+  },
+  "issues": [],
+  "curriculumReferences": [
+    {
+      "code": "B1_U1",
+      "missing": []
+    },
+    {
+      "code": "B1_U2",
+      "missing": []
+    },
+    {
+      "code": "B1_U3",
+      "missing": []
+    },
+    {
+      "code": "B1_U4",
+      "missing": []
+    },
+    {
+      "code": "B1_U5",
+      "missing": []
+    },
+    {
+      "code": "B1_U6",
+      "missing": []
+    },
+    {
+      "code": "B1_U7",
+      "missing": []
+    },
+    {
+      "code": "B1_U8",
+      "missing": []
+    },
+    {
+      "code": "B1_U9",
+      "missing": []
+    },
+    {
+      "code": "B2_U1",
+      "missing": []
+    },
+    {
+      "code": "B2_U2",
+      "missing": []
+    },
+    {
+      "code": "B2_U3",
+      "missing": []
+    },
+    {
+      "code": "B2_U4",
+      "missing": []
+    },
+    {
+      "code": "B2_U5",
+      "missing": []
+    },
+    {
+      "code": "B2_U6",
+      "missing": []
+    },
+    {
+      "code": "B2_U7",
+      "missing": []
+    },
+    {
+      "code": "B2_U8",
+      "missing": []
+    },
+    {
+      "code": "B2_U9",
+      "missing": []
+    },
+    {
+      "code": "B3_U1",
+      "missing": []
+    },
+    {
+      "code": "B3_U2",
+      "missing": []
+    },
+    {
+      "code": "B3_U3",
+      "missing": []
+    },
+    {
+      "code": "B3_U4",
+      "missing": []
+    },
+    {
+      "code": "B3_U5",
+      "missing": []
+    },
+    {
+      "code": "B3_U6",
+      "missing": []
+    },
+    {
+      "code": "B3_U7",
+      "missing": []
+    },
+    {
+      "code": "B3_U8",
+      "missing": []
+    },
+    {
+      "code": "B3_U9",
+      "missing": []
+    }
+  ],
+  "identicalArtworkGroups": [
+    [
+      "sun",
+      "sunny"
+    ],
+    [
+      "Dad",
+      "father",
+      "man"
+    ],
+    [
+      "Mom",
+      "mother",
+      "woman"
+    ],
+    [
+      "eyes",
+      "see"
+    ],
+    [
+      "nose",
+      "smell"
+    ],
+    [
+      "ears",
+      "hear"
+    ],
+    [
+      "sad",
+      "cry"
+    ],
+    [
+      "grandfather",
+      "old"
+    ],
+    [
+      "young",
+      "child"
+    ],
+    [
+      "cloud",
+      "cloudy"
+    ],
+    [
+      "paint",
+      "Art"
+    ],
+    [
+      "tidy up",
+      "sweep the floor"
+    ],
+    [
+      "breakfast",
+      "have breakfast"
+    ],
+    [
+      "dinner",
+      "eat dinner"
+    ],
+    [
+      "rough",
+      "rock"
+    ],
+    [
+      "Physical Education",
+      "soccer practice"
+    ],
+    [
+      "play music",
+      "music lessons"
+    ],
+    [
+      "drink",
+      "soda"
+    ]
+  ],
+  "sheets": [
+    "vocabulary-01.html",
+    "vocabulary-02.html",
+    "vocabulary-03.html",
+    "vocabulary-04.html",
+    "vocabulary-05.html",
+    "vocabulary-06.html",
+    "vocabulary-07.html",
+    "vocabulary-08.html",
+    "vocabulary-09.html"
+  ],
+  "inventory": [
+    {
+      "key": "air",
+      "english": "air",
+      "vietnamese": "Không khí, bầu trời",
+      "imageUrl": "/images/vocabulary/air-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "scene"
+    },
+    {
+      "key": "airplane",
+      "english": "airplane",
+      "vietnamese": "Máy bay",
+      "imageUrl": "/images/vocabulary/airplane-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "amusement_park",
+      "english": "amusement park",
+      "vietnamese": "Công viên giải trí",
+      "imageUrl": "/images/vocabulary/amusement_park-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "angry",
+      "english": "angry",
+      "vietnamese": "Tức giận",
+      "imageUrl": "/images/vocabulary/angry-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "apartment_building",
+      "english": "apartment building",
+      "vietnamese": "Tòa chung cư",
+      "imageUrl": "/images/vocabulary/apartment_building-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "apple",
+      "english": "apple",
+      "vietnamese": "Quả táo",
+      "imageUrl": "/images/vocabulary/apple-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "arms",
+      "english": "arms",
+      "vietnamese": "Cánh tay",
+      "imageUrl": "/images/vocabulary/arms-v2.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "art",
+      "english": "Art",
+      "vietnamese": "Môn Mỹ thuật",
+      "imageUrl": "/images/vocabulary/art-v1.svg",
+      "type": "noun",
+      "category": "subjects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "aunt",
+      "english": "aunt",
+      "vietnamese": "Cô / Dì / Bác gái",
+      "imageUrl": "/images/vocabulary/aunt-v2.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "scene"
+    },
+    {
+      "key": "baby",
+      "english": "baby",
+      "vietnamese": "Em bé",
+      "imageUrl": "/images/vocabulary/baby-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "backpack",
+      "english": "backpack",
+      "vietnamese": "Ba lô du lịch",
+      "imageUrl": "/images/vocabulary/backpack-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bad",
+      "english": "bad",
+      "vietnamese": "Hôi, dở",
+      "imageUrl": "/images/vocabulary/bad-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "ball",
+      "english": "ball",
+      "vietnamese": "Quả bóng",
+      "imageUrl": "/images/vocabulary/ball-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "balloon",
+      "english": "balloon",
+      "vietnamese": "Quả bóng bay",
+      "imageUrl": "/images/vocabulary/balloon-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bananas",
+      "english": "bananas",
+      "vietnamese": "Những quả chuối",
+      "imageUrl": "/images/vocabulary/bananas-v2.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "diagram"
+    },
+    {
+      "key": "bathroom",
+      "english": "bathroom",
+      "vietnamese": "Phòng tắm",
+      "imageUrl": "/images/vocabulary/bathroom-v1.svg",
+      "type": "noun",
+      "category": "rooms",
+      "artKind": "scene"
+    },
+    {
+      "key": "beach",
+      "english": "beach",
+      "vietnamese": "Bãi biển",
+      "imageUrl": "/images/vocabulary/beach-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "beak",
+      "english": "beak",
+      "vietnamese": "Mỏ chim",
+      "imageUrl": "/images/vocabulary/beak-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "beans",
+      "english": "beans",
+      "vietnamese": "Đậu hạt",
+      "imageUrl": "/images/vocabulary/beans-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bear",
+      "english": "bear",
+      "vietnamese": "Con gấu",
+      "imageUrl": "/images/vocabulary/bear-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "beautiful",
+      "english": "beautiful",
+      "vietnamese": "Xinh đẹp",
+      "imageUrl": "/images/vocabulary/beautiful-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bed",
+      "english": "bed",
+      "vietnamese": "Chiếc giường",
+      "imageUrl": "/images/vocabulary/bed-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bedroom",
+      "english": "bedroom",
+      "vietnamese": "Phòng ngủ",
+      "imageUrl": "/images/vocabulary/bedroom-v1.svg",
+      "type": "noun",
+      "category": "rooms",
+      "artKind": "scene"
+    },
+    {
+      "key": "bee",
+      "english": "bee",
+      "vietnamese": "Con ong",
+      "imageUrl": "/images/vocabulary/bee-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bike",
+      "english": "bike",
+      "vietnamese": "Xe đạp",
+      "imageUrl": "/images/vocabulary/bike-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "bird",
+      "english": "bird",
+      "vietnamese": "Con chim",
+      "imageUrl": "/images/vocabulary/bird-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "black",
+      "english": "black",
+      "vietnamese": "Màu đen",
+      "imageUrl": "/images/vocabulary/black-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "blocks",
+      "english": "blocks",
+      "vietnamese": "Khối xếp hình",
+      "imageUrl": "/images/vocabulary/blocks-v2.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "diagram"
+    },
+    {
+      "key": "blond",
+      "english": "blond",
+      "vietnamese": "Tóc vàng hoe",
+      "imageUrl": "/images/vocabulary/blond-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "blue",
+      "english": "blue",
+      "vietnamese": "Màu xanh dương",
+      "imageUrl": "/images/vocabulary/blue-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "board_game",
+      "english": "board game",
+      "vietnamese": "Trò chơi cờ",
+      "imageUrl": "/images/vocabulary/board_game-v2.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "diagram"
+    },
+    {
+      "key": "boat",
+      "english": "boat",
+      "vietnamese": "Thuyền nhỏ",
+      "imageUrl": "/images/vocabulary/boat-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "book",
+      "english": "book",
+      "vietnamese": "Quyển sách",
+      "imageUrl": "/images/vocabulary/book-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "boots",
+      "english": "boots",
+      "vietnamese": "Đôi ủng",
+      "imageUrl": "/images/vocabulary/boots-v2.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "diagram"
+    },
+    {
+      "key": "bored",
+      "english": "bored",
+      "vietnamese": "Buồn chán",
+      "imageUrl": "/images/vocabulary/bored-v2.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "diagram"
+    },
+    {
+      "key": "boy",
+      "english": "boy",
+      "vietnamese": "Cậu bé",
+      "imageUrl": "/images/vocabulary/boy-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "symbol"
+    },
+    {
+      "key": "breakfast",
+      "english": "breakfast",
+      "vietnamese": "Bữa sáng",
+      "imageUrl": "/images/vocabulary/breakfast-v1.svg",
+      "type": "noun",
+      "category": "meals",
+      "artKind": "scene"
+    },
+    {
+      "key": "brother",
+      "english": "brother",
+      "vietnamese": "Anh/em trai",
+      "imageUrl": "/images/vocabulary/brother-v2.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "scene"
+    },
+    {
+      "key": "brown",
+      "english": "brown",
+      "vietnamese": "Màu nâu",
+      "imageUrl": "/images/vocabulary/brown-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "brush",
+      "english": "brush",
+      "vietnamese": "Lược chải",
+      "imageUrl": "/images/vocabulary/brush-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "brush_my_hair",
+      "english": "brush my hair",
+      "vietnamese": "Chải tóc",
+      "imageUrl": "/images/vocabulary/brush_my_hair-v1.svg",
+      "type": "verb",
+      "category": "habits",
+      "artKind": "scene"
+    },
+    {
+      "key": "brush_teeth",
+      "english": "brush teeth",
+      "vietnamese": "Đánh răng",
+      "imageUrl": "/images/vocabulary/brush_teeth-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "build_a_sandcastle",
+      "english": "build a sandcastle",
+      "vietnamese": "Xây lâu đài cát",
+      "imageUrl": "/images/vocabulary/build_a_sandcastle-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "bus",
+      "english": "bus",
+      "vietnamese": "Xe buýt",
+      "imageUrl": "/images/vocabulary/bus-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "butterfly",
+      "english": "butterfly",
+      "vietnamese": "Con bướm",
+      "imageUrl": "/images/vocabulary/butterfly-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cake",
+      "english": "cake",
+      "vietnamese": "Bánh sinh nhật",
+      "imageUrl": "/images/vocabulary/cake-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "calf",
+      "english": "calf",
+      "vietnamese": "Con bê con",
+      "imageUrl": "/images/vocabulary/calf-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "scene"
+    },
+    {
+      "key": "candle",
+      "english": "candle",
+      "vietnamese": "Cây nến",
+      "imageUrl": "/images/vocabulary/candle-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "candy",
+      "english": "candy",
+      "vietnamese": "Kẹo ngọt",
+      "imageUrl": "/images/vocabulary/candy-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cap",
+      "english": "cap",
+      "vietnamese": "Mũ lưỡi trai",
+      "imageUrl": "/images/vocabulary/cap-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "symbol"
+    },
+    {
+      "key": "car",
+      "english": "car",
+      "vietnamese": "Ô tô đồ chơi",
+      "imageUrl": "/images/vocabulary/car-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cardboard_box",
+      "english": "cardboard box",
+      "vietnamese": "Thùng các-tông",
+      "imageUrl": "/images/vocabulary/cardboard_box-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "symbol"
+    },
+    {
+      "key": "carrot",
+      "english": "carrot",
+      "vietnamese": "Củ cà rốt",
+      "imageUrl": "/images/vocabulary/carrot-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cashier",
+      "english": "cashier",
+      "vietnamese": "Nhân viên thu ngân",
+      "imageUrl": "/images/vocabulary/cashier-v2.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "diagram"
+    },
+    {
+      "key": "cat",
+      "english": "cat",
+      "vietnamese": "Con mèo",
+      "imageUrl": "/images/vocabulary/cat-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cereal",
+      "english": "cereal",
+      "vietnamese": "Ngũ cốc",
+      "imageUrl": "/images/vocabulary/cereal-v2.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "diagram"
+    },
+    {
+      "key": "chair",
+      "english": "chair",
+      "vietnamese": "Cái ghế",
+      "imageUrl": "/images/vocabulary/chair-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cheeks",
+      "english": "cheeks",
+      "vietnamese": "Đôi má",
+      "imageUrl": "/images/vocabulary/cheeks-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "cheeseburger",
+      "english": "cheeseburger",
+      "vietnamese": "Bánh burger phô mai",
+      "imageUrl": "/images/vocabulary/cheeseburger-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "chef",
+      "english": "chef",
+      "vietnamese": "Đầu bếp",
+      "imageUrl": "/images/vocabulary/chef-v1.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "symbol"
+    },
+    {
+      "key": "chick",
+      "english": "chick",
+      "vietnamese": "Gà con",
+      "imageUrl": "/images/vocabulary/chick-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "chicken",
+      "english": "chicken",
+      "vietnamese": "Thịt gà",
+      "imageUrl": "/images/vocabulary/chicken-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "child",
+      "english": "child",
+      "vietnamese": "Một đứa trẻ",
+      "imageUrl": "/images/vocabulary/child-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "symbol"
+    },
+    {
+      "key": "children",
+      "english": "children",
+      "vietnamese": "Các bạn nhỏ",
+      "imageUrl": "/images/vocabulary/children-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "scene"
+    },
+    {
+      "key": "chocolate_cake",
+      "english": "chocolate cake",
+      "vietnamese": "Bánh kem sô-cô-la",
+      "imageUrl": "/images/vocabulary/chocolate_cake-v2.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "diagram"
+    },
+    {
+      "key": "city",
+      "english": "city",
+      "vietnamese": "Thành phố",
+      "imageUrl": "/images/vocabulary/city-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cloth_bag",
+      "english": "cloth bag",
+      "vietnamese": "Túi vải bảo vệ môi trường",
+      "imageUrl": "/images/vocabulary/cloth_bag-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "diagram"
+    },
+    {
+      "key": "cloud",
+      "english": "cloud",
+      "vietnamese": "Đám mây",
+      "imageUrl": "/images/vocabulary/cloud-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cloudy",
+      "english": "cloudy",
+      "vietnamese": "Nhiều mây",
+      "imageUrl": "/images/vocabulary/cloudy-v1.svg",
+      "type": "adjective",
+      "category": "weather",
+      "artKind": "symbol"
+    },
+    {
+      "key": "collect_the_eggs",
+      "english": "collect the eggs",
+      "vietnamese": "Nhặt trứng gà",
+      "imageUrl": "/images/vocabulary/collect_the_eggs-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "color",
+      "english": "color",
+      "vietnamese": "Tô màu",
+      "imageUrl": "/images/vocabulary/color-v2.svg",
+      "type": "verb",
+      "category": "art",
+      "artKind": "diagram"
+    },
+    {
+      "key": "cook",
+      "english": "cook",
+      "vietnamese": "Nấu ăn",
+      "imageUrl": "/images/vocabulary/cook-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cook_food",
+      "english": "cook food",
+      "vietnamese": "Nấu thức ăn",
+      "imageUrl": "/images/vocabulary/cook_food-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "couch",
+      "english": "couch",
+      "vietnamese": "Ghế sofa",
+      "imageUrl": "/images/vocabulary/couch-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "count",
+      "english": "count",
+      "vietnamese": "Đếm số",
+      "imageUrl": "/images/vocabulary/count-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "country",
+      "english": "country",
+      "vietnamese": "Nông thôn",
+      "imageUrl": "/images/vocabulary/country-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cousin",
+      "english": "cousin",
+      "vietnamese": "Anh chị em họ",
+      "imageUrl": "/images/vocabulary/cousin-v2.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "scene"
+    },
+    {
+      "key": "cow",
+      "english": "cow",
+      "vietnamese": "Con bò sữa",
+      "imageUrl": "/images/vocabulary/cow-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "crawl",
+      "english": "crawl",
+      "vietnamese": "Bò",
+      "imageUrl": "/images/vocabulary/crawl-v2.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "crayon",
+      "english": "crayon",
+      "vietnamese": "Bút sáp màu",
+      "imageUrl": "/images/vocabulary/crayon-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cry",
+      "english": "cry",
+      "vietnamese": "Khóc nhè",
+      "imageUrl": "/images/vocabulary/cry-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "cucumbers",
+      "english": "cucumbers",
+      "vietnamese": "Dưa leo",
+      "imageUrl": "/images/vocabulary/cucumbers-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "curly",
+      "english": "curly",
+      "vietnamese": "Xoăn gợn sóng",
+      "imageUrl": "/images/vocabulary/curly-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "diagram"
+    },
+    {
+      "key": "cut",
+      "english": "cut",
+      "vietnamese": "Cắt giấy",
+      "imageUrl": "/images/vocabulary/cut-v2.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "dad",
+      "english": "Dad",
+      "vietnamese": "Bố",
+      "imageUrl": "/images/vocabulary/dad-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "dance",
+      "english": "dance",
+      "vietnamese": "Nhảy múa",
+      "imageUrl": "/images/vocabulary/dance-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "dance_class",
+      "english": "dance class",
+      "vietnamese": "Lớp học múa",
+      "imageUrl": "/images/vocabulary/dance_class-v1.svg",
+      "type": "noun",
+      "category": "activities",
+      "artKind": "scene"
+    },
+    {
+      "key": "deliver_mail",
+      "english": "deliver mail",
+      "vietnamese": "Phát thư và bưu phẩm",
+      "imageUrl": "/images/vocabulary/deliver_mail-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "dessert",
+      "english": "dessert",
+      "vietnamese": "Món tráng miệng",
+      "imageUrl": "/images/vocabulary/dessert-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "scene"
+    },
+    {
+      "key": "dining_room",
+      "english": "dining room",
+      "vietnamese": "Phòng ăn",
+      "imageUrl": "/images/vocabulary/dining_room-v1.svg",
+      "type": "noun",
+      "category": "rooms",
+      "artKind": "scene"
+    },
+    {
+      "key": "dinner",
+      "english": "dinner",
+      "vietnamese": "Bữa tối",
+      "imageUrl": "/images/vocabulary/dinner-v1.svg",
+      "type": "noun",
+      "category": "meals",
+      "artKind": "scene"
+    },
+    {
+      "key": "dirty",
+      "english": "dirty",
+      "vietnamese": "Lấm bẩn",
+      "imageUrl": "/images/vocabulary/dirty-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "scene"
+    },
+    {
+      "key": "do_homework",
+      "english": "do homework",
+      "vietnamese": "Làm bài tập về nhà",
+      "imageUrl": "/images/vocabulary/do_homework-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "doctor",
+      "english": "doctor",
+      "vietnamese": "Bác sĩ",
+      "imageUrl": "/images/vocabulary/doctor-v1.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "symbol"
+    },
+    {
+      "key": "dog",
+      "english": "dog",
+      "vietnamese": "Con chó",
+      "imageUrl": "/images/vocabulary/dog-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "doll",
+      "english": "doll",
+      "vietnamese": "Búp bê",
+      "imageUrl": "/images/vocabulary/doll-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "door",
+      "english": "door",
+      "vietnamese": "Cửa ra vào",
+      "imageUrl": "/images/vocabulary/door-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "draw",
+      "english": "draw",
+      "vietnamese": "Vẽ tranh",
+      "imageUrl": "/images/vocabulary/draw-v2.svg",
+      "type": "verb",
+      "category": "art",
+      "artKind": "diagram"
+    },
+    {
+      "key": "dress",
+      "english": "dress",
+      "vietnamese": "Chiếc váy",
+      "imageUrl": "/images/vocabulary/dress-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "symbol"
+    },
+    {
+      "key": "drink",
+      "english": "drink",
+      "vietnamese": "Đồ uống",
+      "imageUrl": "/images/vocabulary/drink-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "drink_water",
+      "english": "drink water",
+      "vietnamese": "Uống nước lọc",
+      "imageUrl": "/images/vocabulary/drink_water-v1.svg",
+      "type": "verb",
+      "category": "habits",
+      "artKind": "scene"
+    },
+    {
+      "key": "duck",
+      "english": "duck",
+      "vietnamese": "Con vịt",
+      "imageUrl": "/images/vocabulary/duck-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "duckling",
+      "english": "duckling",
+      "vietnamese": "Vịt con",
+      "imageUrl": "/images/vocabulary/duckling-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "scene"
+    },
+    {
+      "key": "eagle",
+      "english": "eagle",
+      "vietnamese": "Chim đại bàng",
+      "imageUrl": "/images/vocabulary/eagle-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "ears",
+      "english": "ears",
+      "vietnamese": "Đôi tai",
+      "imageUrl": "/images/vocabulary/ears-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "symbol"
+    },
+    {
+      "key": "eat_dinner",
+      "english": "eat dinner",
+      "vietnamese": "Ăn bữa cơm tối",
+      "imageUrl": "/images/vocabulary/eat_dinner-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "eat_healthy_food",
+      "english": "eat healthy food",
+      "vietnamese": "Ăn món bổ dưỡng",
+      "imageUrl": "/images/vocabulary/eat_healthy_food-v1.svg",
+      "type": "verb",
+      "category": "habits",
+      "artKind": "scene"
+    },
+    {
+      "key": "eat_lunch",
+      "english": "eat lunch",
+      "vietnamese": "Ăn bữa trưa",
+      "imageUrl": "/images/vocabulary/eat_lunch-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "eggs",
+      "english": "eggs",
+      "vietnamese": "Những quả trứng",
+      "imageUrl": "/images/vocabulary/eggs-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "eight",
+      "english": "eight",
+      "vietnamese": "Số tám",
+      "imageUrl": "/images/vocabulary/eight-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "elbow",
+      "english": "elbow",
+      "vietnamese": "Khuỷu tay",
+      "imageUrl": "/images/vocabulary/elbow-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "elephant",
+      "english": "elephant",
+      "vietnamese": "Con voi",
+      "imageUrl": "/images/vocabulary/elephant-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "eleven",
+      "english": "eleven",
+      "vietnamese": "Số mười một",
+      "imageUrl": "/images/vocabulary/eleven-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "excited",
+      "english": "excited",
+      "vietnamese": "Hào hứng, phấn khởi",
+      "imageUrl": "/images/vocabulary/excited-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "eyes",
+      "english": "eyes",
+      "vietnamese": "Đôi mắt",
+      "imageUrl": "/images/vocabulary/eyes-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "symbol"
+    },
+    {
+      "key": "face",
+      "english": "face",
+      "vietnamese": "Khuôn mặt",
+      "imageUrl": "/images/vocabulary/face-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "symbol"
+    },
+    {
+      "key": "family",
+      "english": "family",
+      "vietnamese": "Gia đình",
+      "imageUrl": "/images/vocabulary/family-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "scene"
+    },
+    {
+      "key": "farm",
+      "english": "farm",
+      "vietnamese": "Nông trại",
+      "imageUrl": "/images/vocabulary/farm-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "father",
+      "english": "father",
+      "vietnamese": "Bố",
+      "imageUrl": "/images/vocabulary/father-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "feed_the_ducks",
+      "english": "feed the ducks",
+      "vietnamese": "Cho vịt ăn",
+      "imageUrl": "/images/vocabulary/feed_the_ducks-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "feet",
+      "english": "feet",
+      "vietnamese": "Bàn chân",
+      "imageUrl": "/images/vocabulary/feet-v2.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "fin",
+      "english": "fin",
+      "vietnamese": "Vây cá",
+      "imageUrl": "/images/vocabulary/fin-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "fingers",
+      "english": "fingers",
+      "vietnamese": "Ngón tay",
+      "imageUrl": "/images/vocabulary/fingers-v2.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "fire_station",
+      "english": "fire station",
+      "vietnamese": "Trạm cứu hỏa",
+      "imageUrl": "/images/vocabulary/fire_station-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "scene"
+    },
+    {
+      "key": "firefighter",
+      "english": "firefighter",
+      "vietnamese": "Lính cứu hỏa",
+      "imageUrl": "/images/vocabulary/firefighter-v1.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "symbol"
+    },
+    {
+      "key": "fish",
+      "english": "fish",
+      "vietnamese": "Con cá",
+      "imageUrl": "/images/vocabulary/fish-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "five",
+      "english": "five",
+      "vietnamese": "Số năm",
+      "imageUrl": "/images/vocabulary/five-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "flashlight",
+      "english": "flashlight",
+      "vietnamese": "Đèn pin chiếu sáng",
+      "imageUrl": "/images/vocabulary/flashlight-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "flower",
+      "english": "flower",
+      "vietnamese": "Bông hoa",
+      "imageUrl": "/images/vocabulary/flower-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "fly",
+      "english": "fly",
+      "vietnamese": "Bay",
+      "imageUrl": "/images/vocabulary/fly-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "foal",
+      "english": "foal",
+      "vietnamese": "Ngựa con",
+      "imageUrl": "/images/vocabulary/foal-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "scene"
+    },
+    {
+      "key": "forehead",
+      "english": "forehead",
+      "vietnamese": "Vầng trán",
+      "imageUrl": "/images/vocabulary/forehead-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "forest",
+      "english": "forest",
+      "vietnamese": "Khu rừng rậm",
+      "imageUrl": "/images/vocabulary/forest-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "four",
+      "english": "four",
+      "vietnamese": "Số bốn",
+      "imageUrl": "/images/vocabulary/four-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "french_fries",
+      "english": "French fries",
+      "vietnamese": "Khoai tây chiên",
+      "imageUrl": "/images/vocabulary/french_fries-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "friday",
+      "english": "Friday",
+      "vietnamese": "Thứ Sáu",
+      "imageUrl": "/images/vocabulary/friday-v1.svg",
+      "type": "noun",
+      "category": "calendar",
+      "artKind": "diagram"
+    },
+    {
+      "key": "fridge",
+      "english": "fridge",
+      "vietnamese": "Tủ lạnh",
+      "imageUrl": "/images/vocabulary/fridge-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "diagram"
+    },
+    {
+      "key": "frog",
+      "english": "frog",
+      "vietnamese": "Chú ếch",
+      "imageUrl": "/images/vocabulary/frog-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "get_dressed",
+      "english": "get dressed",
+      "vietnamese": "Mặc quần áo",
+      "imageUrl": "/images/vocabulary/get_dressed-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "get_up",
+      "english": "get up",
+      "vietnamese": "Thức dậy",
+      "imageUrl": "/images/vocabulary/get_up-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "giraffe",
+      "english": "giraffe",
+      "vietnamese": "Hươu cao cổ",
+      "imageUrl": "/images/vocabulary/giraffe-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "girl",
+      "english": "girl",
+      "vietnamese": "Cô bé",
+      "imageUrl": "/images/vocabulary/girl-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "symbol"
+    },
+    {
+      "key": "glass_bottle",
+      "english": "glass bottle",
+      "vietnamese": "Chai thủy tinh",
+      "imageUrl": "/images/vocabulary/glass_bottle-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "diagram"
+    },
+    {
+      "key": "glue",
+      "english": "glue",
+      "vietnamese": "Dán hồ",
+      "imageUrl": "/images/vocabulary/glue-v1.svg",
+      "type": "verb",
+      "category": "art",
+      "artKind": "diagram"
+    },
+    {
+      "key": "glue_stick",
+      "english": "glue stick",
+      "vietnamese": "Keo dán thỏi",
+      "imageUrl": "/images/vocabulary/glue_stick-v2.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "diagram"
+    },
+    {
+      "key": "go_home",
+      "english": "go home",
+      "vietnamese": "Trở về nhà",
+      "imageUrl": "/images/vocabulary/go_home-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "go_on_rides",
+      "english": "go on rides",
+      "vietnamese": "Chơi trò đu quay cảm giác mạnh",
+      "imageUrl": "/images/vocabulary/go_on_rides-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "go_to_bed",
+      "english": "go to bed",
+      "vietnamese": "Lên giường đi ngủ",
+      "imageUrl": "/images/vocabulary/go_to_bed-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "go_to_school",
+      "english": "go to school",
+      "vietnamese": "Đi đến trường",
+      "imageUrl": "/images/vocabulary/go_to_school-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "good",
+      "english": "good",
+      "vietnamese": "Thơm, tốt",
+      "imageUrl": "/images/vocabulary/good-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "grandfather",
+      "english": "grandfather",
+      "vietnamese": "Ông",
+      "imageUrl": "/images/vocabulary/grandfather-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "grandmother",
+      "english": "grandmother",
+      "vietnamese": "Bà",
+      "imageUrl": "/images/vocabulary/grandmother-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "grapes",
+      "english": "grapes",
+      "vietnamese": "Chùm nho",
+      "imageUrl": "/images/vocabulary/grapes-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "grass",
+      "english": "grass",
+      "vietnamese": "Thảm cỏ",
+      "imageUrl": "/images/vocabulary/grass-v2.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "diagram"
+    },
+    {
+      "key": "gray",
+      "english": "gray",
+      "vietnamese": "Màu xám",
+      "imageUrl": "/images/vocabulary/gray-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "green",
+      "english": "green",
+      "vietnamese": "Màu xanh lá",
+      "imageUrl": "/images/vocabulary/green-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "grocery_store",
+      "english": "grocery store",
+      "vietnamese": "Cửa hàng tạp hóa",
+      "imageUrl": "/images/vocabulary/grocery_store-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "scene"
+    },
+    {
+      "key": "groom_the_horses",
+      "english": "groom the horses",
+      "vietnamese": "Chải lông ngựa",
+      "imageUrl": "/images/vocabulary/groom_the_horses-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "gymnastics",
+      "english": "gymnastics",
+      "vietnamese": "Tập thể dục dụng cụ",
+      "imageUrl": "/images/vocabulary/gymnastics-v1.svg",
+      "type": "noun",
+      "category": "activities",
+      "artKind": "symbol"
+    },
+    {
+      "key": "hair",
+      "english": "hair",
+      "vietnamese": "Mái tóc",
+      "imageUrl": "/images/vocabulary/hair-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "hamster",
+      "english": "hamster",
+      "vietnamese": "Chuột hamster",
+      "imageUrl": "/images/vocabulary/hamster-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "hands",
+      "english": "hands",
+      "vietnamese": "Bàn tay",
+      "imageUrl": "/images/vocabulary/hands-v2.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "happy",
+      "english": "happy",
+      "vietnamese": "Vui vẻ",
+      "imageUrl": "/images/vocabulary/happy-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "have_breakfast",
+      "english": "have breakfast",
+      "vietnamese": "Ăn bữa sáng",
+      "imageUrl": "/images/vocabulary/have_breakfast-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "head",
+      "english": "head",
+      "vietnamese": "Cái đầu",
+      "imageUrl": "/images/vocabulary/head-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "hear",
+      "english": "hear",
+      "vietnamese": "Lắng nghe",
+      "imageUrl": "/images/vocabulary/hear-v1.svg",
+      "type": "verb",
+      "category": "senses",
+      "artKind": "symbol"
+    },
+    {
+      "key": "helicopter",
+      "english": "helicopter",
+      "vietnamese": "Máy bay trực thăng",
+      "imageUrl": "/images/vocabulary/helicopter-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "hen",
+      "english": "hen",
+      "vietnamese": "Con gà mái",
+      "imageUrl": "/images/vocabulary/hen-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "hike",
+      "english": "hike",
+      "vietnamese": "Đi bộ leo núi",
+      "imageUrl": "/images/vocabulary/hike-v2.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "hole",
+      "english": "hole",
+      "vietnamese": "Hố đất",
+      "imageUrl": "/images/vocabulary/hole-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "horse",
+      "english": "horse",
+      "vietnamese": "Con ngựa",
+      "imageUrl": "/images/vocabulary/horse-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "hospital",
+      "english": "hospital",
+      "vietnamese": "Bệnh viện",
+      "imageUrl": "/images/vocabulary/hospital-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "house",
+      "english": "house",
+      "vietnamese": "Ngôi nhà",
+      "imageUrl": "/images/vocabulary/house-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "human_made",
+      "english": "human-made",
+      "vietnamese": "Do con người làm ra",
+      "imageUrl": "/images/vocabulary/human_made-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "scene"
+    },
+    {
+      "key": "hungry",
+      "english": "hungry",
+      "vietnamese": "Đói bụng",
+      "imageUrl": "/images/vocabulary/hungry-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "scene"
+    },
+    {
+      "key": "ice_cream",
+      "english": "ice cream",
+      "vietnamese": "Kem mát lạnh",
+      "imageUrl": "/images/vocabulary/ice_cream-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "jacket",
+      "english": "jacket",
+      "vietnamese": "Áo khoác",
+      "imageUrl": "/images/vocabulary/jacket-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "symbol"
+    },
+    {
+      "key": "jar",
+      "english": "jar",
+      "vietnamese": "Chiếc lọ thủy tinh",
+      "imageUrl": "/images/vocabulary/jar-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "jump",
+      "english": "jump",
+      "vietnamese": "Nhảy",
+      "imageUrl": "/images/vocabulary/jump-v2.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "jump_rope",
+      "english": "jump rope",
+      "vietnamese": "Nhảy dây",
+      "imageUrl": "/images/vocabulary/jump_rope-v2.svg",
+      "type": "noun",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "jump_up_and_down",
+      "english": "jump up and down",
+      "vietnamese": "Nhảy cẫng lên",
+      "imageUrl": "/images/vocabulary/jump_up_and_down-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "kangaroo",
+      "english": "kangaroo",
+      "vietnamese": "Chuột túi",
+      "imageUrl": "/images/vocabulary/kangaroo-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "keep_people_safe",
+      "english": "keep people safe",
+      "vietnamese": "Bảo vệ an toàn",
+      "imageUrl": "/images/vocabulary/keep_people_safe-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "kick",
+      "english": "kick",
+      "vietnamese": "Đá",
+      "imageUrl": "/images/vocabulary/kick-v2.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "kitchen",
+      "english": "kitchen",
+      "vietnamese": "Nhà bếp",
+      "imageUrl": "/images/vocabulary/kitchen-v1.svg",
+      "type": "noun",
+      "category": "rooms",
+      "artKind": "scene"
+    },
+    {
+      "key": "kite",
+      "english": "kite",
+      "vietnamese": "Cái diều",
+      "imageUrl": "/images/vocabulary/kite-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "knee",
+      "english": "knee",
+      "vietnamese": "Đầu gối",
+      "imageUrl": "/images/vocabulary/knee-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "lake",
+      "english": "lake",
+      "vietnamese": "Hồ nước trong xanh",
+      "imageUrl": "/images/vocabulary/lake-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "lamb",
+      "english": "lamb",
+      "vietnamese": "Cừu non",
+      "imageUrl": "/images/vocabulary/lamb-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "scene"
+    },
+    {
+      "key": "lamp",
+      "english": "lamp",
+      "vietnamese": "Đèn bàn",
+      "imageUrl": "/images/vocabulary/lamp-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "land",
+      "english": "land",
+      "vietnamese": "Mặt đất",
+      "imageUrl": "/images/vocabulary/land-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "scene"
+    },
+    {
+      "key": "laugh",
+      "english": "laugh",
+      "vietnamese": "Cười tươi",
+      "imageUrl": "/images/vocabulary/laugh-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "leaves",
+      "english": "leaves",
+      "vietnamese": "Những chiếc lá",
+      "imageUrl": "/images/vocabulary/leaves-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "legs",
+      "english": "legs",
+      "vietnamese": "Đôi chân",
+      "imageUrl": "/images/vocabulary/legs-v2.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "lemonade",
+      "english": "lemonade",
+      "vietnamese": "Nước chanh tươi",
+      "imageUrl": "/images/vocabulary/lemonade-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "scene"
+    },
+    {
+      "key": "leo",
+      "english": "Leo",
+      "vietnamese": "Bạn Leo",
+      "imageUrl": "/images/vocabulary/leo-v2.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "diagram"
+    },
+    {
+      "key": "lettuce",
+      "english": "lettuce",
+      "vietnamese": "Rau xà lách",
+      "imageUrl": "/images/vocabulary/lettuce-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "lion",
+      "english": "lion",
+      "vietnamese": "Sư tử",
+      "imageUrl": "/images/vocabulary/lion-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "listen_to_stories",
+      "english": "listen to stories",
+      "vietnamese": "Nghe kể chuyện",
+      "imageUrl": "/images/vocabulary/listen_to_stories-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "living_room",
+      "english": "living room",
+      "vietnamese": "Phòng khách",
+      "imageUrl": "/images/vocabulary/living_room-v1.svg",
+      "type": "noun",
+      "category": "rooms",
+      "artKind": "scene"
+    },
+    {
+      "key": "lizard",
+      "english": "lizard",
+      "vietnamese": "Con thằn lằn",
+      "imageUrl": "/images/vocabulary/lizard-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "long",
+      "english": "long",
+      "vietnamese": "Dài",
+      "imageUrl": "/images/vocabulary/long-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "diagram"
+    },
+    {
+      "key": "loud",
+      "english": "loud",
+      "vietnamese": "Âm thanh to",
+      "imageUrl": "/images/vocabulary/loud-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "lunch",
+      "english": "lunch",
+      "vietnamese": "Bữa trưa",
+      "imageUrl": "/images/vocabulary/lunch-v1.svg",
+      "type": "noun",
+      "category": "meals",
+      "artKind": "scene"
+    },
+    {
+      "key": "mail_carrier",
+      "english": "mail carrier",
+      "vietnamese": "Người đưa thư",
+      "imageUrl": "/images/vocabulary/mail_carrier-v2.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "diagram"
+    },
+    {
+      "key": "main_dish",
+      "english": "main dish",
+      "vietnamese": "Món ăn chính",
+      "imageUrl": "/images/vocabulary/main_dish-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "scene"
+    },
+    {
+      "key": "make_a_campfire",
+      "english": "make a campfire",
+      "vietnamese": "Đốt lửa trại",
+      "imageUrl": "/images/vocabulary/make_a_campfire-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "make_the_bed",
+      "english": "make the bed",
+      "vietnamese": "Gấp chăn gối",
+      "imageUrl": "/images/vocabulary/make_the_bed-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "man",
+      "english": "man",
+      "vietnamese": "Người đàn ông",
+      "imageUrl": "/images/vocabulary/man-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "symbol"
+    },
+    {
+      "key": "marker",
+      "english": "marker",
+      "vietnamese": "Bút dạ màu",
+      "imageUrl": "/images/vocabulary/marker-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "market",
+      "english": "market",
+      "vietnamese": "Khu chợ",
+      "imageUrl": "/images/vocabulary/market-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "scene"
+    },
+    {
+      "key": "math",
+      "english": "Math",
+      "vietnamese": "Môn Toán",
+      "imageUrl": "/images/vocabulary/math-v1.svg",
+      "type": "noun",
+      "category": "subjects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "men",
+      "english": "men",
+      "vietnamese": "Những người đàn ông",
+      "imageUrl": "/images/vocabulary/men-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "scene"
+    },
+    {
+      "key": "menu",
+      "english": "menu",
+      "vietnamese": "Thực đơn món ăn",
+      "imageUrl": "/images/vocabulary/menu-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "scene"
+    },
+    {
+      "key": "mia",
+      "english": "Mia",
+      "vietnamese": "Bạn Mia",
+      "imageUrl": "/images/vocabulary/mia-v2.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "diagram"
+    },
+    {
+      "key": "milk",
+      "english": "milk",
+      "vietnamese": "Sữa tươi",
+      "imageUrl": "/images/vocabulary/milk-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "milk_the_cows",
+      "english": "milk the cows",
+      "vietnamese": "Vắt sữa bò",
+      "imageUrl": "/images/vocabulary/milk_the_cows-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "mom",
+      "english": "Mom",
+      "vietnamese": "Mẹ",
+      "imageUrl": "/images/vocabulary/mom-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "monday",
+      "english": "Monday",
+      "vietnamese": "Thứ Hai",
+      "imageUrl": "/images/vocabulary/monday-v1.svg",
+      "type": "noun",
+      "category": "calendar",
+      "artKind": "diagram"
+    },
+    {
+      "key": "monkey",
+      "english": "monkey",
+      "vietnamese": "Con khỉ",
+      "imageUrl": "/images/vocabulary/monkey-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "monkey_bars",
+      "english": "monkey bars",
+      "vietnamese": "Thang leo",
+      "imageUrl": "/images/vocabulary/monkey_bars-v2.svg",
+      "type": "noun",
+      "category": "playground",
+      "artKind": "diagram"
+    },
+    {
+      "key": "mother",
+      "english": "mother",
+      "vietnamese": "Mẹ",
+      "imageUrl": "/images/vocabulary/mother-v1.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "symbol"
+    },
+    {
+      "key": "mountains",
+      "english": "mountains",
+      "vietnamese": "Dãy núi",
+      "imageUrl": "/images/vocabulary/mountains-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "mouth",
+      "english": "mouth",
+      "vietnamese": "Miệng",
+      "imageUrl": "/images/vocabulary/mouth-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "symbol"
+    },
+    {
+      "key": "music_lessons",
+      "english": "music lessons",
+      "vietnamese": "Học đàn, học nhạc",
+      "imageUrl": "/images/vocabulary/music_lessons-v1.svg",
+      "type": "noun",
+      "category": "activities",
+      "artKind": "scene"
+    },
+    {
+      "key": "natural",
+      "english": "natural",
+      "vietnamese": "Tự nhiên, thiên nhiên",
+      "imageUrl": "/images/vocabulary/natural-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "scene"
+    },
+    {
+      "key": "newspaper",
+      "english": "newspaper",
+      "vietnamese": "Tờ báo giấy",
+      "imageUrl": "/images/vocabulary/newspaper-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "symbol"
+    },
+    {
+      "key": "nine",
+      "english": "nine",
+      "vietnamese": "Số chín",
+      "imageUrl": "/images/vocabulary/nine-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "nose",
+      "english": "nose",
+      "vietnamese": "Chiếc mũi",
+      "imageUrl": "/images/vocabulary/nose-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "symbol"
+    },
+    {
+      "key": "old",
+      "english": "old",
+      "vietnamese": "Già",
+      "imageUrl": "/images/vocabulary/old-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "one",
+      "english": "one",
+      "vietnamese": "Số một",
+      "imageUrl": "/images/vocabulary/one-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "orange",
+      "english": "orange",
+      "vietnamese": "Quả cam",
+      "imageUrl": "/images/vocabulary/orange-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "orange_juice",
+      "english": "orange juice",
+      "vietnamese": "Nước cam ép",
+      "imageUrl": "/images/vocabulary/orange_juice-v2.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "diagram"
+    },
+    {
+      "key": "paint",
+      "english": "paint",
+      "vietnamese": "Vẽ màu",
+      "imageUrl": "/images/vocabulary/paint-v1.svg",
+      "type": "verb",
+      "category": "art",
+      "artKind": "symbol"
+    },
+    {
+      "key": "paint_with_watercolors",
+      "english": "paint with watercolors",
+      "vietnamese": "Vẽ màu nước",
+      "imageUrl": "/images/vocabulary/paint_with_watercolors-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "paintbrush",
+      "english": "paintbrush",
+      "vietnamese": "Cọ vẽ",
+      "imageUrl": "/images/vocabulary/paintbrush-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "pancakes",
+      "english": "pancakes",
+      "vietnamese": "Bánh kếp nướng",
+      "imageUrl": "/images/vocabulary/pancakes-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "pants",
+      "english": "pants",
+      "vietnamese": "Quần dài",
+      "imageUrl": "/images/vocabulary/pants-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "symbol"
+    },
+    {
+      "key": "paper",
+      "english": "paper",
+      "vietnamese": "Giấy viết",
+      "imageUrl": "/images/vocabulary/paper-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "symbol"
+    },
+    {
+      "key": "park",
+      "english": "park",
+      "vietnamese": "Công viên",
+      "imageUrl": "/images/vocabulary/park-v2.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "diagram"
+    },
+    {
+      "key": "party_hat",
+      "english": "party hat",
+      "vietnamese": "Chiếc nón sinh nhật",
+      "imageUrl": "/images/vocabulary/party_hat-v2.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "diagram"
+    },
+    {
+      "key": "paw",
+      "english": "paw",
+      "vietnamese": "Móng vuốt, bàn chân thú",
+      "imageUrl": "/images/vocabulary/paw-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "scene"
+    },
+    {
+      "key": "pear",
+      "english": "pear",
+      "vietnamese": "Quả lê",
+      "imageUrl": "/images/vocabulary/pear-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "peas",
+      "english": "peas",
+      "vietnamese": "Đậu Hà Lan",
+      "imageUrl": "/images/vocabulary/peas-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "diagram"
+    },
+    {
+      "key": "pencil",
+      "english": "pencil",
+      "vietnamese": "Bút chì",
+      "imageUrl": "/images/vocabulary/pencil-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "petals",
+      "english": "petals",
+      "vietnamese": "Cánh hoa",
+      "imageUrl": "/images/vocabulary/petals-v2.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "diagram"
+    },
+    {
+      "key": "physical_education",
+      "english": "Physical Education",
+      "vietnamese": "Môn Thể dục",
+      "imageUrl": "/images/vocabulary/physical_education-v1.svg",
+      "type": "noun",
+      "category": "subjects",
+      "artKind": "scene"
+    },
+    {
+      "key": "pineapple",
+      "english": "pineapple",
+      "vietnamese": "Quả dứa (thơm)",
+      "imageUrl": "/images/vocabulary/pineapple-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "pink",
+      "english": "pink",
+      "vietnamese": "Màu hồng",
+      "imageUrl": "/images/vocabulary/pink-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "pizza",
+      "english": "pizza",
+      "vietnamese": "Bánh pizza",
+      "imageUrl": "/images/vocabulary/pizza-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "plant",
+      "english": "plant",
+      "vietnamese": "Cây cối",
+      "imageUrl": "/images/vocabulary/plant-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "scene"
+    },
+    {
+      "key": "plastic_bag",
+      "english": "plastic bag",
+      "vietnamese": "Túi ni-lông",
+      "imageUrl": "/images/vocabulary/plastic_bag-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "diagram"
+    },
+    {
+      "key": "plastic_bottle",
+      "english": "plastic bottle",
+      "vietnamese": "Chai nhựa",
+      "imageUrl": "/images/vocabulary/plastic_bottle-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "diagram"
+    },
+    {
+      "key": "play_in_the_playground",
+      "english": "play in the playground",
+      "vietnamese": "Chơi ở sân trường",
+      "imageUrl": "/images/vocabulary/play_in_the_playground-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "play_music",
+      "english": "play music",
+      "vietnamese": "Chơi nhạc cụ",
+      "imageUrl": "/images/vocabulary/play_music-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "play_with_friends",
+      "english": "play with friends",
+      "vietnamese": "Chơi cùng bạn bè",
+      "imageUrl": "/images/vocabulary/play_with_friends-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "playground",
+      "english": "playground",
+      "vietnamese": "Sân chơi",
+      "imageUrl": "/images/vocabulary/playground-v2.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "diagram"
+    },
+    {
+      "key": "police_officer",
+      "english": "police officer",
+      "vietnamese": "Cảnh sát",
+      "imageUrl": "/images/vocabulary/police_officer-v1.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "symbol"
+    },
+    {
+      "key": "police_station",
+      "english": "police station",
+      "vietnamese": "Đồn cảnh sát",
+      "imageUrl": "/images/vocabulary/police_station-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "scene"
+    },
+    {
+      "key": "post_office",
+      "english": "post office",
+      "vietnamese": "Bưu điện",
+      "imageUrl": "/images/vocabulary/post_office-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "potato",
+      "english": "potato",
+      "vietnamese": "Củ khoai tây",
+      "imageUrl": "/images/vocabulary/potato-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "present",
+      "english": "present",
+      "vietnamese": "Món quà tặng",
+      "imageUrl": "/images/vocabulary/present-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "purple",
+      "english": "purple",
+      "vietnamese": "Màu tím",
+      "imageUrl": "/images/vocabulary/purple-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "put_on_a_jacket",
+      "english": "put on a jacket",
+      "vietnamese": "Mặc áo khoác",
+      "imageUrl": "/images/vocabulary/put_on_a_jacket-v1.svg",
+      "type": "verb",
+      "category": "habits",
+      "artKind": "scene"
+    },
+    {
+      "key": "put_on_pajamas",
+      "english": "put on pajamas",
+      "vietnamese": "Mặc đồ ngủ",
+      "imageUrl": "/images/vocabulary/put_on_pajamas-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "put_out_fires",
+      "english": "put out fires",
+      "vietnamese": "Dập tắt đám cháy",
+      "imageUrl": "/images/vocabulary/put_out_fires-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "puzzle",
+      "english": "puzzle",
+      "vietnamese": "Trò chơi ghép hình",
+      "imageUrl": "/images/vocabulary/puzzle-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "quiet",
+      "english": "quiet",
+      "vietnamese": "Yên tĩnh",
+      "imageUrl": "/images/vocabulary/quiet-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "rabbit",
+      "english": "rabbit",
+      "vietnamese": "Con thỏ",
+      "imageUrl": "/images/vocabulary/rabbit-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "rainbow",
+      "english": "rainbow",
+      "vietnamese": "Cầu vồng bảy sắc",
+      "imageUrl": "/images/vocabulary/rainbow-v1.svg",
+      "type": "noun",
+      "category": "colors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "raincoat",
+      "english": "raincoat",
+      "vietnamese": "Áo mưa",
+      "imageUrl": "/images/vocabulary/raincoat-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "diagram"
+    },
+    {
+      "key": "rainy",
+      "english": "rainy",
+      "vietnamese": "Có mưa",
+      "imageUrl": "/images/vocabulary/rainy-v1.svg",
+      "type": "adjective",
+      "category": "weather",
+      "artKind": "symbol"
+    },
+    {
+      "key": "read_a_book",
+      "english": "read a book",
+      "vietnamese": "Đọc truyện",
+      "imageUrl": "/images/vocabulary/read_a_book-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "read_books",
+      "english": "read books",
+      "vietnamese": "Đọc sách truyện",
+      "imageUrl": "/images/vocabulary/read_books-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "reading",
+      "english": "Reading",
+      "vietnamese": "Tập đọc",
+      "imageUrl": "/images/vocabulary/reading-v1.svg",
+      "type": "noun",
+      "category": "subjects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "recycle",
+      "english": "recycle",
+      "vietnamese": "Tái chế rác",
+      "imageUrl": "/images/vocabulary/recycle-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "red",
+      "english": "red",
+      "vietnamese": "Màu đỏ / Tóc hung đỏ",
+      "imageUrl": "/images/vocabulary/red-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "restaurant",
+      "english": "restaurant",
+      "vietnamese": "Nhà hàng",
+      "imageUrl": "/images/vocabulary/restaurant-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "scene"
+    },
+    {
+      "key": "rice",
+      "english": "rice",
+      "vietnamese": "Cơm trắng",
+      "imageUrl": "/images/vocabulary/rice-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "ride_a_horse",
+      "english": "ride a horse",
+      "vietnamese": "Cưỡi ngựa",
+      "imageUrl": "/images/vocabulary/ride_a_horse-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "ring_up_groceries",
+      "english": "ring up groceries",
+      "vietnamese": "Tính tiền hàng",
+      "imageUrl": "/images/vocabulary/ring_up_groceries-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "robot",
+      "english": "robot",
+      "vietnamese": "Người máy",
+      "imageUrl": "/images/vocabulary/robot-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "rock",
+      "english": "rock",
+      "vietnamese": "Hòn đá",
+      "imageUrl": "/images/vocabulary/rock-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "roots",
+      "english": "roots",
+      "vietnamese": "Rễ cây",
+      "imageUrl": "/images/vocabulary/roots-v2.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "diagram"
+    },
+    {
+      "key": "rough",
+      "english": "rough",
+      "vietnamese": "Gồ ghề, ráp",
+      "imageUrl": "/images/vocabulary/rough-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "scene"
+    },
+    {
+      "key": "row_a_boat",
+      "english": "row a boat",
+      "vietnamese": "Chèo thuyền trên hồ",
+      "imageUrl": "/images/vocabulary/row_a_boat-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "run",
+      "english": "run",
+      "vietnamese": "Chạy",
+      "imageUrl": "/images/vocabulary/run-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sad",
+      "english": "sad",
+      "vietnamese": "Buồn bã",
+      "imageUrl": "/images/vocabulary/sad-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "salad",
+      "english": "salad",
+      "vietnamese": "Món rau trộn",
+      "imageUrl": "/images/vocabulary/salad-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "salty",
+      "english": "salty",
+      "vietnamese": "Mặn mà",
+      "imageUrl": "/images/vocabulary/salty-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "scared",
+      "english": "scared",
+      "vietnamese": "Sợ hãi",
+      "imageUrl": "/images/vocabulary/scared-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "school",
+      "english": "school",
+      "vietnamese": "Trường học",
+      "imageUrl": "/images/vocabulary/school-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "science",
+      "english": "Science",
+      "vietnamese": "Môn Khoa học",
+      "imageUrl": "/images/vocabulary/science-v1.svg",
+      "type": "noun",
+      "category": "subjects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "scissors",
+      "english": "scissors",
+      "vietnamese": "Cái kéo",
+      "imageUrl": "/images/vocabulary/scissors-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "scream",
+      "english": "scream",
+      "vietnamese": "Hét to",
+      "imageUrl": "/images/vocabulary/scream-v2.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "diagram"
+    },
+    {
+      "key": "see",
+      "english": "see",
+      "vietnamese": "Nhìn ngắm",
+      "imageUrl": "/images/vocabulary/see-v1.svg",
+      "type": "verb",
+      "category": "senses",
+      "artKind": "symbol"
+    },
+    {
+      "key": "seed",
+      "english": "seed",
+      "vietnamese": "Hạt giống",
+      "imageUrl": "/images/vocabulary/seed-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "scene"
+    },
+    {
+      "key": "seesaw",
+      "english": "seesaw",
+      "vietnamese": "Bập bênh",
+      "imageUrl": "/images/vocabulary/seesaw-v1.svg",
+      "type": "noun",
+      "category": "playground",
+      "artKind": "diagram"
+    },
+    {
+      "key": "set_the_table",
+      "english": "set the table",
+      "vietnamese": "Dọn bàn ăn",
+      "imageUrl": "/images/vocabulary/set_the_table-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "seven",
+      "english": "seven",
+      "vietnamese": "Số bảy",
+      "imageUrl": "/images/vocabulary/seven-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "shark",
+      "english": "shark",
+      "vietnamese": "Cá mập",
+      "imageUrl": "/images/vocabulary/shark-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "shear_the_sheep",
+      "english": "shear the sheep",
+      "vietnamese": "Cắt lông cừu",
+      "imageUrl": "/images/vocabulary/shear_the_sheep-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "sheep",
+      "english": "sheep",
+      "vietnamese": "Con cừu",
+      "imageUrl": "/images/vocabulary/sheep-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "ship",
+      "english": "ship",
+      "vietnamese": "Tàu thuỷ lớn",
+      "imageUrl": "/images/vocabulary/ship-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "shoes",
+      "english": "shoes",
+      "vietnamese": "Đôi giày",
+      "imageUrl": "/images/vocabulary/shoes-v2.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "diagram"
+    },
+    {
+      "key": "short",
+      "english": "short",
+      "vietnamese": "Thấp, ngắn",
+      "imageUrl": "/images/vocabulary/short-v2.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "diagram"
+    },
+    {
+      "key": "shout_hooray",
+      "english": "shout hooray",
+      "vietnamese": "Hò reo hoan hô",
+      "imageUrl": "/images/vocabulary/shout_hooray-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "shovel",
+      "english": "shovel",
+      "vietnamese": "Cái xẻng làm vườn",
+      "imageUrl": "/images/vocabulary/shovel-v2.svg",
+      "type": "noun",
+      "category": "tools",
+      "artKind": "diagram"
+    },
+    {
+      "key": "shower",
+      "english": "shower",
+      "vietnamese": "Vòi hoa sen",
+      "imageUrl": "/images/vocabulary/shower-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "shy",
+      "english": "shy",
+      "vietnamese": "Ngượng ngùng, bẽn lẽn",
+      "imageUrl": "/images/vocabulary/shy-v2.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "diagram"
+    },
+    {
+      "key": "sick",
+      "english": "sick",
+      "vietnamese": "Bị ốm",
+      "imageUrl": "/images/vocabulary/sick-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "side_dish",
+      "english": "side dish",
+      "vietnamese": "Món ăn phụ",
+      "imageUrl": "/images/vocabulary/side_dish-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "scene"
+    },
+    {
+      "key": "silly",
+      "english": "silly",
+      "vietnamese": "Nghịch ngợm, tếu táo",
+      "imageUrl": "/images/vocabulary/silly-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sing_songs",
+      "english": "sing songs",
+      "vietnamese": "Hát những bài hát",
+      "imageUrl": "/images/vocabulary/sing_songs-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sister",
+      "english": "sister",
+      "vietnamese": "Chị/em gái",
+      "imageUrl": "/images/vocabulary/sister-v2.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "scene"
+    },
+    {
+      "key": "six",
+      "english": "six",
+      "vietnamese": "Số sáu",
+      "imageUrl": "/images/vocabulary/six-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "skirt",
+      "english": "skirt",
+      "vietnamese": "Chân váy",
+      "imageUrl": "/images/vocabulary/skirt-v2.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "diagram"
+    },
+    {
+      "key": "sky",
+      "english": "sky",
+      "vietnamese": "Bầu trời",
+      "imageUrl": "/images/vocabulary/sky-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sleeping_bag",
+      "english": "sleeping bag",
+      "vietnamese": "Túi ngủ du lịch",
+      "imageUrl": "/images/vocabulary/sleeping_bag-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "diagram"
+    },
+    {
+      "key": "slide",
+      "english": "slide",
+      "vietnamese": "Cầu trượt",
+      "imageUrl": "/images/vocabulary/slide-v1.svg",
+      "type": "noun",
+      "category": "playground",
+      "artKind": "symbol"
+    },
+    {
+      "key": "smell",
+      "english": "smell",
+      "vietnamese": "Ngửi hương",
+      "imageUrl": "/images/vocabulary/smell-v1.svg",
+      "type": "verb",
+      "category": "senses",
+      "artKind": "symbol"
+    },
+    {
+      "key": "smooth",
+      "english": "smooth",
+      "vietnamese": "Mịn màng",
+      "imageUrl": "/images/vocabulary/smooth-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "scene"
+    },
+    {
+      "key": "snake",
+      "english": "snake",
+      "vietnamese": "Con rắn",
+      "imageUrl": "/images/vocabulary/snake-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "snowy",
+      "english": "snowy",
+      "vietnamese": "Có tuyết rơi",
+      "imageUrl": "/images/vocabulary/snowy-v1.svg",
+      "type": "adjective",
+      "category": "weather",
+      "artKind": "symbol"
+    },
+    {
+      "key": "soap",
+      "english": "soap",
+      "vietnamese": "Bánh xà phòng",
+      "imageUrl": "/images/vocabulary/soap-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "soccer_practice",
+      "english": "soccer practice",
+      "vietnamese": "Luyện tập đá bóng",
+      "imageUrl": "/images/vocabulary/soccer_practice-v1.svg",
+      "type": "noun",
+      "category": "activities",
+      "artKind": "scene"
+    },
+    {
+      "key": "socks",
+      "english": "socks",
+      "vietnamese": "Đôi tất",
+      "imageUrl": "/images/vocabulary/socks-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "symbol"
+    },
+    {
+      "key": "soda",
+      "english": "soda",
+      "vietnamese": "Nước ngọt có ga",
+      "imageUrl": "/images/vocabulary/soda-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "soda_can",
+      "english": "soda can",
+      "vietnamese": "Lon nước ngọt",
+      "imageUrl": "/images/vocabulary/soda_can-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "diagram"
+    },
+    {
+      "key": "soft",
+      "english": "soft",
+      "vietnamese": "Mềm mại",
+      "imageUrl": "/images/vocabulary/soft-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "scene"
+    },
+    {
+      "key": "soil",
+      "english": "soil",
+      "vietnamese": "Đất trồng",
+      "imageUrl": "/images/vocabulary/soil-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "scene"
+    },
+    {
+      "key": "soup",
+      "english": "soup",
+      "vietnamese": "Bát súp",
+      "imageUrl": "/images/vocabulary/soup-v2.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "diagram"
+    },
+    {
+      "key": "spaghetti",
+      "english": "spaghetti",
+      "vietnamese": "Mì Ý sốt cà",
+      "imageUrl": "/images/vocabulary/spaghetti-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "speak_english",
+      "english": "speak English",
+      "vietnamese": "Nói tiếng Anh",
+      "imageUrl": "/images/vocabulary/speak_english-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "spoon",
+      "english": "spoon",
+      "vietnamese": "Cái thìa, muỗng",
+      "imageUrl": "/images/vocabulary/spoon-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "steak",
+      "english": "steak",
+      "vietnamese": "Bít tết bò",
+      "imageUrl": "/images/vocabulary/steak-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "stem",
+      "english": "stem",
+      "vietnamese": "Thân cây",
+      "imageUrl": "/images/vocabulary/stem-v2.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "diagram"
+    },
+    {
+      "key": "straight",
+      "english": "straight",
+      "vietnamese": "Thẳng mượt",
+      "imageUrl": "/images/vocabulary/straight-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "diagram"
+    },
+    {
+      "key": "strawberries",
+      "english": "strawberries",
+      "vietnamese": "Dâu tây",
+      "imageUrl": "/images/vocabulary/strawberries-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "street",
+      "english": "street",
+      "vietnamese": "Đường phố",
+      "imageUrl": "/images/vocabulary/street-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "summer_camp",
+      "english": "summer camp",
+      "vietnamese": "Trại hè thiếu nhi",
+      "imageUrl": "/images/vocabulary/summer_camp-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sun",
+      "english": "sun",
+      "vietnamese": "Mặt trời",
+      "imageUrl": "/images/vocabulary/sun-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sunglasses",
+      "english": "sunglasses",
+      "vietnamese": "Kính râm đi nắng",
+      "imageUrl": "/images/vocabulary/sunglasses-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sunny",
+      "english": "sunny",
+      "vietnamese": "Có nắng",
+      "imageUrl": "/images/vocabulary/sunny-v1.svg",
+      "type": "adjective",
+      "category": "weather",
+      "artKind": "symbol"
+    },
+    {
+      "key": "surprised",
+      "english": "surprised",
+      "vietnamese": "Ngạc nhiên bất ngờ",
+      "imageUrl": "/images/vocabulary/surprised-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "symbol"
+    },
+    {
+      "key": "sweater",
+      "english": "sweater",
+      "vietnamese": "Áo len",
+      "imageUrl": "/images/vocabulary/sweater-v2.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "diagram"
+    },
+    {
+      "key": "sweep_the_floor",
+      "english": "sweep the floor",
+      "vietnamese": "Quét nhà",
+      "imageUrl": "/images/vocabulary/sweep_the_floor-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "sweet",
+      "english": "sweet",
+      "vietnamese": "Ngọt ngào",
+      "imageUrl": "/images/vocabulary/sweet-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    },
+    {
+      "key": "swim",
+      "english": "swim",
+      "vietnamese": "Bơi",
+      "imageUrl": "/images/vocabulary/swim-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "swimming_lessons",
+      "english": "swimming lessons",
+      "vietnamese": "Tập bơi",
+      "imageUrl": "/images/vocabulary/swimming_lessons-v1.svg",
+      "type": "noun",
+      "category": "activities",
+      "artKind": "scene"
+    },
+    {
+      "key": "swing",
+      "english": "swing",
+      "vietnamese": "Xích đu",
+      "imageUrl": "/images/vocabulary/swing-v1.svg",
+      "type": "noun",
+      "category": "playground",
+      "artKind": "diagram"
+    },
+    {
+      "key": "t_shirt",
+      "english": "T-shirt",
+      "vietnamese": "Áo phông",
+      "imageUrl": "/images/vocabulary/t_shirt-v1.svg",
+      "type": "noun",
+      "category": "clothes",
+      "artKind": "symbol"
+    },
+    {
+      "key": "table",
+      "english": "table",
+      "vietnamese": "Cái bàn",
+      "imageUrl": "/images/vocabulary/table-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "diagram"
+    },
+    {
+      "key": "tail",
+      "english": "tail",
+      "vietnamese": "Cái đuôi",
+      "imageUrl": "/images/vocabulary/tail-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "take_a_bath",
+      "english": "take a bath",
+      "vietnamese": "Tắm rửa sạch sẽ",
+      "imageUrl": "/images/vocabulary/take_a_bath-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "take_care_of_people",
+      "english": "take care of people",
+      "vietnamese": "Chăm sóc mọi người",
+      "imageUrl": "/images/vocabulary/take_care_of_people-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "tall",
+      "english": "tall",
+      "vietnamese": "Cao",
+      "imageUrl": "/images/vocabulary/tall-v2.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "diagram"
+    },
+    {
+      "key": "taste",
+      "english": "taste",
+      "vietnamese": "Nếm vị",
+      "imageUrl": "/images/vocabulary/taste-v1.svg",
+      "type": "verb",
+      "category": "senses",
+      "artKind": "symbol"
+    },
+    {
+      "key": "teacher",
+      "english": "teacher",
+      "vietnamese": "Giáo viên",
+      "imageUrl": "/images/vocabulary/teacher-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "symbol"
+    },
+    {
+      "key": "teddy_bear",
+      "english": "teddy bear",
+      "vietnamese": "Gấu bông",
+      "imageUrl": "/images/vocabulary/teddy_bear-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "ten",
+      "english": "ten",
+      "vietnamese": "Số mười",
+      "imageUrl": "/images/vocabulary/ten-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "thin",
+      "english": "thin",
+      "vietnamese": "Mảnh khảnh",
+      "imageUrl": "/images/vocabulary/thin-v2.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "diagram"
+    },
+    {
+      "key": "thirsty",
+      "english": "thirsty",
+      "vietnamese": "Khát nước",
+      "imageUrl": "/images/vocabulary/thirsty-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "scene"
+    },
+    {
+      "key": "three",
+      "english": "three",
+      "vietnamese": "Số ba",
+      "imageUrl": "/images/vocabulary/three-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "thursday",
+      "english": "Thursday",
+      "vietnamese": "Thứ Năm",
+      "imageUrl": "/images/vocabulary/thursday-v1.svg",
+      "type": "noun",
+      "category": "calendar",
+      "artKind": "diagram"
+    },
+    {
+      "key": "tickles",
+      "english": "Tickles",
+      "vietnamese": "Bạn Tickles",
+      "imageUrl": "/images/vocabulary/tickles-v2.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "diagram"
+    },
+    {
+      "key": "tidy_up",
+      "english": "tidy up",
+      "vietnamese": "Dọn dẹp gọn gàng",
+      "imageUrl": "/images/vocabulary/tidy_up-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "tiger",
+      "english": "tiger",
+      "vietnamese": "Con hổ",
+      "imageUrl": "/images/vocabulary/tiger-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "tired",
+      "english": "tired",
+      "vietnamese": "Mệt mỏi",
+      "imageUrl": "/images/vocabulary/tired-v1.svg",
+      "type": "adjective",
+      "category": "feelings",
+      "artKind": "scene"
+    },
+    {
+      "key": "tomato",
+      "english": "tomato",
+      "vietnamese": "Quả cà chua",
+      "imageUrl": "/images/vocabulary/tomato-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "toothbrush",
+      "english": "toothbrush",
+      "vietnamese": "Bàn chải đánh răng",
+      "imageUrl": "/images/vocabulary/toothbrush-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "toucan",
+      "english": "toucan",
+      "vietnamese": "Chim tucăng mỏ lớn",
+      "imageUrl": "/images/vocabulary/toucan-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "touch",
+      "english": "touch",
+      "vietnamese": "Chạm sờ",
+      "imageUrl": "/images/vocabulary/touch-v1.svg",
+      "type": "verb",
+      "category": "senses",
+      "artKind": "symbol"
+    },
+    {
+      "key": "towel",
+      "english": "towel",
+      "vietnamese": "Khăn tắm",
+      "imageUrl": "/images/vocabulary/towel-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "diagram"
+    },
+    {
+      "key": "toy_store",
+      "english": "toy store",
+      "vietnamese": "Cửa hàng đồ chơi",
+      "imageUrl": "/images/vocabulary/toy_store-v1.svg",
+      "type": "noun",
+      "category": "places",
+      "artKind": "scene"
+    },
+    {
+      "key": "train",
+      "english": "train",
+      "vietnamese": "Đoàn tàu",
+      "imageUrl": "/images/vocabulary/train-v1.svg",
+      "type": "noun",
+      "category": "transport",
+      "artKind": "symbol"
+    },
+    {
+      "key": "trash",
+      "english": "trash",
+      "vietnamese": "Rác thải",
+      "imageUrl": "/images/vocabulary/trash-v1.svg",
+      "type": "noun",
+      "category": "materials",
+      "artKind": "symbol"
+    },
+    {
+      "key": "tree",
+      "english": "tree",
+      "vietnamese": "Cái cây",
+      "imageUrl": "/images/vocabulary/tree-v1.svg",
+      "type": "noun",
+      "category": "nature",
+      "artKind": "symbol"
+    },
+    {
+      "key": "tricycle",
+      "english": "tricycle",
+      "vietnamese": "Xe ba bánh",
+      "imageUrl": "/images/vocabulary/tricycle-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "diagram"
+    },
+    {
+      "key": "trunk",
+      "english": "trunk",
+      "vietnamese": "Vòi voi",
+      "imageUrl": "/images/vocabulary/trunk-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "tuesday",
+      "english": "Tuesday",
+      "vietnamese": "Thứ Ba",
+      "imageUrl": "/images/vocabulary/tuesday-v1.svg",
+      "type": "noun",
+      "category": "calendar",
+      "artKind": "diagram"
+    },
+    {
+      "key": "turn_off",
+      "english": "turn off",
+      "vietnamese": "Tắt đèn, tắt quạt",
+      "imageUrl": "/images/vocabulary/turn_off-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "turn_on",
+      "english": "turn on",
+      "vietnamese": "Bật công tắc",
+      "imageUrl": "/images/vocabulary/turn_on-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "turtle",
+      "english": "turtle",
+      "vietnamese": "Con rùa",
+      "imageUrl": "/images/vocabulary/turtle-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "twelve",
+      "english": "twelve",
+      "vietnamese": "Số mười hai",
+      "imageUrl": "/images/vocabulary/twelve-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "twenty",
+      "english": "twenty",
+      "vietnamese": "Số hai mươi",
+      "imageUrl": "/images/vocabulary/twenty-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "two",
+      "english": "two",
+      "vietnamese": "Số hai",
+      "imageUrl": "/images/vocabulary/two-v1.svg",
+      "type": "number",
+      "category": "numbers",
+      "artKind": "number"
+    },
+    {
+      "key": "uncle",
+      "english": "uncle",
+      "vietnamese": "Chú / Bác trai",
+      "imageUrl": "/images/vocabulary/uncle-v2.svg",
+      "type": "noun",
+      "category": "family",
+      "artKind": "scene"
+    },
+    {
+      "key": "use_a_computer",
+      "english": "use a computer",
+      "vietnamese": "Dùng máy vi tính",
+      "imageUrl": "/images/vocabulary/use_a_computer-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "vegetables",
+      "english": "vegetables",
+      "vietnamese": "Các loại rau xanh",
+      "imageUrl": "/images/vocabulary/vegetables-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "waiter",
+      "english": "waiter",
+      "vietnamese": "Người phục vụ",
+      "imageUrl": "/images/vocabulary/waiter-v1.svg",
+      "type": "noun",
+      "category": "jobs",
+      "artKind": "scene"
+    },
+    {
+      "key": "walk",
+      "english": "walk",
+      "vietnamese": "Đi bộ",
+      "imageUrl": "/images/vocabulary/walk-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "wash_my_face",
+      "english": "wash my face",
+      "vietnamese": "Rửa mặt",
+      "imageUrl": "/images/vocabulary/wash_my_face-v1.svg",
+      "type": "verb",
+      "category": "habits",
+      "artKind": "scene"
+    },
+    {
+      "key": "watch_tv",
+      "english": "watch TV",
+      "vietnamese": "Xem tivi",
+      "imageUrl": "/images/vocabulary/watch_tv-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "scene"
+    },
+    {
+      "key": "water",
+      "english": "water",
+      "vietnamese": "Nước lọc",
+      "imageUrl": "/images/vocabulary/water-v1.svg",
+      "type": "noun",
+      "category": "food",
+      "artKind": "symbol"
+    },
+    {
+      "key": "watering_can",
+      "english": "watering can",
+      "vietnamese": "Bình tưới nước",
+      "imageUrl": "/images/vocabulary/watering_can-v1.svg",
+      "type": "noun",
+      "category": "tools",
+      "artKind": "diagram"
+    },
+    {
+      "key": "wednesday",
+      "english": "Wednesday",
+      "vietnamese": "Thứ Tư",
+      "imageUrl": "/images/vocabulary/wednesday-v1.svg",
+      "type": "noun",
+      "category": "calendar",
+      "artKind": "diagram"
+    },
+    {
+      "key": "whale",
+      "english": "whale",
+      "vietnamese": "Cá voi",
+      "imageUrl": "/images/vocabulary/whale-v1.svg",
+      "type": "noun",
+      "category": "animals",
+      "artKind": "symbol"
+    },
+    {
+      "key": "white",
+      "english": "white",
+      "vietnamese": "Màu trắng",
+      "imageUrl": "/images/vocabulary/white-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "window",
+      "english": "window",
+      "vietnamese": "Cửa sổ",
+      "imageUrl": "/images/vocabulary/window-v1.svg",
+      "type": "noun",
+      "category": "objects",
+      "artKind": "symbol"
+    },
+    {
+      "key": "windy",
+      "english": "windy",
+      "vietnamese": "Nhiều gió",
+      "imageUrl": "/images/vocabulary/windy-v1.svg",
+      "type": "adjective",
+      "category": "weather",
+      "artKind": "symbol"
+    },
+    {
+      "key": "wing",
+      "english": "wing",
+      "vietnamese": "Đôi cánh",
+      "imageUrl": "/images/vocabulary/wing-v1.svg",
+      "type": "noun",
+      "category": "body",
+      "artKind": "diagram"
+    },
+    {
+      "key": "woman",
+      "english": "woman",
+      "vietnamese": "Người phụ nữ",
+      "imageUrl": "/images/vocabulary/woman-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "symbol"
+    },
+    {
+      "key": "women",
+      "english": "women",
+      "vietnamese": "Những người phụ nữ",
+      "imageUrl": "/images/vocabulary/women-v1.svg",
+      "type": "noun",
+      "category": "people",
+      "artKind": "scene"
+    },
+    {
+      "key": "writing",
+      "english": "Writing",
+      "vietnamese": "Tập viết",
+      "imageUrl": "/images/vocabulary/writing-v1.svg",
+      "type": "noun",
+      "category": "subjects",
+      "artKind": "scene"
+    },
+    {
+      "key": "yawn",
+      "english": "yawn",
+      "vietnamese": "Ngáp ngủ",
+      "imageUrl": "/images/vocabulary/yawn-v1.svg",
+      "type": "verb",
+      "category": "actions",
+      "artKind": "symbol"
+    },
+    {
+      "key": "yellow",
+      "english": "yellow",
+      "vietnamese": "Màu vàng",
+      "imageUrl": "/images/vocabulary/yellow-v1.svg",
+      "type": "color",
+      "category": "colors",
+      "artKind": "color"
+    },
+    {
+      "key": "yo_yo",
+      "english": "yo-yo",
+      "vietnamese": "Con quay yo-yo",
+      "imageUrl": "/images/vocabulary/yo_yo-v1.svg",
+      "type": "noun",
+      "category": "toys",
+      "artKind": "symbol"
+    },
+    {
+      "key": "young",
+      "english": "young",
+      "vietnamese": "Trẻ",
+      "imageUrl": "/images/vocabulary/young-v1.svg",
+      "type": "adjective",
+      "category": "descriptors",
+      "artKind": "symbol"
+    }
+  ]
+}

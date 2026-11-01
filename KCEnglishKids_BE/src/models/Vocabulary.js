@@ -77,6 +77,8 @@ const vocabularySchema = new mongoose.Schema(
       type: String // Cached direct image URL or SVG icon
     },
     animationUrl: String,
+    mediaSource: String,
+    mediaLicense: String,
     isTransparent: Boolean,
     visualType: { type: String, enum: ['concrete', 'abstract'] },
     wordType: { type: String, enum: ['noun', 'verb', 'number', 'color', 'adjective'] },

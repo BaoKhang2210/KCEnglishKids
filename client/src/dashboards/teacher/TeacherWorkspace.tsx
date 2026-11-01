@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ObservationPortfolio } from '../../components/teacher/ObservationPortfolio';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, PlayCircle, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, School, BarChart3, ArrowUpDown, Send, Brain } from 'lucide-react';
 import { teacherApi, parentNotificationApi } from '../../services/api';
@@ -59,14 +60,14 @@ export const TeacherClasses = () => {
     <>
       <Header
         title="Quản Lý Lớp Học"
-        text="Trung tâm điều hành và sổ chủ nhiệm các lớp bạn đang phụ trách. Theo dõi sĩ số, thành tích và bắt đầu buổi dạy trực tiếp theo đúng giáo trình."
+        text="Trung tâm điều hành và sổ giảng dạy lớp của bạn. Theo dõi sĩ số, thành tích và bắt đầu buổi dạy trực tiếp theo đúng giáo trình."
       />
 
       {/* KPI Overview of all classes */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center justify-between text-slate-600 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Lớp phụ trách</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Lớp giảng dạy</span>
             <School size={18} className="text-teal-800" />
           </div>
           <div className="text-2xl font-black text-slate-900">{classes.length} <span className="text-sm font-semibold text-slate-600">lớp</span></div>
@@ -846,7 +847,7 @@ export const TeacherAssignments = () => {
                       )}
                     </td>
                     <td className="p-4">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                      <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${
                         a.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
                         a.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' :
                         'bg-amber-100 text-amber-800'
@@ -1143,7 +1144,7 @@ export const TeacherAssignmentDetail = () => {
         </div>
 
         <Metric
-          label="Điểm trung bình"
+          label="Độ đúng trung bình"
           value={`${stats.averageScore}%`}
           icon={<Award size={18} className="text-amber-800" />}
         />
@@ -1220,7 +1221,7 @@ export const TeacherAssignmentDetail = () => {
                 <tr>
                   <th className="p-4">Học sinh</th>
                   <th className="p-4">Trạng thái làm bài</th>
-                  <th className="p-4">Điểm số</th>
+                  <th className="p-4">Độ đúng (%)</th>
                   <th className="p-4">Sao đạt được</th>
                   <th className="p-4">Nhận xét của cô</th>
                   <th className="p-4 text-right">Thao tác</th>
@@ -1344,7 +1345,7 @@ export const TeacherAssignmentDetail = () => {
               {/* Score Snapshot */}
               <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center">
                 <div>
-                  <span className="text-xs font-medium text-slate-600 block">Điểm số</span>
+                  <span className="text-xs font-medium text-slate-600 block">Độ đúng (%)</span>
                   <b className="text-2xl text-amber-800">{selectedSub.submission.score}%</b>
                 </div>
                 <div>
@@ -1551,7 +1552,6 @@ export const TeacherStudents = () => {
   const [classes, setClasses] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [selectedClassId, setSelectedClassId] = useState<string>('all');
   const [sortKey, setSortKey] = useState<'name' | 'score' | 'stars' | 'lessons'>('name');
 
   // Quick parent note modal state
@@ -1647,22 +1647,8 @@ export const TeacherStudents = () => {
     };
   }, [classes, filtered]);
 
-  // Determine what to display based on selectedClassId
-  const displayGroups = useMemo(() => {
-    if (selectedClassId === 'all') {
-      return classGroups.classes;
-    }
-    if (selectedClassId === 'unassigned') {
-      return [];
-    }
-    return classGroups.classes.filter(
-      (g) => String(g.classInfo?._id) === String(selectedClassId)
-    );
-  }, [classGroups, selectedClassId]);
-
-  const showUnassigned =
-    (selectedClassId === 'all' || selectedClassId === 'unassigned') &&
-    classGroups.unassigned.length > 0;
+  const displayGroups = classGroups.classes;
+  const showUnassigned = classGroups.unassigned.length > 0;
 
   const handleSendQuickNote = async () => {
     if (!quickStudent || !quickNoteText.trim()) return;
@@ -1690,75 +1676,9 @@ export const TeacherStudents = () => {
   return (
     <>
       <Header
-        title="Quản Lý Học Sinh Theo Lớp"
-        text="Danh sách toàn bộ học sinh được nhóm khoa học theo từng lớp học để cô dễ dàng tìm kiếm, chấm điểm và theo dõi tiến độ."
+        title="Hồ sơ học sinh"
+        text="Theo dõi việc học, năng lực và gửi nhận xét cho học sinh trong lớp."
       />
-
-      {/* Class Selection Tabs Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4 scrollbar-thin">
-        <button
-          onClick={() => setSelectedClassId('all')}
-          className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-            selectedClassId === 'all'
-              ? 'bg-teal-700 text-white'
-              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          <span>🏫 Tất cả lớp</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
-              selectedClassId === 'all'
-                ? 'bg-teal-700 text-white'
-                : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {items.length}
-          </span>
-        </button>
-
-        {classes.map((c) => {
-          const count = items.filter(
-            (s) => String(s.assignedClass?._id || s.assignedClass) === String(c._id)
-          ).length;
-          const active = selectedClassId === String(c._id);
-          return (
-            <button
-              key={c._id}
-              onClick={() => setSelectedClassId(String(c._id))}
-              className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-                active
-                  ? 'bg-teal-700 text-white'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span>{c.name}</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
-                  active ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {count} bé
-              </span>
-            </button>
-          );
-        })}
-
-        {classGroups.unassigned.length > 0 && (
-          <button
-            onClick={() => setSelectedClassId('unassigned')}
-            className={`shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-              selectedClassId === 'unassigned'
-                ? 'bg-amber-700 text-white'
-                : 'bg-white border border-amber-200 text-amber-800 hover:bg-amber-50'
-            }`}
-          >
-            <span>⚠️ Chưa phân lớp</span>
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">
-              {classGroups.unassigned.length}
-            </span>
-          </button>
-        )}
-      </div>
 
       {/* Search & Sort Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6">
@@ -1774,7 +1694,7 @@ export const TeacherStudents = () => {
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer"
           >
             <option value="name">Tên A–Z (Tiếng Việt)</option>
-            <option value="score">Điểm trung bình cao nhất</option>
+            <option value="score">Độ đúng cao nhất</option>
             <option value="stars">Nhiều sao nhất ⭐</option>
             <option value="lessons">Hoàn thành nhiều bài nhất</option>
           </select>
@@ -1792,8 +1712,9 @@ export const TeacherStudents = () => {
               (sum, s) => sum + (s.stats?.totalStars ?? s.stats?.stars ?? 0),
               0
             );
-            const assessedStudents = sortedStudents.filter(s => s.stats?.hasAssessment);
-            const classAvg = assessedStudents.length ? Math.round(assessedStudents.reduce((sum, s) => sum + s.stats.averageScore, 0) / assessedStudents.length) : null;
+            const answered = sortedStudents.reduce((sum, student) => sum + (student.stats?.answeredCount || 0), 0);
+            const correct = sortedStudents.reduce((sum, student) => sum + (student.stats?.correctAnswers || 0), 0);
+            const classAvg = answered ? Math.round(100 * correct / answered) : null;
 
             const bookLabel =
               classInfo.ageGroupCode === '3-4'
@@ -1814,7 +1735,7 @@ export const TeacherStudents = () => {
                       🏫
                     </span>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-xl font-black text-slate-900">{classInfo.name}</h3>
                         <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-800 border border-teal-200/60">
                           {bookLabel}
@@ -1866,9 +1787,9 @@ export const TeacherStudents = () => {
 
                       const rankBadge =
                         !s.stats?.hasAssessment ? { label: 'Chưa có dữ liệu', color: 'bg-slate-50 text-slate-600 border-slate-200' } : avg >= 85
-                          ? { label: 'Độ đúng từ 85%', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
+                          ? { label: 'Phản hồi tốt', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
                           : avg >= 70
-                          ? { label: 'Độ đúng từ 70%', color: 'bg-teal-50 text-teal-800 border-teal-200' }
+                          ? { label: 'Đang củng cố', color: 'bg-teal-50 text-teal-800 border-teal-200' }
                           : { label: 'Cần quan sát thêm', color: 'bg-amber-50 text-amber-800 border-amber-200' };
 
                       return (
@@ -1908,7 +1829,7 @@ export const TeacherStudents = () => {
                             {/* 3 Metrics */}
                             <div className="mt-3 grid grid-cols-3 gap-1 bg-slate-50 p-2.5 rounded-xl text-center text-xs">
                               <div>
-                                <span className="block text-[10px] font-bold text-slate-600">Điểm</span>
+                                <span className="block text-[10px] font-bold text-slate-600">Độ đúng</span>
                                 <b className="text-teal-800 font-black">{s.stats?.hasAssessment ? avg + '%' : '—'}</b>
                               </div>
                               <div className="border-x border-slate-200">
@@ -1926,7 +1847,7 @@ export const TeacherStudents = () => {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                          <div className="student-card-actions mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
                             <button
                               type="button"
                               onClick={async () => { try { const result = await teacherApi.getStudentOverview(s._id); setCompetencyStudent({ ...result.data.student, stats: result.data.stats, competencyReport: result.data.competencyReport }); } catch(e: any) { alert(e.message); } }}
@@ -2093,12 +2014,12 @@ export const TeacherStudents = () => {
 };
 
 export const TeacherStudentDetail = () => {
+  const [observationParams]=useSearchParams();
   const { studentId = '' } = useParams();
   const [data, setData] = useState<any>();
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [isHomeroomOnly, setIsHomeroomOnly] = useState(false);
   const [parentNotifs, setParentNotifs] = useState<any[]>([]);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showCompetencyModal, setShowCompetencyModal] = useState(false);
@@ -2111,7 +2032,7 @@ export const TeacherStudentDetail = () => {
     { label: '📖 Cần rèn luyện thêm', text: 'Bé cần ôn lại từ vựng và luyện tập thêm khả năng tập trung.' },
     { label: '🎯 Nhớ từ vựng tốt', text: 'Bé ghi nhớ từ vựng rất nhanh, trả lời chính xác các câu hỏi.' },
     { label: '✨ Tiến bộ rõ rệt', text: 'Bé có sự tiến bộ vượt bậc so với tuần trước.' },
-    { label: '🔒 Lưu ý GVCN', text: 'Ghi chú riêng GVCN: Cần theo dõi thêm về sự tập trung và phản xạ của bé trong giờ học.' }
+    { label: '🔒 Lưu ý giáo viên', text: 'Ghi chú riêng giáo viên: Cần theo dõi thêm về sự tập trung và phản xạ của bé trong giờ học.' }
   ];
 
   const load = async () => {
@@ -2124,7 +2045,7 @@ export const TeacherStudentDetail = () => {
   const { student, stats } = data;
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); if (!note.trim() || saving) return; setSaving(true);
-    try { await teacherApi.createTeacherNote({ studentId, noteType: 'GENERAL', content: note.trim(), isHomeroomOnly }); setNote(''); setIsHomeroomOnly(false); await load(); }
+    try { await teacherApi.createTeacherNote({ studentId, noteType: 'GENERAL', content: note.trim() }); setNote(''); await load(); }
     catch(e: any) { setError(e.message); } finally { setSaving(false); }
   };
   const sendToParent = async (e: React.FormEvent) => {
@@ -2157,6 +2078,8 @@ export const TeacherStudentDetail = () => {
         }
       />
 
+      {observationParams.get('unitId')&&<Link className="teacher-button mt-5" to={`/teacher/unit-review?unitId=${encodeURIComponent(observationParams.get('unitId')!)}`}>← Quay lại quan sát Unit đang chọn</Link>}
+      <ObservationPortfolio studentId={studentId} initialLessonId={observationParams.get("lessonId")||""} unitId={observationParams.get("unitId")||undefined} ageGroup={student.ageGroupCode}/>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <div
           onClick={() => setShowCompetencyModal(true)}
@@ -2193,7 +2116,7 @@ export const TeacherStudentDetail = () => {
                     {r.activity?.title} · {date(r.createdAt)}
                   </small>
                 </span>
-                <span>{r.score}% · {r.stars}★</span>
+                <span>{r.score==null?'Chưa có độ đúng':r.score+'%'} · {r.stars}★</span>
               </div>
             ))
           ) : (
@@ -2233,17 +2156,6 @@ export const TeacherStudentDetail = () => {
               </div>
             </div>
 
-            {/* Homeroom Only Checkbox (GV-06) */}
-            <label className="flex items-center gap-2 text-xs font-bold text-indigo-950 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-xl cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isHomeroomOnly}
-                onChange={e => setIsHomeroomOnly(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-800 focus:ring-indigo-500"
-              />
-              <span>🔒 Ghi chú riêng cho Giáo viên chủ nhiệm (Chỉ GVCN lớp được xem)</span>
-            </label>
-
             <button
               type="submit"
               disabled={!note.trim()}
@@ -2260,15 +2172,7 @@ export const TeacherStudentDetail = () => {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-700">{n.teacher?.name || 'Giáo viên'}</span>
-                      {n.isHomeroomOnly ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-800 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-full">
-                          🔒 Chỉ GVCN xem
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-medium text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
-                          👥 Nội bộ lớp
-                        </span>
-                      )}
+                      <span className="text-[10px] text-slate-600">Nội bộ lớp</span>
                     </div>
                     <small className="text-slate-600 text-xs">{date(n.createdAt)}</small>
                   </div>

@@ -7,6 +7,9 @@ const User = require('../src/models/User');
 const ClassRoom = require('../src/models/ClassRoom');
 const ClassroomSession = require('../src/models/ClassroomSession');
 const Recognition = require('../src/models/ClassRecognition');
+const SchoolRecognition = require('../src/models/SchoolRecognition');
+SchoolRecognition.find = () => query([]);
+SchoolRecognition.exists = async () => false;
 
 const ids = Object.fromEntries(['teacher', 'otherTeacher', 'admin', 'child', 'otherChild', 'classroom'].map(key => [key, String(new mongoose.Types.ObjectId())]));
 const users = [
@@ -18,6 +21,7 @@ const users = [
 ];
 const classroom = { _id: ids.classroom, name: 'Lớp Lá', teacher: ids.teacher, students: [ids.child, ids.otherChild] };
 let records = [];
+let schoolRecords = [];
 let sessions = [];
 let simulateConcurrentPublish = false;
 function query(value) {
@@ -51,6 +55,12 @@ Recognition.updateOne = async (filter, update) => {
   winner.readAt = update.$set['winners.$.readAt'];
   return { matchedCount: 1 };
 };
+SchoolRecognition.findOne = key => query(schoolRecords.find(record => record.kind === key.kind && +new Date(record.periodStart) === +key.periodStart) || null);
+SchoolRecognition.create = async data => {
+  const record = { ...data, _id: String(new mongoose.Types.ObjectId()), publishedAt: new Date(), winners: data.winners.map(row => ({ ...row, readAt: null })) };
+  schoolRecords.push(record); return record;
+};
+SchoolRecognition.find = filter => query(schoolRecords.filter(record => record.winners.some(winner => String(winner.child) === String(filter['winners.child']))));
 
 const app = express();
 app.use(express.json());
@@ -66,6 +76,7 @@ test.before(async () => {
 test.after(() => new Promise(resolve => server.close(resolve)));
 test.beforeEach(() => {
   records = [];
+  schoolRecords = [];
   simulateConcurrentPublish = false;
   sessions = [{ status: 'COMPLETED', studentScores: [
     { student: ids.child, stars: 4, attendance: 'PRESENT' },
@@ -81,6 +92,23 @@ async function request(path, role = 'teacher', method = 'GET', body) {
 const params = '?kind=WEEK&date=2025-01-01';
 const publishPath = '/classes/' + ids.classroom + '/publish';
 const period = { kind: 'WEEK', date: '2025-01-01' };
+
+test('school recognition is admin-only, compares all children and publishes once with minimum attendance', async () => {
+  assert.equal((await request('/school' + params, 'teacher')).status, 403);
+  assert.equal((await request('/school/publish', 'child', 'POST', period)).status, 403);
+  assert.equal((await request('/school' + params, 'admin')).data.data.canPublish, false);
+  sessions.push(sessions[0]);
+  const preview = await request('/school' + params, 'admin');
+  assert.equal(preview.status, 200);
+  assert.equal(preview.data.data.minimumSessions, 2);
+  assert.equal(preview.data.data.ranking[0].starsPerSession, 4);
+  assert.equal(preview.data.data.canPublish, true);
+  for (let i = 0; i < 2; i++) assert.equal((await request('/school/publish', 'admin', 'POST', period)).status, 200);
+  assert.equal(schoolRecords.length, 1);
+  const own = await request('/mine', 'child');
+  assert.equal(own.data.data.length, 1);
+  assert.equal(own.data.data[0].className, 'Toàn trường');
+});
 
 test('authentication and class ownership apply to preview and publication', async () => {
   assert.equal((await request('/classes', null)).status, 401);

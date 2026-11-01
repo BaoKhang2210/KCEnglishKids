@@ -38,7 +38,7 @@ test('backup contains every collection and preserves BSON IDs, dates and passwor
   const response = await request();
   const payload = EJSON.parse(await response.text(), { relaxed: false });
   assert.equal(response.status, 200);
-  assert.equal(payload.version, '3.0.0');
+  assert.equal(payload.version, '3.4.0');
   assert.equal(payload.format, 'mongodb-extended-json');
   assert.deepEqual(payload.collections, records);
   assert.match(response.headers.get('content-disposition'), /attachment; filename="KCEnglishKids_Backup_/);

@@ -33,7 +33,7 @@
 .admin-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; color: #64748b; font-size: .9rem; }
 .admin-breadcrumb strong { color: #334155; font-weight: 650; }
 .admin-school { color: #64748b; font-size: .85rem; }
-.admin-main { max-width: 1600px; margin: auto; padding: 2rem; min-height: calc(100dvh - 78px); }
+.admin-main { width: 100%; max-width: 100%; margin: 0; padding: 1.75rem 2.25rem; min-height: calc(100dvh - 78px); }
 .admin-main > div > :first-child:where(.flex) { margin-bottom: 1.5rem; }
 .admin-main h1 { color: #0f172a; font-weight: 750; font-size: clamp(1.5rem, 2.2vw, 1.9rem); letter-spacing: -.025em; }
 .admin-main h2, .admin-main h3, .admin-main h4 { color: #1e293b; }
@@ -66,6 +66,45 @@
 .admin-unit-list h3 { white-space: normal; overflow: visible; line-height: 1.5; }
 .admin-workspace .admin-book-tabs :is(span, p) { text-shadow: none; }
 .admin-page-error { border: 1px solid #fecdd3; background: #fff1f2; color: #9f1239; border-radius: 12px; padding: 1rem; }
+/* Keep the full set of game filters readable at the staff reading scale. */
+.admin-workspace .admin-game-type-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: .65rem;
+}
+.admin-workspace .admin-game-type-filter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .5rem;
+  min-width: min-content;
+  max-width: 100%;
+  padding: .55rem .8rem;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: left;
+}
+.admin-game-type-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.admin-game-type-icon, .admin-game-type-count { flex: 0 0 auto; }
+.admin-game-type-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: .05rem .4rem;
+  border-radius: .5rem;
+  background: rgb(15 23 42 / .08);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.admin-game-type-filter[aria-pressed="true"] .admin-game-type-count { background: rgb(255 255 255 / .2); }
 @media(max-width: 1200px) { .admin-main { padding: 1.5rem; } .admin-topbar { padding: 1rem 1.5rem; } .admin-sidebar { width: 15.5rem; } .admin-curriculum-grid { grid-template-columns: minmax(210px, 1fr) minmax(0, 1.8fr); } }
 @media(max-width: 1023px) {
   .admin-sidebar { position: fixed; left: 0; top: 0; width: min(19rem, 90vw); transform: translateX(-100%); transition: transform .2s; }

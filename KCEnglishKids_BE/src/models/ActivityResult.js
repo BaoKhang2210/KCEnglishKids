@@ -25,6 +25,8 @@ const activityResultSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    submissionId: String,
+    payloadHash: String,
     score: {
       type: Number,
       default: 0
@@ -91,5 +93,6 @@ const activityResultSchema = new mongoose.Schema(
 );
 
 activityResultSchema.index({ child: 1, activity: 1 });
+activityResultSchema.index({ child: 1, submissionId: 1 }, { unique: true, partialFilterExpression: { submissionId: { $type: 'string' } } });
 
 module.exports = mongoose.model('ActivityResult', activityResultSchema);

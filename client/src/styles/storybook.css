@@ -1,0 +1,501 @@
+/* Storybook surface with modern ambient backdrop */
+.story-surface {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0e3d34 0%, #164e43 100%);
+  color: #fffdf4;
+}
+
+/* Full backdrop for pages like StudentLoginPage and activity cards */
+.story-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: saturate(1.08) brightness(0.96);
+}
+
+/* Subtle, gentle vignette instead of opaque dark green paint */
+.story-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(7, 36, 30, 0.75) 0%, rgba(7, 36, 30, 0.42) 50%, rgba(7, 36, 30, 0.12) 100%);
+}
+
+/* Story banner redesigned: 2-column hero with the full illustration visible */
+.story-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: 240px;
+  border: 1px solid #3d6a57;
+  border-radius: 26px;
+  margin-bottom: 24px;
+  padding: clamp(20px, 2.8vw, 32px);
+  box-shadow: 0 10px 30px rgba(7, 36, 30, 0.18);
+}
+
+/* Ambient background showing soft atmosphere behind the banner */
+.story-banner-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.16;
+  filter: blur(14px) saturate(1.2);
+  transform: scale(1.06);
+}
+
+.story-banner-copy {
+  flex: 1 1 360px;
+  min-width: 0;
+  z-index: 2;
+}
+
+.story-banner .story-banner-copy h2 {
+  font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+  line-height: 1.25;
+  font-weight: 850;
+  margin: 8px 0 12px;
+  color: #fffdf4;
+  text-shadow: 0 2px 8px rgba(5, 39, 31, 0.6);
+}
+
+.story-banner .story-banner-copy p {
+  color: #f0fff6;
+  line-height: 1.65;
+  font-size: 0.96rem;
+}
+
+.story-banner .story-banner-copy .story-eyebrow {
+  color: #fde68a;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  font-weight: 850;
+}
+
+/* Dedicated art frame: Full scene illustration visible, crisp, zero detail lost */
+.story-banner-art-wrap {
+  flex: 0 0 clamp(220px, 32vw, 420px);
+  max-width: 440px;
+  aspect-ratio: 3 / 2;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 253, 244, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.story-banner-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.3s ease;
+}
+
+.story-banner-art-wrap:hover .story-banner-art {
+  transform: scale(1.03);
+}
+
+.story-banner.is-compact {
+  min-height: 160px;
+  border-radius: 20px;
+  padding: 18px 24px;
+}
+
+.story-banner.is-compact .story-banner-copy h2 {
+  font-size: 1.3rem;
+}
+
+.story-banner.is-compact .story-banner-art-wrap {
+  flex: 0 0 clamp(160px, 22vw, 260px);
+}
+
+.story-surface .teacher-button {
+  background: #fffdf4;
+  border-color: #fff4cb;
+  color: #143e34;
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.story-surface .teacher-button:hover {
+  background: #fff4cb;
+  border-color: #ffe09a;
+}
+
+.story-surface .teacher-button.primary {
+  background: #fde68a;
+  border-color: #fde68a;
+  color: #143e34;
+}
+
+.story-surface .teacher-button.primary:hover {
+  background: #fcd34d;
+  border-color: #fcd34d;
+}
+
+.story-surface :is(a, button, input):focus-visible {
+  outline: 3px solid #fffdf4;
+  outline-offset: 4px;
+}
+
+.story-action {
+  background: #fffdf4;
+  color: #143e34;
+  border: 2px solid #fff4cb;
+  text-shadow: none;
+}
+
+.story-action:hover {
+  background: #fef3c7;
+}
+
+.story-action.is-primary {
+  background: #fde68a;
+  border-color: #fde68a;
+}
+
+.story-action.is-primary:hover {
+  background: #fcd34d;
+}
+
+.story-activity-card {
+  display: flex;
+  align-items: flex-end;
+  min-height: 310px;
+  border: 1px solid #537c66;
+  border-radius: 24px;
+}
+
+.story-activity-card::before {
+  background: linear-gradient(180deg, rgba(7, 36, 30, 0.02), rgba(7, 36, 30, 0.10) 45%, rgba(7, 36, 30, 0.86) 70%, rgba(7, 36, 30, 0.97));
+}
+
+.story-activity-card p {
+  position: relative;
+  padding: 24px;
+  color: #fffdf4;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  font-weight: 800;
+  text-shadow: 0 2px 8px #05271f66;
+}
+
+.story-break-dialog {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: min(490px, calc(100dvh - 32px));
+  padding-top: clamp(24px, 20dvh, 180px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.story-break-dialog::before {
+  background: linear-gradient(180deg, rgba(7, 36, 30, 0.30), rgba(7, 36, 30, 0.88) 32%, rgba(7, 36, 30, 0.97));
+}
+
+.story-game-complete::before {
+  background: linear-gradient(180deg, rgba(7, 36, 30, 0.15), rgba(7, 36, 30, 0.10) 45%, rgba(7, 36, 30, 0.45));
+}
+
+.story-game-complete > :not(.story-backdrop) {
+  max-width: 700px;
+}
+
+.story-game-complete .story-completion-heading,
+.story-game-complete .story-completion-words {
+  background: #07241edb;
+  border: 1px solid #e4f1e355;
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.story-practiced-word {
+  background: #fffdf4;
+  color: #143e34;
+  border: 1px solid #f7e9b5;
+}
+
+.story-login::before {
+  background: linear-gradient(90deg, rgba(7, 36, 30, 0.45), rgba(7, 36, 30, 0.65) 45%, rgba(7, 36, 30, 0.85) 75%);
+}
+
+.story-login h1 {
+  color: #fffdf4;
+  text-shadow: 0 2px 8px #05271f66;
+}
+
+.story-login-form {
+  color: #243d42;
+}
+
+.story-login-note {
+  padding: 8px 14px;
+  border-radius: 16px;
+  color: #f0fff6;
+  background: #07241ed9;
+  margin-bottom: 12px;
+}
+
+.learning-goals {
+  display: grid;
+  gap: 12px;
+}
+
+.learning-goals li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f1f8f4;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.learning-goals input {
+  flex-shrink: 0;
+  margin-top: 5px;
+  width: 18px;
+  height: 18px;
+  accent-color: #0f766e;
+}
+
+.portfolio-card {
+  border: 1px solid #dce6e3;
+  border-radius: 20px;
+  background: white;
+  padding: 22px;
+  color: #243d42;
+}
+
+.portfolio-card label {
+  display: grid;
+  gap: 7px;
+  font-weight: 700;
+}
+
+.portfolio-card :is(select, textarea, input:not([type=radio]):not([type=checkbox])) {
+  width: 100%;
+  border: 1px solid #bdceca;
+  background: #fcfdfc;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.portfolio-card :is(input[type=checkbox], input[type=radio]) {
+  accent-color: #0f766e;
+}
+
+.observation-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.observation-levels label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 13px;
+  border: 1px solid #ccdcd5;
+  border-radius: 12px;
+}
+
+.observation-levels label:has(:checked) {
+  border-color: #0f766e;
+  background: #ecfdf5;
+}
+
+.portfolio-timeline {
+  display: grid;
+  gap: 14px;
+}
+
+.portfolio-timeline article {
+  border-left: 4px solid #81b7a2;
+  padding: 18px 20px;
+  background: #f7fbf9;
+  border-radius: 0 18px 18px 0;
+}
+
+.portfolio-timeline audio {
+  max-width: 100%;
+}
+
+.evidence-image {
+  max-height: 340px;
+  max-width: 100%;
+  border-radius: 16px;
+  object-fit: contain;
+}
+
+.studio-word-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 16px;
+}
+
+.studio-word-card {
+  border: 1px solid #ccdcd5;
+  border-radius: 18px;
+  background: white;
+  padding: 16px;
+  text-align: center;
+  break-inside: avoid;
+}
+
+.studio-word-card img {
+  width: 100%;
+  height: 125px;
+  object-fit: contain;
+}
+
+.studio-word-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.2rem;
+}
+
+.child-picture-action {
+  min-height: 64px;
+  border-radius: 20px;
+  padding: 16px 24px;
+  font-size: 1.2rem;
+  font-weight: 850;
+  background: #0f766e;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.storybook-hover {
+  transition: transform 0.18s ease;
+}
+
+.storybook-hover:hover {
+  transform: translateY(-3px);
+}
+
+/* Workspace story art: elegant card showing full image */
+.workspace-story-art {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 140px;
+  border: 1px solid #3d6a57;
+  border-radius: 20px;
+  margin-bottom: 22px;
+  padding: 16px 24px;
+}
+
+.workspace-story-copy {
+  flex: 1;
+}
+
+.workspace-story-art strong {
+  font-size: 1.1rem;
+  color: #fffdf4;
+}
+
+.workspace-story-art p {
+  margin-top: 6px;
+  color: #f0fff6;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.workspace-story-art .story-banner-art-wrap {
+  flex: 0 0 clamp(140px, 18vw, 220px);
+  border-radius: 14px;
+}
+
+@media (max-width: 768px) {
+  .story-banner {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: 20px;
+  }
+  .story-banner-art-wrap {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+  }
+  .workspace-story-art {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .workspace-story-art .story-banner-art-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storybook-hover {
+    transition: none;
+  }
+  .storybook-hover:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  .teacher-sidebar,
+  .teacher-topbar,
+  .teacher-footer,
+  .admin-sidebar,
+  .admin-topbar,
+  .staff-skip-link,
+  .no-print {
+    display: none !important;
+  }
+  .teacher-body,
+  .admin-content {
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  .teacher-main,
+  .admin-main {
+    padding: 0 !important;
+  }
+  .staff-workspace {
+    display: block !important;
+    min-height: 0 !important;
+    background: white !important;
+  }
+  .story-banner {
+    display: none !important;
+  }
+  .studio-word-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .studio-word-card {
+    border: 1px dashed #999;
+  }
+  .print-materials {
+    color: #000;
+    background: white;
+  }
+  .print-materials .portfolio-card {
+    break-inside: avoid;
+  }
+}

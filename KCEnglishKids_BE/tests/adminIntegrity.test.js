@@ -43,7 +43,8 @@ test('teacher assignment through user editing rejects conflicting classrooms bef
   assert.equal(res.error.statusCode, 400);
 });
 test('teacher synchronisation clears previous assignments and updates existing schedules', async t => {
-  const room = { _id: id(2), teacher: id(3), save: async () => {} };
+  const room = { _id: id(2), teacher: id(3), status: 'ACTIVE', save: async () => {} };
+  t.mock.method(models.ClassroomSession, 'exists', async () => null);
   t.mock.method(User, 'findOne', async () => ({ _id: id(4), role: 'TEACHER' }));
   t.mock.method(ClassRoom, 'findOne', async () => null);
   const calls = [];
@@ -111,6 +112,8 @@ test('retrying an imported row skips its account and does not re-expose credenti
   assert.deepEqual(result.credentials, []);
 });
 test('older game forms preserve metadata, vocabulary and option audio when saved', async t => {
+  t.mock.method(models.Assignment, 'exists', async () => null);
+  t.mock.method(models.ActivityResult, 'exists', async () => null);
   const activity = new Activity({ lesson: id(2), title: 'Game', activityType: 'COUNT_OBJECTS', ageGroup: id(3), ageGroupCode: '3-4', questions: [{ promptText: 'Count', correctAnswer: '3', vocabulary: id(4), metadata: { quantity: 3 }, options: [{ id: 'one', text: '3', isCorrect: true, audioUrl: '/three.mp3' }] }] });
   t.mock.method(activity, 'save', async () => activity);
   t.mock.method(Activity, 'findById', async () => activity);
@@ -157,11 +160,12 @@ test('classroom cleanup reports failures and resumes the saved work list on retr
   const room = { _id: id(2), name: 'Room', status: 'ACTIVE', deletionPending: false, save: async () => {} };
   t.mock.method(ClassRoom, 'findById', async () => room);
   t.mock.method(User, 'find', () => query([{ _id: id(1) }]));
-  for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'TeacherNote', 'VocabularyMastery', 'Assignment', 'ParentNotification', 'Attendance', 'ClassroomSession']) t.mock.method(models[name], 'deleteMany', async () => ({}));
+  for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent', 'LearningObservation', 'TeacherNote', 'VocabularyMastery', 'Assignment', 'ParentNotification', 'Attendance', 'ClassroomSession']) t.mock.method(models[name], 'deleteMany', async () => ({}));
   for (const name of ['Attendance', 'ClassroomSession', 'ClassRoom', 'User']) t.mock.method(models[name], 'updateMany', async () => ({}));
   t.mock.method(User, 'deleteMany', async () => ({}));
   t.mock.method(ClassRecognition, 'deleteMany', async () => ({}));
   t.mock.method(ClassRecognition, 'updateMany', async () => ({}));
+  t.mock.method(models.SchoolRecognition, 'updateMany', async () => ({}));
   let failSchedule = true;
   let deletedRooms = 0;
   t.mock.method(Schedule, 'deleteMany', async () => { if (failSchedule) throw new Error('schedule cleanup unavailable'); });
@@ -180,7 +184,9 @@ test('classroom cleanup reports failures and resumes the saved work list on retr
 });
 test('PIN, username and calendar validation handle leading zeroes and impossible dates', async t => {
   t.mock.method(User, 'exists', async () => null);
-  assert.equal(I.pin('0000'), '0000');
+  assert.equal(I.pin('0123'), '0123');
+  assert.throws(() => I.pin('0000'), /PIN/);
+  assert.throws(() => I.pin('1234'), /PIN/);
   assert.throws(() => I.pin('123'), /PIN/);
   assert.throws(() => I.parseDob('2026-02-31'), /không tồn tại/);
   assert.equal(await I.username('Đỗ An', 'do.an'), 'do.an');

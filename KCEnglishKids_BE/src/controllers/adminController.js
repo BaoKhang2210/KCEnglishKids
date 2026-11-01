@@ -1,3 +1,4 @@
+const readiness = require('../services/contentReadiness');
 const { validateSchedule, activeScheduleFilter, normalizeSchedulePeriod } = require('../services/scheduleRules');
 const maintenance = require('./adminMaintenanceController');
 const integrity = require('../services/adminIntegrity');
@@ -174,7 +175,7 @@ const toggleUserStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
     }
 
-    if (user.role === 'TEACHER' && await ClassRoom.exists({ teacher: user._id, status: { $ne: 'INACTIVE' } })) throw integrity.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản.');
+    if (user.role === 'TEACHER' && await ClassRoom.exists({ teacher: user._id, status: { $in: ['ACTIVE', 'UPCOMING'] } })) throw integrity.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản.');
     if (user.role === 'ADMIN') {
       return res.status(400).json({ success: false, message: 'Không thể khóa tài khoản quản trị viên chính.' });
     }
@@ -290,6 +291,7 @@ const toggleTopicStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại.' });
     }
 
+    if(topic.status==='ACTIVE')await readiness.assertNotAssigned({lesson:{$in:await Lesson.find({topic:topic._id}).distinct('_id')}});
     topic.status = topic.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await topic.save();
 
@@ -371,7 +373,7 @@ const createClassroom = async (req, res, next) => {
       });
     }
 
-    const cleanName = String(name).trim();
+    const cleanName = String(name).normalize('NFC').trim().replace(/\s+/gu, ' ');
     if (!cleanName) {
       return res.status(400).json({
         success: false,
@@ -401,12 +403,12 @@ const createClassroom = async (req, res, next) => {
 
     const existingTeacherClass = await ClassRoom.findOne({
       teacher: teacher._id,
-      status: { $ne: 'INACTIVE' }
+      status: { $in: ['ACTIVE', 'UPCOMING'] }
     });
     if (existingTeacherClass) {
       return res.status(400).json({
         success: false,
-        message: `Giáo viên "${teacher.name}" đã được phân công chủ nhiệm lớp "${existingTeacherClass.name}". Theo quy định của trường, mỗi giáo viên chỉ dạy 1 lớp học!`
+        message: `Giáo viên "${teacher.name}" đã được phân công giảng dạy lớp "${existingTeacherClass.name}". Theo quy định của trường, mỗi giáo viên chỉ dạy 1 lớp học!`
       });
     }
 
@@ -508,8 +510,9 @@ const updateClassroom = async (req, res, next) => {
     }
 
     // Check unique name if name is changing
-    if (name) {
-      const cleanName = String(name).trim();
+    if (name !== undefined) {
+      const cleanName = String(name).normalize('NFC').trim().replace(/\s+/gu, ' ');
+      if (!cleanName) throw integrity.fail('Tên lớp học không được để trống.');
       const duplicateName = await ClassRoom.findOne({
         name: { $regex: new RegExp(`^${cleanName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
         _id: { $ne: id }
@@ -539,17 +542,6 @@ const updateClassroom = async (req, res, next) => {
       const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
       if (!teacher) {
         return res.status(400).json({ success: false, message: 'Giáo viên phụ trách không hợp lệ.' });
-      }
-      const existingTeacherClass = await ClassRoom.findOne({
-        teacher: teacher._id,
-        _id: { $ne: id },
-        status: { $ne: 'INACTIVE' }
-      });
-      if (existingTeacherClass) {
-        return res.status(400).json({
-          success: false,
-          message: `Giáo viên "${teacher.name}" đã phụ trách lớp "${existingTeacherClass.name}". Mỗi giáo viên chỉ được phụ trách 1 lớp học!`
-        });
       }
       classroom.teacher = teacher._id;
     }
@@ -663,7 +655,7 @@ const deleteUser = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
     }
 
-    if (user.role === 'TEACHER' && await ClassRoom.exists({ teacher: user._id, status: { $ne: 'INACTIVE' } })) throw integrity.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản.');
+    if (user.role === 'TEACHER' && await ClassRoom.exists({ teacher: user._id, status: { $in: ['ACTIVE', 'UPCOMING'] } })) throw integrity.fail('Hãy phân công giáo viên thay thế trước khi ngừng tài khoản.');
     if (user.role === 'ADMIN') {
       return res.status(400).json({ success: false, message: 'Không thể xóa tài khoản Quản trị viên chính.' });
     }
@@ -705,7 +697,7 @@ const getDeepCurriculum = async (req, res, next) => {
       CurriculumUnit.find().sort({ bookNumber: 1, unitNumber: 1 }).lean(),
       Lesson.find().populate('topic', 'title englishName').sort({ displayOrder: 1 }).lean(),
       Activity.find().select('lesson activityType title status maxScore').lean(),
-      Vocabulary.find().select('_id english vietnamese pronunciation meaning audioUrl imageUrl category status sourceUnits topics lesson').lean(),
+      Vocabulary.find().select('_id english vietnamese pronunciation meaning audioUrl imageUrl animationUrl isTransparent visualType wordType mediaSource mediaLicense category status sourceUnits topics lesson').lean(),
       LanguageContent.find().select('_id lesson sourceUnit topic vocabulary english vietnamese pronunciation contentType difficulty status pairId relatedQuestion').lean()
     ]);
 
@@ -812,6 +804,8 @@ const toggleLessonStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Bài học không tồn tại.' });
     }
 
+    if (lesson.status === 'ACTIVE') await readiness.assertNotAssigned({lesson:lesson._id});
+    else await readiness.assertPublishable(lesson);
     lesson.status = lesson.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await lesson.save();
 
@@ -975,6 +969,7 @@ const updateUnit = async (req, res, next) => {
     if (concept !== undefined) unit.concept = concept;
     if (oracy !== undefined) unit.oracy = oracy;
     if (displayOrder !== undefined) unit.displayOrder = displayOrder;
+    if(status && status!=='ACTIVE' && await Lesson.exists({curriculumUnits:unit._id,status:'ACTIVE'}))throw integrity.fail('Tạm ngừng các bài đang mở trước khi lưu trữ Unit.',409);
     if (status) unit.status = status;
 
     await unit.save();
@@ -1000,7 +995,7 @@ const deleteUnit = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Unit không tồn tại.' });
     }
 
-    const attachedLessons = await Lesson.countDocuments({ curriculumUnits: unit._id, status: { $ne: 'INACTIVE' } });
+    const attachedLessons = await Lesson.countDocuments({ curriculumUnits: unit._id, status: { $in: ['ACTIVE', 'UPCOMING'] } });
     if (attachedLessons > 0) {
       return res.status(400).json({
         success: false,
@@ -1008,14 +1003,12 @@ const deleteUnit = async (req, res, next) => {
       });
     }
 
-    await Lesson.updateMany({ curriculumUnits: unit._id }, { $pull: { curriculumUnits: unit._id } });
-    await LanguageContent.updateMany({ sourceUnit: unit._id }, { $unset: { sourceUnit: 1 } });
-    await Vocabulary.updateMany({ sourceUnits: unit._id }, { $pull: { sourceUnits: unit._id } });
-    await CurriculumUnit.findByIdAndDelete(id);
+    unit.status = 'INACTIVE';
+    await unit.save();
 
     res.status(200).json({
       success: true,
-      message: `Đã xóa Unit ${unit.unitNumber} thành công.`
+      message: `Đã lưu trữ Unit ${unit.unitNumber}; lịch sử và liên kết được giữ lại.`
     });
   } catch (error) {
     next(error);
@@ -1058,7 +1051,7 @@ const createLesson = async (req, res, next) => {
       curriculumUnits: unitId ? [unitId] : [],
       displayOrder: displayOrder || 0,
       difficulty: difficulty || 1,
-      status: 'ACTIVE'
+      status: 'DRAFT'
     });
 
     if (req.user) {
@@ -1094,6 +1087,7 @@ const updateLesson = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Bài học không tồn tại.' });
     }
 
+    await readiness.assertNotAssigned({lesson:lesson._id});
     if (title) lesson.title = title.trim();
     if (vietnameseTitle !== undefined) lesson.vietnameseTitle = vietnameseTitle.trim();
     if (description !== undefined) lesson.description = description;
@@ -1112,8 +1106,10 @@ const updateLesson = async (req, res, next) => {
     }
     if (displayOrder !== undefined) lesson.displayOrder = displayOrder;
     if (difficulty !== undefined) lesson.difficulty = difficulty;
+    if (req.body.vocabularyItems !== undefined) lesson.vocabularyItems = req.body.vocabularyItems;
+    if (status && status !== 'ACTIVE') await readiness.assertNotAssigned({lesson:lesson._id});
     if (status) lesson.status = status;
-
+    if (lesson.status === 'ACTIVE') await readiness.assertPublishable(lesson);
     await lesson.save();
 
     res.status(200).json({
@@ -1137,6 +1133,7 @@ const deleteLesson = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Bài học không tồn tại.' });
     }
 
+    await readiness.assertNotAssigned({lesson:lesson._id});
     lesson.status = 'INACTIVE';
     await lesson.save();
 
@@ -1163,17 +1160,29 @@ const createVocabulary = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp từ tiếng Anh và nghĩa tiếng Việt.' });
     }
 
-    const vocab = await Vocabulary.create({
+    const targetLesson=lessonId?await Lesson.findOne({_id:lessonId,status:{$ne:'ACTIVE'}}):null;
+    if (lessonId && !targetLesson) throw integrity.fail('Chỉ thêm từ vào bài nháp/tạm ngừng.');
+    const media = {mediaSource:String(req.body.mediaSource||'').slice(0,500),mediaLicense:String(req.body.mediaLicense||'').slice(0,200),imageUrl:req.body.imageUrl || '',audioUrl:req.body.audioUrl || '',wordType:req.body.wordType || 'noun',isTransparent:req.body.isTransparent === true,visualType:req.body.visualType || 'concrete'};
+    if (media.imageUrl && !readiness.safeMedia(media.imageUrl) || media.audioUrl && !readiness.safeMedia(media.audioUrl)) throw integrity.fail('URL media phải là HTTPS hoặc đường dẫn nội bộ.');
+    const groupCodes=ageGroupCodes || [targetLesson?.ageGroupCode || '3-4'];
+    const unitIds=sourceUnits || targetLesson?.curriculumUnits || [];
+    if(!Array.isArray(groupCodes)||!groupCodes.length||!Array.isArray(unitIds)) throw integrity.fail('Nhóm tuổi/Unit không hợp lệ.');
+    const foundUnits=await CurriculumUnit.find({_id:{$in:unitIds}}).lean();
+    if(foundUnits.length!==new Set(unitIds.map(String)).size || foundUnits.some(unit=>!groupCodes.includes(unit.ageGroupCode)) || targetLesson&&!groupCodes.includes(targetLesson.ageGroupCode)) throw integrity.fail('Quan hệ Unit và nhóm tuổi không hợp lệ.');
+    const vocab = new Vocabulary({
       english: english.trim(),
       vietnamese: vietnamese.trim(),
       pronunciation: pronunciation ? pronunciation.trim() : '',
       category: category ? category.trim() : 'General',
-      ageGroupCodes: ageGroupCodes || ['3-4'],
-      sourceUnits: sourceUnits || [],
+      ageGroupCodes: groupCodes,
+      sourceUnits: unitIds,
       lesson: lessonId || undefined,
-      status: 'ACTIVE'
+      ...media, status: req.body.status === 'ACTIVE' && readiness.safeMedia(media.imageUrl) ? 'ACTIVE' : 'HIDDEN'
     });
 
+    await vocab.validate();
+    await require('../services/vocabularyMedia')(vocab);
+    await vocab.save();
     if (lessonId) {
       await Lesson.findByIdAndUpdate(lessonId, { $addToSet: { vocabularyItems: vocab._id } });
     }
@@ -1201,6 +1210,10 @@ const updateVocabulary = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Từ vựng không tồn tại.' });
     }
 
+    const beforeMedia={imageUrl:vocab.imageUrl,audioUrl:vocab.audioUrl};
+    if (await Lesson.exists({vocabularyItems:vocab._id,status:'ACTIVE'})) throw integrity.fail('Tạm ngừng bài đang sử dụng trước khi sửa học liệu.',409);
+    for(const key of ['imageUrl','audioUrl','animationUrl','wordType','visualType','isTransparent','mediaSource','mediaLicense']) if(req.body[key]!==undefined) vocab[key]=req.body[key];
+    if(vocab.imageUrl && !readiness.safeMedia(vocab.imageUrl) || vocab.audioUrl && !readiness.safeMedia(vocab.audioUrl)) throw integrity.fail('URL media không hợp lệ.');
     if (english) vocab.english = english.trim();
     if (vietnamese) vocab.vietnamese = vietnamese.trim();
     if (pronunciation !== undefined) vocab.pronunciation = pronunciation.trim();
@@ -1208,6 +1221,9 @@ const updateVocabulary = async (req, res, next) => {
     if (ageGroupCodes) vocab.ageGroupCodes = ageGroupCodes;
     if (status) vocab.status = status;
 
+    if(vocab.status==='ACTIVE'&&!readiness.safeMedia(vocab.imageUrl)) throw integrity.fail('Cần ảnh trước khi kích hoạt từ.');
+    await vocab.validate();
+    await require('../services/vocabularyMedia')(vocab,beforeMedia);
     await vocab.save();
 
     res.status(200).json({
@@ -1231,12 +1247,13 @@ const deleteVocabulary = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Từ vựng không tồn tại.' });
     }
 
-    await Lesson.updateMany({ vocabularyItems: vocab._id }, { $pull: { vocabularyItems: vocab._id } });
-    await Vocabulary.findByIdAndDelete(id);
+    if (await Lesson.exists({ vocabularyItems: vocab._id, status: 'ACTIVE' })) throw integrity.fail('Ẩn hoặc sửa các bài đang sử dụng từ này trước.', 409);
+    vocab.status = 'INACTIVE';
+    await vocab.save();
 
     res.status(200).json({
       success: true,
-      message: `Đã xóa từ vựng "${vocab.english}" thành công.`
+      message: `Đã lưu trữ từ "${vocab.english}"; lịch sử được giữ lại.`
     });
   } catch (error) {
     next(error);
@@ -1679,7 +1696,7 @@ const exportClassroomExcel = async (req, res, next) => {
       'Ngày sinh': s.dob ? new Date(s.dob).toLocaleDateString('vi-VN') : '',
       'Nhóm tuổi': classroom.ageGroupCode ? `${classroom.ageGroupCode} tuổi` : '',
       'Lớp học': classroom.name,
-      'Giáo viên chủ nhiệm': classroom.teacher?.name || 'Chưa phân công',
+      'Giáo viên': classroom.teacher?.name || 'Chưa phân công',
       'Năm học': classroom.academicYear || '2026-2027',
       'SĐT Phụ huynh': s.contact || s.parentContact || '',
       'Trạng thái': s.status === 'ACTIVE' ? 'Đang học' : 'Tạm dừng'
@@ -1812,7 +1829,7 @@ const createSchedule = async (req, res, next) => {
       });
     }
 
-    // Nếu không truyền teacher, lấy giáo viên chủ nhiệm của lớp
+    // Nếu không truyền teacher, lấy giáo viên của lớp
     if (!assignedTeacher && classroomDoc.teacher) {
       assignedTeacher = classroomDoc.teacher;
     }
@@ -2202,7 +2219,7 @@ const createAdminActivity = async (req, res, next) => {
       ageGroup: ageGroupDoc._id,
       ageGroupCode: finalAgeCode,
       difficulty: Number(difficulty) || 1,
-      questionCount: questionCount ? Number(questionCount) : (formattedQuestions.length || 4),
+      questionCount: formattedQuestions.length,
       timeLimit: Number(timeLimit) || 0,
       pointsPerQuestion: Number(pointsPerQuestion) || 10,
       starConfig: starConfig || { threeStarsMin: 90, twoStarsMin: 70, oneStarMin: 50 },
@@ -2280,6 +2297,7 @@ const updateAdminActivity = async (req, res, next) => {
       if (agDoc) activity.ageGroup = agDoc._id;
     }
 
+    await readiness.assertActivityEditable(activity._id);
     if (questions !== undefined) {
       if (!Array.isArray(questions) || !questions.length) throw integrity.fail('Trò chơi cần ít nhất một câu hỏi.');
       const previous = activity.questions.map(question => question.toObject());
@@ -2328,8 +2346,10 @@ const deleteAdminActivity = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
     }
 
+    await readiness.assertNotAssigned({$or:[{activity:id},{activitySnapshot:id}]});
     const title = activity.title;
-    await Activity.findByIdAndDelete(id);
+    activity.status = 'INACTIVE';
+    await activity.save();
 
     await writeAudit({
       user: req.user._id,
@@ -2341,7 +2361,7 @@ const deleteAdminActivity = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Đã xóa trò chơi "${title}".`
+      message: `Đã lưu trữ trò chơi "${title}"; lịch sử được giữ lại.`
     });
   } catch (error) {
     next(error);
@@ -2359,6 +2379,7 @@ const toggleActivityStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy trò chơi.' });
     }
 
+    await readiness.assertNotAssigned({$or:[{activity:activity._id},{activitySnapshot:activity._id}]});
     activity.status = activity.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     await activity.save();
 
@@ -2419,7 +2440,8 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
     // Get completed classroom sessions for this class to know which lessons were taught
     const completedSessions = await ClassroomSession.find({
       classroom: classroom._id,
-      status: 'COMPLETED'
+      status: 'COMPLETED',
+      $or: [{'teachingOutcome.coverage':{$exists:false}},{'teachingOutcome.coverage':'COMPLETE'}]
     }).select('lesson startedAt endedAt sessionNumber summary').lean();
 
     const taughtLessonMap = new Map();

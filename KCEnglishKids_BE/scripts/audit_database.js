@@ -144,7 +144,7 @@ async function auditData(data, models) {
   for (const room of data.ClassRoom) {
     const teacher = get('User', room.teacher);
     if (teacher && teacher.role !== 'TEACHER') add('ERROR', 'USER_ROLE_MISMATCH', 'ClassRoom', room, 'teacher');
-    if (teacher && room.status !== 'INACTIVE' && id(teacher.assignedClass) !== id(room._id)) add('ERROR', 'TEACHER_CLASS_BACKLINK', 'ClassRoom', room, 'teacher.assignedClass');
+    if (teacher && ['ACTIVE', 'UPCOMING'].includes(room.status) && id(teacher.assignedClass) !== id(room._id)) add('ERROR', 'TEACHER_CLASS_BACKLINK', 'ClassRoom', room, 'teacher.assignedClass');
     if (new Set((room.students || []).map(id)).size !== room.students?.length) add('ERROR', 'DUPLICATE_CLASS_STUDENT', 'ClassRoom', room, 'students');
     for (const sid of room.students || []) {
       const student = get('User', sid);

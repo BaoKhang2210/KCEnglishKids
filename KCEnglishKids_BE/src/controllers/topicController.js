@@ -75,7 +75,8 @@ const getTopicById = async (req, res, next) => {
 const getLessonsByTopic = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { ageGroup, childId } = req.query;
+    const { ageGroup } = req.query;
+    const childId = await require('../services/childAccess').privateChildQuery(req);
 
     let topic;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -94,7 +95,7 @@ const getLessonsByTopic = async (req, res, next) => {
     }
 
     const lessons = await Lesson.find(lessonQuery)
-      .populate('vocabularyItems', 'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType')
+      .populate({path:'vocabularyItems',select:'english vietnamese pronunciation imageUrl audioUrl animationUrl isTransparent visualType wordType',match:{status:'ACTIVE'}})
       .sort({ displayOrder: 1 })
       .lean();
 

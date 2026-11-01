@@ -6,7 +6,9 @@ import {
   RotateCcw,
   Check,
   Sparkles,
-  Hand
+  Hand,
+  BookOpen,
+  Square
 } from 'lucide-react';
 import type { Vocabulary } from '../../../types';
 import { playWordAudio, stopWordAudio, sfx } from '../../../utils/audio';
@@ -208,8 +210,8 @@ const CompletionView: React.FC<CompletionViewProps> = ({
 // ── COMPONENT CHÍNH: EXPLORE SCENE STAGE (CHẶNG 1 KHÁM PHÁ) ───────────────────
 export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
   vocabulary = [],
-  bigQuestion: _bigQuestion = 'What do we do at school?',
-  storyTitle: _storyTitle,
+  bigQuestion = 'What do we do at school?',
+  storyTitle,
   onComplete
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -223,6 +225,10 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
   const [hasInteracted, setHasInteracted] = useState<boolean>(() => {
     return localStorage.getItem('kc_flashcard_flip_guided') === 'true';
   });
+
+  // §3.4 — Chế độ "Cùng Koko đọc truyện": Koko dẫn chuyện qua từng thẻ (Epic!-style).
+  const [isStorytelling, setIsStorytelling] = useState(false);
+  const storyCancelRef = useRef(false);
 
   // Touch gesture
   const touchStartX = useRef<number | null>(null);
@@ -248,7 +254,9 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
   // Cleanup: dừng âm thanh và giải phóng tài nguyên khi unmount
   useEffect(() => {
     return () => {
+      storyCancelRef.current = true;
       stopWordAudio();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     };
   }, []);
 
@@ -290,7 +298,7 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
 
   // Phát âm thanh khi đổi thẻ theo biến cấu hình CHE_DO_PHAT_AM_KHI_CHUYEN_THE
   useEffect(() => {
-    if (isCompleted || !currentWord) return;
+    if (isCompleted || !currentWord || isStorytelling) return;
 
     if (CHE_DO_PHAT_AM_KHI_CHUYEN_THE === 'tu_dong') {
       const timer = setTimeout(() => {
@@ -298,7 +306,7 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [currentIndex, isCompleted, currentWord, handlePronounce]);
+  }, [currentIndex, isCompleted, currentWord, handlePronounce, isStorytelling]);
 
   // Lật thẻ
   const handleFlipCard = () => {
@@ -366,6 +374,47 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
     setCurrentIndex(0);
     setIsFlipped(false);
     setSlideDirection(null);
+  };
+
+  // §3.4 — Đọc câu dẫn chuyện bằng giọng Anh-Mỹ chậm, rõ (Web Speech TTS).
+  const speakText = (text: string) => new Promise<void>(resolve => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return resolve();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.78;
+    utterance.pitch = 1.1;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  });
+
+  const stopStory = () => {
+    storyCancelRef.current = true;
+    stopWordAudio();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    setIsStorytelling(false);
+  };
+
+  const toggleStoryMode = async () => {
+    if (isStorytelling) { stopStory(); return; }
+    sfx.playPop();
+    storyCancelRef.current = false;
+    setIsStorytelling(true);
+    await speakText(`Let's read the story! ${storyTitle || bigQuestion}`);
+    for (let i = 0; i < vocabulary.length; i++) {
+      if (storyCancelRef.current) return;
+      setCurrentIndex(i);
+      setIsFlipped(false);
+      setSlideDirection(i === 0 ? null : 'next');
+      await new Promise(r => setTimeout(r, 260));
+      if (storyCancelRef.current) return;
+      const word = vocabulary[i];
+      await playWordAudio(word.english, word.audioUrl).catch(() => {});
+      await new Promise(r => setTimeout(r, 700));
+    }
+    if (!storyCancelRef.current) await speakText('The end! Great job, little star!');
+    setIsStorytelling(false);
   };
 
   // Điều khiển bằng bàn phím
@@ -629,11 +678,29 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
           </button>
         )}
 
-        {/* Nhãn gợi ý điều hướng ở giữa (dành cho màn hình rộng) */}
-        <div className="flex-1 text-center hidden xs:block">
-          <span className="text-xs font-bold text-slate-400">
-            {totalWords > 1 ? 'Chạm thẻ để lật • Dùng ⬅️ ➡️' : 'Chạm thẻ để lật'}
-          </span>
+        {/* §3.4 — Nút "Cùng Koko đọc truyện" + nhãn gợi ý điều hướng */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => void toggleStoryMode()}
+            aria-label={isStorytelling ? 'Dừng Koko kể chuyện' : 'Cùng Koko đọc truyện'}
+            className={`
+              h-11 px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2
+              border-2 transition-all cursor-pointer select-none active:scale-95
+              ${isStorytelling
+                ? 'bg-rose-600 border-rose-400 text-white shadow-lg animate-pulse'
+                : 'bg-indigo-900/80 hover:bg-indigo-800 border-indigo-600 text-indigo-100 shadow-md'
+              }
+            `}
+          >
+            {isStorytelling ? <Square className="w-4 h-4 fill-current" /> : <BookOpen className="w-4 h-4" />}
+            <span>{isStorytelling ? 'Dừng truyện' : 'Cùng Koko đọc truyện'}</span>
+          </button>
+          {totalWords > 1 && !isStorytelling && (
+            <span className="text-[11px] font-bold text-slate-400 hidden sm:block">
+              Chạm thẻ để lật • Dùng ⬅️ ➡️
+            </span>
+          )}
         </div>
 
         {/* Nút Tiếp theo hoặc Hoàn thành */}

@@ -42,7 +42,7 @@ export const ScreenShell: React.FC<ScreenShellProps> = ({
       </div>
 
       {/* 2. Main Viewport Box (Flex-1 min-h-0, zero scroll) */}
-      <main className="flex-1 min-h-0 w-full max-w-[94rem] mx-auto px-3 sm:px-5 py-1.5 flex flex-col gap-1.5 overflow-hidden">
+      <main className="flex-1 min-h-0 w-full max-w-none px-4 sm:px-8 py-1.5 flex flex-col gap-1.5 overflow-hidden">
         {/* Title Bar (shrink-0, compact 1 row) */}
         {titleBar && (
           <div className="shrink-0 w-full z-20">

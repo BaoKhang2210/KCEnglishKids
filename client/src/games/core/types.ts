@@ -39,6 +39,9 @@ export interface GameDefinition {
 }
 
 export interface GameConfig {
+  preview?: boolean;
+  targetOrder?: string[];
+  attemptToken?: string;
   unitId: string;
   lessonId: string;
   gameId: GameId;
@@ -78,6 +81,7 @@ export interface GameComponentProps {
 }
 
 export interface GameCheckpoint {
+  attemptToken?: string;
   gameId: GameId;
   lessonId: string;
   childId: string;

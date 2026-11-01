@@ -102,6 +102,11 @@ export const CuteRosetteMedal: React.FC<CuteRosetteMedalProps> = ({
         </div>
       )}
 
+      {/* Sunburst rays behind unlocked coins (2026-11 redesign) */}
+      {unlocked && (
+        <div className="medal-sunburst-rays animate-sunburst absolute inset-[-16%] rounded-full pointer-events-none z-0" aria-hidden />
+      )}
+
       {/* Main Medal Coin */}
       <div
         className={`relative z-10 rounded-full flex items-center justify-center transition-transform duration-300 ${
@@ -112,6 +117,13 @@ export const CuteRosetteMedal: React.FC<CuteRosetteMedalProps> = ({
       >
         {/* Top-Half Glossy Curved Light Reflection */}
         <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/45 via-white/20 to-transparent rounded-t-full pointer-events-none" />
+
+        {/* Periodic diagonal glint sweep for unlocked medals */}
+        {unlocked && (
+          <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+            <div className="medal-glint absolute -top-1/4 bottom-[-25%] left-0 w-1/3 bg-gradient-to-r from-transparent via-white/75 to-transparent" />
+          </div>
+        )}
 
         {/* Inner Laurel Rim / Beaded Accent Ring */}
         <div className="absolute inset-1 rounded-full border border-white/40 pointer-events-none" />
@@ -136,6 +148,15 @@ export const CuteRosetteMedal: React.FC<CuteRosetteMedalProps> = ({
           </div>
         )}
       </div>
+
+      {/* Twinkling sparkle accents around unlocked medals */}
+      {unlocked && (
+        <>
+          <span className="medal-sparkle absolute -top-1 left-[10%] text-amber-300 text-[10px] leading-none pointer-events-none z-20" aria-hidden>✦</span>
+          <span className="medal-sparkle medal-sparkle-2 absolute top-[20%] -right-1.5 text-yellow-400 text-xs leading-none pointer-events-none z-20" aria-hidden>✦</span>
+          <span className="medal-sparkle medal-sparkle-3 absolute -bottom-1.5 right-[20%] text-amber-200 text-[9px] leading-none pointer-events-none z-20" aria-hidden>✦</span>
+        </>
+      )}
     </div>
   );
 };

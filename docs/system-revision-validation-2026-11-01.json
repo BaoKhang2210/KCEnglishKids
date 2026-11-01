@@ -1,0 +1,191 @@
+{
+  "checkedAt": "2026-10-31T23:40:48.274Z",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "tests": {
+    "backend": {
+      "passed": 122,
+      "failed": 0
+    },
+    "frontend": {
+      "passed": 50,
+      "failed": 0
+    },
+    "productionBuild": "passed",
+    "lint": "exit code 0, existing warnings remain",
+    "diffWhitespace": "passed"
+  },
+  "vocabulary": {
+    "database": 409,
+    "referenceWords": 409,
+    "seedWords": 409,
+    "units": 27,
+    "lessons": 108,
+    "issues": 0,
+    "correctedIllustrations": 50,
+    "addedWordLessonLinks": 64,
+    "updatedLessons": 26,
+    "formerlyOrphanedColorNumberWords": 24
+  },
+  "database": {
+    "models": 29,
+    "checkedReferences": 10056,
+    "issues": [
+      {
+        "severity": "INFO",
+        "code": "LEGACY_COMPLETION_RETAINED",
+        "model": "Progress",
+        "detail": "prior completion preserved; no missing activity results invented",
+        "count": 1,
+        "affectedDocuments": 1
+      }
+    ],
+    "missingIndexes": 0,
+    "duplicateKeys": 0
+  },
+  "browser": {
+    "mode": "Isolated Chrome, read-only local fixtures",
+    "layouts": [
+      {
+        "page": "teacher-students-mobile",
+        "viewport": 390,
+        "document": 390,
+        "headings": [
+          "Hồ sơ học sinh"
+        ],
+        "overflows": []
+      },
+      {
+        "page": "teacher-summary-mobile",
+        "viewport": 390,
+        "document": 390,
+        "headings": [
+          "Buổi dạy kết thúc!",
+          "Bảng xếp hạng sao (3 học sinh)"
+        ],
+        "overflows": []
+      },
+      {
+        "page": "teacher-setup",
+        "viewport": 1440,
+        "document": 1425,
+        "headings": [
+          "Tạo Buổi Dạy Mới Theo Giáo Trình",
+          "Bước 1 — Bảng Phân Phối Buổi Học Theo Giáo Trình"
+        ],
+        "overflows": []
+      },
+      {
+        "page": "teacher-summary",
+        "viewport": 1440,
+        "document": 1440,
+        "headings": [
+          "Buổi dạy kết thúc!",
+          "Bảng xếp hạng sao (3 học sinh)"
+        ],
+        "overflows": []
+      },
+      {
+        "check": "Selected database activity and next question show the actual 2/2 counter",
+        "passed": true
+      },
+      {
+        "page": "teacher-games-live",
+        "viewport": 1440,
+        "document": 1440,
+        "headings": [
+          "Hello, little explorers!Book 1 • Unit 1Lớp Mầm A👩‍🏫 Cô: Giáo viên mẫu",
+          "Hoạt động 2/2",
+          "Trò Chơi Tương Tác Lớp Học"
+        ],
+        "overflows": []
+      }
+    ],
+    "setupSelection": {
+      "initial": "2/2 selected",
+      "afterClearAll": "0/2 selected",
+      "verifiedBy": "Chrome screenshot review"
+    },
+    "reviewedPages": [
+      "teacher-dashboard",
+      "teacher-students",
+      "teacher-calendar",
+      "teacher-setup",
+      "teacher-step2-all",
+      "teacher-step2-none",
+      "teacher-games-live",
+      "teacher-summary",
+      "admin-games",
+      "admin-recognitions"
+    ],
+    "allVocabularyContactSheetsReviewed": 9
+  },
+  "audio": {
+    "mode": "Chrome AudioContext decode; not a human listening test on classroom speakers",
+    "files": [
+      {
+        "file": "dog.wav",
+        "duration": 2.04,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "cat.ogg",
+        "duration": 1.13,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "cow.ogg",
+        "duration": 2.19,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "duck.ogg",
+        "duration": 0.86,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "sheep.ogg",
+        "duration": 1.14,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "pig.ogg",
+        "duration": 0.36,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "bird.mp3",
+        "duration": 2.14,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "lion.ogg",
+        "duration": 9.02,
+        "sampleRate": 192000,
+        "nonSilent": true
+      },
+      {
+        "file": "monkey.mp3",
+        "duration": 63.08,
+        "sampleRate": 192000,
+        "nonSilent": true
+      }
+    ]
+  },
+  "sideEffects": {
+    "realReportsSent": 0,
+    "realRecognitionsPublished": 0,
+    "remoteDeployment": false
+  },
+  "migrations": {
+    "teaching": "applied with backup",
+    "vocabulary": "applied with backup; dry run now proposes zero changes",
+    "images": "applied with backup; dry run now proposes zero changes"
+  }
+}

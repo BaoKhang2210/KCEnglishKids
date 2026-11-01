@@ -193,7 +193,7 @@ export const DailyStreakModal: React.FC<DailyStreakModalProps> = ({
                     Mục tiêu tiếp theo: {displayNextMilestone.label}
                   </span>
                   <span className="text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full font-black text-[11px]">
-                    +{displayNextMilestone.rewardStars} ⭐ Thưởng
+                    Mốc chăm chỉ 🌱
                   </span>
                 </div>
                 <div className="w-full h-3 bg-white/80 rounded-full border border-amber-200 overflow-hidden p-0.5 shadow-inner">

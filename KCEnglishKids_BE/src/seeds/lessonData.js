@@ -819,6 +819,11 @@ const LESSONS_DATA = [
   }
 ];
 
+for (const lesson of LESSONS_DATA) {
+  const additions = require('./lessonVocabularySupplements').LESSON_VOCABULARY_SUPPLEMENTS[lesson.key] || [];
+  lesson.vocabularyWords = [...new Set([...lesson.vocabularyWords, ...additions])];
+}
+
 module.exports = {
   LESSONS_DATA
 };

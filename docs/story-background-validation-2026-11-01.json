@@ -1,0 +1,247 @@
+{
+  "checkedAt": "2026-11-01T05:01:02.040Z",
+  "mode": "Chrome read-only fixtures; actual component background artwork; 390px and 1440px",
+  "pages": [
+    {
+      "page": "teacher-home",
+      "width": 1440,
+      "documentWidth": 1425,
+      "layers": [
+        {
+          "scene": "classroom",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "teacher-home-mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "layers": [
+        {
+          "scene": "classroom",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "teacher-studio",
+      "width": 1440,
+      "documentWidth": 1425,
+      "layers": [
+        {
+          "scene": "studio",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "teacher-observation-mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "layers": [
+        {
+          "scene": "family",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(240, 255, 246)"
+        },
+        {
+          "scene": "family",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "admin-studio",
+      "width": 1440,
+      "documentWidth": 1425,
+      "layers": [
+        {
+          "scene": "studio",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "admin-home-mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "layers": [
+        {
+          "scene": "studio",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(240, 255, 246)"
+        }
+      ]
+    },
+    {
+      "page": "child-learning",
+      "width": 1440,
+      "documentWidth": 1440,
+      "layers": [
+        {
+          "scene": "adventure",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        },
+        {
+          "scene": "rest",
+          "loaded": true,
+          "covers": true,
+          "heading": null,
+          "body": null
+        },
+        {
+          "scene": "celebration",
+          "loaded": true,
+          "covers": true,
+          "heading": null,
+          "body": null
+        },
+        {
+          "scene": "family",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(240, 255, 246)"
+        },
+        {
+          "scene": "family",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "child-learning-mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "layers": [
+        {
+          "scene": "adventure",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        },
+        {
+          "scene": "rest",
+          "loaded": true,
+          "covers": true,
+          "heading": null,
+          "body": null
+        },
+        {
+          "scene": "celebration",
+          "loaded": true,
+          "covers": true,
+          "heading": null,
+          "body": null
+        },
+        {
+          "scene": "family",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(240, 255, 246)"
+        },
+        {
+          "scene": "family",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        }
+      ]
+    },
+    {
+      "page": "child-login",
+      "width": 1440,
+      "documentWidth": 1440,
+      "layers": [
+        {
+          "scene": "adventure",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": null
+        }
+      ]
+    },
+    {
+      "page": "child-login-mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "layers": [
+        {
+          "scene": "adventure",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": null
+        }
+      ]
+    },
+    {
+      "page": "game-complete-mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "layers": [
+        {
+          "scene": "studio",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 253, 244)",
+          "body": "rgb(253, 230, 138)"
+        },
+        {
+          "scene": "celebration",
+          "loaded": true,
+          "covers": true,
+          "heading": "rgb(255, 255, 255)",
+          "body": null
+        }
+      ]
+    }
+  ],
+  "configuredContrast": {
+    "bodyOverWorstCaseWhiteArtwork": 9.03,
+    "eyebrowOverWorstCaseWhiteArtwork": 7.49,
+    "buttonTextOnCream": 11.65,
+    "buttonTextOnYellow": 9.54
+  },
+  "errors": [],
+  "apiMutations": [],
+  "printChecked": [
+    "teacher",
+    "admin"
+  ],
+  "build": {
+    "typescript": true,
+    "vite": true
+  },
+  "scope": "Presentation only: full-component backgrounds, text and button contrast; no backend or database changes"
+}

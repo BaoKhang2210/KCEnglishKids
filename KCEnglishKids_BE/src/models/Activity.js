@@ -139,6 +139,8 @@ const activitySchema = new mongoose.Schema(
     },
     pointsPerQuestion: {
       type: Number,
+      min: 1,
+      max: 100,
       default: 10
     },
     starConfig: {

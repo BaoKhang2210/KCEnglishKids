@@ -8,7 +8,7 @@ async function classroom(req, id, teaching = false) {
   if (teaching && room.status !== 'ACTIVE') fail('Chỉ mở buổi dạy cho lớp đang hoạt động.', 409);
   return room;
 }
-const studentIds = req => ClassRoom.find(classScope(req)).distinct('students');
+const studentIds = req => ClassRoom.find({ ...classScope(req), ...(req.user.role === 'ADMIN' ? {} : { status: { $in: ['ACTIVE', 'UPCOMING'] } }) }).distinct('students');
 async function child(req, id) {
   if (!validId(id)) fail('Mã học sinh không hợp lệ.');
   const item = await User.findOne({ _id: id, role: 'CHILD', ...(req.user.role === 'ADMIN' ? {} : { _id: { $eq: id, $in: await studentIds(req) } }) }).select('-password -pin -importKey');

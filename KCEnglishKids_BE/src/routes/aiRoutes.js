@@ -29,6 +29,7 @@ function createAiRouter(handlers = controller) {
   router.post('/generate-parent-note', authorize('TEACHER', 'ADMIN'), createRateLimit(10), handlers.generateParentNote);
   router.post('/evaluate-pronunciation', authorize('CHILD', 'TEACHER', 'ADMIN'), createRateLimit(30), handlers.evaluatePronunciation);
   router.post('/generate-lesson-plan', authorize('TEACHER', 'ADMIN'), createRateLimit(15), handlers.generateLessonPlan);
+  router.get('/class-gaps', authorize('TEACHER', 'ADMIN'), createRateLimit(15), handlers.detectClassGaps);
   return router;
 }
 module.exports = createAiRouter();

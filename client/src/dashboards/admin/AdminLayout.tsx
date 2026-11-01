@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, School, BookOpen, MessageSquare, Users, ClipboardList, LogOut, Menu, X, ShieldCheck, ChevronRight, ExternalLink, BarChart3, CalendarDays, Gamepad2, Award, Settings } from 'lucide-react';
+import { LayoutDashboard, School, BookOpen, MessageSquare, Users, ClipboardList, LogOut, Menu, X, ShieldCheck, ChevronRight, ExternalLink, BarChart3, CalendarDays, Gamepad2, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../services/api';
 import '../../styles/admin.css';
@@ -16,12 +16,12 @@ const navigation = [
     { label: 'Giáo trình & bài học', path: '/admin/curriculum', icon: BookOpen },
     { label: 'Thư viện mẫu câu', path: '/admin/sentences', icon: MessageSquare },
     { label: 'Kho trò chơi', path: '/admin/games', icon: Gamepad2 },
-    { label: 'Vinh danh của lớp', path: '/admin/recognitions', icon: Award }
+    { label: 'Xưởng học liệu', path: '/admin/learning-studio', icon: BookOpen },
+    { label: 'Vinh danh của trường', path: '/admin/recognitions', icon: Award }
   ] },
   { title: 'Quản trị hệ thống', items: [
     { label: 'Báo cáo phân tích', path: '/admin/analytics', icon: BarChart3 },
-    { label: 'Nhật ký hoạt động', path: '/admin/audit-logs', icon: ClipboardList },
-    { label: 'Cài đặt', path: '/admin/settings', icon: Settings }
+    { label: 'Nhật ký hoạt động', path: '/admin/audit-logs', icon: ClipboardList }
   ] }
 ];
 

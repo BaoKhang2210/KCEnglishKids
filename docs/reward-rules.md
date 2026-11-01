@@ -23,7 +23,9 @@
 
 ## Vinh danh tuần và tháng
 
-- Admin/giáo viên có thể công bố vinh danh học sinh cao sao nhất lớp theo tuần hoặc tháng đã kết thúc, theo giờ Việt Nam.
+Cập nhật 01/11/2026: admin vinh danh **toàn trường** theo sao/buổi hoàn thành trẻ tham gia; tối thiểu 2 buổi/tuần, 4 buổi/tháng. So sánh tỷ lệ chính xác, bằng nhau cùng hạng. Giáo viên tiếp tục ghi nhận trong lớp theo tổng sao. Cả hai không cộng sao mới và chỉ công bố kỳ đã kết thúc; xem [quy tắc lớp/trường](class-recognitions.md).
+
+- Giáo viên có thể công bố vinh danh học sinh cao sao nhất lớp theo tuần hoặc tháng đã kết thúc, theo giờ Việt Nam. Admin dùng quy tắc toàn trường nêu trên.
 - Chỉ tính sao từ buổi học trên lớp đã hoàn thành trong kỳ; tất cả đồng hạng cùng nhận huy hiệu/huy chương và thông báo trong tài khoản.
 - Vinh danh là phần thưởng biểu tượng, không cộng thêm sao hoặc điểm, không ảnh hưởng tổng sao hiện tại.
 - Xem quy trình, điều kiện và API trong [Vinh danh lớp](class-recognitions.md).

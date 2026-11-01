@@ -152,6 +152,50 @@ function createAiController({ db = models, rewards = computeRewards } = {}) {
     } catch (error) { next(error); }
   };
 
-  return { generateParentNote, evaluatePronunciation, generateLessonPlan };
+  // §3.7 — Class-wide vocabulary gap detector (rule-based, no external AI).
+  const detectClassGaps = async (req, res, next) => {
+    try {
+      const { classRoomId, lessonId } = req.query;
+      if (!validId(classRoomId)) return fail(res, 400, 'A valid classRoomId is required.');
+      if (lessonId !== undefined && lessonId !== '' && !validId(lessonId)) return fail(res, 400, 'Invalid lessonId format.');
+      const admin = req.user.role === 'ADMIN';
+      const classroom = await db.ClassRoom.findOne({
+        _id: classRoomId,
+        deletionPending: { $ne: true },
+        ...(admin ? {} : { teacher: req.user._id })
+      }).select('name students');
+      if (!classroom) return fail(res, 403, 'You do not have access to this classroom.');
+      const studentIds = classroom.students || [];
+      if (studentIds.length === 0) return fail(res, 404, 'Lớp chưa có học sinh nào.');
+      const [masteryRows, lesson] = await Promise.all([
+        db.VocabularyMastery.find({ student: { $in: studentIds } })
+          .select('student vocabulary correctCount attemptCount masteryLevel').lean(),
+        lessonId ? db.Lesson.findById(lessonId).select('vocabularyItems title').lean() : Promise.resolve(null)
+      ]);
+      if (lessonId && !lesson) return fail(res, 404, 'Lesson not found.');
+      const lessonVocabIds = lesson?.vocabularyItems?.length
+        ? lesson.vocabularyItems
+        : (lessonId ? masteryRows.filter(row => String(row.vocabulary?.lesson || '') === String(lessonId)).map(row => row.vocabulary) : null);
+      let vocabQuery = {};
+      if (lessonId) {
+        const ids = lessonVocabIds || [];
+        const vocabLessonIds = await db.Vocabulary.distinct('_id', { lesson: lessonId });
+        const merged = [...new Set([...ids.map(String), ...vocabLessonIds.map(String)])];
+        if (merged.length === 0) return fail(res, 404, 'Bài học này chưa có từ vựng.');
+        vocabQuery = { _id: { $in: merged } };
+      } else {
+        const practicedIds = [...new Set(masteryRows.map(row => String(row.vocabulary)))];
+        if (practicedIds.length === 0) {
+          return res.json({ success: true, data: { ...ai.detectClassGaps({ students: studentIds, vocabularies: [], masteryRows: [] }), classroomName: classroom.name } });
+        }
+        vocabQuery = { _id: { $in: practicedIds } };
+      }
+      const vocabularies = await db.Vocabulary.find(vocabQuery).select('english vietnamese difficulty').lean();
+      const data = ai.detectClassGaps({ students: studentIds, vocabularies, masteryRows });
+      res.json({ success: true, data: { ...data, classroomName: classroom.name, lessonTitle: lesson?.title || null } });
+    } catch (error) { next(error); }
+  };
+
+  return { generateParentNote, evaluatePronunciation, generateLessonPlan, detectClassGaps };
 }
 module.exports = { ...createAiController(), createAiController };

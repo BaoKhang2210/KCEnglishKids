@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 import {
   Star,
   Users,
-  CheckCircle2,
   AlertTriangle,
   Trophy,
   Send,
@@ -11,12 +10,10 @@ import {
   Clock,
   Target,
   BookOpen,
-  X,
-  Loader2,
-  Calendar,
-  History
+  Loader2
 } from 'lucide-react';
-import { classroomSessionApi, parentNotificationApi } from '../../services/api';
+import { classroomSessionApi } from '../../services/api';
+import { FamilyReportModal } from '../../components/teacher/FamilyReportModal';
 import type { ClassroomSession, User } from '../../types';
 
 const initials = (name?: string) =>
@@ -77,11 +74,11 @@ export const SessionSummaryPage: React.FC = () => {
   }
 
   const s = session.summary;
-  const scores = session.studentScores || [];
+  const scores = [...(session.studentScores || [])].sort((a, b) => Number(['ABSENT', 'EXCUSED'].includes(a.attendance || '')) - Number(['ABSENT', 'EXCUSED'].includes(b.attendance || '')) || b.stars - a.stars);
   const duration = durationMin(session.startedAt, session.endedAt);
+  const answeredCount = scores.filter(sc => !['ABSENT', 'EXCUSED'].includes(sc.attendance || '')).reduce((total, sc) => total + sc.correctCount + sc.incorrectCount, 0);
 
   const topPerformers = (s?.topPerformers || [])
-    .slice(0, 3)
     .map((t) => (typeof t === 'string' ? t : (t as User)));
 
   const needsPractice = (s?.studentsNeedingPractice || []).map((t) =>
@@ -95,34 +92,6 @@ export const SessionSummaryPage: React.FC = () => {
 
   return (
     <div className="staff-workspace min-h-screen bg-slate-50 text-slate-700">
-      {/* ── Top navigation bar ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between backdrop-blur">
-        <div className="flex items-center gap-2.5">
-          <Link
-            to={`/teacher/classes/${(session.classroom as any)?._id || ''}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-xs sm:text-sm font-black text-slate-700 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span>Về Lớp Học</span>
-          </Link>
-          <Link
-            to={`/teacher/classroom-sessions?classroomId=${(session.classroom as any)?._id || ''}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-xs sm:text-sm font-black text-teal-800 transition-colors"
-          >
-            <History size={16} />
-            <span className="hidden sm:inline">Nhật Ký Buổi Dạy</span>
-          </Link>
-        </div>
-
-        <Link
-          to="/teacher/classes"
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-700 text-xs sm:text-sm font-black text-white transition-colors"
-        >
-          <Users size={15} />
-          <span>Quản Lý Lớp Học</span>
-        </Link>
-      </header>
-
       {/* ── Hero banner ───────────────────────────────────────────────────── */}
       <div className="bg-emerald-700 text-white px-6 py-10 text-center">
         <p className="text-5xl mb-2">🎉</p>
@@ -145,6 +114,7 @@ export const SessionSummaryPage: React.FC = () => {
       </div>
 
       <div className="mx-auto w-full max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 py-8">
+        {session.teachingOutcome && <section className="portfolio-card mb-6"><h2 className="font-bold text-xl">Nội dung buổi học</h2><p className="mt-2">{({COMPLETE:'Đã tổ chức đủ mục tiêu bài',CONTINUE:'Cần dạy tiếp ở buổi sau',REVIEW:'Buổi ôn tập, giữ tiến độ hiện tại'})[session.teachingOutcome.coverage]}</p><p className="mt-2">{session.teachingOutcome.reflection}</p><p className="text-sm mt-2 text-slate-600">Đây là ghi nhận nội dung đã dạy; mức tự làm của từng bé được lưu trong hồ sơ quan sát.</p></section>}
         {/* ── Metrics ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
           <MetricCard
@@ -156,7 +126,7 @@ export const SessionSummaryPage: React.FC = () => {
           <MetricCard
             icon={<Target size={22} className="text-emerald-800" />}
             label="Tỷ lệ đúng"
-            value={s?.participationCount ? (s.averageAccuracy || 0) + '%' : 'Chưa có dữ liệu'}
+            value={answeredCount ? (s?.averageAccuracy || 0) + '%' : 'Chưa có dữ liệu'}
             bg="bg-emerald-50"
           />
           <MetricCard
@@ -178,7 +148,7 @@ export const SessionSummaryPage: React.FC = () => {
           <div className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">
-                Kết quả của các bé ({scores.length})
+                Bảng xếp hạng sao ({scores.length} học sinh)
               </h2>
               {/* Quick Attendance Summary Pills */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -204,16 +174,16 @@ export const SessionSummaryPage: React.FC = () => {
             </div>
 
             <div className="overflow-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[760px] text-sm [&_th]:whitespace-nowrap [&_th]:pr-3 [&_td]:pr-3">
                 <thead className="text-left text-slate-600 border-b">
                   <tr>
+                    <th className="pb-3">Hạng sao</th>
                     <th className="pb-3">Học sinh</th>
                     <th className="pb-3">Chuyên cần</th>
                     <th className="pb-3">✓ Đúng</th>
                     <th className="pb-3">✕ Sai</th>
                     <th className="pb-3">Chính xác</th>
                     <th className="pb-3">Sao</th>
-                    <th className="pb-3">Điểm</th>
                     <th className="pb-3">Trạng thái</th>
                   </tr>
                 </thead>
@@ -225,13 +195,14 @@ export const SessionSummaryPage: React.FC = () => {
                     const acc = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
                     return (
                       <tr key={i} className="border-t">
+                        <td className="py-3 font-bold">{sc.stars > 0 && !['ABSENT', 'EXCUSED'].includes(sc.attendance || '') ? 1 + scores.filter(row => !['ABSENT', 'EXCUSED'].includes(row.attendance || '') && row.stars > sc.stars).length : '—'}</td>
                         <td className="py-3 flex items-center gap-2">
                           <div className="h-8 w-8 rounded-full bg-teal-100 text-xs font-bold text-teal-800 flex items-center justify-center flex-shrink-0">
                             {stu?.avatarUrl ? (
                               <img src={stu.avatarUrl} className="h-8 w-8 rounded-full object-cover" alt={name} />
                             ) : initials(name)}
                           </div>
-                          <span className="font-medium text-slate-800">{name}</span>
+                          <span style={{ minWidth: 130, whiteSpace: 'nowrap' }} className="font-medium text-slate-800">{name}</span>
                         </td>
                         <td className="py-3">
                           <AttendanceBadge attendance={(sc as any).attendance || 'PRESENT'} />
@@ -240,10 +211,8 @@ export const SessionSummaryPage: React.FC = () => {
                         <td className="py-3 text-rose-800">{sc.incorrectCount}</td>
                         <td className="py-3 text-slate-600 font-medium">{ans > 0 ? `${acc}%` : '—'}</td>
                         <td className="py-3 text-amber-800">
-                          {'⭐'.repeat(Math.min(sc.stars, 3))}
-                          {sc.stars > 0 && <span className="ml-1 text-xs text-amber-800">×{sc.stars}</span>}
+                          <span className="whitespace-nowrap">⭐ {sc.stars}</span>
                         </td>
-                        <td className="py-3 font-semibold">{sc.points}</td>
                         <td className="py-3">
                           {['ABSENT','EXCUSED'].includes(sc.attendance || '') ? <span className="text-slate-500">Vắng mặt</span> : ans === 0 ? <span className="text-slate-500">Chưa ghi nhận câu trả lời</span> : <StatusBadge status={sc.status} />}
                         </td>
@@ -266,10 +235,9 @@ export const SessionSummaryPage: React.FC = () => {
                 <div className="space-y-2">
                   {topPerformers.map((t, i) => {
                     const name = typeof t === 'string' ? t : t.name;
-                    const medals = ['🥇', '🥈', '🥉'];
                     return (
                       <div key={i} className="flex items-center gap-2 text-sm">
-                        <span className="text-xl">{medals[i]}</span>
+                        <span className="text-xl">🌟</span>
                         <span className="font-medium text-slate-800">{name}</span>
                       </div>
                     );
@@ -321,18 +289,6 @@ export const SessionSummaryPage: React.FC = () => {
             <Send size={18} /> Gửi báo cáo cho phụ huynh
           </button>
           <Link
-            to={`/teacher/classroom-sessions?classroomId=${(session.classroom as any)?._id || ''}`}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            <History size={16} className="text-teal-800" /> Nhật ký buổi dạy lớp này
-          </Link>
-          <Link
-            to={`/teacher/schedule?classroomId=${(session.classroom as any)?._id || ''}`}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            <Calendar size={16} className="text-teal-800" /> Sổ lịch & Giáo trình
-          </Link>
-          <Link
             to={`/teacher/classes/${(session.classroom as any)?._id || ''}`}
             className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
@@ -343,7 +299,7 @@ export const SessionSummaryPage: React.FC = () => {
 
       {/* ── Parent Report Modal ──────────────────────────────────────────── */}
       {showReportModal && (
-        <ParentReportModal
+        <FamilyReportModal
           session={session}
           onClose={() => setShowReportModal(false)}
         />
@@ -380,11 +336,11 @@ const StatusBadge = ({ status }: { status: string }) => {
   };
   const labels: Record<string, string> = {
     COMPLETED: '✓ Hoàn thành',
-    ACTIVE: '● Đang diễn ra',
+    ACTIVE: '● Đang củng cố',
     NEEDS_PRACTICE: '⚠ Cần ôn thêm'
   };
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cfg[status] || 'bg-slate-100 text-slate-600'}`}>
+    <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${cfg[status] || 'bg-slate-100 text-slate-600'}`}>
       {labels[status] || status}
     </span>
   );
@@ -411,228 +367,5 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
     <span className="font-medium text-slate-900 text-right max-w-[60%] truncate">{value}</span>
   </div>
 );
-
-// ── Parent Report Modal ────────────────────────────────────────────────────────
-const ParentReportModal = ({
-  session,
-  onClose
-}: {
-  session: ClassroomSession;
-  onClose: () => void;
-}) => {
-  const scores = session.studentScores || [];
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [batchNote, setBatchNote] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
-
-  const PRESET_TEMPLATES = [
-    {
-      label: '🌟 Khen cả lớp làm tốt',
-      text: 'Hôm nay bé tham gia rất tích cực, hào hứng và hoàn thành tốt toàn bộ các hoạt động của buổi học!'
-    },
-    {
-      label: '🗣️ Phát âm tiến bộ',
-      text: 'Bé phát âm từ vựng to, rõ ràng và tự tin tương tác với cô giáo trong các trò chơi tiếng Anh.'
-    },
-    {
-      label: '❤️ Chăm chỉ ngoan ngoãn',
-      text: 'Bé rất ngoan, chú ý lắng nghe cô hướng dẫn và hoàn thành bài tập đầy đủ với tinh thần vui vẻ.'
-    },
-    {
-      label: '⭐ Xuất sắc nhận sao',
-      text: 'Bé hoàn thành xuất sắc các thử thách trong buổi học và nhận được nhiều ngôi sao khen thưởng từ cô!'
-    }
-  ];
-
-  const applyTemplateToAll = (text: string) => {
-    const updated: Record<string, string> = {};
-    scores.forEach((sc) => {
-      const stu = sc.student as User;
-      const studentId = typeof sc.student === 'string' ? sc.student : stu._id || stu.id || '';
-      if (studentId) updated[studentId] = text;
-    });
-    setNotes(updated);
-  };
-
-  const handleSendAll = async () => {
-    setSending(true);
-    setError('');
-    try {
-      const childReports = scores.map((sc) => {
-        const stu = sc.student as User;
-        const studentId = typeof sc.student === 'string' ? sc.student : stu._id || stu.id || '';
-        const ans = sc.correctCount + sc.incorrectCount;
-        const accuracy = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
-        const scorePercent = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
-        return {
-          childId: studentId,
-          score: scorePercent,
-          vocabMastered: 0,
-          vocabTotal: 0,
-          stars: sc.stars,
-          accuracy,
-          teacherNote: notes[studentId] || ''
-        };
-      });
-
-      await parentNotificationApi.sendBulkNotifications({
-        sessionId: session._id,
-        templateType: 'SESSION_REPORT',
-        childReports
-      });
-      setSent(true);
-    } catch (e: any) {
-      setError(e.message || 'Không thể gửi báo cáo');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl bg-white">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Gửi báo cáo & Nhận xét cho phụ huynh</h3>
-            <p className="text-xs text-slate-600">Gửi thông báo kết quả buổi học đến {scores.length} phụ huynh của lớp</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 transition-colors">
-            <X size={20} className="text-slate-600" />
-          </button>
-        </div>
-
-        {sent ? (
-          <div className="flex flex-col items-center justify-center flex-1 p-8 text-center">
-            <CheckCircle2 size={64} className="text-emerald-800 mb-4" />
-            <h4 className="text-xl font-bold text-slate-900">Đã gửi báo cáo thành công!</h4>
-            <p className="mt-2 text-slate-600">
-              Đã ghi nhận và gửi {scores.length} báo cáo học tập đến phụ huynh.
-            </p>
-            <button onClick={onClose} className="mt-6 rounded-xl bg-teal-700 px-6 py-2.5 font-semibold text-white">
-              Hoàn tất
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
-              {/* Batch Evaluation Templates */}
-              <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h4 className="text-xs font-black text-teal-900 uppercase tracking-wide flex items-center gap-1.5">
-                    <span>✨</span> Mẫu nhận xét chung cho toàn bộ học sinh (Áp dụng nhanh 1-Click)
-                  </h4>
-                  <span className="text-[11px] text-teal-800 font-semibold">
-                    {scores.length} bé
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {PRESET_TEMPLATES.map((tpl, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => applyTemplateToAll(tpl.text)}
-                      className="rounded-xl border border-teal-200/80 bg-white p-2.5 text-left text-xs hover:border-teal-400 transition-all cursor-pointer group"
-                    >
-                      <p className="font-bold text-teal-900 group-hover:text-teal-800">{tpl.label}</p>
-                      <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{tpl.text}</p>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex gap-2">
-                  <input
-                    type="text"
-                    value={batchNote}
-                    onChange={(e) => setBatchNote(e.target.value)}
-                    placeholder="Hoặc tự soạn nhận xét chung cho cả lớp…"
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                  />
-                  <button
-                    type="button"
-                    disabled={!batchNote.trim()}
-                    onClick={() => {
-                      if (batchNote.trim()) {
-                        applyTemplateToAll(batchNote.trim());
-                        setBatchNote('');
-                      }
-                    }}
-                    className="rounded-xl bg-teal-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-40 transition-colors shrink-0 cursor-pointer"
-                  >
-                    Áp dụng cho tất cả
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 border border-rose-200">
-                  {error}
-                </div>
-              )}
-
-              {/* Individual Students list with personalized notes */}
-              <div className="space-y-2.5">
-                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  Chi tiết nhận xét từng bé ({scores.length} bé):
-                </p>
-                {scores.map((sc, i) => {
-                  const stu = sc.student as User;
-                  const studentId = typeof sc.student === 'string' ? sc.student : stu._id || stu.id || '';
-                  const name = stu?.name || 'Học sinh';
-                  const ans = sc.correctCount + sc.incorrectCount;
-                  const accuracy = ans > 0 ? Math.round((sc.correctCount / ans) * 100) : 0;
-
-                  return (
-                    <div key={i} className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 transition-colors">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="font-bold text-sm text-slate-900">{name}</p>
-                        <div className="flex gap-2.5 text-xs text-slate-600 font-semibold">
-                          <span className="text-amber-800">⭐ {sc.stars}</span>
-                          <span>{['ABSENT', 'EXCUSED'].includes(sc.attendance || '') ? 'Vắng mặt' : ans ? 'Độ đúng: ' + accuracy + '%' : 'Chưa có dữ liệu trả lời'}</span>
-                          <span className="text-emerald-800">✓ {sc.correctCount} đúng</span>
-                        </div>
-                      </div>
-                      <input
-                        placeholder={`Nhận xét riêng cho bé ${name.split(' ').pop()}…`}
-                        value={notes[studentId] || ''}
-                        onChange={(e) =>
-                          setNotes((prev) => ({ ...prev, [studentId]: e.target.value }))
-                        }
-                        className="w-full rounded-lg border border-slate-200 p-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="border-t px-6 py-4 flex justify-between gap-3">
-              <button
-                onClick={onClose}
-                className="rounded-xl border border-slate-200 px-5 py-2.5 text-slate-600 hover:bg-slate-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSendAll}
-                disabled={sending}
-                className="flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-2.5 font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-              >
-                {sending ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Send size={16} />
-                )}
-                {sending ? 'Đang gửi…' : `Gửi tới ${scores.length} phụ huynh`}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
 
 export default SessionSummaryPage;

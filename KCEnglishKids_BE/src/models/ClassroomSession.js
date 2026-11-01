@@ -104,6 +104,12 @@ const classroomSessionSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    teachingGoals: [{ _id: false, key: String, label: String }],
+    teachingGuideSnapshot: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    teachingOutcome: {
+      coverage: { type: String, enum: ['COMPLETE', 'CONTINUE', 'REVIEW'] },
+      goalsCovered: [String], reflection: String, recordedAt: Date
+    },
     // Activities chosen for this session
     activities: [
       {

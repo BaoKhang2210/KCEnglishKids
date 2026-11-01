@@ -1,5 +1,4 @@
 const { ClassRoom, User, Progress, ActivityResult, LearningSession, Assignment, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion, Schedule, VocabularyMastery, Attendance } = require('../models');
-const { calculateLessonStars } = require('../services/starService');
 
 const rules = require('../services/teacherRules');
 const access = require('../services/teacherAccess');
@@ -14,147 +13,11 @@ const EMPTY_STATS = { hasAssessment: false, averageScore: 0, stars: 0, totalStar
 // §1.1.2 — Vietnamese-aware name order (á/ă/â/đ/ê/ô/ơ/ư sort like their base letters)
 const byNameVi = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi', { sensitivity: 'base' });
 // §1.1.4 — per-child stats: activity aggregates + progress + live classroom session stars + bonus stars.
-const statsFor = async ids => {
-  if (!ids.length) return [];
-  const [resultStats, progressStats, classroomStats, unitStats, completedProgress] = await Promise.all([
-    ActivityResult.aggregate([
-      { $match: { child: { $in: ids } } },
-      { $group: {
-          _id: '$child',
-          averageScore: { $avg: { $cond: [{ $gt: [{ $add: ['$correctCount', '$incorrectCount'] }, 0] }, { $multiply: [100, { $divide: ['$correctCount', { $add: ['$correctCount', '$incorrectCount'] }] }] }, null] } },
-          activityStars: { $sum: '$stars' },
-          attempts: { $sum: '$attempts' },
-          learningTime: { $sum: '$duration' },
-          lastActivity: { $max: '$createdAt' }
-      } }
-    ]),
-    Progress.aggregate([
-      { $match: { child: { $in: ids } } },
-      { $group: {
-          _id: '$child',
-          completedLessons: { $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] } },
-          progressStars: { $sum: { $cond: [{ $eq: ['$completed', true] }, '$stars', 0] } },
-          highestScoreAvg: { $avg: '$highestScore' },
-          progressAttempts: { $sum: '$attempts' },
-          lastProgressDate: { $max: '$lastActivityAt' }
-      } }
-    ]),
-    ClassroomSession.aggregate([
-      { $match: { status: 'COMPLETED' } },
-      { $unwind: '$studentScores' },
-      { $match: { 'studentScores.student': { $in: ids }, 'studentScores.attendance': { $nin: ['ABSENT', 'EXCUSED'] } } },
-      { $group: {
-          _id: '$studentScores.student',
-          classroomStars: { $sum: '$studentScores.stars' },
-          classroomPoints: { $sum: '$studentScores.points' }
-      } }
-    ]),
-    UnitCompletion.aggregate([
-      { $match: { child: { $in: ids } } },
-      { $unwind: '$rewards' },
-      { $match: { 'rewards.type': 'STAR' } },
-      { $group: {
-          _id: '$child',
-          bonusStars: { $sum: '$rewards.amount' }
-      } }
-    ]),
-    Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars').lean()
-  ]);
-
-  const lessonIds = [...new Set(completedProgress.map((item) => item.lesson ? String(item.lesson) : null).filter(Boolean))];
-  const [lessonActivities, lessonResults] = lessonIds.length
-    ? await Promise.all([
-      Activity.find({ lesson: { $in: lessonIds }, status: 'ACTIVE' })
-        .select('_id lesson questions questionCount pointsPerQuestion')
-        .lean(),
-      ActivityResult.find({ child: { $in: ids }, lesson: { $in: lessonIds }, completed: true })
-        .select('child lesson activity score')
-        .lean()
-    ])
-    : [[], []];
-  const activitiesByLesson = new Map();
-  const resultsByChildLesson = new Map();
-  for (const activity of lessonActivities) {
-    const lessonId = String(activity.lesson);
-    if (!activitiesByLesson.has(lessonId)) activitiesByLesson.set(lessonId, []);
-    activitiesByLesson.get(lessonId).push(activity);
-  }
-  for (const result of lessonResults) {
-    const key = `${result.child}:${result.lesson}`;
-    if (!resultsByChildLesson.has(key)) resultsByChildLesson.set(key, []);
-    resultsByChildLesson.get(key).push(result);
-  }
-  const earnedStarsByChild = new Map();
-  for (const progress of completedProgress) {
-    const childId = String(progress.child);
-    const lessonId = String(progress.lesson);
-    const rating = calculateLessonStars(
-      activitiesByLesson.get(lessonId) || [],
-      resultsByChildLesson.get(`${childId}:${lessonId}`) || []
-    );
-    const stars = rating.completed ? rating.stars : (progress.stars || 0);
-    earnedStarsByChild.set(childId, (earnedStarsByChild.get(childId) || 0) + stars);
-  }
-
-  const resultMap = new Map(resultStats.map(x => [String(x._id), x]));
-  const progressMap = new Map(progressStats.map(x => [String(x._id), x]));
-  const classroomMap = new Map(classroomStats.map(x => [String(x._id), x]));
-  const unitMap = new Map(unitStats.map(x => [String(x._id), x]));
-  const reviews = await Assignment.find({ 'reviews.child': { $in: ids } }).select('reviews').lean();
-  const teacherStarsByChild = new Map();
-  for (const assignment of reviews) for (const review of assignment.reviews || []) {
-    const id = String(review.child);
-    teacherStarsByChild.set(id, (teacherStarsByChild.get(id) || 0) + (review.bonusStars || 0));
-  }
-
-  return ids.map(id => {
-    const sid = String(id);
-    const r = resultMap.get(sid);
-    const p = progressMap.get(sid);
-    const c = classroomMap.get(sid);
-    const u = unitMap.get(sid);
-
-    // ActivityResult.stars are per-game feedback, not banked Lesson stars.
-    const earnedStars = earnedStarsByChild.get(sid) ?? 0;
-    const classroomStars = c ? (c.classroomStars || 0) : 0;
-    const bonusStars = u ? (u.bonusStars || 0) : 0;
-    const teacherStars = teacherStarsByChild.get(sid) || 0;
-    const totalStars = earnedStars + classroomStars + bonusStars + teacherStars;
-
-    const avgScore = Number.isFinite(r?.averageScore)
-      ? Math.round(r.averageScore)
-      : 0;
-
-    const completedLessons = p?.completedLessons || 0;
-    const attempts = r?.attempts || p?.progressAttempts || 0;
-    const learningTime = r?.learningTime || 0;
-
-    let lastActivity = r?.lastActivity || p?.lastProgressDate || null;
-    if (r?.lastActivity && p?.lastProgressDate) {
-      lastActivity = new Date(r.lastActivity) > new Date(p.lastProgressDate) ? r.lastActivity : p.lastProgressDate;
-    }
-
-    return {
-      _id: id,
-      averageScore: avgScore,
-      hasAssessment: Number.isFinite(r?.averageScore),
-      stars: totalStars,
-      totalStars,
-      earnedStars,
-      classroomStars,
-      bonusStars,
-      teacherStars,
-      completedLessons,
-      attempts,
-      learningTime,
-      lastActivity
-    };
-  });
-};
+const { statsFor } = require('../services/teacherStatistics');
 const ownClassOr403 = async (req, res, id) => { if (!validId(id)) { invalid(res, 'Invalid classroom id.'); return null; } const item = await classFor(req, id); if (!item) res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); return item; };
 
 exports.getDashboard = async (req, res, next) => { try {
-  const classes = await ClassRoom.find(access.classScope(req)).select('students name status');
+  const classes = await ClassRoom.find({ ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('students name status');
   const ids = [...new Map(classes.flatMap(c => c.students).map(id => [String(id), id])).values()];
   const assignmentQuery = { ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: { $in: classes.map(c => c._id) } };
   const [recentAssignments, allAssignments, resultStats, recentSessions] = await Promise.all([
@@ -167,12 +30,12 @@ exports.getDashboard = async (req, res, next) => { try {
     activeAssignments: allAssignments.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length,
     completedAssignments: allAssignments.filter(a => a.status === 'COMPLETED').length,
     needingAttention: assessed.filter(s => s.averageScore < 60).length, unassessedStudents: ids.length - assessed.length,
-    activeLearners: assessed.length, averageScore: assessed.length ? Math.round(assessed.reduce((n,s) => n+s.averageScore, 0)/assessed.length) : null,
+    activeLearners: assessed.length, averageScore: assessed.length ? Math.round(100 * assessed.reduce((n,s) => n+s.correctAnswers, 0) / assessed.reduce((n,s) => n+s.answeredCount, 0)) : null,
     stars: resultStats.reduce((n,s) => n+s.stars, 0) }, recentAssignments, recentSessions } });
 } catch(e) { next(e); } };
 
 exports.getTeacherClasses = async (req, res, next) => { try {
-  const q = access.classScope(req); if (req.query.status) q.status = req.query.status; if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.name = { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' };
+  const q = { ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }; if (req.query.status) q.status = req.query.status; if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.name = { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' };
   const data = await ClassRoom.find(q).populate('teacher', 'name avatar avatarUrl').populate('ageGroup', 'name code').populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin', options: { sort: { name: 1 } } }).sort({ updatedAt: -1 }); res.json({ success: true, count: data.length, data });
 } catch (e) { next(e); } };
 
@@ -246,7 +109,7 @@ exports.saveClassAttendance = async (req, res, next) => { try {
   const room = await access.classroom(req, req.params.id);
   const date = rules.attendanceDate(req.body.date);
   const records = rules.attendanceRecords(req.body.records, room.students);
-  const data = await Attendance.findOneAndUpdate({ classroom: room._id, date }, { classroom: room._id, teacher: req.user._id, date, records, note: rules.text(req.body.note) }, { upsert: true, new: true, runValidators: true });
+  const data = await Attendance.findOneAndUpdate({ classroom: room._id, date }, { classroom: room._id, teacher: req.user._id, date, records, note: rules.text(req.body.note) }, { upsert: true, returnDocument: 'after', runValidators: true });
   res.json({ success: true, data });
 } catch(e) { next(e); } };
 
@@ -258,19 +121,16 @@ exports.getStudentOverview = async (req, res, next) => {
   try {
     const student = await getStudent(req, req.params.studentId);
     if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
-    const isHomeroom = student.assignedClass ? await ClassRoom.exists({ _id: student.assignedClass, teacher: req.user._id }) : false;
     const notesQuery = { student: student._id };
-    if (!isHomeroom) {
-      notesQuery.$or = [{ isHomeroomOnly: { $ne: true } }, { teacher: req.user._id }];
-    }
-    const [progressList, recentActivities, sessions, notes, assignments, [overallStat], masteryList] = await Promise.all([
+    const [progressList, recentActivities, sessions, notes, assignments, [overallStat], masteryList, listeningResults] = await Promise.all([
       Progress.find({ child: student._id }).populate('lesson', 'title ageGroupCode').populate('topic', 'englishName vietnameseName').sort({ lastActivityAt: -1 }),
       ActivityResult.find({ child: student._id }).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }).limit(30),
       LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15),
       TeacherNote.find(notesQuery).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 }),
       Assignment.find({ ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: student.assignedClass, $and: [{ $or: [{ student: student._id }, { assignedToType: 'CLASS' }] }, { $or: [{ recipients: { $exists: false } }, { recipients: student._id }] }] }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
       statsFor([student._id]),
-      VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean()
+      VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean(),
+      ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity').lean()
     ]);
 
     // ─── Early Childhood Competency Report (3 Pillars) ────────────────────
@@ -321,7 +181,7 @@ exports.getStudentOverview = async (req, res, next) => {
     }
 
     // 1. Vocabulary Competency
-    const safeMasteryList = masteryList || [];
+    const safeMasteryList = (masteryList || []).filter(row => row.vocabulary);
     const masteredList = safeMasteryList.filter(m => m.masteryLevel === 3);
     const practicingList = safeMasteryList.filter(m => m.masteryLevel === 2);
     const learningList = safeMasteryList.filter(m => m.masteryLevel === 1);
@@ -363,7 +223,7 @@ exports.getStudentOverview = async (req, res, next) => {
     };
 
     // Listening observations only; game scores cannot establish pronunciation ability.
-    const answers = (recentActivities || []).filter(a => ['LISTEN_CHOOSE', 'LISTEN_REPEAT'].includes(a.activity?.activityType)).flatMap(a => a.answers || []);
+    const answers = (listeningResults || []).filter(a => ['LISTEN_CHOOSE', 'LISTEN_REPEAT'].includes(a.activity?.activityType)).flatMap(a => a.answers || []);
     const answeredCount = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const listeningAccuracy = answeredCount ? Math.round(100 * correctAnswers / answeredCount) : null;
@@ -389,7 +249,6 @@ exports.getStudentOverview = async (req, res, next) => {
       success: true,
       data: {
         student,
-        isHomeroom,
         stats: {
           totalStars: overallStat?.totalStars || 0,
           earnedStars: overallStat?.earnedStars || 0,
@@ -398,13 +257,15 @@ exports.getStudentOverview = async (req, res, next) => {
           completedLessons: overallStat?.completedLessons || 0,
           totalActivitiesPlayed: overallStat?.attempts || 0,
           hasAssessment: overallStat?.hasAssessment || false,
-          averageScore: overallStat?.averageScore || 0,
+          averageScore: overallStat?.averageScore ?? null,
+          answeredCount: overallStat?.answeredCount || 0,
+          correctAnswers: overallStat?.correctAnswers || 0,
           attempts: overallStat?.attempts || 0,
           learningTime: overallStat?.learningTime || 0
         },
         competencyReport,
         progressList,
-        recentActivities,
+        recentActivities: await require('../services/learningHistory').recentHistory(student._id,recentActivities),
         sessions,
         notes,
         assignments
@@ -415,7 +276,17 @@ exports.getStudentOverview = async (req, res, next) => {
   }
 };
 
-exports.getStudentHistory = async (req, res, next) => { try { const student = await getStudent(req, req.params.studentId); if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' }); const q = { child: student._id }; if (req.query.completed) q.completed = req.query.completed === 'true'; const data = await ActivityResult.find(q).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }); res.json({ success: true, data }); } catch (e) { next(e); } };
+exports.getStudentHistory = async (req,res,next) => {
+  try {
+    const student=await getStudent(req,req.params.studentId);
+    if(!student)return res.status(403).json({success:false,message:'You do not have access to this child.'});
+    if(req.query.completed && !['true','false'].includes(req.query.completed))return invalid(res,'Invalid completion filter.');
+    const rows=await ActivityResult.find({child:student._id}).populate('activity','title activityType').populate('lesson','title').sort({createdAt:-1}).limit(100);
+    let data=await require('../services/learningHistory').recentHistory(student._id,rows,100);
+    if(req.query.completed)data=data.filter(row=>Boolean(row.completed)===(req.query.completed==='true'));
+    res.json({success:true,data});
+  }catch(error){next(error);}
+};
 
 exports.getContent = async (req, res, next) => { try {
   const uq = { status: 'ACTIVE' }; if (req.query.ageGroupCode) uq.ageGroupCode = req.query.ageGroupCode; if (req.query.bookNumber) uq.bookNumber = Number(req.query.bookNumber); const units = await CurriculumUnit.find(uq).populate('book', 'title bookNumber ageGroupCode').sort({ bookNumber: 1, unitNumber: 1 }).lean(); const activeUnits = req.query.unitId ? units.filter(x => String(x._id) === req.query.unitId) : units; const lq = { status: 'ACTIVE', curriculumUnits: { $in: activeUnits.map(x => x._id) } }; if (req.query.lessonId) lq._id = req.query.lessonId; if (req.query.difficulty) lq.difficulty = Number(req.query.difficulty); const lessons = await Lesson.find(lq).populate('topic', 'englishName vietnameseName').populate('vocabularyItems', 'english vietnamese imageUrl audioUrl').populate({ path: 'languageContents', match: { status: 'ACTIVE' } }).sort({ displayOrder: 1 }).lean(); const aq = { status: 'ACTIVE', lesson: { $in: lessons.map(x => x._id) } }; if (req.query.activityType) aq.activityType = req.query.activityType; const activities = await Activity.find(aq).select('title vietnameseTitle lesson activityType difficulty questionCount pointsPerQuestion instructions starConfig ageGroupCode').lean(); res.json({ success: true, data: { books: await CurriculumBook.find({ active: true }).sort({ bookNumber: 1 }), units: activeUnits, lessons, activities } });
@@ -439,16 +310,14 @@ exports.updateAssignmentStatus = require('./teacherAssignmentController').update
 
 exports.createTeacherNote = async (req, res, next) => {
   try {
-    const { studentId, lessonId, noteType = 'GENERAL', content, isHomeroomOnly = false } = req.body;
+    const { studentId, lessonId, noteType = 'GENERAL', content } = req.body;
     if (!content || !rules.text(content) || !(await getStudent(req, studentId))) return invalid(res, 'A permitted child and note content are required.');
-    if (typeof isHomeroomOnly !== 'boolean') return invalid(res, 'Quyền xem ghi chú không hợp lệ.');
     const data = await TeacherNote.create({
       teacher: req.user._id,
       student: studentId,
       lesson: validId(lessonId) ? lessonId : null,
       noteType,
-      content: rules.text(content),
-      isHomeroomOnly: Boolean(isHomeroomOnly)
+      content: rules.text(content)
     });
     res.status(201).json({ success: true, data });
   } catch (e) {
@@ -460,11 +329,7 @@ exports.getStudentNotes = async (req, res, next) => {
   try {
     const student = await getStudent(req, req.params.studentId);
     if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
-    const isHomeroom = student.assignedClass ? await ClassRoom.exists({ _id: student.assignedClass, teacher: req.user._id }) : false;
     const query = { student: req.params.studentId };
-    if (!isHomeroom) {
-      query.$or = [{ isHomeroomOnly: { $ne: true } }, { teacher: req.user._id }];
-    }
     const data = await TeacherNote.find(query).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 });
     res.json({ success: true, data });
   } catch (e) {
@@ -491,9 +356,10 @@ exports.getCurriculumOptions = exports.getContent;
 
 exports.getMySchedule = async (req, res, next) => {
   try {
-    const schedules = await Schedule.find({ teacher: req.user._id, ...require('../services/scheduleRules').activeScheduleFilter() })
+    const schedules = await Schedule.find({ teacher: req.user._id, isActive: true })
       .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
+      .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
       .lean();
 
     res.json({ success: true, count: schedules.length, data: schedules });

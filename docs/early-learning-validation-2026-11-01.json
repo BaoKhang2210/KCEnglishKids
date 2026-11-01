@@ -1,0 +1,461 @@
+{
+  "checkedAt": "2026-11-01T04:54:11.479Z",
+  "scope": "Early learning 3-6, pedagogy and storybook UI; local source and database migration",
+  "unitTests": {
+    "backend": {
+      "passed": 130,
+      "failed": 0
+    },
+    "frontend": {
+      "passed": 54,
+      "failed": 0
+    }
+  },
+  "build": {
+    "typescript": true,
+    "vite": true
+  },
+  "lint": {
+    "exitCode": 0,
+    "blockingErrors": 0,
+    "warnings": 188
+  },
+  "apiAcceptance": {
+    "checkedAt": "2026-11-01T04:46:25.522Z",
+    "isolatedDatabase": true,
+    "applicationDatabaseChanged": false,
+    "checks": [
+      {
+        "check": "Age-specific teaching guide reads actual lesson vocabulary",
+        "passed": true
+      },
+      {
+        "check": "Child and unrelated teacher cannot create observations",
+        "passed": true
+      },
+      {
+        "check": "Real BSON observation and image persist once; retries and conflicting reuse are enforced",
+        "passed": true
+      },
+      {
+        "check": "Family sees its own evidence; private image requires authorization and cannot leak to another child",
+        "passed": true
+      },
+      {
+        "check": "End-of-Unit board derives support level from actual teacher observations",
+        "passed": true
+      },
+      {
+        "check": "Ending a partial lesson preserves curriculum position",
+        "passed": true
+      },
+      {
+        "check": "Complete requires all taught goals; ending retries advance curriculum only once",
+        "passed": true
+      },
+      {
+        "check": "Full backup 3.3 includes private evidence in BSON Extended JSON and passes restore preflight",
+        "passed": true
+      },
+      {
+        "check": "Only the author or admin can void evidence; family, media, and Unit board omit it and retries cannot resurrect it",
+        "passed": true
+      }
+    ]
+  },
+  "database": {
+    "report": "database-audit-early-learning-2026-11-01.json",
+    "models": 30,
+    "issues": [
+      {
+        "severity": "INFO",
+        "code": "LEGACY_COMPLETION_RETAINED",
+        "model": "Progress",
+        "detail": "prior completion preserved; no missing activity results invented",
+        "count": 1,
+        "sampleIds": [
+          "6abf80d84ab71c28dd99b7de"
+        ],
+        "affectedDocuments": 1
+      }
+    ]
+  },
+  "browser": {
+    "checkedAt": "2026-11-01T04:53:15.276Z",
+    "mode": "Chrome isolated, read-only app fixtures; real public artwork and game engines",
+    "report": [
+      {
+        "page": "teacher-home",
+        "viewport": 1440,
+        "width": 1425,
+        "images": [
+          {
+            "src": "/images/storybook/classroom-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Xin chào, mẫu",
+          "Việc cần xử lý",
+          "Lịch dạy hôm nay",
+          "Bài giao gần đây",
+          "Góc theo dõi học tập"
+        ]
+      },
+      {
+        "check": "teacher-studio print layout includes cards and hides navigation and controls",
+        "passed": true
+      },
+      {
+        "page": "teacher-studio",
+        "viewport": 1440,
+        "width": 1425,
+        "images": [
+          {
+            "src": "/images/storybook/studio-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Xưởng học liệu của thầy cô",
+          "Xin chào những nhà khám phá nhỏ",
+          "Mục tiêu và cách đồng hành",
+          "Chơi thử với bộ từ này",
+          "Gia đình cùng chơi: Tìm và chỉ cùng gia đình"
+        ]
+      },
+      {
+        "check": "Downloaded public artwork is available with the browser offline",
+        "passed": true
+      },
+      {
+        "check": "Teacher game preview opens the actual game engine without student writes",
+        "passed": true
+      },
+      {
+        "page": "teacher-unit-review",
+        "viewport": 1440,
+        "width": 1440,
+        "images": [
+          {
+            "src": "/images/storybook/celebration-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Nhìn lại những điều bé làm được",
+          "Nghe và chỉ",
+          "Diễn đạt tự nhiên",
+          "Chơi cùng bạn",
+          "Quan sát mới nhất của từng bé"
+        ]
+      },
+      {
+        "check": "Observation author can review and cancel removal without writes",
+        "passed": true
+      },
+      {
+        "page": "teacher-observation",
+        "viewport": 1440,
+        "width": 1425,
+        "images": [
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Học sinh mẫu A",
+          "Những bước tiến của bé"
+        ]
+      },
+      {
+        "check": "Closing defaults to continuation, with explicit coverage choices and goal checklist",
+        "passed": true
+      },
+      {
+        "page": "teacher-close",
+        "viewport": 1440,
+        "width": 1440,
+        "images": [],
+        "headings": [
+          "Hello, little explorers!Book 1 • Unit 1Lớp Mầm A👩‍🏫 Cô: Giáo viên mẫu",
+          "cat"
+        ]
+      },
+      {
+        "check": "admin-studio print layout includes cards and hides navigation and controls",
+        "passed": true
+      },
+      {
+        "page": "admin-studio",
+        "viewport": 1440,
+        "width": 1425,
+        "images": [
+          {
+            "src": "/images/storybook/studio-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Xưởng học liệu của thầy cô",
+          "Xin chào những nhà khám phá nhỏ",
+          "Mục tiêu và cách đồng hành",
+          "Chơi thử với bộ từ này",
+          "Gia đình cùng chơi: Tìm và chỉ cùng gia đình"
+        ]
+      },
+      {
+        "page": "child-learning",
+        "viewport": 1440,
+        "width": 1440,
+        "images": [
+          {
+            "src": "/images/storybook/adventure-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/rest-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/celebration-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": false
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": false
+          }
+        ],
+        "headings": [
+          "Cùng Koko khám phá nhé!",
+          "Hôm nay bé chơi cùng tranh nào?",
+          "Một trò nhỏ ở nhà",
+          "Nhìn lại tuần này",
+          "Những bước tiến của bé"
+        ]
+      },
+      {
+        "page": "child-learning-mobile",
+        "viewport": 390,
+        "width": 390,
+        "images": [
+          {
+            "src": "/images/storybook/adventure-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/rest-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/celebration-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": false
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": false
+          }
+        ],
+        "headings": [
+          "Cùng Koko khám phá nhé!",
+          "Hôm nay bé chơi cùng tranh nào?",
+          "Một trò nhỏ ở nhà",
+          "Nhìn lại tuần này",
+          "Những bước tiến của bé"
+        ]
+      },
+      {
+        "page": "teacher-studio-mobile",
+        "viewport": 390,
+        "width": 390,
+        "images": [
+          {
+            "src": "/images/storybook/studio-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Xưởng học liệu của thầy cô",
+          "Xin chào những nhà khám phá nhỏ",
+          "Mục tiêu và cách đồng hành",
+          "Chơi thử với bộ từ này",
+          "Gia đình cùng chơi: Tìm và chỉ cùng gia đình"
+        ]
+      },
+      {
+        "check": "Unit selection survives navigation through its URL",
+        "passed": true
+      },
+      {
+        "page": "teacher-unit-review-mobile",
+        "viewport": 390,
+        "width": 390,
+        "images": [
+          {
+            "src": "/images/storybook/celebration-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Nhìn lại những điều bé làm được",
+          "Nghe và chỉ",
+          "Diễn đạt tự nhiên",
+          "Chơi cùng bạn",
+          "Quan sát mới nhất của từng bé"
+        ]
+      },
+      {
+        "page": "teacher-observation-mobile",
+        "viewport": 390,
+        "width": 390,
+        "images": [
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Học sinh mẫu A",
+          "Những bước tiến của bé"
+        ]
+      },
+      {
+        "page": "admin-studio-mobile",
+        "viewport": 390,
+        "width": 390,
+        "images": [
+          {
+            "src": "/images/storybook/studio-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Xưởng học liệu của thầy cô",
+          "Xin chào những nhà khám phá nhỏ",
+          "Mục tiêu và cách đồng hành",
+          "Chơi thử với bộ từ này",
+          "Gia đình cùng chơi: Tìm và chỉ cùng gia đình"
+        ]
+      },
+      {
+        "check": "Family portfolio is read-only on mobile",
+        "passed": true
+      },
+      {
+        "page": "child-family-mobile",
+        "viewport": 390,
+        "width": 390,
+        "images": [
+          {
+            "src": "/images/storybook/adventure-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/rest-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/celebration-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": true
+          },
+          {
+            "src": "/images/storybook/family-v1.webp",
+            "loaded": true
+          }
+        ],
+        "headings": [
+          "Cùng Koko khám phá nhé!",
+          "Hôm nay bé chơi cùng tranh nào?",
+          "Một trò nhỏ ở nhà",
+          "Nhìn lại tuần này",
+          "Những bước tiến của bé"
+        ]
+      },
+      {
+        "check": "Overtime reminder opens explicit teaching closure without ending or writing the lesson",
+        "passed": true
+      },
+      {
+        "page": "teacher-overtime",
+        "viewport": 1440,
+        "width": 1425,
+        "images": [],
+        "headings": [
+          "Hello, little explorers!Book 1 • Unit 1Lớp Mầm A👩‍🏫 Cô: Giáo viên mẫu",
+          "cat"
+        ]
+      }
+    ],
+    "runtimeErrors": [],
+    "apiMutations": []
+  },
+  "artwork": {
+    "assets": [
+      {
+        "file": "adventure-v1.webp",
+        "width": 1536,
+        "height": 1024,
+        "bytes": 450306
+      },
+      {
+        "file": "celebration-v1.webp",
+        "width": 1536,
+        "height": 1024,
+        "bytes": 337762
+      },
+      {
+        "file": "classroom-v1.webp",
+        "width": 1536,
+        "height": 1024,
+        "bytes": 347574
+      },
+      {
+        "file": "family-v1.webp",
+        "width": 1536,
+        "height": 1024,
+        "bytes": 280454
+      },
+      {
+        "file": "rest-v1.webp",
+        "width": 1536,
+        "height": 1024,
+        "bytes": 412222
+      },
+      {
+        "file": "studio-v1.webp",
+        "width": 1536,
+        "height": 1024,
+        "bytes": 285416
+      }
+    ],
+    "totalBytes": 2113734
+  },
+  "limitations": [
+    "Chrome UI checks use read-only sample fixtures; real API persistence is tested in a separate MongoDB database.",
+    "No classroom trial or cross-device microphone validation was performed.",
+    "Media preloading does not make login, navigation or all lessons available offline.",
+    "Age defaults and review intervals are teaching heuristics, not a validated developmental assessment.",
+    "No external deployment was performed."
+  ]
+}

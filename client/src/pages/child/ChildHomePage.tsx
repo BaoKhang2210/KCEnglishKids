@@ -1,3 +1,4 @@
+import { StoryBanner } from '../../components/StoryScene';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -35,6 +36,8 @@ import { CuteRosetteMedal } from '../../components/child/CuteRosetteMedal';
 import { CuteStickerCard } from '../../components/child/CuteStickerCard';
 import { StickerShowcaseModal } from '../../components/child/StickerShowcaseModal';
 import { topicArt } from '../../utils/learningArt';
+import { JourneyRoadmap } from '../../components/child/JourneyRoadmap';
+import { motion } from 'motion/react';
 
 
 interface CurriculumLesson {
@@ -65,6 +68,58 @@ interface CurriculumUnit {
   totalUnitStars: number;
   isCompleted: boolean;
 }
+
+// Unit theme palettes shared by the roadmap modal and the unit cards.
+const UNIT_THEMES = [
+  {
+    themeName: 'Đảo Đồ Chơi & Trường Học',
+    tag: 'Trường Mầm Non',
+    bgGradient: 'from-amber-50 via-white to-orange-50/50',
+    border: 'border-amber-300',
+    headerBadge: 'bg-amber-100 text-amber-900 border-amber-300',
+    accentEmoji: '🎒'
+  },
+  {
+    themeName: 'Vương Quốc Thú Cưng Đáng Yêu',
+    tag: 'Khám Phá Muôn Loài',
+    bgGradient: 'from-emerald-50 via-white to-teal-50/50',
+    border: 'border-emerald-300',
+    headerBadge: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+    accentEmoji: '🐶'
+  },
+  {
+    themeName: 'Khu Vườn Bánh Ngọt & Trái Cây',
+    tag: 'Món Ngon Cho Bé',
+    bgGradient: 'from-rose-50 via-white to-orange-50/50',
+    border: 'border-rose-300',
+    headerBadge: 'bg-rose-100 text-rose-900 border-rose-300',
+    accentEmoji: '🍎'
+  },
+  {
+    themeName: 'Xứ Sở Đồ Chơi Kỳ Diệu',
+    tag: 'Thế Giới Tuổi Thơ',
+    bgGradient: 'from-purple-50 via-white to-pink-50/50',
+    border: 'border-purple-300',
+    headerBadge: 'bg-purple-100 text-purple-900 border-purple-300',
+    accentEmoji: '🧸'
+  },
+  {
+    themeName: 'Thung Lũng Cỏ Cây Tự Nhiên',
+    tag: 'Thiên Nhiên Xanh',
+    bgGradient: 'from-teal-50 via-white to-cyan-50/50',
+    border: 'border-teal-300',
+    headerBadge: 'bg-teal-100 text-teal-900 border-teal-300',
+    accentEmoji: '🌳'
+  },
+  {
+    themeName: 'Tổ Ấm Ngôi Nhà Hạnh Phúc',
+    tag: 'Gia Đình Yêu Thương',
+    bgGradient: 'from-yellow-50 via-white to-amber-50/50',
+    border: 'border-amber-300',
+    headerBadge: 'bg-yellow-100 text-yellow-900 border-yellow-300',
+    accentEmoji: '🏡'
+  }
+];
 
 export const ChildHomePage: React.FC = () => {
   const { user } = useAuth();
@@ -245,7 +300,8 @@ export const ChildHomePage: React.FC = () => {
       </div>
 
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-3 pb-24 md:pb-8">
+        <div className="w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 md:pb-12">
+        <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
         <ChildRecognitions />
         {/* COMPACT BANNER */}
         <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
@@ -285,13 +341,13 @@ export const ChildHomePage: React.FC = () => {
           <>
             {/* ==================== TAB 1: HÀNH TRÌNH HỌC (CURRICULUM PATH) ==================== */}
             {activeTab === 'path' && (
-              <section className="space-y-10">
+              <section className="space-y-10"><StoryBanner scene="adventure" title="Hôm nay mình khám phá gì nhỉ?" eyebrow="CÙNG KOKO HỌC QUA CHƠI"><p>Chọn một chặng, nghe và chạm vào tranh nhé.</p></StoryBanner>
                 {/* Header */}
                 <div className="flex items-end justify-between flex-wrap gap-2">
                   <div>
                     <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-orange-600 bg-orange-100 px-3 py-1 rounded-full mb-1">
                       <Compass className="w-3.5 h-3.5" />
-                      Lộ trình chuẩn sách giáo khoa
+                      Hành trình khám phá theo Unit
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
                       Hành trình 9 Unit phiêu lưu
@@ -308,6 +364,31 @@ export const ChildHomePage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Board-game journey map (2026-11 redesign) */}
+                {units.length > 0 && (
+                  <JourneyRoadmap
+                    units={units.map((u, i) => ({
+                      unitNumber: u.unitNumber,
+                      topicName: u.topicName,
+                      topicIcon: u.topicIcon,
+                      isCompleted: !!u.isCompleted,
+                      accessible: i === 0 || !!units[i - 1]?.isCompleted
+                    }))}
+                    onNodeClick={i => {
+                      const roadmapUnits = units;
+                      const u = roadmapUnits[i];
+                      const unlocked = i === 0 || !!roadmapUnits[i - 1]?.isCompleted;
+                      if (!unlocked) {
+                        handleLockedClick(`Bé ơi, hãy hoàn thành Unit ${i} trước để mở khóa Unit ${u.unitNumber} nhé! 🎒✨`);
+                        return;
+                      }
+                      sfx.playPop();
+                      document.getElementById(`unit-card-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      setSelectedUnitModal({ unit: u, unitIndex: i, theme: UNIT_THEMES[i % UNIT_THEMES.length], isUnitUnlocked: true });
+                    }}
+                  />
+                )}
+
                 {/* Units 1-9 Overview Cards */}
                 <div className="space-y-4 sm:space-y-5">
                   {units.map((unit, unitIdx) => {
@@ -315,62 +396,16 @@ export const ChildHomePage: React.FC = () => {
                     const completedLessonCount = unit.lessons.filter(l => l.completed).length;
                     const totalLessonCount = unit.lessons.length || 5;
 
-                    const UNIT_THEMES = [
-                      {
-                        themeName: 'Đảo Đồ Chơi & Trường Học',
-                        tag: 'Trường Mầm Non',
-                        bgGradient: 'from-amber-50 via-white to-orange-50/50',
-                        border: 'border-amber-300',
-                        headerBadge: 'bg-amber-100 text-amber-900 border-amber-300',
-                        accentEmoji: '🎒'
-                      },
-                      {
-                        themeName: 'Vương Quốc Thú Cưng Đáng Yêu',
-                        tag: 'Khám Phá Muôn Loài',
-                        bgGradient: 'from-emerald-50 via-white to-teal-50/50',
-                        border: 'border-emerald-300',
-                        headerBadge: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-                        accentEmoji: '🐶'
-                      },
-                      {
-                        themeName: 'Khu Vườn Bánh Ngọt & Trái Cây',
-                        tag: 'Món Ngon Cho Bé',
-                        bgGradient: 'from-rose-50 via-white to-orange-50/50',
-                        border: 'border-rose-300',
-                        headerBadge: 'bg-rose-100 text-rose-900 border-rose-300',
-                        accentEmoji: '🍎'
-                      },
-                      {
-                        themeName: 'Xứ Sở Đồ Chơi Kỳ Diệu',
-                        tag: 'Thế Giới Tuổi Thơ',
-                        bgGradient: 'from-purple-50 via-white to-pink-50/50',
-                        border: 'border-purple-300',
-                        headerBadge: 'bg-purple-100 text-purple-900 border-purple-300',
-                        accentEmoji: '🧸'
-                      },
-                      {
-                        themeName: 'Thung Lũng Cỏ Cây Tự Nhiên',
-                        tag: 'Thiên Nhiên Xanh',
-                        bgGradient: 'from-teal-50 via-white to-cyan-50/50',
-                        border: 'border-teal-300',
-                        headerBadge: 'bg-teal-100 text-teal-900 border-teal-300',
-                        accentEmoji: '🌳'
-                      },
-                      {
-                        themeName: 'Tổ Ấm Ngôi Nhà Hạnh Phúc',
-                        tag: 'Gia Đình Yêu Thương',
-                        bgGradient: 'from-yellow-50 via-white to-amber-50/50',
-                        border: 'border-amber-300',
-                        headerBadge: 'bg-yellow-100 text-yellow-900 border-yellow-300',
-                        accentEmoji: '🏡'
-                      }
-                    ];
-
                     const theme = UNIT_THEMES[unitIdx % UNIT_THEMES.length];
 
                     return (
-                      <div
+                      <motion.div
                         key={unit._id || unitIdx}
+                        id={`unit-card-${unitIdx}`}
+                        initial={{ opacity: 0, y: 26 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.25 }}
+                        transition={{ type: 'spring', stiffness: 210, damping: 24, delay: (unitIdx % 3) * 0.05 }}
                         onClick={() => {
                           if (!isUnitUnlocked) {
                             handleLockedClick(`Bé ơi, hãy hoàn thành Unit ${unitIdx} trước để mở khóa Unit ${unit.unitNumber} nhé! 🎒✨`);
@@ -467,7 +502,7 @@ export const ChildHomePage: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -588,7 +623,8 @@ export const ChildHomePage: React.FC = () => {
                 completedLessons,
                 completedUnits,
                 perfectLessons: rewards?.perfectLessons ?? 0,
-                openedChests: rewards?.openedChests ?? 0
+                openedChests: rewards?.openedChests ?? 0,
+                streakDays: Math.max(streakData?.streak ?? 0, streakData?.longestStreak ?? 0)
               };
               const evaluatedBadges = ALL_BADGES.map(badge => evaluateBadge(badge, badgeProgress));
 
@@ -903,8 +939,8 @@ export const ChildHomePage: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 relative custom-scrollbar">
                   {/* Stepping Trail */}
                   <div className="relative flex flex-col items-center">
-                    {/* Dashed connector line */}
-                    <div className="absolute top-8 bottom-8 w-2 border-r-4 border-dashed border-amber-300/80 pointer-events-none" />
+                    {/* Dashed connector line — cùng tông đường đi với JourneyRoadmap */}
+                    <div className="absolute top-8 bottom-8 w-2 border-r-4 border-dashed border-amber-400/70 pointer-events-none" />
 
                     <div className="w-full max-w-xl flex flex-col gap-6 relative z-10">
                       {unit.lessons.map((lesson, idx) => {
@@ -913,8 +949,11 @@ export const ChildHomePage: React.FC = () => {
                         const isCurrent = isUnitUnlocked && !lesson.completed && (firstIncompleteIdx === idx || firstIncompleteIdx === -1);
 
                         return (
-                          <div
+                          <motion.div
                             key={lesson._id || idx}
+                            initial={{ opacity: 0, y: 18, scale: 0.94 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.08 + idx * 0.07 }}
                             className={`flex items-center w-full relative ${
                               isAlternateRight ? 'justify-end pr-2 sm:pr-6' : 'justify-start pl-2 sm:pl-6'
                             }`}
@@ -1001,7 +1040,7 @@ export const ChildHomePage: React.FC = () => {
                                 </p>
                               </div>
                             </button>
-                          </div>
+                          </motion.div>
                         );
                       })}
 
@@ -1096,7 +1135,8 @@ export const ChildHomePage: React.FC = () => {
               completedLessons,
               completedUnits,
               perfectLessons: rewards?.perfectLessons ?? 0,
-              openedChests: rewards?.openedChests ?? 0
+              openedChests: rewards?.openedChests ?? 0,
+              streakDays: Math.max(streakData?.streak ?? 0, streakData?.longestStreak ?? 0)
             })}
             onClose={() => setShowcaseBadge(null)}
           />

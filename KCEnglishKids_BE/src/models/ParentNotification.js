@@ -52,6 +52,7 @@ const parentNotificationSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    learningSnapshot: { type: mongoose.Schema.Types.Mixed, default: undefined },
 
     // Learning metrics for the session
     score: { type: Number, default: 0 },         // 0–100 %
@@ -87,7 +88,7 @@ const parentNotificationSchema = new mongoose.Schema(
       {
         senderRole: {
           type: String,
-          enum: ['TEACHER', 'PARENT'],
+          enum: ['TEACHER', 'PARENT', 'FAMILY'],
           required: true
         },
         senderName: {

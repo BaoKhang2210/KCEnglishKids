@@ -11,14 +11,12 @@ import {
   AlertCircle,
   Search,
   X,
-  CheckCircle2,
-  School,
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { authApi } from '../../services/api';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from '../../components/child/KokoMascot';
+import { StoryBackdrop } from '../../components/StoryScene';
 
 /* ─────────────────────────────────────────────
    Inline style helpers  (Tailwind không đủ granular)
@@ -32,17 +30,13 @@ const inputCls =
   'transition-all bg-amber-50/30';
 
 export const StudentLoginPage: React.FC = () => {
-  const [identifier, setIdentifier] = useState('leo@kcenglishkids.com');
-  const [password, setPassword]     = useState('123456');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword]     = useState('');
   const [showPassword, setShowPwd]  = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [showLookup, setShowLookup]       = useState(false);
-  const [lookupPhone, setLookupPhone]     = useState('');
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupError, setLookupError]     = useState<string | null>(null);
-  const [lookupResults, setLookupResults] = useState<any[]>([]);
 
   const { loginStudentHome } = useAuth();
   const navigate = useNavigate();
@@ -57,42 +51,23 @@ export const StudentLoginPage: React.FC = () => {
       await loginStudentHome(identifier.trim(), password);
       sfx.playCorrect(); navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Email/SĐT hoặc mật khẩu chưa đúng. Bố mẹ kiểm tra lại nhé!');
+      const msg = err?.message || '';
+      if (msg.includes('JSON') || msg.includes('Unexpected token') || msg.includes('Failed to fetch')) {
+        setError('Không thể kết nối đến máy chủ Backend (Port 5000). Bố mẹ hãy kiểm tra server nhé!');
+      } else {
+        setError(msg || 'Email/SĐT hoặc mật khẩu chưa đúng. Bố mẹ kiểm tra lại nhé!');
+      }
       sfx.playGentleWrong();
     } finally { setSubmitting(false); }
   };
 
-  const fillQuick = (email: string) => { sfx.playPop(); setIdentifier(email); setPassword('123456'); setError(null); };
 
-  const handleLookup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lookupPhone.trim()) { setLookupError('Vui lòng nhập SĐT phụ huynh đã đăng ký.'); return; }
-    setLookupLoading(true); setLookupError(null); setLookupResults([]);
-    try {
-      const res = await authApi.lookupStudent(lookupPhone.trim());
-      if (res.success && res.data) { setLookupResults(res.data); sfx.playCorrect(); }
-    } catch (err: any) {
-      setLookupError(err.message || 'Không tìm thấy tài khoản. Liên hệ giáo viên chủ nhiệm nhé!');
-      sfx.playGentleWrong();
-    } finally { setLookupLoading(false); }
-  };
-
-  /* ═══════════════════════════════════════════
-     RENDER
-  ═══════════════════════════════════════════ */
   return (
     <div
-      className="h-screen overflow-hidden flex flex-col"
-      style={{ background: 'linear-gradient(145deg,#fffbeb 0%,#fef3c7 45%,#ecfdf5 100%)', fontFamily: NU }}
+      className="story-surface story-login min-h-dvh flex flex-col"
+      style={{ fontFamily: NU }}
     >
-      {/* ── decorative blobs ── */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-50/60 via-amber-50/85 to-white/90" />
-        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-amber-300/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-sky-300/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-rose-200/10 rounded-full blur-3xl" />
-      </div>
+      <StoryBackdrop scene="adventure"/>
 
       {/* ══════════════════════════════════════
           TOP NAV
@@ -118,25 +93,40 @@ export const StudentLoginPage: React.FC = () => {
       ══════════════════════════════════════ */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 sm:px-10 py-3 min-h-0 gap-10 lg:gap-16">
 
-        {/* ─── LEFT PANEL: Mascot + Tagline ─── */}
-        <div className="hidden md:flex flex-col items-center justify-center gap-5 flex-shrink-0 w-52 lg:w-64">
-          {/* Mascot — large, bouncing */}
-          <div className="animate-soft-bounce cursor-pointer" onClick={() => sfx.playPop()}>
-            <KokoMascot state="waving" size="lg" interactive={false} />
+        {/* ─── LEFT PANEL: Mascot + Tagline (Balanced, Centered & Prominent) ─── */}
+        <div className="hidden md:flex flex-col items-center justify-center gap-6 flex-shrink-0 w-72 lg:w-80 xl:w-96 my-auto">
+          {/* Friendly Mascot Greeting */}
+          <div
+            className="cursor-pointer group flex flex-col items-center gap-3 transition-transform hover:scale-105 active:scale-95"
+            onClick={() => sfx.playPop()}
+            title="Chạm vào Koko nè!"
+          >
+            <div className="w-28 h-28 lg:w-36 lg:h-36 rounded-3xl bg-amber-400/95 border-4 border-amber-300 p-2 shadow-2xl flex items-center justify-center animate-soft-bounce">
+              <KokoMascot state="waving" size="lg" interactive={false} />
+            </div>
+            <span className="text-xs lg:text-sm font-black text-amber-950 bg-amber-300/90 px-4 py-1.5 rounded-full shadow-xs border border-amber-400/80">
+              Chào bạn nhỏ! 🐵👋
+            </span>
           </div>
 
-          {/* Tagline pills */}
-          <div className="flex flex-col items-center gap-2 text-center">
+          {/* 3 Prominent, Beautiful, Balanced Tagline Badges */}
+          <div className="flex flex-col items-stretch gap-3 w-full text-center">
             <div
-              className="bg-amber-400/90 text-amber-950 font-black text-sm px-4 py-2 rounded-2xl shadow-md"
+              className="w-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 text-amber-950 font-black text-base lg:text-lg py-3 px-5 rounded-2xl shadow-md border-2 border-amber-300/90 hover:scale-102 transition-transform"
               style={{ fontFamily: QS }}
             >
               🎓 Học vui mỗi ngày!
             </div>
-            <div className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1.5 rounded-xl border border-emerald-300">
+            <div
+              className="w-full bg-gradient-to-r from-emerald-100 via-teal-50 to-emerald-100 text-emerald-950 font-black text-sm lg:text-base py-3 px-5 rounded-2xl border-2 border-emerald-300/90 shadow-xs hover:scale-102 transition-transform"
+              style={{ fontFamily: QS }}
+            >
               🌟 Dành cho trẻ 3 – 6 tuổi
             </div>
-            <div className="bg-sky-100 text-sky-800 font-bold text-xs px-3 py-1.5 rounded-xl border border-sky-300">
+            <div
+              className="w-full bg-gradient-to-r from-sky-100 via-blue-50 to-sky-100 text-sky-950 font-black text-sm lg:text-base py-3 px-5 rounded-2xl border-2 border-sky-300/90 shadow-xs hover:scale-102 transition-transform"
+              style={{ fontFamily: QS }}
+            >
               🏆 Học tiếng Anh cùng Koko!
             </div>
           </div>
@@ -168,7 +158,7 @@ export const StudentLoginPage: React.FC = () => {
 
           {/* ── FORM CARD ── */}
           <div
-            className="bg-white/95 backdrop-blur-sm rounded-[28px] border-[3px] border-amber-300 shadow-2xl"
+            className="story-login-form bg-white rounded-[28px] border-[3px] border-amber-300 shadow-2xl"
             style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}
           >
             {/* Error */}
@@ -195,7 +185,7 @@ export const StudentLoginPage: React.FC = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => { sfx.playPop(); setShowLookup(true); setLookupError(null); setLookupResults([]); }}
+                    onClick={() => { sfx.playPop(); setShowLookup(true); }}
                     className="flex items-center gap-1 text-amber-600 hover:text-amber-800 font-bold underline cursor-pointer"
                     style={{ fontSize: '0.78rem' }}
                   >
@@ -254,44 +244,6 @@ export const StudentLoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* ── Quick Demo Accounts ── */}
-              <div>
-                <span
-                  className="block font-black uppercase text-slate-400 mb-2"
-                  style={{ fontSize: '0.75rem', letterSpacing: '0.06em' }}
-                >
-                  Thử nhanh — 3 Nhóm tuổi:
-                </span>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {[
-                    { email: 'leo@kcenglishkids.com',  icon: '🦁', name: 'Leo',  age: '3–4 tuổi', badge: 'Lớp Mầm', border: 'border-amber-300', bg: 'bg-amber-50 hover:bg-amber-100', text: 'text-amber-950', ring: 'ring-amber-300' },
-                    { email: 'mia@kcenglishkids.com',  icon: '🐰', name: 'Mia',  age: '4–5 tuổi', badge: 'Lớp Chồi', border: 'border-pink-300',  bg: 'bg-pink-50  hover:bg-pink-100',  text: 'text-pink-950',  ring: 'ring-pink-300' },
-                    { email: 'toby@kcenglishkids.com', icon: '🐶', name: 'Toby', age: '5–6 tuổi', badge: 'Lớp Lá',   border: 'border-sky-300',   bg: 'bg-sky-50   hover:bg-sky-100',   text: 'text-sky-950',   ring: 'ring-sky-300' },
-                  ].map(({ email, icon, name, age, border, bg, text }) => {
-                    const isSelected = identifier === email;
-
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => fillQuick(email)}
-                        className={`py-2 px-1.5 rounded-2xl border-2 ${border} ${bg} ${text} font-black flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all active:scale-95 shadow-xs ${
-                          isSelected ? 'ring-2 ring-offset-1 ' + border + ' scale-103' : 'opacity-90 hover:opacity-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1">
-                          <span style={{ fontSize: '1.25rem' }}>{icon}</span>
-                          <span style={{ fontSize: '0.95rem' }} className="font-extrabold">{name}</span>
-                        </div>
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/80 border border-black/5 shadow-2xs whitespace-nowrap">
-                          {age}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* ── CTA BUTTON ── */}
               <button
                 type="submit"
@@ -324,8 +276,21 @@ export const StudentLoginPage: React.FC = () => {
             </form>
           </div>
 
+          {/* ── Mobile Tagline badges ── */}
+          <div className="flex md:hidden flex-wrap items-center justify-center gap-2 text-center my-0.5">
+            <span className="bg-amber-400 text-amber-950 font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs border border-amber-300">
+              🎓 Học vui mỗi ngày!
+            </span>
+            <span className="bg-emerald-100 text-emerald-900 font-black text-xs px-3.5 py-1.5 rounded-xl border border-emerald-300">
+              🌟 Bé 3 – 6 tuổi
+            </span>
+            <span className="bg-sky-100 text-sky-900 font-black text-xs px-3.5 py-1.5 rounded-xl border border-sky-300">
+              🏆 Cùng Koko!
+            </span>
+          </div>
+
           {/* ── Footer note ── */}
-          <p className="text-center font-bold text-slate-400" style={{ fontSize: '0.78rem' }}>
+          <p className="story-login-note text-center font-bold" style={{ fontSize: '0.78rem' }}>
             🏫 Tài khoản do nhà trường cấp phát &nbsp;•&nbsp; KCEnglishKids 3–6 tuổi
           </p>
         </div>
@@ -346,9 +311,9 @@ export const StudentLoginPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-black text-lg text-slate-800" style={{ fontFamily: QS }}>
-                    Tra Cứu Tài Khoản Bé
+                    Hỗ trợ tài khoản của bé
                   </h3>
-                  <p className="text-xs font-bold text-amber-700">Nhập SĐT phụ huynh đã đăng ký</p>
+                  <p className="text-xs font-bold text-amber-700">Bé tự lấy lại PIN ngay tại đây</p>
                 </div>
               </div>
               <button
@@ -360,100 +325,16 @@ export const StudentLoginPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Lookup form */}
-            <form onSubmit={handleLookup} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-600 mb-1.5">
-                  Số điện thoại phụ huynh:
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-500">
-                    <Phone className="w-5 h-5" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={lookupPhone}
-                    onChange={(e) => setLookupPhone(e.target.value)}
-                    placeholder="Ví dụ: 0901234567"
-                    className={inputCls}
-                    style={{ paddingLeft: '2.75rem', paddingRight: '1rem', paddingTop: '0.75rem', paddingBottom: '0.75rem', fontSize: '1rem' }}
-                  />
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-black text-slate-400">Thử nhanh:</span>
-                  {[
-                    { label: 'Leo (3–4t)', phone: '0901234567', cls: 'text-amber-700 bg-amber-100 hover:bg-amber-200' },
-                    { label: 'Mia (4–5t)', phone: '0902345678', cls: 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200' },
-                    { label: 'Toby (5–6t)', phone: '0903456789', cls: 'text-sky-700 bg-sky-100 hover:bg-sky-200' },
-                  ].map(({ label, phone, cls }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setLookupPhone(phone)}
-                      className={`text-xs font-bold px-2.5 py-1 rounded-lg cursor-pointer transition-colors ${cls}`}
-                    >
-                      {label} ({phone})
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <p className="rounded-2xl bg-amber-50 border border-amber-200 p-4 font-bold text-slate-700">Nếu bé quên mã PIN, bố mẹ có thể cùng bé tự khôi phục trong 1 phút bằng “hai bạn bí mật” mà bé đã chọn khi cài PIN.</p>
+            <button
+              type="button"
+              onClick={() => { sfx.playPop(); setShowLookup(false); navigate('/recover'); }}
+              className="mt-4 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-lg py-3.5 px-6 shadow-md cursor-pointer transition-colors"
+            >
+              🔑 Bé tự lấy lại mã PIN ngay
+            </button>
+            <p className="mt-3 text-sm text-slate-600">Bé chưa cài “bạn bí mật”? Giáo viên hoặc quản trị viên vẫn đặt lại được PIN cho bé, và lần đổi PIN tới nhớ cài hai bạn bí mật nhé.</p>
 
-              <button
-                type="submit"
-                disabled={lookupLoading}
-                className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-base flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                {lookupLoading ? (
-                  <div className="w-5 h-5 border-[3px] border-amber-950 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <><Search className="w-4 h-4" /><span>Tra Cứu Tài Khoản</span></>
-                )}
-              </button>
-            </form>
-
-            {lookupError && (
-              <div className="mt-4 p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-200 text-sm text-rose-700 font-bold flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-500" />
-                <span>{lookupError}</span>
-              </div>
-            )}
-
-            {lookupResults.length > 0 && (
-              <div className="mt-5 space-y-2.5">
-                <p className="text-sm font-black text-emerald-700 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> Đã tìm thấy tài khoản của bé:
-                </p>
-                {lookupResults.map((st) => (
-                  <div key={st.id} className="p-3.5 rounded-2xl border-2 border-emerald-300 bg-emerald-50/60 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-emerald-200 flex items-center justify-center shadow-xs overflow-hidden flex-shrink-0">
-                        {st.avatarUrl ? <img src={st.avatarUrl} alt={st.name} className="w-full h-full object-contain" /> : <span className="text-xl">🦁</span>}
-                      </div>
-                      <div>
-                        <b className="text-sm text-slate-800 block">{st.name}</b>
-                        <span className="text-xs font-mono font-bold text-teal-800 block">{st.email}</span>
-                        <span className="text-xs text-slate-500">{st.className}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { sfx.playPop(); setIdentifier(st.email || st.phone); setShowLookup(false); }}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      Dùng ngay
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <School className="w-4 h-4" /> Văn phòng: 028.3888.xxxx
-              </span>
-              <span className="text-amber-700">Hỗ trợ 24/7</span>
-            </div>
           </div>
         </div>
       )}

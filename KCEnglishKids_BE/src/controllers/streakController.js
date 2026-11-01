@@ -115,143 +115,31 @@ const buildWeekDays = (activeDatesSet, todayStr) => {
  * GET /api/children/:childId/streak
  * Synchronize daily streak and return rich visualization details
  */
-const getChildStreak = async (req, res, next) => {
-  try {
-    const { childId } = req.params;
-    const child = await User.findById(childId);
-    if (!child) {
-      return res.status(404).json({ success: false, message: 'Child not found' });
-    }
-
-    const todayStr = getVietnamDateString();
-    const yesterdayStr = getShiftedDateString(todayStr, -1);
-
-    let streak = child.streak || 1;
-    let longestStreak = child.longestStreak || 1;
-    let lastActive = child.lastActiveDate;
-    let activeDates = Array.isArray(child.activeDates) ? [...child.activeDates] : [];
-
-    let isNewDayIncrement = false;
-
-    // Check if child has already logged in today
-    if (lastActive === todayStr) {
-      // Already active today, streak stays current
-      if (!activeDates.includes(todayStr)) {
-        activeDates.push(todayStr);
-      }
-    } else if (lastActive === yesterdayStr) {
-      // Consecutive day! Streak increases by 1
-      streak += 1;
-      isNewDayIncrement = true;
-      child.lastActiveDate = todayStr;
-      if (!activeDates.includes(todayStr)) {
-        activeDates.push(todayStr);
-      }
-    } else {
-      // Broke streak or first time logging
-      if (!lastActive) {
-        streak = 1;
-      } else {
-        // More than 1 day missed: reset to 1
-        streak = 1;
-      }
-      child.lastActiveDate = todayStr;
-      if (!activeDates.includes(todayStr)) {
-        activeDates.push(todayStr);
-      }
-    }
-
-    // Keep activeDates tidy (last 60 days)
-    if (activeDates.length > 60) {
-      activeDates = activeDates.slice(-60);
-    }
-
-    longestStreak = Math.max(longestStreak, streak);
-    child.streak = streak;
-    child.longestStreak = longestStreak;
-    child.activeDates = activeDates;
-    await child.save();
-
-    const activeSet = new Set(activeDates);
-    const weekDays = buildWeekDays(activeSet, todayStr);
-    const levelInfo = getStreakLevelInfo(streak);
-    const nextMilestone = getNextMilestone(streak);
-
-    res.json({
-      success: true,
-      data: {
-        childId: child._id,
-        childName: child.name,
-        streak,
-        longestStreak,
-        lastActiveDate: todayStr,
-        isNewDayIncrement,
-        levelInfo,
-        nextMilestone,
-        weekDays,
-        activeDates
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
+function streakData(dates, todayStr) {
+  const activeDates = [...new Set(dates)].filter(d=>d<=todayStr).sort();
+  const activeSet=new Set(activeDates);
+  let streak=0, longestStreak=0, run=0, previous;
+  for(const date of activeDates) { run=previous && getShiftedDateString(previous,1)===date ? run+1 : 1;longestStreak=Math.max(longestStreak,run);previous=date; }
+  let cursor=activeSet.has(todayStr)?todayStr:getShiftedDateString(todayStr,-1);
+  while(activeSet.has(cursor)){streak++;cursor=getShiftedDateString(cursor,-1);}
+  return {streak,longestStreak,lastActiveDate:activeDates.at(-1)||null,isNewDayIncrement:false,
+    levelInfo:getStreakLevelInfo(streak), nextMilestone:{...getNextMilestone(streak),rewardStars:0},
+    weekDays:buildWeekDays(activeSet,todayStr),activeDates:activeDates.slice(-60)};
+}
+const getChildStreak = async (req,res,next) => {
+ try {
+  const child=await User.findById(req.params.childId).select('name');
+  if(!child)return res.status(404).json({success:false,message:'Child not found.'});
+  const events=await require('../models/LearningEvent').find({child:child._id}).select('createdAt').lean();
+  const practice=await require('../models/MasteryEvent').find({child:child._id}).select('createdAt').lean();
+  const results=await ActivityResult.find({child:child._id,completed:true}).select('createdAt').lean();
+  res.json({success:true,data:{childId:child._id,childName:child.name,...streakData([...events,...results,...practice].map(row=>getVietnamDateString(new Date(row.createdAt))),getVietnamDateString())}});
+ }catch(error){next(error);}
 };
-
-/**
- * POST /api/children/:childId/streak/test-level
- * For demonstration and testing of higher streak levels (1, 3, 7, 14, 30 days)
- */
-const testChildStreakLevel = async (req, res, next) => {
-  try {
-    const { childId } = req.params;
-    const { streak = 1 } = req.body;
-    const targetStreak = Math.max(1, parseInt(streak, 10) || 1);
-
-    const child = await User.findById(childId);
-    if (!child) {
-      return res.status(404).json({ success: false, message: 'Child not found' });
-    }
-
-    const todayStr = getVietnamDateString();
-    child.streak = targetStreak;
-    child.longestStreak = Math.max(child.longestStreak || 1, targetStreak);
-    child.lastActiveDate = todayStr;
-
-    // Populate previous activeDates based on targetStreak
-    const dates = [];
-    for (let i = targetStreak - 1; i >= 0; i--) {
-      dates.push(getShiftedDateString(todayStr, -i));
-    }
-    child.activeDates = dates;
-    await child.save();
-
-    const activeSet = new Set(dates);
-    const weekDays = buildWeekDays(activeSet, todayStr);
-    const levelInfo = getStreakLevelInfo(targetStreak);
-    const nextMilestone = getNextMilestone(targetStreak);
-
-    res.json({
-      success: true,
-      message: `Đã cập nhật chuỗi ngày học thành công: ${targetStreak} ngày!`,
-      data: {
-        childId: child._id,
-        childName: child.name,
-        streak: targetStreak,
-        longestStreak: child.longestStreak,
-        lastActiveDate: todayStr,
-        levelInfo,
-        nextMilestone,
-        weekDays,
-        activeDates: dates
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
+const testChildStreakLevel = async (req,res) => {
+ const streak=Number(req.body.streak);
+ if(!Number.isInteger(streak)||streak<1||streak>30)return res.status(400).json({success:false,message:'Preview range is 1–30.'});
+ const today=getVietnamDateString(),dates=Array.from({length:streak},(_,i)=>getShiftedDateString(today,-i));
+ res.json({success:true,message:'Bản xem thử; không thay đổi thành tích.',data:{...streakData(dates,today),preview:true}});
 };
-
-module.exports = {
-  getChildStreak,
-  testChildStreakLevel,
-  getStreakLevelInfo
-};
+module.exports={getChildStreak,testChildStreakLevel,getStreakLevelInfo,streakData};

@@ -258,12 +258,19 @@ export const StarCatcherEngine: React.FC<StarCatcherEngineProps> = ({
       ctx.roundRect(-45, -20, 90, 45, 18);
       ctx.fill();
 
-      // Cute Mascot Eyes & Smile inside Basket
+      // Cute Mascot Eyes & Smile inside Basket — high contrast with catchlights
       ctx.shadowBlur = 0;
-      ctx.fillStyle = '#78350F';
+      ctx.fillStyle = '#291809';
       ctx.beginPath();
-      ctx.arc(-15, -4, 4, 0, Math.PI * 2);
-      ctx.arc(15, -4, 4, 0, Math.PI * 2);
+      ctx.arc(-15, -4, 4.5, 0, Math.PI * 2);
+      ctx.arc(15, -4, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sparkling eye catchlights
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(-13.5, -5.5, 1.8, 0, Math.PI * 2);
+      ctx.arc(16.5, -5.5, 1.8, 0, Math.PI * 2);
       ctx.fill();
 
       // Cheeks

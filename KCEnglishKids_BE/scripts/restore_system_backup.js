@@ -4,7 +4,17 @@ const mongoose = require('mongoose');
 const models = require('../src/models');
 const ClassRecognition = require('../src/models/ClassRecognition');
 function validateBackup(payload) {
-  if (payload.system !== 'KCEnglishKids' || payload.version !== '3.0.0' || payload.format !== 'mongodb-extended-json') throw new Error('Unsupported or incomplete backup. Version 3.0.0 Extended JSON is required.');
+  if (payload.system !== 'KCEnglishKids' || !['3.0.0','3.1.0','3.2.0','3.3.0','3.4.0'].includes(payload.version) || payload.format !== 'mongodb-extended-json') throw new Error('Unsupported or incomplete backup. Extended JSON version 3 is required.');
+  if(payload.version!=='3.4.0'&&payload.collections&&payload.collections[models.HomePracticePlan.collection.name]===undefined)payload.collections[models.HomePracticePlan.collection.name]=[];
+  if (['3.0.0','3.1.0','3.2.0'].includes(payload.version) && payload.collections && payload.collections[models.LearningObservation.collection.name] === undefined) payload.collections[models.LearningObservation.collection.name] = [];
+  if(payload.version==='3.0.0'&&payload.collections){
+    for(const model of [models.LearningEvent,models.MasteryEvent]) if(payload.collections[model.collection.name]===undefined) payload.collections[model.collection.name]=[];
+  }
+  if (['3.0.0', '3.1.0'].includes(payload.version) && payload.collections) {
+    for (const model of [models.SchoolRecognition, models.GameCatalogSetting]) if (payload.collections[model.collection.name] === undefined) payload.collections[model.collection.name] = [];
+    const { normalizeClassName } = require('../src/services/classroomRules');
+    for (const room of payload.collections.classrooms || []) if (room.name) room.normalizedName = normalizeClassName(room.name);
+  }
   const allowed = new Set(Object.values({ ...models, ClassRecognition }).map(model => model.collection.name));
   if (Object.keys(payload.collections || {}).length !== allowed.size) throw new Error('Backup is missing collections.');
   for (const name of allowed) {

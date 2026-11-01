@@ -6,6 +6,20 @@ const { protect, authorize } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
 router.use(protect, authorize('TEACHER', 'ADMIN'));
+const early = require('../controllers/earlyLearningController');
+const practice = require('../controllers/homePracticeController');
+router.get('/students/:studentId/home-practice/proposal',practice.proposal);
+router.get('/students/:studentId/home-practice',practice.history);
+router.post('/students/:studentId/home-practice/approve',practice.approve);
+router.post('/students/:studentId/home-practice/revoke',practice.revoke);
+router.get('/classroom-sessions/:id/family-report-draft',pn.reportDraft);
+router.post('/classroom-sessions/:id/family-report-preview',pn.reportPreview);
+router.get('/pedagogy/lessons/:id/guide', early.guide);
+router.get('/classes/:id/unit-review', early.unitReview);
+router.get('/students/:studentId/observations', early.list);
+router.post('/students/:studentId/observations', early.create);
+router.get('/observations/:id/media', early.media);
+router.delete('/observations/:id', early.remove);
 router.get('/dashboard', c.getDashboard);
 router.get('/classes', c.getTeacherClasses);
 router.get('/classes/:id', c.getClassDetail);
@@ -23,6 +37,7 @@ router.get('/lessons/:id', c.getLesson);
 router.get('/activities/:id', c.getActivity);
 
 router.get('/assignments', c.getAssignments);
+router.get('/tasks', async(req,res,next)=>{try{res.json({success:true,data:await require('../services/learningInsights').teacherTasks(req)});}catch(error){next(error);}});
 router.post('/assignments', c.createAssignment);
 router.get('/assignments/:id', c.getAssignment);
 router.put('/assignments/:id', c.updateAssignment);

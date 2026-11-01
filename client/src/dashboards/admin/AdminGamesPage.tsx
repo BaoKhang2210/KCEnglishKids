@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   ExternalLink
 } from 'lucide-react';
+import { AdminStage3Games } from './AdminStage3Games';
 import { adminApi } from '../../services/api';
 
 // ─── GAME METADATA DEFINITIONS ───────────────────────────────────────────────
@@ -602,6 +603,7 @@ export const AdminGamesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      <AdminStage3Games />
       {/* ── Top Alert Toast ─────────────────────────────────────────────────── */}
       {alert && (
         <div
@@ -627,7 +629,7 @@ export const AdminGamesPage: React.FC = () => {
               Kho Trò Chơi & Hoạt Động Tương Tác
             </h1>
             <p className="text-sm text-slate-600 font-medium leading-relaxed">
-              Toàn quyền quản trị, tinh chỉnh câu đố, điểm thưởng và kiểm tra 18 thể loại trò chơi mầm non từ Book 1 đến Book 3.
+              Quản lý trò chơi chặng 3 ở trên; quản lý hoạt động và câu hỏi theo bài học ở bên dưới.
             </p>
           </div>
 
@@ -697,31 +699,35 @@ export const AdminGamesPage: React.FC = () => {
 
       {/* ── Quick Filter by Game Type (Pills bar) ────────────────────────────── */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-          <span className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-slate-600">
+          <span className="flex min-w-0 items-center gap-2">
             <Filter size={14} />
             <span>Phân loại theo thể loại game ({Object.keys(GAME_TYPES).length}):</span>
           </span>
           {selectedType !== 'ALL' && (
             <button
-              onClick={() => setSelectedType('ALL')}
-              className="text-indigo-800 hover:text-indigo-800 cursor-pointer"
+              type="button"
+              onClick={() => { setSelectedType('ALL'); setPage(1); }}
+              className="shrink-0 text-indigo-800 hover:text-indigo-800 cursor-pointer"
             >
               Đặt lại (Tất cả)
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="admin-game-type-filters" role="group" aria-label="Lọc trò chơi theo thể loại">
           <button
-            onClick={() => setSelectedType('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            type="button"
+            aria-pressed={selectedType === 'ALL'}
+            onClick={() => { setSelectedType('ALL'); setPage(1); }}
+            className={`admin-game-type-filter rounded-xl text-xs font-bold transition-all cursor-pointer ${
               selectedType === 'ALL'
                 ? 'bg-indigo-700 text-white'
                 : 'bg-slate-100 text-slate-600 hover:text-slate-700 hover:bg-slate-100'
             }`}
           >
-            Tất cả ({stats.totalActivities})
+            <span className="admin-game-type-label">Tất cả</span>
+            <span className="admin-game-type-count">{stats.totalActivities}</span>
           </button>
 
           {Object.values(GAME_TYPES).map((meta) => {
@@ -730,16 +736,18 @@ export const AdminGamesPage: React.FC = () => {
             return (
               <button
                 key={meta.code}
-                onClick={() => setSelectedType(meta.code)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => { setSelectedType(meta.code); setPage(1); }}
+                className={`admin-game-type-filter rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                   isSelected
                     ? 'bg-indigo-700 text-white border-indigo-400'
                     : 'bg-white text-slate-700 border-slate-200 hover:border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                <span>{meta.icon}</span>
-                <span>{meta.label}</span>
-                <span className="text-[10px] opacity-70 px-1 py-0.2 rounded-md bg-black/20">
+                <span className="admin-game-type-icon" aria-hidden="true">{meta.icon}</span>
+                <span className="admin-game-type-label">{meta.label}</span>
+                <span className="admin-game-type-count">
                   {count}
                 </span>
               </button>

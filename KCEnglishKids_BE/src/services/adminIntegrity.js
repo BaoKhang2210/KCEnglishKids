@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const mongoose = require('mongoose');
-const { User, ClassRoom, AgeGroup, Schedule, AuditLog } = require('../models');
+const { User, ClassRoom, AgeGroup, Schedule, AuditLog, ClassroomSession } = require('../models');
+const { TEACHING_STATUSES } = require('./classroomRules');
 
 mongoose.set('transactionAsyncLocalStorage', true);
 const fail = (message, status = 400) => Object.assign(new Error(message), { statusCode: status });
@@ -14,7 +15,11 @@ const publicUser = user => {
 };
 const pin = value => {
   if (value !== undefined && value !== '' && !/^\d{4}$/.test(String(value))) throw fail('Mã PIN phải gồm đúng 4 chữ số.');
-  return value ? String(value) : String(crypto.randomInt(0, 10000)).padStart(4, '0');
+  const weak = raw => /^(1234|(\d)\2{3})$/.test(raw);
+  if (value && weak(String(value))) throw fail('Chọn PIN khó đoán hơn.');
+  let candidate;
+  do { candidate = String(crypto.randomInt(0,10000)).padStart(4,'0'); } while (weak(candidate));
+  return value ? String(value) : candidate;
 };
 async function audit(req, action, targetType, targetId, details = {}) {
   if (!req.user) return;
@@ -51,16 +56,20 @@ async function availableTeacher(id, roomId) {
   if (!validId(String(id || ''))) throw fail('Vui lòng chọn giáo viên hợp lệ.');
   const teacher = await User.findOne({ _id: id, role: 'TEACHER', status: 'ACTIVE' });
   if (!teacher) throw fail('Giáo viên không tồn tại hoặc đã ngừng hoạt động.');
-  const conflict = await ClassRoom.findOne({ teacher: id, status: { $ne: 'INACTIVE' }, ...(roomId ? { _id: { $ne: roomId } } : {}) });
+  const conflict = await ClassRoom.findOne({ teacher: id, status: { $in: TEACHING_STATUSES }, ...(roomId ? { _id: { $ne: roomId } } : {}) });
   if (conflict) throw fail(`Giáo viên đã phụ trách lớp ${conflict.name}. Mỗi giáo viên chỉ phụ trách một lớp đang hoạt động.`);
   return teacher;
 }
 async function syncTeacher(room, teacherId) {
-  if (room.status !== 'INACTIVE') await availableTeacher(String(teacherId), room._id);
+  const current = TEACHING_STATUSES.includes(room.status);
+  if (current) await availableTeacher(String(teacherId), room._id);
+  if (await ClassroomSession.exists({ classroom: room._id, status: 'LIVE', ...(current ? { teacher: { $ne: teacherId } } : {}) })) {
+    throw fail('Hãy kết thúc buổi dạy đang mở trước khi bàn giao hoặc đóng lớp.', 409);
+  }
   room.teacher = teacherId;
   await room.save();
   await User.updateMany({ role: 'TEACHER', assignedClass: room._id, _id: { $ne: teacherId } }, { $unset: { assignedClass: 1 } });
-  if (room.status === 'INACTIVE') {
+  if (!current) {
     await User.updateOne({ _id: teacherId, assignedClass: room._id }, { $unset: { assignedClass: 1 } });
     await Schedule.updateMany({ classroom: room._id }, { $set: { teacher: teacherId, isActive: false } });
   } else {

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { X, Star, Sparkles, Award, Gift } from 'lucide-react';
 import { sfx } from '../../utils/audio';
+import { useAuth } from '../../context/AuthContext';
+import { streakApi } from '../../services/api';
 import { KokoMascot } from './KokoMascot';
 import { ALL_BADGES, evaluateBadge, getBadgeProgress, type BadgeItem } from '../../data/badges';
 import { getReqUnitLabel } from '../../data/labels';
@@ -39,6 +42,22 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<'all' | 'journey' | 'stars' | 'skills'>('all');
   const [showcaseBadge, setShowcaseBadge] = useState<(BadgeItem & { unlocked: boolean }) | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<any>(null);
+  // §3.3 — streak badges need the live streak; fetch it when the modal opens.
+  const { user } = useAuth();
+  const [streakDays, setStreakDays] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen || !user?._id) return;
+    let cancelled = false;
+    streakApi.getStreak(user._id)
+      .then(res => {
+        if (!cancelled && res.success && res.data) {
+          setStreakDays(Math.max(res.data.streak ?? 0, res.data.longestStreak ?? 0));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen, user?._id]);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,7 +72,8 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
     completedLessons: effectiveCompletedLessons,
     completedUnits: effectiveCompletedUnits,
     perfectLessons: rewards?.perfectLessons ?? 0,
-    openedChests: rewards?.openedChests ?? 0
+    openedChests: rewards?.openedChests ?? 0,
+    streakDays
   };
   const badges = ALL_BADGES.map(badge => evaluateBadge(badge, badgeProgress));
 
@@ -196,13 +216,18 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
             {/* Badges Grid (Scrollable) */}
             <div className="overflow-y-auto pr-1 flex-1 space-y-3 relative z-10">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {filteredBadges.map(badge => {
+                {filteredBadges.map((badge, badgeIdx) => {
                   const currentVal = getBadgeProgress(badge, badgeProgress);
                   const percent = Math.min(100, Math.round((currentVal / badge.requirement) * 100));
 
                   return (
-                    <div
+                    <motion.div
                       key={badge.id}
+                      initial={{ opacity: 0, y: 18, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 260, damping: 20, delay: badgeIdx * 0.045 }}
+                      whileHover={{ y: -5, scale: 1.03 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         sfx.playPop();
                         setShowcaseBadge(badge);
@@ -238,9 +263,9 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                         </span>
                       ) : (
                         <div className="w-full mt-auto space-y-1">
-                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
                             <div
-                              className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all"
+                              className="progress-rail-shine h-full bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400 rounded-full transition-all"
                               style={{ width: `${percent}%` }}
                             />
                           </div>
@@ -249,7 +274,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                           </span>
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

@@ -132,7 +132,7 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
  */
 const computeRewards = async (childId) => {
   const [progressDocs, completions, classroomSessions] = await Promise.all([
-    Progress.find({ child: childId }).select('stars completed lesson'),
+    Progress.find({ child: childId }).select('stars completed lesson completionSnapshot'),
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
@@ -169,7 +169,7 @@ const computeRewards = async (childId) => {
     if (!progress.completed || !progress.lesson) return sum;
     const key = String(progress.lesson);
     const rating = calculateLessonStars(activitiesByLesson.get(key) || [], resultsByLesson.get(key) || []);
-    const stars = rating.completed ? rating.stars : (progress.stars || 0);
+    const stars = progress.completionSnapshot?.source === 'STAGES' ? progress.stars : rating.completed ? rating.stars : (progress.stars || 0);
     lessonStarsById.set(key, stars);
     return sum + stars;
   }, 0);

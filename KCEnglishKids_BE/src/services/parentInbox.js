@@ -4,6 +4,10 @@ const { ParentNotification } = require('../models');
 async function publish(values) {
   if (!values.sourceKey) return ParentNotification.create(values);
   const filter = { sourceKey: values.sourceKey };
+  if(values.sourceKey.startsWith('session:')){
+    try{return await ParentNotification.findOneAndUpdate(filter,{$setOnInsert:values},{upsert:true,new:true,runValidators:true});}
+    catch(error){if(error.code!==11000)throw error;return ParentNotification.findOne(filter);}
+  }
   if (values.sourceRevision !== undefined) filter.$or = [
     { sourceRevision: { $lte: values.sourceRevision } },
     { sourceRevision: { $exists: false } }

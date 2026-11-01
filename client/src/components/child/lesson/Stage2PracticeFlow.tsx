@@ -18,10 +18,12 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { StoryBackdrop } from '../../StoryScene';
+import earlyLearning from '../../../../../shared/earlyLearning.json';
 import { createPortal } from 'react-dom';
 import { X, Volume2, ArrowRight, Check, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react';
 import type { Vocabulary, AgeGroupCode, ActivityQuestion } from '../../../types';
-import { sfx, playWordAudio } from '../../../utils/audio';
+import { sfx, playWordAudio, stopWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
 import { useVocabStats } from '../../../hooks/useVocabStats';
 import {
@@ -102,7 +104,7 @@ export interface Stage2PracticeFlowProps {
   ageGroupCode?: string;
   unitNumber?: number;
   lessonNumber?: number;
-  onComplete: (stats?: { score: number; stars: number }) => void;
+  onComplete: (stats?: { score: number; stars: number; answers: Array<{wordId: string; round: number; selectedId: string | null}> }) => void;
   onBackToStage1?: () => void;
 }
 
@@ -112,6 +114,7 @@ interface Stage2Checkpoint {
   questions: PracticeQuestion[];
   variantByWordId: Record<string, 'A' | 'B'>;
   requeuedWordIds?: string[];
+  evidence?: Array<{wordId: string; round: number; selectedId: string | null}>;
   questionIndex: number;
   attemptCount: number;
   totalWrongAttempts: number;
@@ -278,12 +281,12 @@ export const ActivityChallenge: React.FC<ActivityChallengeProps> = ({ question, 
   if (question.type === 'DELIVER') return <div className="flex h-full w-full flex-col items-center justify-center gap-4">
     <p className="text-center text-3xl font-black text-white">I want a {question.targetVocab.english}!</p>
     <div className="flex w-full flex-wrap items-center justify-center gap-3">{question.options.map((word) => <button key={word._id} type="button" draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', word._id)} onClick={() => setPickedId(word._id)} aria-label={`Chọn ${word.english}`} className={`${cardClass(word, 'h-40 w-40')} ${pickedId === word._id ? 'ring-4 ring-sky-300' : ''}`}>{image(word)}</button>)}</div>
-    <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const word = question.options.find((item) => item._id === event.dataTransfer.getData('text/plain')); if (word) matchAnswer(word); }} onClick={() => { const word = question.options.find((item) => item._id === pickedId); if (word) matchAnswer(word); }} aria-label="Đưa đồ vật cho Koko" className="min-h-[112px] min-w-[180px] rounded-3xl bg-amber-300 px-6 text-6xl">🐻</button>
+    <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const word = question.options.find((item) => item._id === event.dataTransfer.getData('text/plain')); if (word) matchAnswer(word); }} onClick={() => { const word = question.options.find((item) => item._id === pickedId); if (word) matchAnswer(word); }} aria-label="Đưa đồ vật cho Koko" className="min-h-[112px] min-w-[180px] rounded-3xl bg-amber-300 px-6 py-2 flex items-center justify-center shadow-md active:scale-95 transition-transform"><KokoMascot state="happy" size="md" interactive={false} /></button>
   </div>;
 
   if (question.type === 'PUPPET') return puppetFalse ? <div className="grid h-full w-full grid-cols-2 gap-4">{question.options.map((word) => <button key={word._id} type="button" onClick={() => matchAnswer(word)} aria-label={`Chọn ${word.english}`} className={cardClass(word)}>{image(word)}</button>)}</div> : (
     <div className="flex h-full w-full flex-col items-center justify-center gap-5" onTouchStart={(event) => { (event.currentTarget as any).dataset.touchX = String(event.touches[0].clientX); }} onTouchEnd={(event) => { const start = Number((event.currentTarget as any).dataset.touchX || 0); const delta = event.changedTouches[0].clientX - start; if (Math.abs(delta) > 45) { const yes = delta > 0; if (yes === question.isTrueClaim) { if (yes) onCorrect(); else setPuppetFalse(true); } else onWrong(); } }}>
-      <div className="flex items-center gap-5 rounded-3xl bg-white/10 p-5"><span className="text-8xl">🐵</span><div className="text-4xl font-black">{question.claimedWord}</div></div>
+      <div className="flex items-center gap-5 rounded-3xl bg-white/10 p-5"><KokoMascot state="thinking" size="md" interactive={false} /><div className="text-4xl font-black">{question.claimedWord}</div></div>
       <div className="flex gap-4"><button type="button" onClick={() => question.isTrueClaim ? onCorrect() : onWrong()} className="min-h-[96px] min-w-[160px] rounded-3xl bg-emerald-500 text-3xl font-black text-white">✅ Yes</button><button type="button" onClick={() => question.isTrueClaim ? onWrong() : setPuppetFalse(true)} className="min-h-[96px] min-w-[160px] rounded-3xl bg-sky-500 text-3xl font-black text-white">❌ No</button></div>
     </div>
   );
@@ -293,7 +296,7 @@ export const ActivityChallenge: React.FC<ActivityChallengeProps> = ({ question, 
     return <div className="flex h-full w-full flex-col items-center justify-center gap-4"><p className="text-3xl font-black text-white">{sequence.map((word) => word.english).join('… then ')}</p><div className="flex flex-wrap justify-center gap-4">{question.options.map((word) => <button key={word._id} type="button" onClick={() => { if (word._id === sequence[sequenceIndex]?._id) { const next = sequenceIndex + 1; setSequenceIndex(next); if (next >= sequence.length) onCorrect(); } else onWrong(word); }} aria-label={`Bước ${sequenceIndex + 1}: ${word.english}`} className={cardClass(word)}>{image(word)}</button>)}</div></div>;
   }
 
-  if (question.type === 'PATH') return <div className="flex h-full w-full items-center justify-center gap-3"><span className="text-7xl">🐻</span><span className="text-5xl">〰️</span><div className="grid grid-cols-2 gap-3">{question.options.map((word) => <button key={word._id} type="button" onClick={() => matchAnswer(word)} aria-label={`Đi theo nhánh đến ${word.english}`} className={cardClass(word)}>{image(word)}</button>)}</div></div>;
+  if (question.type === 'PATH') return <div className="flex h-full w-full items-center justify-center gap-3"><KokoMascot state="happy" size="sm" interactive={false} /><span className="text-5xl">〰️</span><div className="grid grid-cols-2 gap-3">{question.options.map((word) => <button key={word._id} type="button" onClick={() => matchAnswer(word)} aria-label={`Đi theo nhánh đến ${word.english}`} className={cardClass(word)}>{image(word)}</button>)}</div></div>;
 
   return null;
 };
@@ -313,11 +316,12 @@ const BreakDialog: React.FC<{ onClose: () => void; onSaveAndExit: () => void; re
   }, [onClose, returnFocusRef]);
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/70 p-4" onClick={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="practice-break-title" tabIndex={-1} onClick={(event) => event.stopPropagation()} className="relative w-full max-w-md rounded-[2rem] border-4 border-amber-200 bg-white p-7 text-center text-slate-900 shadow-2xl">
-        <div className="mb-3 text-7xl" aria-hidden>🐻</div>
-        <h2 id="practice-break-title" className="mb-5 text-3xl font-black">Take a break?</h2>
-        <button type="button" onClick={onClose} className="mb-3 min-h-[96px] w-full rounded-3xl bg-indigo-700 px-6 text-2xl font-black text-white shadow-lg">Keep going</button>
-        <button type="button" onClick={onSaveAndExit} className="min-h-[96px] w-full rounded-3xl border-4 border-slate-200 bg-slate-50 px-6 text-xl font-black text-slate-800">Save & exit</button>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="practice-break-title" tabIndex={-1} onClick={(event) => event.stopPropagation()} className="story-surface story-break-dialog w-full max-w-md rounded-[2rem] border-2 border-amber-200 p-7 text-center text-white shadow-2xl">
+        <StoryBackdrop scene="rest"/>
+        <h2 id="practice-break-title" className="mb-3 text-3xl font-black">Cùng vươn vai nhé!</h2>
+        <p className="mb-4">Bé có thể nghỉ, chơi vận động với người lớn rồi quay lại.</p>
+        <button type="button" onClick={onClose} className="story-action is-primary mb-3 min-h-[80px] w-full rounded-3xl px-6 text-2xl font-black shadow-lg">▶ Chơi tiếp cùng Koko</button>
+        <button type="button" onClick={onSaveAndExit} className="story-action min-h-[80px] w-full rounded-3xl px-6 text-xl font-black">🏡 Lưu lại, bé nghỉ nhé</button>
       </div>
     </div>
   );
@@ -630,7 +634,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     try {
       const raw = localStorage.getItem(checkpointKey);
       const saved = raw ? JSON.parse(raw) as Stage2Checkpoint : null;
-      return saved?.lessonId === lessonId ? saved : null;
+      return saved?.lessonId === lessonId && Array.isArray(saved.evidence) ? saved : null;
     } catch { return null; }
   });
   const [showSavedSummary, setShowSavedSummary] = useState(stage2Completed);
@@ -664,8 +668,8 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       const filteredOptions = question.options.filter((word) => activeVocabularyIds.has(word._id || (word as any).id || word.english));
       const options = filteredOptions.length >= 2 ? filteredOptions : (freshQuestion?.options || filteredOptions);
       if (question.turn !== 1) return { ...question, options, optionsCount: options.length };
-      const variant = question.variant || (question.type === 'LOOK_WORD' ? 'B' : plan.variantByWordId[question.wordId] || 'A');
-      return { ...question, options, optionsCount: options.length, variant, activityId: variant === 'B' ? 'look-choose-word' as const : 'listen-choose' as const, type: variant === 'B' ? 'LOOK_WORD' as const : 'LT' as const };
+      // Resume older checkpoints using pictures and listening as well; keep recorded answers intact.
+      return { ...question, options, optionsCount: options.length, variant: 'A' as const, activityId: 'listen-choose' as const, type: 'LT' as const };
     });
     const existingIds = new Set(activeQuestions.map((question) => `${question.turn}:${question.wordId}`));
     const currentTurn = Number(checkpoint.questions[checkpoint.questionIndex]?.turn || 1);
@@ -721,12 +725,18 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     : 0;
   const lastRoundTwoIdx = roundTwoStartIdx >= 0 ? roundTwoStartIdx + Math.max(0, roundTwoQuestions.length - 1) : -1;
 
+  const evidenceRef = useRef<Array<{wordId: string; round: number; selectedId: string | null}>>(checkpoint?.evidence || []);
+  const recordEvidence = (wordId: string, round: number, selectedId: string | null) => {
+    if (!evidenceRef.current.some(a => a.wordId === wordId && a.round === round)) evidenceRef.current.push({wordId, round, selectedId});
+  };
+
   const handleRound2StateChange = useCallback((next: LineMatchRoundState) => {
     setRound2State(next);
   }, []);
 
   // ONE answer per word for word status: recorded once when the word completes.
   const handleRound2WordMatched = useCallback((wordId: string, info: { firstTry: boolean; revealed: boolean; chosenWrongWordId?: string }) => {
+    recordEvidence(wordId, 2, info.firstTry && !info.revealed ? wordId : (info.chosenWrongWordId || null));
     const word = roundTwoQuestions.find((question) => question.wordId === wordId)?.targetVocab;
     setSessionWordStats((prev) => ({
       ...prev,
@@ -874,6 +884,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       setKokoMood('listening');
     }
 
+    if (showBreakDialog) return;
     const t = setTimeout(() => {
       if (currentQ.turn === 1 && currentQ.variant === 'B') {
         // Round 1 B now speaks its target when the picture + word choices appear.
@@ -885,15 +896,22 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     return () => { if (t) clearTimeout(t); };
   }, [currentIdx, currentQ, isCompleted, showSavedSummary, showSessionIntro, showResumePrompt, roundTransition, playPrompt]);
 
+  const previousBreak = useRef(false);
   useEffect(() => {
-    if (!currentQ || currentQ.turn !== 1 || isCompleted || showSavedSummary || showSessionIntro || showResumePrompt || roundTransition || wrongCount) return;
+    if (showBreakDialog) stopWordAudio();
+    else if (previousBreak.current && !isCompleted && !showSessionIntro && !roundTransition) playPrompt();
+    previousBreak.current = showBreakDialog;
+  }, [showBreakDialog, isCompleted, showSessionIntro, roundTransition, playPrompt]);
+
+  useEffect(() => {
+    if (showBreakDialog || !currentQ || currentQ.turn !== 1 || isCompleted || showSavedSummary || showSessionIntro || showResumePrompt || roundTransition || wrongCount) return;
     const timer = window.setTimeout(() => {
       setBounceCorrect(true);
       if (currentQ.variant !== 'B') playPrompt();
       window.setTimeout(() => setBounceCorrect(false), 1800);
     }, 8000);
     return () => window.clearTimeout(timer);
-  }, [currentQ, currentIdx, wrongCount, isCompleted, showSavedSummary, showSessionIntro, showResumePrompt, roundTransition, playPrompt]);
+  }, [showBreakDialog, currentQ, currentIdx, wrongCount, isCompleted, showSavedSummary, showSessionIntro, showResumePrompt, roundTransition, playPrompt]);
 
   useEffect(() => {
     if (isCompleted || showSavedSummary || showResumePrompt || showSessionIntro || roundTransition || !questions.length) return;
@@ -904,6 +922,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         questions,
         variantByWordId,
         requeuedWordIds: [...requeuedWordIds],
+        evidence: evidenceRef.current,
         questionIndex: currentIdx,
         attemptCount: wrongCount,
         totalWrongAttempts,
@@ -936,6 +955,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setKokoMood('celebrating');
     setKokoBubble(`${randomPraise()} ${currentQ.targetVocab.english}! 🎉`);
 
+    if (!currentQ.isRequeue) recordEvidence(currentQ.wordId, Number(currentQ.turn), wrongCount === 0 ? currentQ.wordId : null);
     const firstTry = wrongCount === 0 && !currentQ.isRequeue;
     const wId = currentQ.wordId;
 
@@ -969,6 +989,8 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
           setRoundTransition({ kind: 'complete', turn: currentQ.turn as 1 | 2 | 3 });
         } else {
           setCurrentIdx((p) => p + 1);
+          const pauseEvery = earlyLearning[effectiveAgeGroup].pauseEvery;
+          if ((currentIdx + 1) % pauseEvery === 0) setShowBreakDialog(true);
         }
       } else {
         setRoundTransition({ kind: 'complete', turn: currentQ.turn as 1 | 2 | 3 });
@@ -1149,6 +1171,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setGkPicked(null);
     setTotalWrongAttempts(0);
     setSessionWordStats({});
+    evidenceRef.current = [];
     setRound2State(emptyLineMatchState());
     round2InitialRef.current = null;
     sessionSavedRef.current = false;
@@ -1163,7 +1186,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       const session = buildCurrentSession();
       vocabStatsService.saveStage2Session(session);
     }
-    onComplete({ score: 100, stars: 3 });
+    onComplete({ score: 0, stars: 0, answers: evidenceRef.current });
   };
 
   const saveAndExit = () => {
@@ -1174,6 +1197,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         questions,
         variantByWordId,
         requeuedWordIds: [...requeuedWordIds],
+        evidence: evidenceRef.current,
         questionIndex: currentIdx,
         attemptCount: wrongCount,
         totalWrongAttempts,
@@ -1184,7 +1208,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     } catch { /* Saving is best effort; the child can still leave. */ }
     setShowBreakDialog(false);
     if (onBackToStage1) onBackToStage1();
-    else onComplete();
+    else setShowSessionIntro(true);
   };
 
   const activeGameplay = !isCompleted && !showSavedSummary && !showSessionIntro && !showResumePrompt;
@@ -1230,6 +1254,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setWrongCount(0);
     setTotalWrongAttempts(0);
     setSessionWordStats({});
+    evidenceRef.current = [];
     setRoundTransition(null);
     setShowResumePrompt(false);
     setShowSessionIntro(false);
@@ -1407,7 +1432,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
               }}
               onPlayPrompt={playPrompt}
               practiceMode
-              textChoiceMode={!!currentQ.isAbstractVisual && effectiveAgeGroup === '5-6'}
               revealOptionId={wrongCount >= 2 ? currentQ.wordId : null}
               disabledOptionIds={wrongCount >= 2 ? roundOneActivityQuestion.options.filter((option) => !option.isCorrect).map((option) => option.id) : []}
             />

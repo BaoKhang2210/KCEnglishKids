@@ -1,3 +1,4 @@
+import { browserStorage } from '../utils/browserStorage';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, AgeGroupCode } from '../types';
 import { authApi } from '../services/api';
@@ -29,28 +30,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('kc_user');
-    return saved ? JSON.parse(saved) : null;
+    const saved = browserStorage.getItem('kc_user');
+    try {return saved ? JSON.parse(saved) : null;} catch {return null;}
   });
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const verifyToken = async () => {
-      const token = localStorage.getItem('kc_token');
+      const token = browserStorage.getItem('kc_token');
       if (token) {
         try {
           const res = await authApi.getMe();
           if (res.success && res.data) {
             setUser(res.data);
-            localStorage.setItem('kc_user', JSON.stringify(res.data));
+            browserStorage.setItem('kc_user', JSON.stringify(res.data));
             if (res.data.role === 'CHILD') {
               vocabMasteryService.syncWithBackend(res.data.id || res.data._id);
             }
           }
         } catch (e) {
           console.warn('Session expired, clearing token');
-          localStorage.removeItem('kc_token');
-          localStorage.removeItem('kc_user');
+          browserStorage.removeItem('kc_token');
+          browserStorage.removeItem('kc_user');
           setUser(null);
         }
       }
@@ -63,8 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginChild = async (avatar: string, pin: string, childId?: string) => {
     const res = await authApi.childLogin({ avatar, pin, childId });
     if (res.success) {
-      localStorage.setItem('kc_token', res.token);
-      localStorage.setItem('kc_user', JSON.stringify(res.user));
+      browserStorage.setItem('kc_token', res.token);
+      browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
       if (res.user?.role === 'CHILD') {
         vocabMasteryService.syncWithBackend(res.user.id || res.user._id);
@@ -75,8 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginStudentHome = async (identifier: string, password: string) => {
     const res = await authApi.childLogin({ identifier, password });
     if (res.success) {
-      localStorage.setItem('kc_token', res.token);
-      localStorage.setItem('kc_user', JSON.stringify(res.user));
+      browserStorage.setItem('kc_token', res.token);
+      browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
       if (res.user?.role === 'CHILD') {
         vocabMasteryService.syncWithBackend(res.user.id || res.user._id);
@@ -96,8 +97,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }) => {
     const res = await authApi.childRegister(payload);
     if (res.success) {
-      localStorage.setItem('kc_token', res.token);
-      localStorage.setItem('kc_user', JSON.stringify(res.user));
+      browserStorage.setItem('kc_token', res.token);
+      browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
     }
   };
@@ -105,8 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginAdmin = async (email: string, password: string) => {
     const res = await authApi.adminLogin({ email, password });
     if (res.success) {
-      localStorage.setItem('kc_token', res.token);
-      localStorage.setItem('kc_user', JSON.stringify(res.user));
+      browserStorage.setItem('kc_token', res.token);
+      browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
     }
   };
@@ -114,8 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginTeacher = async (email: string, password: string) => {
     const res = await authApi.teacherLogin({ email, password });
     if (res.success) {
-      localStorage.setItem('kc_token', res.token);
-      localStorage.setItem('kc_user', JSON.stringify(res.user));
+      browserStorage.setItem('kc_token', res.token);
+      browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
     }
   };
@@ -124,12 +125,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     const updatedUser: User = { ...user, ageGroupCode: ageGroup };
     setUser(updatedUser);
-    localStorage.setItem('kc_user', JSON.stringify(updatedUser));
+    browserStorage.setItem('kc_user', JSON.stringify(updatedUser));
   };
 
   const logout = () => {
-    localStorage.removeItem('kc_token');
-    localStorage.removeItem('kc_user');
+    browserStorage.removeItem('kc_token');
+    browserStorage.removeItem('kc_user');
     setUser(null);
   };
 

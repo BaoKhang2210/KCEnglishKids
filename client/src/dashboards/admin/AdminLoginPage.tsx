@@ -26,7 +26,12 @@ export const AdminLoginPage: React.FC = () => {
       await loginAdmin(email.trim(), password);
       navigate('/admin/dashboard', { replace: true });
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Đăng nhập quản trị viên thất bại. Vui lòng kiểm tra lại thông tin.');
+      const msg = err?.response?.data?.message || err?.message || '';
+      if (msg.includes('JSON') || msg.includes('Unexpected token') || msg.includes('Failed to fetch')) {
+        setError('Không thể kết nối đến máy chủ Backend (Port 5000). Vui lòng khởi động backend server.');
+      } else {
+        setError(msg || 'Đăng nhập quản trị viên thất bại. Vui lòng kiểm tra lại thông tin.');
+      }
     } finally {
       setLoading(false);
     }

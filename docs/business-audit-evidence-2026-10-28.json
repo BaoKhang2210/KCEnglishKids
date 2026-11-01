@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-10-28T04:28:08.720Z",
+  "method": "in-memory model stubs and localhost HTTP; no live DB writes",
+  "meaning": "A passing probe confirms an existing gap, not correct business behavior.",
+  "confirmed": 15,
+  "evidence": [
+    {
+      "id": "AUD-01",
+      "confirmed": true,
+      "observed": "Anonymous GET learning session returns 200 and child/score data."
+    },
+    {
+      "id": "AUD-02",
+      "confirmed": true,
+      "observed": "Child A token receives child B session; session ownership is not checked."
+    },
+    {
+      "id": "AUD-03",
+      "confirmed": true,
+      "observed": "Anonymous lesson?childId=B exposes that child completion, stars and score."
+    },
+    {
+      "id": "AUD-04",
+      "confirmed": true,
+      "observed": "Teacher receives another child progress through /children; no class scope query occurs."
+    },
+    {
+      "id": "AUD-05",
+      "confirmed": true,
+      "observed": "Stage 3 writes completed=true for an inactive other-age lesson with no stages 1/2, game result or unit grant."
+    },
+    {
+      "id": "AUD-06",
+      "confirmed": true,
+      "observed": "Identical stage 2 request submitted twice adds 50+50 points; no operation ID deduplication."
+    },
+    {
+      "id": "AUD-07",
+      "confirmed": true,
+      "observed": "A one-question activity worth 10 attempts to store score=50 when the same question index is repeated five times."
+    },
+    {
+      "id": "AUD-08",
+      "confirmed": true,
+      "observed": "No answers still reaches ActivityResult.create with completed=true."
+    },
+    {
+      "id": "AUD-09",
+      "confirmed": true,
+      "observed": "Vocabulary is physically deleted after pulling only Lesson.vocabularyItems; no activity/mastery/language/progress dependency check."
+    },
+    {
+      "id": "AUD-10",
+      "confirmed": true,
+      "observed": "Public registration with a password and no PIN saves default PIN 1234, enabling an alternate weak login path."
+    },
+    {
+      "id": "AUD-11",
+      "confirmed": true,
+      "observed": "Child session can write senderRole=PARENT with a supplied name and no adult identity verification."
+    },
+    {
+      "id": "AUD-12",
+      "confirmed": true,
+      "observed": "A child-owner callable debug route saves a fabricated 30-day streak and activity dates."
+    },
+    {
+      "id": "AUD-13",
+      "confirmed": true,
+      "observed": "PIN change also changes password but does not increment authVersion; prior JWT remains accepted."
+    },
+    {
+      "id": "AUD-14",
+      "confirmed": true,
+      "observed": "Configured URI failure is followed by a successful local database fallback without explicit opt-in."
+    },
+    {
+      "id": "AUD-15",
+      "confirmed": true,
+      "observed": "An assignment with two snapshotted activities is marked submitted after only one when the other activity is no longer ACTIVE."
+    }
+  ]
+}

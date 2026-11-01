@@ -243,13 +243,10 @@ export const vocabStatsService = {
       console.warn('Failed to save vocab stats:', e);
     }
 
-    // Two-way synchronization with legacy vocabMasteryService
-    if (payload.vocab) {
-      if (cur.mastery === 'known' || cur.mastery === 'strong') {
-        vocabMasteryService.markMastered(childId, payload.vocab);
-      } else if (cur.trouble || cur.mastery === 'learning') {
-        vocabMasteryService.markReview(childId, payload.vocab);
-      }
+    // Sync the observed response, not the derived notebook label.
+    if (payload.vocab && payload.affectsMastery !== false) {
+      vocabMasteryService.registerJourneyWords(childId,[payload.vocab]);
+      vocabMasteryService.recordGameResult(childId,wordId,payload.ok && payload.isFirstTry !== false && !payload.usedHint);
     }
 
     return cur;

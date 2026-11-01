@@ -60,6 +60,8 @@ const vocabularyMasterySchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    baselineCorrect: Number,
+    baselineWrong: Number,
     correctCount: { type: Number, default: 0, min: 0 },
     wrongCount: { type: Number, default: 0, min: 0 },
     attemptCount: { type: Number, default: 0, min: 0 },
