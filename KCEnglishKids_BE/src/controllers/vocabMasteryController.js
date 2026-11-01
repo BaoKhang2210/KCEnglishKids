@@ -116,28 +116,62 @@ exports.recordPractice = async (req, res, next) => {
     const { isCorrect } = req.body;
     if (typeof isCorrect !== 'boolean') return res.status(400).json({ success: false, message: 'isCorrect must be a boolean.' });
     await requireVocabulary([vocabId]);
-    const submissionId=req.body.submissionId;
-    if(typeof submissionId!=='string'||!/^[a-zA-Z0-9_-]{8,120}$/.test(submissionId)) return res.status(400).json({success:false,message:'submissionId required.'});
+    const { independent = isCorrect, wrongAttempts = (isCorrect ? 0 : 1), activityType, sessionId } = req.body;
+    if (typeof independent !== 'boolean' || !Number.isSafeInteger(wrongAttempts) || wrongAttempts < 0 || wrongAttempts > 20 || activityType != null && (typeof activityType !== 'string' || activityType.length > 40) || sessionId != null && (typeof sessionId !== 'string' || sessionId.length > 120)) {
+      return res.status(400).json({ success: false, message: 'Invalid practice outcome metadata.' });
+    }
+    const submissionId = req.body.submissionId;
+    if (typeof submissionId !== 'string' || !/^[a-zA-Z0-9_-]{8,120}$/.test(submissionId)) return res.status(400).json({ success: false, message: 'submissionId required.' });
     const Event=require('../models/MasteryEvent');
     // Capture the legacy baseline only once before accepting new events.
     await VocabularyMastery.updateOne({student:childId,vocabulary:vocabId},[
       {$set:{student:new mongoose.Types.ObjectId(childId),vocabulary:new mongoose.Types.ObjectId(vocabId),baselineCorrect:{$ifNull:['$baselineCorrect',{$ifNull:['$correctCount',0]}]},baselineWrong:{$ifNull:['$baselineWrong',{$ifNull:['$wrongCount',0]}]}}}
     ],{upsert:true,updatePipeline:true});
     let event;
-    try{ event=await Event.findOneAndUpdate({child:childId,submissionId},{$setOnInsert:{vocabulary:vocabId,isCorrect}},{upsert:true,returnDocument: 'after',setDefaultsOnInsert:true}); }
+    const eventData = { vocabulary: vocabId, isCorrect, independent, wrongAttempts, activityType, sessionId };
+    try { event = await Event.findOneAndUpdate({ child: childId, submissionId }, { $setOnInsert: eventData }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }); }
     catch(error){if(error.code!==11000)throw error;event=await Event.findOne({child:childId,submissionId});}
-    if(String(event.vocabulary)!==String(vocabId)||event.isCorrect!==isCorrect)return res.status(409).json({success:false,message:'Submission key reused.'});
+    if (String(event.vocabulary) !== String(vocabId) || event.isCorrect !== isCorrect || event.independent !== independent || event.wrongAttempts !== wrongAttempts || event.activityType !== activityType || event.sessionId !== sessionId) return res.status(409).json({ success: false, message: 'Submission key reused.' });
     const events=await Event.find({child:childId,vocabulary:vocabId}).sort({createdAt:1,_id:1}).lean();
     const baseline=await VocabularyMastery.findOne({student:childId,vocabulary:vocabId});
-    const correctCount=baseline.baselineCorrect+events.filter(e=>e.isCorrect).length;
-    const wrongCount=baseline.baselineWrong+events.filter(e=>!e.isCorrect).length;
-    const streak=events.reduce((n,e)=>e.isCorrect?n+1:0,0),lastReviewedAt=events.at(-1).createdAt;
-    await VocabularyMastery.updateOne({student:childId,vocabulary:vocabId},[
-      {$set:{correctCount:{$max:[{$ifNull:['$correctCount',0]},correctCount]},wrongCount:{$max:[{$ifNull:['$wrongCount',0]},wrongCount]},streak:{$cond:[{$lte:[{$ifNull:['$lastReviewedAt',new Date(0)]},lastReviewedAt]},streak,'$streak']},lastReviewedAt:{$max:[{$ifNull:['$lastReviewedAt',new Date(0)]},lastReviewedAt]}}},
-      {$set:{attemptCount:{$add:['$correctCount','$wrongCount']}}},
-      {$set:{masteryLevel:{$switch:{branches:[{case:{$or:[{$gte:['$streak',3]},{$and:[{$gte:['$attemptCount',5]},{$gte:['$correctCount',{$multiply:['$attemptCount',0.8]}]}]}]},then:3},{case:{$gte:['$attemptCount',2]},then:2},{case:{$gte:['$attemptCount',1]},then:1}],default:0}}}}
-    ],{updatePipeline:true});
-    const record=await VocabularyMastery.findOne({student:childId,vocabulary:vocabId});
+    const correctCount = (baseline.baselineCorrect || 0) + events.filter(e => e.isCorrect).length;
+    const wrongCount = (baseline.baselineWrong || 0) + events.reduce((sum, e) => sum + (e.wrongAttempts ?? (e.isCorrect ? 0 : 1)), 0);
+    const latestEvent = events.at(-1);
+    let independentStreak = 0;
+    const streakDays = new Set();
+    const streakActivityTypes = new Set();
+    for (const practice of [...events].reverse()) {
+      if (!practice.isCorrect || practice.independent === false) break;
+      independentStreak += 1;
+      streakDays.add(new Date(practice.createdAt).toISOString().slice(0, 10));
+      if (practice.activityType) streakActivityTypes.add(practice.activityType);
+    }
+    const masteryLevel = calculateMasteryLevel({
+      masteryAlgorithmVersion: 2,
+      attemptCount: correctCount + wrongCount,
+      independentStreak,
+      practiceDaysCount: streakDays.size,
+      recentActivityTypes: [...streakActivityTypes],
+    });
+    const lastReviewedAt = latestEvent.createdAt;
+    const needsReview = !latestEvent.isCorrect || latestEvent.independent === false || (latestEvent.wrongAttempts || 0) >= 2;
+    const intervalDays = needsReview || masteryLevel < 3 ? 1 : streakDays.size >= 6 ? 7 : 3;
+    const record = await VocabularyMastery.findOne({ student: childId, vocabulary: vocabId });
+    record.correctCount = Math.max(record.correctCount || 0, correctCount);
+    record.wrongCount = Math.max(record.wrongCount || 0, wrongCount);
+    record.attemptCount = record.correctCount + record.wrongCount;
+    record.streak = events.reduce((count, practice) => practice.isCorrect && practice.independent !== false ? count + 1 : 0, 0);
+    record.independentStreak = independentStreak;
+    record.practiceDaysCount = streakDays.size;
+    record.recentActivityTypes = [...streakActivityTypes];
+    record.needsReview = needsReview;
+    record.masteryAlgorithmVersion = 2;
+    record.masteryLevel = masteryLevel;
+    if (!record.lastReviewedAt || new Date(record.lastReviewedAt) <= new Date(lastReviewedAt)) {
+      record.lastReviewedAt = lastReviewedAt;
+      record.nextReviewAt = new Date(new Date(lastReviewedAt).getTime() + intervalDays * 86400000);
+    }
+    await record.save();
 
     res.json({ success: true, data: record });
   } catch (e) {

@@ -304,7 +304,7 @@ export const ChildHomePage: React.FC = () => {
         <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
         <ChildRecognitions />
         {/* COMPACT BANNER */}
-        <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
+        {activeTab !== 'vocab' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
           <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_62%]" />
           <div className="absolute inset-0 bg-gradient-to-r from-teal-950/85 via-teal-950/55 to-teal-950/15" />
           <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
@@ -330,7 +330,7 @@ export const ChildHomePage: React.FC = () => {
               </div>
             </div>
           </div>
-        </section>
+        </section>}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">

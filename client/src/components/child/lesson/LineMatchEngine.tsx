@@ -74,7 +74,7 @@ interface LineMatchEngineProps {
   initialState: LineMatchRoundState | null;
   onStateChange: (state: LineMatchRoundState) => void;
   /** ONE answer per word: fired when a word is completed (matched or revealed). */
-  onWordMatched: (wordId: string, info: { firstTry: boolean; revealed: boolean; chosenWrongWordId?: string }) => void;
+  onWordMatched: (wordId: string, info: { firstTry: boolean; revealed: boolean; wrongAttempts?: number; chosenWrongWordId?: string }) => void;
   /** Fired per wrong link attempt (checkpoint + confusion tracking). */
   onWordWrong: (wordId: string, chosenWrongWordId: string) => void;
   onBoardComplete: (nextBoardIndex: number) => void;
@@ -391,7 +391,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
     setStars((prev) => [...prev, { id: effectIdCounter++, x: mid.x, y: mid.y, color }]);
   }, [nodeCenter]);
 
-  const commitMatch = useCallback((wordId: string, opts: { firstTry: boolean; revealed: boolean; chosenWrongWordId?: string }) => {
+  const commitMatch = useCallback((wordId: string, opts: { firstTry: boolean; revealed: boolean; wrongAttempts?: number; chosenWrongWordId?: string }) => {
     const item = boardItems.find((candidate) => wordIdOf(candidate) === wordId);
     const slot = boardItems.findIndex((candidate) => wordIdOf(candidate) === wordId);
     freshMatchRef.current.add(wordId);
@@ -448,6 +448,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
       commitMatch(startWordId, {
         firstTry: false,
         revealed: true,
+        wrongAttempts: stateRef.current.attemptsByWordId[startWordId] || 0,
         chosenWrongWordId: stateRef.current.firstWrongChoiceByWordId[startWordId],
       });
     } else if (attempts >= HINT_ATTEMPTS) {
@@ -469,6 +470,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
       commitMatch(startWordId, {
         firstTry: (stateRef.current.attemptsByWordId[startWordId] || 0) === 0,
         revealed: false,
+        wrongAttempts: stateRef.current.attemptsByWordId[startWordId] || 0,
         chosenWrongWordId: stateRef.current.firstWrongChoiceByWordId[startWordId],
       });
     } else {

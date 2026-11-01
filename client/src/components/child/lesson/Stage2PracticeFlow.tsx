@@ -115,6 +115,7 @@ export interface Stage2PracticeFlowProps {
 
 interface Stage2Checkpoint {
   lessonId: string;
+  sessionId?: string;
   vocabularyIds: string[];
   questions: PracticeQuestion[];
   variantByWordId: Record<string, 'A' | 'B'>;
@@ -127,6 +128,11 @@ interface Stage2Checkpoint {
   startedAt: number;
   /** Round 2 (Line Match) progress: matched pairs by wordId, right orders, attempts. */
   round2?: LineMatchRoundState;
+}
+
+function stage2OutcomeSubmissionId(sessionId: string, round: number, wordId: string): string {
+  const safeWordId = wordId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `stage2-${sessionId}-${round}-${safeWordId}`.slice(0, 120);
 }
 
 // ── Subcomponent: LT Activity (Listen & Tap) ──────────────────────────────────
@@ -610,6 +616,10 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       return saved?.lessonId === lessonId && Array.isArray(saved.evidence) ? saved : null;
     } catch { return null; }
   });
+  const practiceSessionIdRef = useRef<string | null>(null);
+  if (!practiceSessionIdRef.current) {
+    practiceSessionIdRef.current = checkpoint?.sessionId || globalThis.crypto?.randomUUID?.() || `stage2-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
   const [showSavedSummary, setShowSavedSummary] = useState(stage2Completed);
   const [showResumePrompt, setShowResumePrompt] = useState(Boolean(checkpoint && !stage2Completed));
   const [showSessionIntro, setShowSessionIntro] = useState(!checkpoint && !stage2Completed);
@@ -708,7 +718,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   }, []);
 
   // ONE answer per word for word status: recorded once when the word completes.
-  const handleRound2WordMatched = useCallback((wordId: string, info: { firstTry: boolean; revealed: boolean; chosenWrongWordId?: string }) => {
+  const handleRound2WordMatched = useCallback((wordId: string, info: { firstTry: boolean; revealed: boolean; wrongAttempts?: number; chosenWrongWordId?: string }) => {
     recordEvidence(wordId, 2, info.firstTry && !info.revealed ? wordId : (info.chosenWrongWordId || null));
     const word = roundTwoQuestions.find((question) => question.wordId === wordId)?.targetVocab;
     setSessionWordStats((prev) => ({
@@ -726,10 +736,13 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       ok: true,
       isFirstTry: info.firstTry,
       usedHint: info.revealed || !info.firstTry,
+      wrongAttemptCount: info.wrongAttempts || 0,
+      sessionId: practiceSessionIdRef.current || undefined,
+      submissionId: stage2OutcomeSubmissionId(practiceSessionIdRef.current || lessonId, 2, wordId),
       chosenDistractorId: info.chosenWrongWordId,
       vocab: word,
     });
-  }, [roundTwoQuestions, recordAttempt]);
+  }, [roundTwoQuestions, recordAttempt, lessonId]);
 
   // Wrong link attempts update the session summary only (no mastery answers);
   // the chosen wrong word is kept in round2State for the checkpoint.
@@ -781,6 +794,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const [isCompleted, setIsCompleted] = useState(false);
   const [totalWrongAttempts, setTotalWrongAttempts] = useState(checkpoint?.totalWrongAttempts || 0);
   const [sessionWordStats, setSessionWordStats] = useState<Record<string, { firstTryCorrect: number; retryAttempts: number }>>(checkpoint?.sessionWordStats || {});
+  const wrongChoiceByRoundWordRef = useRef<Record<string, string>>({});
 
   // Session timing
   const [sessionStartTime] = useState<number>(() => checkpoint?.startedAt || Date.now());
@@ -892,6 +906,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     try {
       localStorage.setItem(checkpointKey, JSON.stringify({
         lessonId,
+        sessionId: practiceSessionIdRef.current || undefined,
         vocabularyIds: vocabulary.map((word) => word._id || (word as any).id || word.english),
         questions,
         variantByWordId,
@@ -961,6 +976,10 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       ok: true,
       isFirstTry: firstTry,
       usedHint: wrongCount >= 2,
+        wrongAttemptCount: wrongCount,
+        sessionId: practiceSessionIdRef.current || undefined,
+        submissionId: stage2OutcomeSubmissionId(practiceSessionIdRef.current || lessonId, Number(currentQ.turn), wId),
+      chosenDistractorId: wrongChoiceByRoundWordRef.current[`${currentQ.turn}:${wId}`],
       vocab: currentQ.targetVocab,
     });
 
@@ -1014,7 +1033,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     } else {
       window.setTimeout(advanceAfterCorrect, 1000);
     }
-  }, [currentQ, wrongCount, currentIdx, questions, recordAttempt, effectiveAgeGroup]);
+  }, [currentQ, wrongCount, currentIdx, questions, recordAttempt, effectiveAgeGroup, lessonId]);
 
   // ── Wrong handler ────────────────────────────────────────────────────────────
 
@@ -1038,16 +1057,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     }));
 
     const chosenId = chosen ? (chosen._id ?? (chosen as any).id ?? chosen.english) : undefined;
-    recordAttempt(wId, {
-      type: currentQ.type,
-      activityId: currentQ.turn === 1 ? currentQ.activityId : undefined,
-      round: Number(currentQ.turn),
-      affectsMastery: !currentQ.isRequeue,
-      ok: false,
-      isFirstTry: false,
-      chosenDistractorId: chosenId,
-      vocab: currentQ.targetVocab,
-    });
+    if (chosenId) wrongChoiceByRoundWordRef.current[`${currentQ.turn}:${wId}`] = chosenId;
 
     if (newCount === 1) {
       setKokoMood('encouraging');
@@ -1089,7 +1099,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         setRequeuedWordIds((previous) => new Set([...previous, currentQ.wordId]));
       }
     }
-  }, [currentQ, wrongCount, playPrompt, recordAttempt, showCheck, requeuedWordIds, questions, currentIdx, effectiveAgeGroup, vocabulary]);
+  }, [currentQ, wrongCount, playPrompt, showCheck, requeuedWordIds, questions, currentIdx, effectiveAgeGroup, vocabulary]);
 
   // ── Interaction handlers ─────────────────────────────────────────────────────
 
@@ -1172,6 +1182,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
 
   const startPracticeAgain = (weakWordsOnly = false) => {
     sfx.playPop();
+    practiceSessionIdRef.current = globalThis.crypto?.randomUUID?.() || `stage2-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setShowSavedSummary(false);
     setCurrentIdx(0);
     setQuestionOverride(plan.questions);
@@ -1185,6 +1196,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setGkPicked(null);
     setTotalWrongAttempts(0);
     setSessionWordStats({});
+    wrongChoiceByRoundWordRef.current = {};
     evidenceRef.current = [];
     setRound2State(emptyLineMatchState());
     round2InitialRef.current = null;
@@ -1207,6 +1219,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     try {
       localStorage.setItem(checkpointKey, JSON.stringify({
         lessonId,
+        sessionId: practiceSessionIdRef.current || undefined,
         vocabularyIds: vocabulary.map((word) => word._id || (word as any).id || word.english),
         questions,
         variantByWordId,

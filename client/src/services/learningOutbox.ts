@@ -5,8 +5,16 @@ let running: Promise<void> | null = null;
 const read = (): Entry[] => { try { const rows=JSON.parse(localStorage.getItem(key) || '[]');return Array.isArray(rows)?rows.filter(row=>row?.childId&&row?.lessonId&&row?.payload):[]; } catch { return []; } };
 const notify = () => window.dispatchEvent(new Event('kc_learning_sync'));
 export const learningOutbox = {
-  async enqueueMastery(childId: string, vocabId: string, isCorrect: boolean) {
-    return this.enqueue(childId, 'mastery:' + vocabId, { isCorrect });
+  async enqueueMastery(childId: string, vocabId: string, outcome: boolean | {
+    isCorrect: boolean;
+    independent?: boolean;
+    wrongAttempts?: number;
+    activityType?: string;
+    sessionId?: string;
+    submissionId?: string;
+  }) {
+    const payload = typeof outcome === 'boolean' ? { isCorrect: outcome } : outcome;
+    return this.enqueue(childId, 'mastery:' + vocabId, payload);
   },
   pending(childId: string) { return read().filter(row => row.childId === childId); },
   async enqueue(childId: string, lessonId: string, payload: Record<string, unknown>) {

@@ -36,6 +36,9 @@ export function useVocabStats(childId: string) {
         ok: boolean;
         isFirstTry: boolean;
         usedHint?: boolean;
+        wrongAttemptCount?: number;
+        sessionId?: string;
+        submissionId?: string;
         chosenDistractorId?: string;
         vocab?: Vocabulary;
       }
