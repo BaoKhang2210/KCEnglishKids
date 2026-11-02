@@ -192,20 +192,26 @@ export function MyLearningPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#f2f8ec] via-[#f7faf4] to-[#f0f6ea] text-slate-800 p-4 sm:p-6 lg:p-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <main className="min-h-screen bg-gradient-to-b from-[#f2f8ec] via-[#f7faf4] to-[#eef6e8] text-slate-800 p-3 sm:p-5 md:p-6 lg:p-8 font-sans w-full">
+      <div className="w-full max-w-[1536px] mx-auto space-y-5 sm:space-y-6">
         {/* TOP NAVIGATION & BACK BUTTON */}
         <div className="flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-teal-200 text-teal-800 font-bold text-sm shadow-sm hover:bg-teal-50 transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-teal-200 text-teal-800 font-bold text-sm shadow-sm hover:bg-teal-50 transition-all hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
             <span>Về khu vườn</span>
           </Link>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-amber-100/80 border border-amber-300 text-amber-900 font-black text-xs sm:text-sm shadow-sm">
-            <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span>Phần thưởng: +3 Sao ⭐</span>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-900 font-bold text-xs shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{user?.name ? `Bé ${user.name}` : 'Góc học tập'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-amber-100/90 border border-amber-300 text-amber-950 font-black text-xs sm:text-sm shadow-sm">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span>Phần thưởng hoàn thành: +3 Sao ⭐</span>
+            </div>
           </div>
         </div>
 
@@ -218,7 +224,7 @@ export function MyLearningPage() {
         )}
 
         {error && !loading && (
-          <div className="p-6 rounded-3xl bg-rose-50 border-2 border-rose-200 text-rose-800 text-center space-y-3 shadow-sm">
+          <div className="p-6 rounded-3xl bg-rose-50 border-2 border-rose-200 text-rose-800 text-center space-y-3 shadow-sm max-w-xl mx-auto">
             <p className="font-black text-lg">Ôi, chưa có bài ôn tập!</p>
             <p className="text-sm">{error}</p>
             <button
@@ -232,9 +238,9 @@ export function MyLearningPage() {
 
         {reviewData && !loading && (
           <>
-            {/* HERO CARD: LESSON RECAP & MISSION TRACKER */}
+            {/* HERO CARD: LESSON RECAP & MISSION TRACKER (FULL WIDTH) */}
             <section className="relative overflow-hidden rounded-3xl border-3 border-teal-300 bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 p-5 sm:p-7 text-white shadow-xl">
-              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+              <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
                 <div className="flex items-center gap-4">
                   <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center p-1 shadow-inner">
                     <KokoMascot state="waving" size="sm" interactive={false} />
@@ -261,26 +267,26 @@ export function MyLearningPage() {
                 </div>
 
                 {/* 2-STEP PROGRESS TRACKER PILL */}
-                <div className="w-full md:w-auto bg-black/20 backdrop-blur-md p-3.5 rounded-2xl border border-white/20 flex flex-col gap-2">
+                <div className="w-full lg:w-auto bg-black/20 backdrop-blur-md p-3.5 rounded-2xl border border-white/20 flex flex-col gap-2">
                   <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">
                     Tiến độ hoàn thành:
                   </span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-xs font-black">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-black">
                       {part1Done ? (
-                        <CheckCircle2 className="w-5 h-5 text-yellow-300 fill-yellow-300/30" />
+                        <CheckCircle2 className="w-5 h-5 text-yellow-300 fill-yellow-300/30 flex-shrink-0" />
                       ) : (
-                        <Circle className="w-5 h-5 text-white/50" />
+                        <Circle className="w-5 h-5 text-white/50 flex-shrink-0" />
                       )}
                       <span className={part1Done ? 'text-yellow-300' : 'text-white/80'}>
                         1. Bé ôn từ vựng & chơi game
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-black">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-black">
                       {part2Done ? (
-                        <CheckCircle2 className="w-5 h-5 text-yellow-300 fill-yellow-300/30" />
+                        <CheckCircle2 className="w-5 h-5 text-yellow-300 fill-yellow-300/30 flex-shrink-0" />
                       ) : (
-                        <Circle className="w-5 h-5 text-white/50" />
+                        <Circle className="w-5 h-5 text-white/50 flex-shrink-0" />
                       )}
                       <span className={part2Done ? 'text-yellow-300' : 'text-white/80'}>
                         2. Ba mẹ cùng luyện mẫu câu
@@ -291,220 +297,227 @@ export function MyLearningPage() {
               </div>
             </section>
 
-            {/* PHẦN 1: DÀNH CHO BÉ (ÔN TỪ VỰNG & CHƠI GAME MINI) */}
-            <section className="bg-white rounded-3xl border-3 border-amber-200 p-5 sm:p-7 shadow-md space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xl shadow-inner">
-                    <Gamepad2 className="w-6 h-6 text-amber-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-                      Phần 1: Dành cho bé · Ôn từ vựng & Chơi game
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                      Bé chạm vào tranh để nghe phát âm to rõ, rồi bấm nút Chơi Game cùng Koko nhé!
-                    </p>
-                  </div>
-                </div>
-                {part1Done ? (
-                  <span className="self-start sm:self-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" /> Bé đã chơi xong
-                  </span>
-                ) : (
-                  <span className="self-start sm:self-center px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black">
-                    Bước 1 / 2
-                  </span>
-                )}
-              </div>
-
-              {/* VOCABULARY CARDS GRID */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4">
-                {words.map((word) => {
-                  const isSpeaking = activeAudioWord === word._id;
-                  return (
-                    <button
-                      key={word._id}
-                      onClick={() => handlePlayWord(word)}
-                      className={`group relative flex flex-col items-center justify-between p-3.5 rounded-3xl border-2 transition-all duration-200 text-center active:scale-95 ${
-                        isSpeaking
-                          ? 'border-amber-500 bg-amber-50 ring-4 ring-amber-200 scale-105'
-                          : 'border-amber-100 bg-[#fffdf7] hover:border-amber-300 hover:shadow-md'
-                      }`}
-                    >
-                      <div className="relative w-full aspect-square flex items-center justify-center p-1">
-                        <img
-                          src={word.imageUrl}
-                          alt={word.english}
-                          className="max-h-full max-w-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-200"
-                        />
-                        <div className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-amber-600 border border-amber-200 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                          <Volume2 className="w-3.5 h-3.5" />
-                        </div>
+            {/* 2-COLUMN BALANCED WORKSPACE ON LARGE SCREENS */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 items-stretch">
+              {/* PHẦN 1: DÀNH CHO BÉ (ÔN TỪ VỰNG & CHƠI GAME MINI) */}
+              <section className="bg-white rounded-3xl border-3 border-amber-200 p-5 sm:p-7 shadow-md flex flex-col justify-between space-y-5">
+                <div className="space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-100 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xl shadow-inner flex-shrink-0">
+                        <Gamepad2 className="w-6 h-6 text-amber-600" />
                       </div>
-                      <div className="w-full mt-2 pt-2 border-t border-amber-100/60">
-                        <span className="block font-black text-slate-800 text-sm sm:text-base group-hover:text-amber-600 transition-colors">
-                          {word.english}
-                        </span>
-                        <span className="block text-xs font-semibold text-slate-500 truncate">
-                          {word.vietnamese}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* GAME RUNNER BUTTON */}
-              <div className="pt-2">
-                <button
-                  disabled={words.length === 0}
-                  onClick={() => {
-                    sfx.playPop();
-                    setPlaying(true);
-                  }}
-                  className={`w-full py-4 px-6 rounded-2xl text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform active:scale-98 ${
-                    part1Done
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700'
-                      : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 animate-pulse'
-                  }`}
-                >
-                  <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
-                  <span>
-                    {part1Done
-                      ? '🎮 Chơi Lại Game Ôn Tập Mini'
-                      : '🎮 Bắt Đầu Chơi Game Ôn Tập Mini (3 câu nhanh)'}
-                  </span>
-                  <Play className="w-5 h-5 fill-white stroke-none" />
-                </button>
-                {part1Done && (
-                  <p className="text-center text-xs text-emerald-700 font-bold mt-2">
-                    ✨ Bé đã xuất sắc hoàn thành trò chơi từ vựng! Hãy cùng ba mẹ luyện mẫu câu ở Phần 2 nhé.
-                  </p>
-                )}
-              </div>
-            </section>
-
-            {/* PHẦN 2: DÀNH CHO BA MẸ (HƯỚNG DẪN ĐỒNG HÀNH & CÙNG CON LUYỆN MẪU CÂU) */}
-            <section className="bg-white rounded-3xl border-3 border-sky-200 p-5 sm:p-7 shadow-md space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-black text-xl shadow-inner">
-                    <HeartHandshake className="w-6 h-6 text-sky-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-                      Phần 2: Dành cho ba mẹ · Cùng con luyện mẫu câu
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                      Ba mẹ không cần giỏi tiếng Anh vẫn có thể đồng hành cùng con qua hướng dẫn dưới đây.
-                    </p>
-                  </div>
-                </div>
-                {part2Done ? (
-                  <span className="self-start sm:self-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" /> Ba mẹ & bé đã luyện xong
-                  </span>
-                ) : (
-                  <span className="self-start sm:self-center px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-black">
-                    Bước 2 / 2
-                  </span>
-                )}
-              </div>
-
-              {/* PARENTING GUIDANCE 3-STEP BOX */}
-              <div className="rounded-2xl bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 border-2 border-amber-200/80 p-4 sm:p-5 space-y-3">
-                <div className="flex items-center gap-2 text-amber-900 font-black text-sm sm:text-base">
-                  <Lightbulb className="w-5 h-5 text-amber-600 fill-amber-500/20" />
-                  <span>{reviewData.parentGuidance.title || '3 Bước Đồng Hành 5 Phút Cùng Con:'}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                  {reviewData.parentGuidance.steps.map((step, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-2xl bg-white/90 border border-amber-200/60 shadow-sm flex items-start gap-2.5"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                        {idx + 1}
-                      </div>
-                      <p className="text-xs sm:text-sm text-slate-700 leading-snug font-medium">
-                        {step}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                {reviewData.parentGuidance.teacherNote && (
-                  <div className="pt-2 text-xs font-bold text-teal-800 bg-teal-50/80 border border-teal-200/60 p-2.5 rounded-xl">
-                    💬 Lời cô giáo gửi gắm: {reviewData.parentGuidance.teacherNote}
-                  </div>
-                )}
-              </div>
-
-              {/* SENTENCE PATTERNS & DIALOGUES */}
-              <div className="space-y-3">
-                <h3 className="font-black text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                  <span>🗣️ Mẫu câu của bài học:</span>
-                  <span className="text-xs text-slate-500 font-normal">
-                    (Bấm vào loa để nghe mẫu phát âm)
-                  </span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {reviewData.sentencePatterns.map((sentence) => (
-                    <div
-                      key={sentence._id}
-                      className="p-4 rounded-2xl border-2 border-sky-100 bg-[#f7fbfe] hover:border-sky-300 transition-all flex items-start justify-between gap-3 shadow-sm group"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                              sentence.contentType === 'QUESTION'
-                                ? 'bg-sky-200 text-sky-900'
-                                : 'bg-emerald-200 text-emerald-900'
-                            }`}
-                          >
-                            {sentence.contentType === 'QUESTION' ? 'Câu hỏi' : 'Câu đáp'}
-                          </span>
-                        </div>
-                        <p className="font-black text-slate-800 text-base sm:text-lg group-hover:text-sky-700 transition-colors">
-                          {sentence.english}
+                      <div>
+                        <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                          Phần 1: Dành cho bé · Ôn từ vựng & Chơi game
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                          Bé chạm vào tranh để nghe phát âm to rõ, rồi bấm nút Chơi Game cùng Koko nhé!
                         </p>
-                        {sentence.vietnamese && (
-                          <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                            {sentence.vietnamese}
-                          </p>
-                        )}
                       </div>
-                      <button
-                        aria-label={`Nghe mẫu câu: ${sentence.english}`}
-                        onClick={() => handlePlaySentence(sentence.english, sentence.audioUrl)}
-                        className="w-10 h-10 rounded-2xl bg-white border border-sky-200 text-sky-600 flex items-center justify-center shadow-sm hover:bg-sky-600 hover:text-white transition-all flex-shrink-0 active:scale-90"
-                      >
-                        <Volume2 className="w-5 h-5" />
-                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* PARENT CONFIRMATION BUTTON */}
-              <div className="pt-2">
-                {part2Done ? (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 flex items-center justify-center gap-2 font-black text-sm sm:text-base shadow-sm">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 fill-emerald-600/20" />
-                    <span>Ba mẹ và bé đã hoàn thành luyện mẫu câu!</span>
+                    {part1Done ? (
+                      <span className="self-start sm:self-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1 flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" /> Bé đã chơi xong
+                      </span>
+                    ) : (
+                      <span className="self-start sm:self-center px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black flex-shrink-0">
+                        Bước 1 / 2
+                      </span>
+                    )}
                   </div>
-                ) : (
+
+                  {/* VOCABULARY CARDS GRID */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 sm:gap-4">
+                    {words.map((word) => {
+                      const isSpeaking = activeAudioWord === word._id;
+                      return (
+                        <button
+                          key={word._id}
+                          onClick={() => handlePlayWord(word)}
+                          className={`group relative flex flex-col items-center justify-between p-3.5 rounded-3xl border-2 transition-all duration-200 text-center active:scale-95 ${
+                            isSpeaking
+                              ? 'border-amber-500 bg-amber-50 ring-4 ring-amber-200 scale-105'
+                              : 'border-amber-100 bg-[#fffdf7] hover:border-amber-300 hover:shadow-md'
+                          }`}
+                        >
+                          <div className="relative w-full aspect-square flex items-center justify-center p-1">
+                            <img
+                              src={word.imageUrl}
+                              alt={word.english}
+                              className="max-h-full max-w-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-200"
+                            />
+                            <div className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-amber-600 border border-amber-200 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                              <Volume2 className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
+                          <div className="w-full mt-2 pt-2 border-t border-amber-100/60">
+                            <span className="block font-black text-slate-800 text-sm sm:text-base group-hover:text-amber-600 transition-colors">
+                              {word.english}
+                            </span>
+                            <span className="block text-xs font-semibold text-slate-500 truncate">
+                              {word.vietnamese}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* GAME RUNNER BUTTON */}
+                <div className="pt-4 border-t border-amber-100">
                   <button
-                    onClick={handleConfirmParentPractice}
-                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700 text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-98"
+                    disabled={words.length === 0}
+                    onClick={() => {
+                      sfx.playPop();
+                      setPlaying(true);
+                    }}
+                    className={`w-full py-4 px-6 rounded-2xl text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg transition-all transform active:scale-98 ${
+                      part1Done
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700'
+                        : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 animate-pulse'
+                    }`}
                   >
-                    <HeartHandshake className="w-6 h-6 stroke-[2.5]" />
-                    <span>👍 Ba mẹ xác nhận: Hai ba mẹ & con đã luyện xong mẫu câu!</span>
+                    <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
+                    <span>
+                      {part1Done
+                        ? '🎮 Chơi Lại Game Ôn Tập Mini'
+                        : '🎮 Bắt Đầu Chơi Game Ôn Tập Mini (3 câu nhanh)'}
+                    </span>
+                    <Play className="w-5 h-5 fill-white stroke-none" />
                   </button>
-                )}
-              </div>
-            </section>
+                  {part1Done && (
+                    <p className="text-center text-xs text-emerald-700 font-bold mt-2">
+                      ✨ Bé đã xuất sắc hoàn thành trò chơi từ vựng! Hãy cùng ba mẹ luyện mẫu câu ở Phần 2 nhé.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {/* PHẦN 2: DÀNH CHO BA MẸ (HƯỚNG DẪN ĐỒNG HÀNH & CÙNG CON LUYỆN MẪU CÂU) */}
+              <section className="bg-white rounded-3xl border-3 border-sky-200 p-5 sm:p-7 shadow-md flex flex-col justify-between space-y-5">
+                <div className="space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-100 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-black text-xl shadow-inner flex-shrink-0">
+                        <HeartHandshake className="w-6 h-6 text-sky-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                          Phần 2: Dành cho ba mẹ · Cùng con luyện mẫu câu
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                          Ba mẹ không cần giỏi tiếng Anh vẫn có thể đồng hành cùng con qua hướng dẫn dưới đây.
+                        </p>
+                      </div>
+                    </div>
+                    {part2Done ? (
+                      <span className="self-start sm:self-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1 flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" /> Ba mẹ & bé đã luyện xong
+                      </span>
+                    ) : (
+                      <span className="self-start sm:self-center px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-black flex-shrink-0">
+                        Bước 2 / 2
+                      </span>
+                    )}
+                  </div>
+
+                  {/* PARENTING GUIDANCE 3-STEP BOX */}
+                  <div className="rounded-2xl bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 border-2 border-amber-200/80 p-4 sm:p-5 space-y-3">
+                    <div className="flex items-center gap-2 text-amber-900 font-black text-sm sm:text-base">
+                      <Lightbulb className="w-5 h-5 text-amber-600 fill-amber-500/20" />
+                      <span>{reviewData.parentGuidance.title || '3 Bước Đồng Hành 5 Phút Cùng Con:'}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                      {reviewData.parentGuidance.steps.map((step, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 rounded-2xl bg-white/90 border border-amber-200/60 shadow-sm flex items-start gap-2.5"
+                        >
+                          <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                            {idx + 1}
+                          </div>
+                          <p className="text-xs sm:text-sm text-slate-700 leading-snug font-medium">
+                            {step}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {reviewData.parentGuidance.teacherNote && (
+                      <div className="pt-2 text-xs font-bold text-teal-800 bg-teal-50/80 border border-teal-200/60 p-2.5 rounded-xl">
+                        💬 Lời cô giáo gửi gắm: {reviewData.parentGuidance.teacherNote}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SENTENCE PATTERNS & DIALOGUES */}
+                  <div className="space-y-3">
+                    <h3 className="font-black text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                      <span>🗣️ Mẫu câu của bài học:</span>
+                      <span className="text-xs text-slate-500 font-normal">
+                        (Bấm vào loa để nghe mẫu phát âm)
+                      </span>
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
+                      {reviewData.sentencePatterns.map((sentence) => (
+                        <div
+                          key={sentence._id}
+                          className="p-3.5 sm:p-4 rounded-2xl border-2 border-sky-100 bg-[#f7fbfe] hover:border-sky-300 transition-all flex items-start justify-between gap-3 shadow-sm group"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                  sentence.contentType === 'QUESTION'
+                                    ? 'bg-sky-200 text-sky-900'
+                                    : 'bg-emerald-200 text-emerald-900'
+                                }`}
+                              >
+                                {sentence.contentType === 'QUESTION' ? 'Câu hỏi' : 'Câu đáp'}
+                              </span>
+                            </div>
+                            <p className="font-black text-slate-800 text-base sm:text-lg group-hover:text-sky-700 transition-colors">
+                              {sentence.english}
+                            </p>
+                            {sentence.vietnamese && (
+                              <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                                {sentence.vietnamese}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            aria-label={`Nghe mẫu câu: ${sentence.english}`}
+                            onClick={() => handlePlaySentence(sentence.english, sentence.audioUrl)}
+                            className="w-10 h-10 rounded-2xl bg-white border border-sky-200 text-sky-600 flex items-center justify-center shadow-sm hover:bg-sky-600 hover:text-white transition-all flex-shrink-0 active:scale-90"
+                          >
+                            <Volume2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PARENT CONFIRMATION BUTTON */}
+                <div className="pt-4 border-t border-sky-100">
+                  {part2Done ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 flex items-center justify-center gap-2 font-black text-sm sm:text-base shadow-sm">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 fill-emerald-600/20" />
+                      <span>Ba mẹ và bé đã hoàn thành luyện mẫu câu!</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleConfirmParentPractice}
+                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700 text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-98"
+                    >
+                      <HeartHandshake className="w-6 h-6 stroke-[2.5]" />
+                      <span>👍 Ba mẹ xác nhận: Hai ba mẹ & con đã luyện xong mẫu câu!</span>
+                    </button>
+                  )}
+                </div>
+              </section>
+            </div>
           </>
         )}
 

@@ -81,23 +81,43 @@ async function familyCurrent(child){
 }
 
 async function getHomeReview(child) {
-  const approved = await familyCurrent(child);
-  let targetLessonId = approved ? approved.lessonId : null;
+  // 1. First, check if there is a completed classroom session for this child/classroom
   let recentSession = null;
+  if (child.assignedClass && M.ClassroomSession && typeof M.ClassroomSession.findOne === 'function') {
+    recentSession = await M.ClassroomSession.findOne({
+      classroom: child.assignedClass,
+      status: 'COMPLETED',
+      'studentScores': {
+        $elemMatch: {
+          student: child._id,
+          attendance: { $in: ['PRESENT', 'LATE'] }
+        }
+      }
+    }).sort({ endedAt: -1, createdAt: -1, _id: -1 }).populate('lesson').lean();
 
-  if (!targetLessonId && child.assignedClass) {
-    if (M.ClassroomSession && typeof M.ClassroomSession.findOne === 'function') {
+    if (!recentSession) {
       recentSession = await M.ClassroomSession.findOne({
         classroom: child.assignedClass,
         status: 'COMPLETED'
-      }).sort({ endedAt: -1, _id: -1 }).populate('lesson').lean();
-      if (recentSession?.lesson) {
-        targetLessonId = recentSession.lesson._id || recentSession.lesson;
-      }
+      }).sort({ endedAt: -1, createdAt: -1, _id: -1 }).populate('lesson').lean();
     }
   }
 
-  if (!targetLessonId && child.assignedClass) {
+  const approved = await familyCurrent(child);
+
+  // The lesson taught in the latest completed session takes precedence!
+  let targetLessonId = null;
+  let useApprovedPlan = false;
+
+  if (recentSession?.lesson) {
+    targetLessonId = recentSession.lesson._id || recentSession.lesson;
+    if (approved && String(approved.lessonId) === String(targetLessonId)) {
+      useApprovedPlan = true;
+    }
+  } else if (approved) {
+    targetLessonId = approved.lessonId;
+    useApprovedPlan = true;
+  } else if (child.assignedClass) {
     const room = await M.ClassRoom.findById(child.assignedClass).lean();
     if (room?.currentLesson) {
       targetLessonId = room.currentLesson;
@@ -125,30 +145,56 @@ async function getHomeReview(child) {
   if (!lesson) return null;
 
   let words = [];
-  if (approved && approved.words && approved.words.length > 0) {
+  if (useApprovedPlan && approved && approved.words && approved.words.length > 0) {
     words = approved.words;
   } else {
-    words = (lesson.vocabularyItems || [])
-      .filter(w => w && w.status === 'ACTIVE' && w.imageUrl)
-      .slice(0, 5)
-      .map(w => ({
-        _id: w._id,
-        english: w.english,
-        vietnamese: w.vietnamese,
-        imageUrl: w.imageUrl,
-        audioUrl: w.audioUrl
-      }));
+    const activeLessonWords = (lesson.vocabularyItems || []).filter(w => w && w.status === 'ACTIVE' && w.imageUrl);
+    let masteryRecords = [];
+    if (M.VocabularyMastery && typeof M.VocabularyMastery.find === 'function') {
+      masteryRecords = await M.VocabularyMastery.find({
+        student: child._id,
+        vocabulary: { $in: activeLessonWords.map(w => w._id) }
+      }).lean();
+    }
+
+    const sortedWords = [...activeLessonWords].sort((a, b) => {
+      const mA = masteryRecords.find(m => String(m.vocabulary) === String(a._id));
+      const mB = masteryRecords.find(m => String(m.vocabulary) === String(b._id));
+      const scoreA = mA ? ((mA.wrongCount || 0) * 2 - (mA.masteryLevel || 0)) : 0;
+      const scoreB = mB ? ((mB.wrongCount || 0) * 2 - (mB.masteryLevel || 0)) : 0;
+      return scoreB - scoreA;
+    });
+
+    words = sortedWords.slice(0, 5).map(w => ({
+      _id: w._id,
+      english: w.english,
+      vietnamese: w.vietnamese,
+      imageUrl: w.imageUrl,
+      audioUrl: w.audioUrl
+    }));
   }
 
   let sentencePatterns = [];
   if (M.LanguageContent && typeof M.LanguageContent.find === 'function') {
     sentencePatterns = await M.LanguageContent.find({
-      $or: [
-        { lesson: lesson._id },
-        { topic: lesson.topic, ageGroupCode: child.ageGroupCode }
-      ],
+      lesson: lesson._id,
       status: 'ACTIVE'
     }).limit(4).lean();
+
+    if (!sentencePatterns.length && lesson.topic) {
+      sentencePatterns = await M.LanguageContent.find({
+        topic: lesson.topic,
+        ageGroupCode: child.ageGroupCode,
+        status: 'ACTIVE'
+      }).limit(4).lean();
+    }
+
+    if (!sentencePatterns.length && lesson.topic) {
+      sentencePatterns = await M.LanguageContent.find({
+        topic: lesson.topic,
+        status: 'ACTIVE'
+      }).limit(4).lean();
+    }
   }
 
   if (!sentencePatterns || sentencePatterns.length === 0) {
@@ -189,16 +235,21 @@ async function getHomeReview(child) {
     }).lean();
   }
 
+  const lessonDisplayName = lesson.vietnameseTitle || lesson.title;
   const parentGuidance = {
-    title: approved?.homeActivity?.title || '3 Bước Cùng Con Ôn Tập 5 Phút Tại Nhà',
-    steps: approved?.homeActivity?.steps?.length
+    title: (useApprovedPlan && approved?.homeActivity?.title) || `3 Bước Cùng Con Ôn Tập 5 Phút Tại Nhà: ${lessonDisplayName}`,
+    steps: (useApprovedPlan && approved?.homeActivity?.steps?.length)
       ? approved.homeActivity.steps
       : [
           'Chỉ tranh & Hỏi bé: Ba mẹ chạm vào từng hình từ vựng ở trên hoặc đồ vật trong nhà, hỏi bé: "What is this?" để bé gọi tên to rõ.',
-          'Cùng luyện mẫu câu: Ba mẹ bấm loa nghe câu hỏi và câu trả lời mẫu, cùng bé đối thoại luân phiên.',
+          'Cùng luyện mẫu câu: Ba mẹ bấm loa nghe câu hỏi và câu trả lời mẫu, cùng bé đối thoại luân phiên theo tình huống bài học.',
           'High-five & Xác nhận: Đập tay khen ngợi bé thật nồng nhiệt và bấm nút "Xác nhận hoàn thành" để bé nhận 3 sao may mắn!'
         ],
-    teacherNote: approved?.teacherNote || 'Ba mẹ hãy dành 5 phút trò chuyện vui vẻ cùng con nhé!'
+    teacherNote: (useApprovedPlan && approved?.teacherNote)
+      ? approved.teacherNote
+      : (recentSession
+          ? `Bé vừa hoàn thành bài học "${lessonDisplayName}" trên lớp cùng cô giáo. Ba mẹ hãy dành 5 phút vui học và đập tay khen ngợi con nhé!`
+          : 'Ba mẹ hãy dành 5 phút trò chuyện vui vẻ cùng con nhé!')
   };
 
   return {
@@ -215,7 +266,7 @@ async function getHomeReview(child) {
     parentGuidance,
     completedToday: Boolean(completion),
     starsAwarded: completion ? completion.stars : 0,
-    approvedPlan: approved
+    approvedPlan: useApprovedPlan ? approved : null
   };
 }
 
