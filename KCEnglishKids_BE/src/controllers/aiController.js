@@ -149,43 +149,16 @@ function createAiController({ db = models, rewards = computeRewards, submissions
         if (lesson.ageGroupCode && !classroomId) {
           targetAge = lesson.ageGroupCode;
         }
-        const rawGapWords = Array.isArray(req.body.gapWords)
-          ? req.body.gapWords.map(String).map(s => s.trim()).filter(Boolean)
-          : (typeof req.body.gapWords === 'string' ? req.body.gapWords.split(',').map(s => s.trim()).filter(Boolean) : []);
-
+        let lessonWords = (lesson.vocabularyItems || []).filter(word => word && !['INACTIVE', 'HIDDEN', 'DRAFT'].includes(word.status));
         if (req.body.reviewMode) {
-          try {
-            const report = await require('../services/classLearningGaps').buildReport(db, selectedClassroom, lessonId);
-            reviewFocus = report.gaps.filter(gap => !reviewIds?.length || reviewIds.includes(gap.vocabularyId));
-          } catch {
-            reviewFocus = [];
-          }
-          if (!reviewFocus.length && rawGapWords.length > 0) {
-            reviewFocus = rawGapWords.map(w => ({ english: w, word: w, severity: 'critical' }));
-          }
-        } else if (rawGapWords.length > 0) {
-          reviewFocus = rawGapWords.map(w => ({ english: w, word: w, severity: 'critical' }));
+          const report = await require('../services/classLearningGaps').buildReport(db, selectedClassroom);
+          const raw = Array.isArray(req.body.gapWords) ? req.body.gapWords : typeof req.body.gapWords === 'string' ? req.body.gapWords.split(',') : [];
+          const names = raw.map(word => String(word).trim().toLowerCase()).filter(Boolean);
+          reviewFocus = report.gaps.filter(gap => reviewIds?.length ? reviewIds.includes(gap.vocabularyId) : names.length ? names.includes(gap.english.toLowerCase()) : lessonWords.some(word => String(word._id) === gap.vocabularyId));
+          if (!reviewFocus.length || reviewIds?.some(id => !reviewFocus.some(gap => gap.vocabularyId === id)) || names.some(name => !reviewFocus.some(gap => gap.english.toLowerCase() === name))) return fail(res, 409, 'Review evidence changed. Refresh the class analysis.');
+          lessonWords = await db.Vocabulary.find({ _id: { $in: reviewFocus.map(gap => gap.vocabularyId) }, status: 'ACTIVE' }).select('english vietnamese pronunciation').lean();
         }
-        if (lesson.vocabularyItems?.length > 0) {
-          vocab = lesson.vocabularyItems.filter(v => v && !['INACTIVE', 'HIDDEN', 'DRAFT'].includes(v.status) && (!req.body.reviewMode || !reviewFocus.some(gap => gap.vocabularyId) || reviewFocus.some(gap => gap.vocabularyId === String(v._id)))).map(v => ({
-            english: v.english,
-            vietnamese: v.vietnamese,
-            pronunciation: v.pronunciation
-          }));
-        }
-        if (rawGapWords && rawGapWords.length > 0) {
-          const gapVocabs = await db.Vocabulary.find({
-            english: { $in: rawGapWords.map(w => new RegExp('^' + w.trim() + '$', 'i')) },
-            status: 'ACTIVE'
-          }).select('english vietnamese pronunciation').lean();
-          const existing = new Set(vocab.map(v => v.english.toLowerCase()));
-          for (const gv of gapVocabs) {
-            if (!existing.has(gv.english.toLowerCase())) {
-              vocab.unshift({ english: gv.english, vietnamese: gv.vietnamese, pronunciation: gv.pronunciation });
-              existing.add(gv.english.toLowerCase());
-            }
-          }
-        }
+        vocab = lessonWords.map(word => ({ english: word.english, vietnamese: word.vietnamese, pronunciation: word.pronunciation }));
         if (lesson.languageContents?.length > 0) {
           sentences = lesson.languageContents.map(l => ({
             english: l.english,

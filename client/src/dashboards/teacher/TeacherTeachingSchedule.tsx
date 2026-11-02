@@ -331,6 +331,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
     }
 
     let activeSlot: any = null;
+    let todaySlot: any = null;
     let activeClassroom: any = null;
     const upcomingList: Array<{ slot: any; schedule: any; distanceMinutes: number; dateStr: string }> = [];
 
@@ -341,10 +342,16 @@ export const TeacherTeachingSchedule: React.FC = () => {
         const startMin = sH * 60 + sM;
         const endMin = eH * 60 + eM;
 
-        // Active slot window: 15 minutes before start up to 30 minutes after end
-        if (slot.dayOfWeek === currentDay && currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
-          activeSlot = slot;
-          activeClassroom = sch.classroom;
+        if (slot.dayOfWeek === currentDay) {
+          if (!todaySlot) {
+            todaySlot = slot;
+            if (!activeClassroom) activeClassroom = sch.classroom;
+          }
+          // Active slot window: 15 minutes before start up to 30 minutes after end
+          if (currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
+            activeSlot = slot;
+            activeClassroom = sch.classroom;
+          }
         }
 
         // Distance in future
@@ -366,14 +373,18 @@ export const TeacherTeachingSchedule: React.FC = () => {
       }
     }
 
-    if (activeSlot) {
+    const effectiveSlot = activeSlot || todaySlot;
+    if (effectiveSlot) {
+      const isExactWindow = !!activeSlot;
       return {
         canTeachNow: true,
-        activeSlot,
-        activeClassroom,
+        activeSlot: effectiveSlot,
+        activeClassroom: activeClassroom || effectiveSlot.classroom,
         nextSlotText: null,
         hasSchedule: true,
-        reason: `Đang trong khung giờ dạy (${activeSlot.startTime} - ${activeSlot.endTime})`
+        reason: isExactWindow
+          ? `Đang trong khung giờ dạy (${effectiveSlot.startTime} - ${effectiveSlot.endTime})`
+          : `Lịch dạy hôm nay: ${DAY_LABELS[effectiveSlot.dayOfWeek]} (${effectiveSlot.startTime} - ${effectiveSlot.endTime}) - Đã sẵn sàng mở lớp`
       };
     }
 
@@ -613,10 +624,18 @@ export const TeacherTeachingSchedule: React.FC = () => {
                 Ca học: <strong>{DAY_LABELS[scheduleLiveTiming.activeSlot?.dayOfWeek]} ({scheduleLiveTiming.activeSlot?.startTime} - {scheduleLiveTiming.activeSlot?.endTime})</strong>
                 {scheduleLiveTiming.activeSlot?.room && ` • Phòng: ${scheduleLiveTiming.activeSlot.room}`}
                 {(scheduleLiveTiming.activeSlot?.lessonTitle || scheduleLiveTiming.activeSlot?.lessonNumber) && (
-                  <strong className="text-emerald-950 ml-1">
-                    • 🎯 {scheduleLiveTiming.activeSlot?.lessonNumber ? `Bài ${scheduleLiveTiming.activeSlot?.lessonNumber}: ` : ''}
-                    {scheduleLiveTiming.activeSlot?.lessonTitle || (typeof scheduleLiveTiming.activeSlot?.lesson === 'object' ? scheduleLiveTiming.activeSlot?.lesson?.title : '')}
-                  </strong>
+                  (() => {
+                    const num = scheduleLiveTiming.activeSlot?.lessonNumber;
+                    let title = scheduleLiveTiming.activeSlot?.lessonTitle || (typeof scheduleLiveTiming.activeSlot?.lesson === 'object' ? scheduleLiveTiming.activeSlot?.lesson?.title : '') || '';
+                    if (num && title.toLowerCase().startsWith(`bài ${num}:`)) {
+                      title = title.substring(`bài ${num}:`.length).trim();
+                    }
+                    return title ? (
+                      <strong className="text-emerald-950 ml-1">
+                        • 🎯 {num ? `Bài ${num}: ` : ''}{title}
+                      </strong>
+                    ) : null;
+                  })()
                 )}
                 {' — '}Giáo viên có thể mở phòng học và điểm danh học sinh ngay bây giờ!
               </p>
@@ -757,13 +776,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
                   const cId = typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom;
 
                   return sch.weeklySlots?.map((slot, sIdx) => {
-                    const isSlotNow = scheduleLiveTiming.canTeachNow && scheduleLiveTiming.activeSlot?.startTime === slot.startTime && scheduleLiveTiming.activeSlot?.dayOfWeek === slot.dayOfWeek;
+                    const isSlotToday = slot.dayOfWeek === currentVnTime.getDay();
+                    const isSlotNow = scheduleLiveTiming.canTeachNow && (
+                      (scheduleLiveTiming.activeSlot?.startTime === slot.startTime && scheduleLiveTiming.activeSlot?.dayOfWeek === slot.dayOfWeek) ||
+                      (isSlotToday && scheduleLiveTiming.activeSlot?.dayOfWeek === slot.dayOfWeek)
+                    );
 
                     return (
                       <div
                         key={`${sch._id}-${sIdx}`}
                         onClick={() => {
-                          if (isSlotNow) {
+                          if (isSlotNow || isSlotToday) {
                             const slotLes = slot.lesson;
                             const slotLessonId = typeof slotLes === 'object' && slotLes ? slotLes._id : (typeof slotLes === 'string' ? slotLes : '');
                             const activeLes = scheduleLiveTiming.activeSlot?.lesson;
@@ -773,7 +796,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                           }
                         }}
                         className={`group flex items-center gap-3 rounded-2xl border-2 p-3.5 transition-all ${theme.bg} ${theme.border} ${
-                          isSlotNow
+                          (isSlotNow || isSlotToday)
                             ? 'ring-2 ring-emerald-500 cursor-pointer hover:scale-102'
                             : 'cursor-default'
                         }`}
@@ -788,6 +811,11 @@ export const TeacherTeachingSchedule: React.FC = () => {
                             {isSlotNow && (
                               <span className="rounded-md bg-emerald-700 text-white text-[10px] font-black px-1.5 py-0.5 uppercase tracking-wide">
                                 Đang diễn ra
+                              </span>
+                            )}
+                            {!isSlotNow && isSlotToday && (
+                              <span className="rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black px-1.5 py-0.5 uppercase tracking-wide">
+                                Hôm nay
                               </span>
                             )}
                           </div>

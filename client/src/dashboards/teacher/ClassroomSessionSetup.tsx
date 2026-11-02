@@ -155,6 +155,7 @@ export const ClassroomSessionSetup: React.FC = () => {
           let slotLessonId: string | null = null;
           const currentDay = getVietnamNow().getDay();
           const currentMinutes = getVietnamNow().getHours() * 60 + getVietnamNow().getMinutes();
+          // 1. First priority: exact slot window on current day
           for (const s of activeClassScheds) {
             for (const slot of s.weeklySlots || []) {
               const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
@@ -165,6 +166,20 @@ export const ClassroomSessionSetup: React.FC = () => {
                   break;
                 }
               }
+            }
+            if (slotLessonId) break;
+          }
+
+          // 2. Second priority: scheduled slot on current day (any time today)
+          if (!slotLessonId) {
+            for (const s of activeClassScheds) {
+              for (const slot of s.weeklySlots || []) {
+                if (slot.dayOfWeek === currentDay && slot.lesson) {
+                  slotLessonId = typeof slot.lesson === 'object' ? slot.lesson._id : slot.lesson;
+                  break;
+                }
+              }
+              if (slotLessonId) break;
             }
           }
 
@@ -230,6 +245,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     }
 
     let activeSlot: any = null;
+    let todaySlot: any = null;
     const upcomingList: Array<{ slot: any; distance: number; dateStr: string }> = [];
 
     for (const sch of classSchedules) {
@@ -239,9 +255,12 @@ export const ClassroomSessionSetup: React.FC = () => {
         const startMin = sH * 60 + sM;
         const endMin = eH * 60 + eM;
 
-        // Active slot window: 15 minutes before start up to 30 minutes after end
-        if (slot.dayOfWeek === currentDay && currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
-          activeSlot = slot;
+        if (slot.dayOfWeek === currentDay) {
+          if (!todaySlot) todaySlot = slot;
+          // Active slot window: 15 minutes before start up to 30 minutes after end
+          if (currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
+            activeSlot = slot;
+          }
         }
 
         let dayDiff = slot.dayOfWeek - currentDay;
@@ -261,13 +280,17 @@ export const ClassroomSessionSetup: React.FC = () => {
       }
     }
 
-    if (activeSlot) {
+    const effectiveSlot = activeSlot || todaySlot;
+    if (effectiveSlot) {
+      const isExactWindow = !!activeSlot;
       return {
         canTeachNow: true,
-        activeSlot,
+        activeSlot: effectiveSlot,
         nextSlotText: null,
         hasSchedule: true,
-        reason: `Đang trong khung giờ dạy: ${DAY_LABELS[activeSlot.dayOfWeek]} (${activeSlot.startTime} - ${activeSlot.endTime})`
+        reason: isExactWindow
+          ? `Đang trong khung giờ dạy: ${DAY_LABELS[effectiveSlot.dayOfWeek]} (${effectiveSlot.startTime} - ${effectiveSlot.endTime})`
+          : `Lịch dạy hôm nay: ${DAY_LABELS[effectiveSlot.dayOfWeek]} (${effectiveSlot.startTime} - ${effectiveSlot.endTime}) - Sẵn sàng cho buổi dạy`
       };
     }
 
@@ -363,6 +386,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         includeWarmup: includeWarmup,
         lessonPlan: preparedPlan,
         isGapReview: searchParams.get('reviewMode') === 'true' || preparedPlan?.isGapReview === true || preparedPlan?.meta?.isReviewPlan === true,
+        gapWords: searchParams.get('gapWords') || undefined,
         attendanceRecords,
         attendanceDate,
         attendanceNote

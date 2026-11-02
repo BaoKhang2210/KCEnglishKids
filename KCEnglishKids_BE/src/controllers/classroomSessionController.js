@@ -39,9 +39,12 @@ async function checkTiming(req, classroom) {
   }
   const clock = rules.vnClock();
   const mins = value => value.split(':').reduce((n, part) => n * 60 + Number(part), 0);
-  if (!slots.some(slot => slot.dayOfWeek === clock.day && clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= mins(slot.endTime) + 30)) {
-    fail('Chưa đến giờ dạy theo thời khóa biểu. Bạn có thể chuẩn bị trước và mở lớp từ 15 phút trước giờ học.', 409);
+  const activeSlot = slots.find(slot => slot.dayOfWeek === clock.day && clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= mins(slot.endTime) + 30);
+  const todaySlot = slots.find(slot => slot.dayOfWeek === clock.day);
+  if (!activeSlot && !todaySlot) {
+    fail('Chưa đến giờ dạy theo thời khóa biểu. Lớp học không có ca dạy hôm nay.', 409);
   }
+  return activeSlot || todaySlot;
 }
 async function populateSession(item, summary = false) {
   await item.populate('classroom', 'name ageGroupCode teacher');
@@ -59,6 +62,7 @@ async function populateSession(item, summary = false) {
     await item.populate('summary.topPerformers', 'name avatar avatarUrl');
   }
   const data = item.toObject ? item.toObject() : item;
+  if (data.isGapReview && data.lesson && data.lessonPlan?.reviewFocus?.length) data.lesson.vocabularyItems = await require('../models').Vocabulary.find({ _id: { $in: data.lessonPlan.reviewFocus.map(word => word.vocabularyId).filter(Boolean) }, status: 'ACTIVE' }).lean();
   data.teachingGuide = data.teachingGuideSnapshot || lessonGuide(data.lesson, data.ageGroup);
   if (data.teachingGoals?.length) data.teachingGuide.goals = data.teachingGoals;
   return data;
@@ -111,12 +115,24 @@ exports.createSession = wrap(async (req, res) => {
   let plan = body.lessonPlan || null;
   if (plan && (typeof plan !== 'object' || Array.isArray(plan) || JSON.stringify(plan).length > 200000)) fail('Giáo án không hợp lệ.');
   if (plan && lesson && (plan.meta?.lessonTitle !== lesson.title || plan.meta?.ageGroup !== room.ageGroupCode || plan.meta?.durationMinutes !== duration)) plan = null;
-  if (!plan && lesson) plan = await ai.generateLessonPlanWithAI({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
+  const isGapReview = body.isGapReview === true || body.reviewMode === true || plan?.isGapReview === true || plan?.meta?.isReviewPlan === true;
+  let reviewVocabulary = null;
+  if (isGapReview) {
+    const rawWords = body.gapWords || plan?.reviewFocus?.map(word => word.english) || plan?.meta?.gapRemediationFocus || [];
+    const names = (Array.isArray(rawWords) ? rawWords : String(rawWords).split(',')).map(word => String(word).trim().toLowerCase()).filter(Boolean);
+    if (!lesson || !names.length || names.length > 12 || new Set(names).size !== names.length) fail('Choose a lesson and 1-12 distinct review words.');
+    const report = await require('../services/classLearningGaps').buildReport(require('../models'), room);
+    const focus = report.gaps.filter(word => names.includes(word.english.toLowerCase()));
+    if (names.some(name => !focus.some(word => word.english.toLowerCase() === name))) fail('Review evidence changed. Refresh class analysis.', 409);
+    reviewVocabulary = await require('../models').Vocabulary.find({ _id: { $in: focus.map(word => word.vocabularyId) }, status: 'ACTIVE' }).lean();
+    plan = ai.applyReviewFocus(ai.generateLessonPlan({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, durationMinutes: duration, vocabularyList: reviewVocabulary, sentencePatterns: [], teachingStyle: 'active_tpr' }), focus);
+  } else if (!plan && lesson) plan = await ai.generateLessonPlanWithAI({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
+  const guideLesson = reviewVocabulary ? { ...(lesson.toObject ? lesson.toObject() : lesson), vocabularyItems: reviewVocabulary } : lesson;
   const session = await ClassroomSession.create({ classroom: room._id, teacher: req.user._id, lesson: lesson?._id || null,
     title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
     status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,
-    isGapReview: body.isGapReview === true || body.reviewMode === true || plan?.isGapReview === true || plan?.meta?.isReviewPlan === true,
-    activities: activityIds, lessonPlan: plan, teachingGoals: lessonGuide(lesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(lesson,room.ageGroupCode),
+    isGapReview,
+    activities: activityIds, lessonPlan: plan, teachingGoals: lessonGuide(guideLesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(guideLesson,room.ageGroupCode),
     studentScores: roster.map(student => ({ student, attendance: map.get(idOf(student)) || 'PRESENT' }))
   });
   if (records) {
@@ -131,7 +147,8 @@ exports.startSession = wrap(async (req, res) => {
   const item = await saveSession(req, async session => {
     if (session.status === 'LIVE') return false;
     if (session.status !== 'SCHEDULED') fail('Buổi học đã kết thúc.', 409);
-    await checkTiming(req, session.classroom);
+    const scheduledSlot = await checkTiming(req, session.classroom);
+    if (!session.isGapReview && scheduledSlot?.lesson && idOf(scheduledSlot.lesson) !== idOf(session.lesson)) fail('Bài dạy không khớp bài đã được phân trên thời khóa biểu. Vui lòng mở đúng bài theo lịch.', 409);
     const room = await access.classroom(req, session.classroom, true);
     const attendance = await Attendance.findOne({ classroom: room._id, date: rules.vnDate() });
     if (!attendance) fail('Vui lòng hoàn tất điểm danh hôm nay ở phần chuẩn bị buổi dạy trước khi mở lớp.');

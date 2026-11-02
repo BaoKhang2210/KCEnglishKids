@@ -5,7 +5,6 @@ import {
   Volume2,
   Copy,
   Check,
-  Rocket,
   RefreshCw,
   AlertCircle,
   Sparkles,
@@ -95,54 +94,22 @@ export const TeacherLessonPlanner: React.FC = () => {
       });
   }, []);
 
-  // 2. Fetch Knowledge Gaps & Auto-select on class change
+  // Review only measured gaps. Missing practice must never fabricate 100% accuracy.
   useEffect(() => {
+    let cancelled = false;
+    setClassGaps([]); setSelectedGapWords([]); setActiveCardIndex(0); setIsFlipped(false);
     if (!selectedClassId) return;
-    setLoadingGaps(true);
-    setError('');
-    setActiveCardIndex(0);
-    setIsFlipped(false);
-
-    aiApi.detectClassGaps(selectedClassId)
-      .then((res) => {
-        const list: GapWord[] = res.data?.gaps || [];
-        setClassGaps(list);
-
-        // Auto-select all warning gaps or fallback to all available words
-        if (urlGapWords) {
-          const fromUrl = urlGapWords.split(',').map((s) => s.trim()).filter(Boolean);
-          setSelectedGapWords(fromUrl);
-        } else if (list.length > 0) {
-          // Automatic selection: select all warning gap words immediately
-          setSelectedGapWords(list.map((g) => g.english));
-        } else {
-          // If no gap recorded yet, fetch active classroom lesson words so teacher can still practice
-          teacherApi.getClassDetail(selectedClassId).then((cRes: any) => {
-            const currentLesson = cRes.data?.currentLesson;
-            if (currentLesson?.vocabularyItems?.length) {
-              const defaultWords: GapWord[] = currentLesson.vocabularyItems.map((v: any) => ({
-                vocabularyId: v._id,
-                english: v.english,
-                vietnamese: v.vietnamese,
-                severity: 'watch',
-                accuracyPercent: 100,
-                imageUrl: v.imageUrl,
-                audioUrl: v.audioUrl,
-                phonetic: v.phonetic
-              }));
-              setClassGaps(defaultWords);
-              setSelectedGapWords(defaultWords.map((w) => w.english));
-            }
-          }).catch(() => { });
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not fetch class gaps:', err);
-        setClassGaps([]);
-      })
-      .finally(() => {
-        setLoadingGaps(false);
-      });
+    setLoadingGaps(true); setError('');
+    aiApi.detectClassGaps(selectedClassId).then(res => {
+      if (cancelled) return;
+      const list: GapWord[] = res.data?.gaps || [];
+      setClassGaps(list);
+      const requested = urlGapWords.split(',').map(word => word.trim().toLowerCase()).filter(Boolean);
+      const matches = list.filter(word => !requested.length || requested.includes(word.english.toLowerCase()));
+      setSelectedGapWords(matches.slice(0, 12).map(word => word.english));
+    }).catch(err => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoadingGaps(false); });
+    return () => { cancelled = true; };
   }, [selectedClassId, urlGapWords]);
 
   const currentClass = useMemo(() => {
@@ -298,7 +265,7 @@ export const TeacherLessonPlanner: React.FC = () => {
   // Copy parent notification message for Zalo
   const handleCopyParentMessage = () => {
     sfx.playPop();
-    const msg = `[KC English Kids - Lớp ${currentClass?.name || 'Mầm non'}] Chào ba mẹ! Hôm nay các bé đã cùng cô ôn luyện các từ vựng: ${gapWordsString}. Gia đình có thể cùng bé nghe và chỉ tranh trong khoảng 5 phút, dừng khi bé muốn nghỉ. Buổi ôn này chỉ ghi nhận tiến bộ, không cộng sao. ❤️`;
+    const msg = `[KC English Kids - Lớp ${currentClass?.name || 'Mầm non'}] Chào ba mẹ! Hôm nay các bé cùng cô ôn các từ: ${gapWordsString}. Gia đình có thể cùng nghe và chỉ tranh khoảng 5 phút, dừng khi bé muốn nghỉ. Buổi ôn chỉ ghi nhận tiến bộ, không cộng sao. ❤️`;
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(msg).then(() => {
         setCopiedParentMsg(true);
@@ -309,8 +276,8 @@ export const TeacherLessonPlanner: React.FC = () => {
 
   const handleLaunchLiveSession = () => {
     sfx.playPop();
-    if (!selectedClassId) return;
-    navigate(`/teacher/classes/${selectedClassId}/sessions/new?reviewMode=true&gapWords=${encodeURIComponent(gapWordsString)}`);
+    if (!selectedClassId || !selectedGapWords.length) return;
+    navigate(`/teacher/classes/${selectedClassId}/sessions/new?reviewMode=true&gapWords=${encodeURIComponent(selectedGapWords.slice(0, 12).join(', '))}`);
   };
 
   // Words converted for GameRunner compatibility
@@ -327,7 +294,7 @@ export const TeacherLessonPlanner: React.FC = () => {
   }, [activeReviewWords]);
 
   const reviewGames = useMemo(() => {
-    return getAvailableLessonGames(gameRunnerWords, 1, 1, []);
+    return getAvailableLessonGames(gameRunnerWords, 1, 1);
   }, [gameRunnerWords]);
 
   return (
@@ -356,8 +323,8 @@ export const TeacherLessonPlanner: React.FC = () => {
               disabled={selectedGapWords.length === 0 || !selectedClassId}
               className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-amber-950 hover:bg-amber-50 transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 shadow-md"
             >
-              <Rocket size={17} className="text-amber-700" />
-              <span>Vào Lớp Dạy Tiết Ôn Tập Ngay</span>
+              {/* <Rocket size={17} className="text-amber-700" /> */}
+              {/* <span>Vào Lớp Dạy Tiết Ôn Tập Ngay</span> */}
             </button>
             <button
               type="button"
@@ -367,7 +334,14 @@ export const TeacherLessonPlanner: React.FC = () => {
               {copiedParentMsg ? <Check size={16} className="text-emerald-300" /> : <Copy size={16} />}
               <span>{copiedParentMsg ? 'Đã sao chép tin nhắn!' : 'Sao chép tin nhắn dặn dò phụ huynh'}</span>
             </button>
-            
+            {/* <button
+              type="button"
+              onClick={handleCopyParentMessage}
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-black/15 hover:bg-black/25 border border-white/30 px-4 py-3 text-xs sm:text-sm font-bold text-white transition-all cursor-pointer backdrop-blur-xs"
+            >
+              {copiedParentMsg ? <Check size={16} className="text-emerald-300" /> : <Copy size={16} />}
+              {/* <span>{copiedParentMsg ? 'Đã sao chép tin nhắn Zalo!' : 'Sao chép tin nhắn Zalo gửi phụ huynh'}</span>
+            </button> */}
           </div>
         </div>
       </div>
@@ -885,8 +859,8 @@ export const TeacherLessonPlanner: React.FC = () => {
         <GameRunner
           allowedGameIds={reviewGames.map((g) => g.id)}
           config={{
-            preview: true,
             unitId: 'gaps-review',
+            preview: true,
             lessonId: 'class-gaps-' + (selectedClassId || 'active'),
             gameId: reviewGames[0].id,
             vocabularyList: gameRunnerWords,

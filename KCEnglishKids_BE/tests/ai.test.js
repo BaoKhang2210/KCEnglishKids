@@ -190,23 +190,23 @@ test('detectClassGaps: flags unpracticed and weak words, keeps healthy words out
   assert.ok(result.gaps[0].suggestion.includes('Elephant'));
 });
 
-test('detectClassGaps: words with no mastery rows at all become critical gaps', () => {
+test('detectClassGaps: words without practice stay unassessed instead of becoming weaknesses', () => {
   const { detectClassGaps } = require('../src/services/aiService');
   const result = detectClassGaps({
     students: ['s1', 's2'],
     vocabularies: [{ _id: 'v9', english: 'Tiger', vietnamese: 'Con hổ' }],
     masteryRows: []
   });
-  assert.equal(result.meta.gapCount, 1);
-  assert.equal(result.gaps[0].severity, 'critical');
-  assert.equal(result.gaps[0].accuracyPercent, null);
-  assert.ok(result.gaps[0].reasons.includes('chưa bé nào luyện tập'));
+  assert.equal(result.meta.gapCount, 0);
+  assert.equal(result.meta.unassessedCount, 1);
+  assert.equal(result.unassessed[0].accuracyPercent, null);
+  assert.equal(result.healthy.length, 0);
 });
 
 test('detectClassGaps: empty inputs yield an empty but well-formed report', () => {
   const { detectClassGaps } = require('../src/services/aiService');
   const result = detectClassGaps({});
-  assert.deepEqual(result.meta, { studentCount: 0, wordCount: 0, gapCount: 0, threshold: 70 });
+  assert.deepEqual(result.meta, { studentCount: 0, wordCount: 0, gapCount: 0, threshold: 70, unassessedCount: 0 });
   assert.deepEqual(result.gaps, []);
   assert.deepEqual(result.healthy, []);
   assert.equal(result.generative, false);

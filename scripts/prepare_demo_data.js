@@ -38,16 +38,19 @@ async function prepareDemoData() {
   // Lessons for 3-4 (Book 1 Unit 1)
   const lesson1_34 = await Lesson.findOne({ key: 'B1_U1_L1' }); // Things at School
   const lesson2_34 = await Lesson.findOne({ key: 'B1_U1_L2' }); // People at School
-  console.log(`📚 3-4 Lessons: L1="${lesson1_34?.title}" (${lesson1_34?._id}), L2="${lesson2_34?.title}" (${lesson2_34?._id})`);
+  const lesson3_34 = await Lesson.findOne({ ageGroupCode: '3-4', displayOrder: 3 }); // Colors around School
+  console.log(`📚 3-4 Lessons: L1="${lesson1_34?.title}" (${lesson1_34?._id}), L2="${lesson2_34?.title}" (${lesson2_34?._id}), L3="${lesson3_34?.title}" (${lesson3_34?._id})`);
 
   // Lessons for 4-5 (Book 2 Unit 1)
   const lesson1_45 = await Lesson.findOne({ ageGroupCode: '4-5', displayOrder: 1 });
   const lesson2_45 = await Lesson.findOne({ ageGroupCode: '4-5', displayOrder: 2 });
+  const lesson3_45 = await Lesson.findOne({ ageGroupCode: '4-5', displayOrder: 3 });
   console.log(`📚 4-5 Lessons: L1="${lesson1_45?.title}", L2="${lesson2_45?.title}"`);
 
   // Lessons for 5-6 (Book 3 Unit 1)
   const lesson1_56 = await Lesson.findOne({ ageGroupCode: '5-6', displayOrder: 1 });
   const lesson2_56 = await Lesson.findOne({ ageGroupCode: '5-6', displayOrder: 2 });
+  const lesson3_56 = await Lesson.findOne({ ageGroupCode: '5-6', displayOrder: 3 });
   console.log(`📚 5-6 Lessons: L1="${lesson1_56?.title}", L2="${lesson2_56?.title}"`);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -108,9 +111,9 @@ async function prepareDemoData() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 3. SCHEDULE FOR TUESDAY 03/11/2026
+  // 3. SCHEDULE: ATTACH EXACT LESSON 2 FOR TUESDAY 03/11/2026
   // ─────────────────────────────────────────────────────────────────────────────
-  // Tuesday is dayOfWeek: 2. Ensure weeklySlots include day 2
+  // Ensure Tuesday (dayOfWeek: 2) has Lesson 2 explicitly linked with lesson ObjectId, lessonNumber, lessonTitle
   if (class34) {
     await Schedule.findOneAndUpdate(
       { classroom: class34._id },
@@ -124,13 +127,19 @@ async function prepareDemoData() {
             dayOfWeek: 1, // Thứ 2 (yesterday)
             startTime: '08:30',
             endTime: '09:15',
+            lesson: lesson1_34?._id || null,
+            lessonNumber: 1,
+            lessonTitle: 'Bài 1: Things at School',
             subjectNote: 'Unit 1 - Lesson 1: Things at School',
             room: 'Phòng Hoa Hướng Dương'
           },
           {
-            dayOfWeek: 2, // Thứ 3 (today)
+            dayOfWeek: 2, // Thứ 3 (TODAY)
             startTime: '08:30',
             endTime: '09:15',
+            lesson: lesson2_34?._id || null,
+            lessonNumber: 2,
+            lessonTitle: 'Bài 2: People at School',
             subjectNote: 'Unit 1 - Lesson 2: People at School',
             room: 'Phòng Hoa Hướng Dương'
           },
@@ -138,6 +147,9 @@ async function prepareDemoData() {
             dayOfWeek: 4, // Thứ 5
             startTime: '08:30',
             endTime: '09:15',
+            lesson: lesson3_34?._id || null,
+            lessonNumber: 3,
+            lessonTitle: 'Bài 3: Colors around School',
             subjectNote: 'Unit 1 - Lesson 3: Colors around School',
             room: 'Phòng Hoa Hướng Dương'
           }
@@ -145,7 +157,53 @@ async function prepareDemoData() {
       },
       { upsert: true, returnDocument: 'after' }
     );
-    console.log(`📅 Updated Schedule for Class 3-4 (includes Tuesday 08:30 - 09:15)`);
+    console.log(`📅 Updated Schedule for Class 3-4: Tuesday explicitly linked to Lesson 2 (${lesson2_34?.title})`);
+  }
+
+  if (class45 && teacherEmily) {
+    await Schedule.findOneAndUpdate(
+      { classroom: class45._id },
+      {
+        classroom: class45._id,
+        teacher: teacherEmily._id,
+        academicYear: '2026-2027',
+        colorTag: 'emerald',
+        weeklySlots: [
+          {
+            dayOfWeek: 1, // Thứ 2
+            startTime: '09:30',
+            endTime: '10:15',
+            lesson: lesson1_45?._id || null,
+            lessonNumber: 1,
+            lessonTitle: `Bài 1: ${lesson1_45?.title}`,
+            subjectNote: 'Interactive Vocabulary - School Tools',
+            room: 'Phòng Cầu Vồng'
+          },
+          {
+            dayOfWeek: 2, // Thứ 3 (TODAY)
+            startTime: '09:30',
+            endTime: '10:15',
+            lesson: lesson2_45?._id || null,
+            lessonNumber: 2,
+            lessonTitle: `Bài 2: ${lesson2_45?.title}`,
+            subjectNote: 'Interactive Vocabulary - Things We Do at School',
+            room: 'Phòng Cầu Vồng'
+          },
+          {
+            dayOfWeek: 4, // Thứ 5
+            startTime: '09:30',
+            endTime: '10:15',
+            lesson: lesson3_45?._id || null,
+            lessonNumber: 3,
+            lessonTitle: `Bài 3: ${lesson3_45?.title}`,
+            subjectNote: 'Interactive Communication',
+            room: 'Phòng Cầu Vồng'
+          }
+        ]
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+    console.log(`📅 Updated Schedule for Class 4-5: Tuesday explicitly linked to Lesson 2 (${lesson2_45?.title})`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

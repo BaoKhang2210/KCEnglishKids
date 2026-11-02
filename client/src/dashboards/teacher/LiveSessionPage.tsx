@@ -308,7 +308,6 @@ export const LiveSessionPage: React.FC = () => {
       setPageError('');
       if (s.status === 'COMPLETED') { navigate(`/teacher/classroom-sessions/${sessionId}/summary`, { replace: true }); return; }
       setSession(s);
-      if (s.isGapReview) setCoverage('REVIEW');
 
       // Auto-activate warm-up tab on initial start if configured
       if (!hasSetInitialTabRef.current) {
@@ -600,10 +599,6 @@ export const LiveSessionPage: React.FC = () => {
     customMessage?: string
   ) => {
     if (scoringRef.current) return;
-    if (session?.isGapReview) {
-      opts = { correctDelta: opts.correctDelta, incorrectDelta: opts.incorrectDelta };
-      if (!opts.correctDelta && !opts.incorrectDelta) { showToast('Buổi ôn lỗ hổng không cộng sao; chỉ ghi nhận câu trả lời.'); return; }
-    }
     scoringRef.current = true;
     try {
       await classroomSessionApi.scoreStudent(sessionId, { studentId, ...opts });
@@ -612,7 +607,6 @@ export const LiveSessionPage: React.FC = () => {
       setSession(prev => prev ? { ...prev, studentScores: prev.studentScores.map(row => matches(row) ? update(row) : row) } : prev);
       setSpotlightStudent(prev => prev && matches(prev) ? update(prev) : prev);
       setScoringStudent(prev => prev && matches(prev) ? update(prev) : prev);
-      if (session?.isGapReview) { showToast('Đã ghi nhận câu trả lời, không cộng sao.'); return; }
       const row = session?.studentScores.find(matches);
       const name = row && typeof row.student === 'object' ? row.student.name : 'bé';
       if (actionType === 'applause') sfx.playApplause(); else sfx.playStarFanfare();
@@ -627,15 +621,11 @@ export const LiveSessionPage: React.FC = () => {
     successMsg?: string
   ) => {
     if (!studentIds.length || scoringRef.current) return;
-    if (session?.isGapReview) {
-      opts = { correctDelta: opts.correctDelta, incorrectDelta: opts.incorrectDelta };
-      if (!opts.correctDelta && !opts.incorrectDelta) { showToast('Buổi ôn lỗ hổng không thưởng sao hàng loạt.'); return; }
-    }
     scoringRef.current = true;
     try {
       await classroomSessionApi.scoreBulk(sessionId, { studentIds, ...opts });
-      if (!session?.isGapReview) sfx.playStarFanfare();
-      showToast(session?.isGapReview ? 'Đã ghi nhận câu trả lời, không cộng sao.' : successMsg || 'Đã lưu sao động viên cho học sinh.');
+      sfx.playStarFanfare();
+      showToast(successMsg || 'Đã lưu sao động viên cho học sinh.');
       await load();
     } catch (e: any) { showToast(e.message || 'Chưa lưu được sao. Vui lòng kiểm tra lại.'); await load(); }
     finally { scoringRef.current = false; }
@@ -774,6 +764,7 @@ export const LiveSessionPage: React.FC = () => {
       )}
 
       {/* ── Top bar: Header & Master Status ───────────────────────────────────────── */}
+      {session.isGapReview && <div role="status" className="bg-teal-900 px-5 py-3 text-center font-bold text-white">Ôn lỗ hổng · Chỉ ghi nhận câu trả lời · Không cộng sao · Không tăng tiến độ bài mới</div>}
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
         <div className="flex flex-1 basis-72 items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-amber-400 flex items-center justify-center text-xl text-amber-950 font-black">

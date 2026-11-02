@@ -624,6 +624,8 @@ export const classroomSessionApi = {
   },
   createSession: (data: {
     classroomId: string;
+    isGapReview?: boolean;
+    gapWords?: string;
     lessonId?: string;
     title?: string;
     activityIds?: string[];

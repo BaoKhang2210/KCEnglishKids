@@ -56,6 +56,9 @@ export function getSequentialLessonForSlot(
   dateStr: string,
   lessons: Lesson[]
 ): { lesson: Lesson | null; lessonNumber: number; title: string; vietnameseTitle?: string } {
+  const fixedId = typeof slot.lesson === 'string' ? slot.lesson : slot.lesson?._id;
+  const fixed = (lessons || []).find(lesson => lesson._id === fixedId) || (typeof slot.lesson === 'object' ? slot.lesson : null);
+  if (fixed) return { lesson: fixed as Lesson, lessonNumber: slot.lessonNumber || (fixed as any).displayOrder || 1, title: fixed.title || slot.lessonTitle || '', vietnameseTitle: fixed.vietnameseTitle };
   if (!lessons || lessons.length === 0) {
     const fixedTitle = slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '') || '';
     return {

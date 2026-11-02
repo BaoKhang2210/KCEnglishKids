@@ -565,7 +565,7 @@ function detectClassGaps({ students = [], vocabularies = [], masteryRows = [], t
       masteredPercent: gapPercent(masteredRate)
     };
     const neverPracticed = practicedStudents.size === 0;
-    if (neverPracticed) unassessed.push(summary);
+    if (neverPracticed) { unassessed.push(summary); continue; }
     const weakAccuracy = attempts > 0 && accuracy < threshold;
     const lowRetention = practicedStudents.size > 0 && masteredRate < threshold;
     if (!neverPracticed && !weakAccuracy && !lowRetention) {
@@ -603,7 +603,8 @@ function detectClassGaps({ students = [], vocabularies = [], masteryRows = [], t
       studentCount,
       wordCount: wordById.size,
       gapCount: gaps.length,
-      threshold: gapPercent(threshold)
+      threshold: gapPercent(threshold),
+      unassessedCount: unassessed.length
     },
     gaps,
     healthy,
@@ -634,6 +635,8 @@ function applyReviewFocus(plan, reviewFocus = []) {
   const weakWordsStr = weakWords.join(', ');
 
   const updatedPlan = structuredClone(plan);
+  updatedPlan.isGapReview = true;
+  updatedPlan.reviewFocus = structuredClone(reviewFocus);
   updatedPlan.meta = {
     ...updatedPlan.meta,
     isReviewPlan: true,
@@ -654,5 +657,10 @@ function applyReviewFocus(plan, reviewFocus = []) {
 
   updatedPlan.homeConnectPrompt = 'Hôm nay lớp đã cùng cô ôn lại và củng cố các từ: ' + weakWordsStr + '. Ba mẹ hãy cùng bé gọi tên và làm cử chỉ TPR tại nhà nhé! ❤️';
 
+  updatedPlan.teacherPrepTips.unshift('Buổi ôn lỗ hổng không cộng sao cho bất kỳ học sinh nào.');
+  updatedPlan.phases = updatedPlan.phases.map(phase => ['presentation', 'practice'].includes(phase.phaseId) ? { ...phase, activities: phase.activities.map((activity, index) => index ? activity : {
+    ...activity, name: `Ôn có hỗ trợ: ${weakWordsStr}`, teacherTalk: weakWords.map(word => `Point to ${word}.`).join(' '),
+    description: `Lần lượt ôn từng từ ${weakWordsStr} bằng nghe–chọn tranh, đổi vị trí và cho bé thử lại với gợi ý. Chỉ ghi nhận đúng/chưa đúng, không cộng sao.`
+  }) } : phase);
   return updatedPlan;
 }

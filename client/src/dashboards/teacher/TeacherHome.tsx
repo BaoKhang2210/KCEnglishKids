@@ -102,8 +102,9 @@ const ClassGapsPanel = ({ classes }: { classes: any[] }) => {
     {busy && <p className="teacher-empty-text">Đang phân tích dữ liệu luyện tập của lớp…</p>}
     {note && <p role="alert" className="text-xs font-bold text-rose-700">{note}</p>}
     {!busy && report && <> 
-      <div className="teacher-observation"><strong>{report.meta.gapCount}/{report.meta.wordCount}</strong><p>từ vựng lớp còn yếu (dưới {report.meta.threshold}% bé Thành thạo hoặc độ đúng thấp).</p></div>
-      {gaps.length === 0 && <div className="teacher-inline-note"><BookOpen size={19} /><p>{report.meta.wordCount === 0 ? 'Lớp chưa có dữ liệu luyện tập từ vựng. Hãy giao hoạt động để hệ thống thu thập nhé.' : 'Cả lớp đang nắm rất tốt các từ đã học 🎉'}</p></div>}
+      <div className="teacher-observation"><strong>{report.meta.gapCount}</strong><p>từ có dữ liệu cần củng cố · {report.meta.unassessedCount || 0} từ chưa có lượt luyện. Chưa luyện không có nghĩa là yếu.</p></div>
+      <p className="text-xs text-slate-600 mb-3">{report.basis}</p>
+      {gaps.length === 0 && <div className="teacher-inline-note"><BookOpen size={19} /><p>{!report.meta.wordCount || report.meta.unassessedCount === report.meta.wordCount ? 'Chưa đủ dữ liệu luyện tập để xác định nhóm từ cần củng cố.' : 'Chưa phát hiện nhóm cần củng cố trong các lượt đã ghi nhận.'}</p></div>}
       <ul className="teacher-gap-list">{gaps.map(gap => <li key={gap.english} className="teacher-gap-row">
         <span className={`teacher-gap-badge ${gap.severity}`}>{gap.severity === 'critical' ? 'Cần ôn gấp' : 'Nên ôn'}</span>
         <div className="flex-1 min-w-[180px]">
@@ -112,7 +113,7 @@ const ClassGapsPanel = ({ classes }: { classes: any[] }) => {
           <p className="text-xs font-bold text-amber-800 flex items-start gap-1"><Lightbulb size={14} className="shrink-0 mt-[1px]" /> {gap.suggestion}</p>
         </div>
         <div className="text-right text-xs font-bold text-slate-700">
-          <p>{gap.masteredPercent}% thành thạo</p>
+          <p>{gap.masteredPercent}% ôn vững trong nhóm đã luyện</p>
           <p className="text-slate-500">
             {gap.practicedStudents === 0
               ? 'Chưa có lượt làm'
