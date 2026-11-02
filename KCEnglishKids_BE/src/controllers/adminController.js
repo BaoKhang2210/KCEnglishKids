@@ -2823,11 +2823,18 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
       });
     });
 
-    // If currentLesson is not explicitly set, determine the next untaught lesson
+    // If currentLesson is completed or not explicitly set, determine the next untaught lesson
     let activeLesson = classroom.currentLesson;
-    if (!activeLesson && sequentialSyllabus.length > 0) {
+    const isCurrentAlreadyCompleted = activeLesson && (
+      (classroom.completedLessons || []).some(id => String(id?._id || id) === String(activeLesson._id || activeLesson)) ||
+      sequentialSyllabus.some(l => String(l._id) === String(activeLesson._id || activeLesson) && l.isCompleted)
+    );
+    if ((!activeLesson || isCurrentAlreadyCompleted) && sequentialSyllabus.length > 0) {
       const nextUntaught = sequentialSyllabus.find(l => !l.isCompleted) || sequentialSyllabus[0];
       activeLesson = nextUntaught;
+      if (nextUntaught?._id && String(nextUntaught._id) !== String(classroom.currentLesson?._id || classroom.currentLesson)) {
+        await ClassRoom.updateOne({ _id: classroom._id }, { $set: { currentLesson: nextUntaught._id } });
+      }
     }
 
     // Active schedule, recent teaching sessions, and attendance history for this class

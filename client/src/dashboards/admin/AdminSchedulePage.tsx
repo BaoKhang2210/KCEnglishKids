@@ -647,7 +647,7 @@ export const AdminSchedulePage: React.FC = () => {
             title="Tạo lớp học mới trực tiếp từ đây"
           >
             <School size={18} />
-            <span>+ Thêm Lớp Mới</span>
+            <span>Thêm Lớp Mới</span>
           </button>
 
           <button
@@ -656,7 +656,7 @@ export const AdminSchedulePage: React.FC = () => {
             className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all  cursor-pointer"
           >
             <Plus size={20} />
-            <span>+ Xếp Lịch Cho Lớp</span>
+            <span> Xếp Lịch Cho Lớp</span>
           </button>
         </div>
       </div>

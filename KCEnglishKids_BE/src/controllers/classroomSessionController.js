@@ -1,4 +1,4 @@
-const { ClassroomSession, ClassRoom, Lesson, Activity, Attendance, Schedule } = require('../models');
+const { ClassroomSession, ClassRoom, Lesson, Activity, Attendance, Schedule, CurriculumUnit } = require('../models');
 const access = require('../services/teacherAccess');
 const rules = require('../services/teacherRules');
 const { activeScheduleFilter } = require('../services/scheduleRules');
@@ -144,6 +144,48 @@ exports.startSession = wrap(async (req, res) => {
   });
   res.json({ success: true, data: item });
 });
+async function advanceClassroomCurriculum(classroomId, completedLessonId) {
+  try {
+    const classroom = await ClassRoom.findById(classroomId);
+    if (!classroom) return;
+
+    const completedLessonIds = (classroom.completedLessons || []).map(id => String(id?._id || id));
+    if (completedLessonId && !completedLessonIds.includes(String(completedLessonId))) {
+      completedLessonIds.push(String(completedLessonId));
+    }
+
+    if (CurriculumUnit && typeof CurriculumUnit.find === 'function') {
+      const units = await CurriculumUnit.find({ ageGroupCode: classroom.ageGroupCode, status: 'ACTIVE' }).sort({ bookNumber: 1, unitNumber: 1 }).lean();
+      const unitIds = units.map(u => u._id);
+      const lessons = await Lesson.find({ curriculumUnits: { $in: unitIds }, status: 'ACTIVE', ageGroupCode: classroom.ageGroupCode }).sort({ displayOrder: 1, _id: 1 }).lean();
+
+      const unitOrderMap = new Map(units.map((u, idx) => [String(u._id), idx]));
+      const sortedLessons = [...lessons].sort((a, b) => {
+        const uA = Array.isArray(a.curriculumUnits) ? a.curriculumUnits[0] : a.curriculumUnits;
+        const uB = Array.isArray(b.curriculumUnits) ? b.curriculumUnits[0] : b.curriculumUnits;
+        const orderA = unitOrderMap.get(String(uA)) ?? 999;
+        const orderB = unitOrderMap.get(String(uB)) ?? 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.displayOrder || 0) - (b.displayOrder || 0);
+      });
+
+      const nextUntaught = sortedLessons.find(l => !completedLessonIds.includes(String(l._id)));
+      await ClassRoom.updateOne(
+        { _id: classroom._id, deletionPending: { $ne: true } },
+        {
+          $addToSet: { completedLessons: completedLessonId },
+          $set: { currentLesson: nextUntaught ? nextUntaught._id : classroom.currentLesson }
+        }
+      );
+      return;
+    }
+
+    await ClassRoom.updateOne({ _id: classroom._id, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: completedLessonId } });
+  } catch (err) {
+    console.error('Lỗi tự động thăng cấp bài học cho lớp:', err);
+  }
+}
+
 exports.endSession = wrap(async (req, res) => {
   const item = await saveSession(req, async session => {
     if (session.status === 'COMPLETED') return false;
@@ -154,8 +196,10 @@ exports.endSession = wrap(async (req, res) => {
     session.teachingOutcome = closureDecision(req.body||{},guide,session.studentScores);
     session.status = 'COMPLETED'; session.endedAt = new Date(); rules.summarize(session);
   }, true);
-  // Idempotent progress update is also retried when the end request is repeated.
-  if (item.lesson && item.teachingOutcome?.coverage === 'COMPLETE') await ClassRoom.updateOne({ _id: item.classroom, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: item.lesson } });
+  // Idempotent progress update and automatic advance to the next untaught curriculum lesson
+  if (item.lesson && item.teachingOutcome?.coverage === 'COMPLETE') {
+    await advanceClassroomCurriculum(item.classroom, item.lesson);
+  }
   res.json({ success: true, data: await populateSession(item, true) });
 });
 exports.scoreStudent = wrap(async (req, res) => {

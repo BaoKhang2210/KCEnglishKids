@@ -1,69 +1,86 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Target,
   Volume2,
-  Printer,
   Copy,
   Check,
   Rocket,
-  ClipboardList,
-  Lightbulb,
   RefreshCw,
-  CheckCircle2,
   AlertCircle,
-  Clock,
   Sparkles,
-  MessageCircle,
   Flame,
-  CheckSquare,
-  Square
+  ChevronLeft,
+  ChevronRight,
+  RotateCw,
+  Gamepad2,
+  Play,
+  Layers,
+  Star
 } from 'lucide-react';
 import { teacherApi, aiApi } from '../../services/api';
 import { playWordAudio, sfx } from '../../utils/audio';
 import { getPreschoolTprGesture } from '../../utils/tprGestures';
+import { wordArt } from '../../utils/learningArt';
+import confetti from 'canvas-confetti';
+import { GameRunner } from '../../games/core/GameRunner';
+import { getAvailableLessonGames } from '../../games/registry';
+import type { Vocabulary } from '../../types';
 
 interface GapWord {
+  vocabularyId?: string;
   english: string;
   vietnamese?: string;
-  severity?: 'critical' | 'moderate' | 'healthy';
+  severity?: 'critical' | 'watch' | 'moderate' | 'healthy';
   accuracyPercent?: number | null;
   masteredPercent?: number;
   totalAttempts?: number;
   wrongCount?: number;
+  imageUrl?: string | null;
+  audioUrl?: string | null;
+  phonetic?: string | null;
+  pronunciation?: string | null;
+  tprGesture?: string;
 }
 
 export const TeacherLessonPlanner: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // URL query params
   const initialClassId = searchParams.get('classroomId') || '';
   const urlGapWords = searchParams.get('gapWords') || '';
 
   // Data states
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>(initialClassId);
-  const [duration, setDuration] = useState<10 | 15 | 20>(15);
-  const [reviewStyle, setReviewStyle] = useState<'tpr' | 'game' | 'interactive'>('tpr');
+  const [activeTab, setActiveTab] = useState<'flashcard' | 'game'>('flashcard');
 
-  // Knowledge gaps state
+  // Gaps and word selection
   const [classGaps, setClassGaps] = useState<GapWord[]>([]);
   const [loadingGaps, setLoadingGaps] = useState(false);
-  const [selectedGapWords, setSelectedGapWords] = useState<string[]>(() => {
-    if (urlGapWords) {
-      return urlGapWords.split(',').map((s) => s.trim()).filter(Boolean);
-    }
-    return [];
-  });
+  const [selectedGapWords, setSelectedGapWords] = useState<string[]>([]);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
 
-  const [teacherNote, setTeacherNote] = useState('');
-  const [error, setError] = useState<string>('');
-  const [copiedPlan, setCopiedPlan] = useState(false);
-  const [copiedParentMsg, setCopiedParentMsg] = useState(false);
+  // Audio & Notification
   const [playingWord, setPlayingWord] = useState<string | null>(null);
+  const [copiedParentMsg, setCopiedParentMsg] = useState(false);
+  const [error, setError] = useState<string>('');
 
-  // Load teacher classes
+  // Mini-Game: Listen & Tap
+  const [gameTarget, setGameTarget] = useState<GapWord | null>(null);
+  const [gameChoices, setGameChoices] = useState<GapWord[]>([]);
+  const [gameScore, setGameScore] = useState(0);
+  const [gameAnswerState, setGameAnswerState] = useState<'idle' | 'correct' | 'wrong'>('idle');
+  const [selectedChoiceWord, setSelectedChoiceWord] = useState<string | null>(null);
+  const [gameRound, setGameRound] = useState(1);
+  const totalRounds = 5;
+
+  // GameRunner Modal
+  const [launchGameRunner, setLaunchGameRunner] = useState(false);
+
+  // 1. Load teacher classes
   useEffect(() => {
     teacherApi.getClasses()
       .then((res) => {
@@ -78,22 +95,45 @@ export const TeacherLessonPlanner: React.FC = () => {
       });
   }, []);
 
-  // Fetch Knowledge Gaps when selectedClassId changes
+  // 2. Fetch Knowledge Gaps & Auto-select on class change
   useEffect(() => {
     if (!selectedClassId) return;
     setLoadingGaps(true);
     setError('');
+    setActiveCardIndex(0);
+    setIsFlipped(false);
 
     aiApi.detectClassGaps(selectedClassId)
       .then((res) => {
         const list: GapWord[] = res.data?.gaps || [];
         setClassGaps(list);
 
-        // Auto select critical / warning gaps if none specified in URL
-        if (!urlGapWords && list.length > 0) {
-          const criticals = list.filter((g) => g.severity === 'critical').map((g) => g.english);
-          const initialSelect = criticals.length > 0 ? criticals : list.slice(0, 4).map((g) => g.english);
-          setSelectedGapWords(initialSelect);
+        // Auto-select all warning gaps or fallback to all available words
+        if (urlGapWords) {
+          const fromUrl = urlGapWords.split(',').map((s) => s.trim()).filter(Boolean);
+          setSelectedGapWords(fromUrl);
+        } else if (list.length > 0) {
+          // Automatic selection: select all warning gap words immediately
+          setSelectedGapWords(list.map((g) => g.english));
+        } else {
+          // If no gap recorded yet, fetch active classroom lesson words so teacher can still practice
+          teacherApi.getClassDetail(selectedClassId).then((cRes: any) => {
+            const currentLesson = cRes.data?.currentLesson;
+            if (currentLesson?.vocabularyItems?.length) {
+              const defaultWords: GapWord[] = currentLesson.vocabularyItems.map((v: any) => ({
+                vocabularyId: v._id,
+                english: v.english,
+                vietnamese: v.vietnamese,
+                severity: 'watch',
+                accuracyPercent: 100,
+                imageUrl: v.imageUrl,
+                audioUrl: v.audioUrl,
+                phonetic: v.phonetic
+              }));
+              setClassGaps(defaultWords);
+              setSelectedGapWords(defaultWords.map((w) => w.english));
+            }
+          }).catch(() => {});
         }
       })
       .catch((err) => {
@@ -103,19 +143,82 @@ export const TeacherLessonPlanner: React.FC = () => {
       .finally(() => {
         setLoadingGaps(false);
       });
-  }, [selectedClassId]);
+  }, [selectedClassId, urlGapWords]);
 
-  const currentClass = classes.find((c) => String(c._id) === selectedClassId);
+  const currentClass = useMemo(() => {
+    return classes.find((c) => String(c._id) === selectedClassId);
+  }, [classes, selectedClassId]);
 
-  // Toggle single gap word
-  const handleToggleGapWord = (word: string) => {
+  // Enriched active review words with image fallback and TPR gesture
+  const activeReviewWords = useMemo(() => {
+    return selectedGapWords.map((word) => {
+      const found = classGaps.find((g) => g.english.toLowerCase() === word.toLowerCase());
+      const art = wordArt(word);
+      const imageUrl = found?.imageUrl || art?.url || null;
+      return {
+        vocabularyId: found?.vocabularyId,
+        english: word,
+        vietnamese: found?.vietnamese || 'từ vựng',
+        severity: found?.severity || 'critical',
+        accuracyPercent: found?.accuracyPercent,
+        imageUrl,
+        audioUrl: found?.audioUrl || null,
+        phonetic: found?.phonetic || null,
+        tprGesture: getPreschoolTprGesture(word, found?.vietnamese)
+      };
+    });
+  }, [selectedGapWords, classGaps]);
+
+  const currentCard = activeReviewWords[activeCardIndex] || activeReviewWords[0] || null;
+  const gapWordsString = selectedGapWords.join(', ');
+
+  // Play audio for a word
+  const handlePlayWord = useCallback((word: string, audioUrl?: string | null) => {
     sfx.playPop();
-    setSelectedGapWords((prev) =>
-      prev.includes(word) ? prev.filter((w) => w !== word) : [...prev, word]
-    );
+    setPlayingWord(word);
+    void playWordAudio(word, audioUrl || undefined).finally(() => {
+      setPlayingWord(null);
+    });
+  }, []);
+
+  // Auto-play audio when card changes if autoSpeak is enabled
+  useEffect(() => {
+    if (activeTab === 'flashcard' && autoSpeak && currentCard && !isFlipped) {
+      const timer = setTimeout(() => {
+        handlePlayWord(currentCard.english, currentCard.audioUrl);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [activeCardIndex, autoSpeak, currentCard, activeTab, isFlipped, handlePlayWord]);
+
+  // Card navigation
+  const handlePrevCard = () => {
+    sfx.playPop();
+    setIsFlipped(false);
+    setActiveCardIndex((prev) => (prev > 0 ? prev - 1 : activeReviewWords.length - 1));
   };
 
-  // Select all gaps
+  const handleNextCard = () => {
+    sfx.playPop();
+    setIsFlipped(false);
+    setActiveCardIndex((prev) => (prev < activeReviewWords.length - 1 ? prev + 1 : 0));
+  };
+
+  const handleFlipCard = () => {
+    sfx.playPop();
+    setIsFlipped((prev) => !prev);
+  };
+
+  // Toggle word selection
+  const handleToggleWord = (word: string) => {
+    sfx.playPop();
+    setSelectedGapWords((prev) => {
+      const next = prev.includes(word) ? prev.filter((w) => w !== word) : [...prev, word];
+      return next;
+    });
+  };
+
+  // Select all or critical
   const handleSelectAll = () => {
     sfx.playPop();
     if (selectedGapWords.length === classGaps.length) {
@@ -125,87 +228,83 @@ export const TeacherLessonPlanner: React.FC = () => {
     }
   };
 
-  // Select only critical gaps
-  const handleSelectCriticalOnly = () => {
-    sfx.playPop();
-    const criticalWords = classGaps.filter((g) => g.severity === 'critical').map((g) => g.english);
-    setSelectedGapWords(criticalWords.length > 0 ? criticalWords : classGaps.map((g) => g.english));
-  };
+  // Mini-Game: Setup a question round
+  const setupGameRound = useCallback(() => {
+    if (activeReviewWords.length === 0) return;
+    setGameAnswerState('idle');
+    setSelectedChoiceWord(null);
 
-  // Play audio for a word
-  const handlePlayWord = (word: string) => {
-    sfx.playPop();
-    setPlayingWord(word);
-    void playWordAudio(word).finally(() => {
-      setPlayingWord(null);
-    });
-  };
+    // Pick a target word
+    const randomTarget = activeReviewWords[Math.floor(Math.random() * activeReviewWords.length)];
+    setGameTarget(randomTarget);
 
-  // Selected gap word objects
-  const activeReviewWords = useMemo(() => {
-    return selectedGapWords.map((word) => {
-      const found = classGaps.find((g) => g.english.toLowerCase() === word.toLowerCase());
-      return {
-        english: word,
-        vietnamese: found?.vietnamese || 'từ vựng',
-        severity: found?.severity || 'critical',
-        accuracyPercent: found?.accuracyPercent,
-        tprGesture: getPreschoolTprGesture(word, found?.vietnamese)
-      };
-    });
-  }, [selectedGapWords, classGaps]);
+    // Pick 2 to 4 choices
+    const otherWords = activeReviewWords.filter((w) => w.english !== randomTarget.english);
+    const shuffledOthers = [...otherWords].sort(() => 0.5 - Math.random()).slice(0, 3);
+    const choices = [randomTarget, ...shuffledOthers].sort(() => 0.5 - Math.random());
+    setGameChoices(choices);
 
-  const gapWordsString = selectedGapWords.join(', ');
+    // Auto-speak target prompt
+    setTimeout(() => {
+      void playWordAudio(randomTarget.english, randomTarget.audioUrl || undefined);
+    }, 400);
+  }, [activeReviewWords]);
 
-  // Copy full remediation plan
-  const handleCopyPlan = () => {
-    sfx.playPop();
-    const lines = [
-      `KẾ HOẠCH ÔN TẬP LỖ HỔNG KIẾN THỨC — KCENGLISHKIDS`,
-      `Lớp: ${currentClass?.name || 'Mầm non'} (Độ tuổi ${currentClass?.ageGroupCode || '3-4'} tuổi)`,
-      `Thời lượng ôn tập: ${duration} phút`,
-      `Trọng tâm khắc phục (${selectedGapWords.length} từ bị cảnh báo): ${gapWordsString}`,
-      `--------------------------------------------------`,
-      `I. BỘ TỪ VỰNG TRỌNG TÂM & ĐỘNG TÁC TPR:`,
-      ...activeReviewWords.map((w, idx) => `${idx + 1}. ${w.english} (${w.vietnamese}): ${w.tprGesture}`),
-      `--------------------------------------------------`,
-      `II. KỊCH BẢN 3 TRẠM HOẠT ĐỘNG ÔN TẬP (${duration} PHÚT):`,
-      `1. Trạm 1: Khởi động & Nhận diện phản xạ (3-5 phút)`,
-      `   - Cô giơ thẻ từ vựng hoặc làm động tác TPR, cả lớp làm theo và hô to.`,
-      `   - Khẩu lệnh mẫu: "Look at teacher! Listen: [Word]! Everyone say: [Word]!"`,
-      `2. Trạm 2: Trò chơi vận động củng cố (${duration === 10 ? '4-5' : duration === 15 ? '7-8' : '10-12'} phút)`,
-      `   - Tổ chức trò chơi phản xạ nhanh: "Koko Says" hoặc "Đập thẻ tranh (Flashcard Slap)".`,
-      `   - Đố nhóm và trao sao khích lệ cho các bé nỗ lực.`,
-      `3. Trạm 3: Thử thách cá nhân & Đập tay High-Five (3 phút)`,
-      `   - Mời các bé còn ngập ngừng lên chọn tranh và đập tay High-Five khi đọc đúng.`,
-      `--------------------------------------------------`,
-      `III. TIN NHẮN DẶN DÒ PHỤ HUYNH VỀ NHÀ:`,
-      `Hôm nay lớp ${currentClass?.name || ''} đã cùng cô ôn các từ: ${gapWordsString}. Tối nay ba mẹ hãy dành 5 phút đố vui và đập tay khen ngợi con nhé!`
-    ];
-
-    if (!navigator.clipboard?.writeText) {
-      setError('Trình duyệt chưa hỗ trợ sao chép tự động. Bạn có thể bấm In để lưu PDF.');
-      return;
+  // When switching to Game tab, start round
+  useEffect(() => {
+    if (activeTab === 'game' && activeReviewWords.length > 0) {
+      setGameScore(0);
+      setGameRound(1);
+      setupGameRound();
     }
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-      setCopiedPlan(true);
-      setTimeout(() => setCopiedPlan(false), 2500);
-    }).catch(() => setError('Chưa thể sao chép bộ nhớ tạm.'));
+  }, [activeTab, activeReviewWords.length, setupGameRound]);
+
+  // Handle player choice in mini-game
+  const handleSelectGameChoice = (choice: GapWord) => {
+    if (gameAnswerState !== 'idle' || !gameTarget) return;
+    setSelectedChoiceWord(choice.english);
+
+    if (choice.english.toLowerCase() === gameTarget.english.toLowerCase()) {
+      sfx.playSuccess();
+      setGameAnswerState('correct');
+      setGameScore((s) => s + 1);
+
+      try {
+        confetti({
+          particleCount: 40,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+      } catch {}
+
+      setTimeout(() => {
+        if (gameRound < totalRounds) {
+          setGameRound((r) => r + 1);
+          setupGameRound();
+        } else {
+          sfx.playStarFanfare();
+        }
+      }, 1400);
+    } else {
+      sfx.playPop();
+      setGameAnswerState('wrong');
+      setTimeout(() => {
+        setGameAnswerState('idle');
+        setSelectedChoiceWord(null);
+      }, 1000);
+    }
   };
 
-  // Copy parent notification message
+  // Copy parent notification message for Zalo
   const handleCopyParentMessage = () => {
     sfx.playPop();
     const msg = `[KC English Kids - Lớp ${currentClass?.name || 'Mầm non'}] Chào ba mẹ! Hôm nay các bé đã cùng cô ôn luyện phản xạ các từ vựng: ${gapWordsString}. Ba mẹ hãy dành 5 phút buổi tối mở ứng dụng KC English Kids mục "5 Phút Ôn Tập Ở Nhà" để cùng bé đố vui và nhận 3 sao may mắn nhé! ❤️`;
-    navigator.clipboard.writeText(msg).then(() => {
-      setCopiedParentMsg(true);
-      setTimeout(() => setCopiedParentMsg(false), 2500);
-    }).catch(() => {});
-  };
-
-  const handlePrint = () => {
-    sfx.playPop();
-    window.print();
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(msg).then(() => {
+        setCopiedParentMsg(true);
+        setTimeout(() => setCopiedParentMsg(false), 2500);
+      });
+    }
   };
 
   const handleLaunchLiveSession = () => {
@@ -214,555 +313,598 @@ export const TeacherLessonPlanner: React.FC = () => {
     navigate(`/teacher/classes/${selectedClassId}/sessions/new?reviewMode=true&gapWords=${encodeURIComponent(gapWordsString)}`);
   };
 
+  // Words converted for GameRunner compatibility
+  const gameRunnerWords: Vocabulary[] = useMemo(() => {
+    return activeReviewWords.map((w, idx) => ({
+      _id: w.vocabularyId || `vocab-gap-${idx}`,
+      english: w.english,
+      vietnamese: w.vietnamese,
+      imageUrl: w.imageUrl || '/images/mascots/koko-happy.png',
+      audioUrl: w.audioUrl || undefined,
+      status: 'ACTIVE',
+      topic: 'gaps' as any
+    }));
+  }, [activeReviewWords]);
+
+  const reviewGames = useMemo(() => {
+    return getAvailableLessonGames(gameRunnerWords, 1, 1, []);
+  }, [gameRunnerWords]);
+
   return (
-    <div className="mx-auto max-w-[1920px] space-y-7 pb-16 font-sans">
-      {/* Top Banner - Chuyên biệt Ôn Tập Lỗ Hổng Kiến Thức */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-6 sm:p-8 text-white shadow-md">
-        <div className="absolute right-0 top-0 -mt-6 -mr-6 h-56 w-56 rounded-full bg-black/10 blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3.5 py-1 text-xs font-black tracking-wide text-white backdrop-blur-md">
-              <Target size={15} className="text-amber-200" />
-              <span>CHUYÊN BIỆT ÔN TẬP LỖ HỔNG KIẾN THỨC & TỪ BỊ CẢNH BÁO</span>
+    <div className="mx-auto max-w-[1700px] space-y-6 pb-16 font-sans w-full">
+      {/* ── TOP BANNER: STREAMLINED ACTION HEADER ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-5 sm:p-7 text-white shadow-lg">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-0.5 text-xs font-black tracking-wide text-white backdrop-blur-md">
+              <Target size={14} className="text-amber-200" />
+              <span>ÔN TẬP LỖ HỔNG KIẾN THỨC MẦM NON</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Soạn Bài Ôn Lỗ Hổng Kiến Thức Cho Lớp
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-xs">
+              Thẻ Flashcard & Trò Chơi Ôn Luyện Lỗ Hổng
             </h1>
-            <p className="text-sm sm:text-base text-amber-50 font-medium leading-relaxed">
-              Hệ thống tự động phát hiện những từ vựng học sinh trong lớp hay làm sai hoặc chưa vững qua các lượt luyện tập.
-              Cô giáo chọn các từ bị cảnh báo để tạo nhanh kế hoạch ôn luyện 10–20 phút thực tế với cử chỉ TPR và trò chơi phản xạ.
+            <p className="text-xs sm:text-sm text-amber-100 font-medium leading-relaxed">
+              Tự động tập hợp những từ vựng trẻ trong lớp hay làm sai hoặc chưa vững. Cô giáo có thể chiếu Flashcard kèm động tác TPR hài hước hoặc tổ chức đố vui nhanh ngay tại chỗ!
             </p>
           </div>
 
+          {/* Quick Actions */}
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleLaunchLiveSession}
               disabled={selectedGapWords.length === 0 || !selectedClassId}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-amber-950 hover:bg-amber-100 transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 shadow-sm"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-amber-950 hover:bg-amber-50 transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 shadow-md"
             >
-              <Rocket size={18} className="text-amber-700" />
+              <Rocket size={17} className="text-amber-700" />
               <span>Vào Lớp Dạy Tiết Ôn Tập Ngay</span>
             </button>
             <button
               type="button"
-              onClick={() => navigate('/teacher/classroom-sessions')}
-              className="inline-flex items-center gap-2 rounded-2xl bg-black/10 hover:bg-black/20 border border-white/30 px-4 py-3 text-sm font-bold text-white transition-all cursor-pointer"
+              onClick={handleCopyParentMessage}
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-black/15 hover:bg-black/25 border border-white/30 px-4 py-3 text-xs sm:text-sm font-bold text-white transition-all cursor-pointer backdrop-blur-xs"
             >
-              <ClipboardList size={18} />
-              <span>Nhật ký buổi dạy</span>
+              {copiedParentMsg ? <Check size={16} className="text-emerald-300" /> : <Copy size={16} />}
+              <span>{copiedParentMsg ? 'Đã sao chép tin nhắn Zalo!' : 'Sao chép tin nhắn Zalo gửi phụ huynh'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Left Controls (Class & Gaps Selection), Right Plan View */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
-        {/* Left Sidebar: Class & Warning Words Selection */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-5 shadow-xs">
-            <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4">
-              <div className="grid h-8 w-8 place-items-center rounded-xl bg-amber-50 text-amber-800">
-                <Target size={18} />
-              </div>
-              <h2 className="text-base font-black text-slate-900">1. Chọn Lớp & Từ Cần Ôn</h2>
-            </div>
+      {/* ── TOP CONTROLS & TAB SWITCHER ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-slate-200 shadow-xs">
+        {/* Classroom Picker */}
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-100 text-amber-800 shrink-0">
+            <Target size={20} />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Đang chọn lớp:
+            </span>
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              className="bg-transparent text-sm sm:text-base font-black text-slate-900 outline-none cursor-pointer hover:text-amber-700 transition-colors"
+            >
+              {classes.map((cls) => (
+                <option key={cls._id} value={cls._id}>
+                  {cls.name} ({cls.ageGroupCode ? `Nhóm ${cls.ageGroupCode} tuổi` : 'Mầm non'})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-            {/* Select Classroom */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Lớp học mầm non</span>
-                {currentClass && (
-                  <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-extrabold text-teal-800 border border-teal-200">
-                    Độ tuổi {currentClass.ageGroupCode || '3-4'}
-                  </span>
-                )}
-              </label>
-              <select
-                value={selectedClassId}
-                onChange={(e) => {
-                  setSelectedClassId(e.target.value);
-                  setSelectedGapWords([]);
-                }}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 focus:bg-white focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10 transition-all"
-              >
-                {classes.map((cls) => (
-                  <option key={cls._id} value={cls._id}>
-                    {cls.name} ({cls.ageGroupCode ? `Nhóm ${cls.ageGroupCode} tuổi` : 'Mầm non'})
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* View Mode Tabs (Flashcard vs Interactive Game) */}
+        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl self-start sm:self-center border border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              sfx.playPop();
+              setActiveTab('flashcard');
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeTab === 'flashcard'
+                ? 'bg-white text-amber-900 shadow-xs scale-102'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Layers size={16} className={activeTab === 'flashcard' ? 'text-amber-600' : ''} />
+            <span>🎴 Thẻ Flashcard Tương Tác</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              sfx.playPop();
+              setActiveTab('game');
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeTab === 'game'
+                ? 'bg-amber-500 text-white shadow-xs scale-102'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Gamepad2 size={16} />
+            <span>🎮 Trò Chơi Ôn Tập Nhanh</span>
+          </button>
+        </div>
+      </div>
 
-            {/* Warning / Gap Words List */}
-            <div className="space-y-2.5 pt-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                  <Flame size={15} className="text-amber-600" />
-                  <span>Từ Vựng Bị Cảnh Báo ({classGaps.length})</span>
-                </label>
-                {classGaps.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSelectCriticalOnly}
-                      className="text-[11px] font-bold text-rose-700 hover:underline cursor-pointer"
-                    >
-                      Cần ôn gấp
-                    </button>
-                    <span className="text-slate-300">•</span>
-                    <button
-                      type="button"
-                      onClick={handleSelectAll}
-                      className="text-[11px] font-bold text-amber-800 hover:underline cursor-pointer"
-                    >
-                      {selectedGapWords.length === classGaps.length ? 'Bỏ chọn' : 'Chọn tất cả'}
-                    </button>
+      {/* ── LOADING & ERROR NOTIFICATIONS ── */}
+      {loadingGaps && (
+        <div className="p-8 rounded-3xl bg-amber-50/70 border border-amber-200 text-center text-sm text-amber-900 font-bold flex items-center justify-center gap-3">
+          <RefreshCw size={18} className="animate-spin text-amber-600" />
+          <span>Đang tổng hợp các từ vựng lỗ hổng của lớp {currentClass?.name || ''}...</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <AlertCircle size={18} className="shrink-0 text-rose-700" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* ── MAIN CONTENT AREA ── */}
+      {!loadingGaps && activeReviewWords.length === 0 ? (
+        <div className="rounded-3xl border border-emerald-200 bg-white p-12 text-center space-y-4 shadow-xs">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-3xl shadow-inner">
+            🎉
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-xl font-black text-slate-900">
+              Không có từ vựng nào bị cảnh báo lỗ hổng!
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+              Lớp {currentClass?.name} đang nắm rất vững kiến thức qua các buổi học.
+            </p>
+          </div>
+        </div>
+      ) : !loadingGaps && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* ── LEFT / MAIN PANEL: FLASHCARD VIEWER OR MINI-GAME ── */}
+          <div className="lg:col-span-8 space-y-5">
+            {activeTab === 'flashcard' ? (
+              /* ── FLASHCARD INTERACTIVE VIEWER ── */
+              <div className="rounded-3xl border-3 border-amber-200 bg-white p-6 sm:p-8 shadow-md space-y-6">
+                {/* Flashcard Header Controls */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-950 border border-amber-300">
+                      Thẻ #{activeCardIndex + 1} / {activeReviewWords.length}
+                    </span>
+                    {currentCard?.severity === 'critical' ? (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
+                        <Flame size={12} className="text-rose-600" /> Cần ôn gấp
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-200">
+                        Cần củng cố
+                      </span>
+                    )}
+                    {currentCard?.accuracyPercent != null && (
+                      <span className="text-xs font-bold text-slate-500">
+                        (Độ đúng lớp: {currentCard.accuracyPercent}%)
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {loadingGaps ? (
-                <div className="p-5 rounded-2xl bg-amber-50/60 border border-amber-200 text-center text-xs text-amber-800 font-bold flex items-center justify-center gap-2">
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Đang tổng hợp các từ vựng cảnh báo của lớp…</span>
+                  {/* Auto-Speak Toggle */}
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={autoSpeak}
+                      onChange={(e) => setAutoSpeak(e.target.checked)}
+                      className="rounded text-amber-600 focus:ring-amber-500"
+                    />
+                    <span>Tự động phát âm</span>
+                  </label>
                 </div>
-              ) : classGaps.length === 0 ? (
-                <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-center text-xs text-emerald-800 font-bold space-y-1">
-                  <p>🎉 Tuyệt vời! Hiện tại lớp không có từ vựng nào bị cảnh báo hổng kiến thức.</p>
-                  <p className="text-[11px] text-emerald-700 font-normal">Các bé đều nắm tương đối tốt bài học.</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
-                  {classGaps.map((gap) => {
-                    const isSelected = selectedGapWords.includes(gap.english);
-                    const isCritical = gap.severity === 'critical';
-                    return (
-                      <div
-                        key={gap.english}
-                        onClick={() => handleToggleGapWord(gap.english)}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          isSelected
-                            ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-500/20 shadow-xs'
-                            : 'bg-white border-slate-200 hover:border-amber-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            className="text-amber-600 focus:outline-none"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleGapWord(gap.english);
-                            }}
-                          >
-                            {isSelected ? (
-                              <CheckSquare size={18} className="text-amber-700" />
-                            ) : (
-                              <Square size={18} className="text-slate-300" />
-                            )}
-                          </button>
-                          <div>
-                            <p className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                              <span>{gap.english}</span>
-                              {gap.vietnamese && (
-                                <span className="font-semibold text-slate-500 text-xs">
-                                  ({gap.vietnamese})
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                              {gap.masteredPercent != null ? `${gap.masteredPercent}% thành thạo` : ''}
-                              {gap.accuracyPercent != null ? ` • ${gap.accuracyPercent}% đúng` : ' • Nhiều bé làm sai'}
-                            </p>
+
+                {/* THE 3D FLIPPABLE FLASHCARD */}
+                <div className="perspective-1000 w-full min-h-[340px] sm:min-h-[400px]">
+                  {!isFlipped ? (
+                    /* ── FRONT SIDE: LARGE ILLUSTRATION & AUDIO ── */
+                    <div className="relative flex flex-col items-center justify-between p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-amber-50/40 via-white to-amber-50/20 border-2 border-amber-200 shadow-sm transition-all text-center">
+                      {/* Big Picture */}
+                      <div className="relative w-48 h-48 sm:w-60 sm:h-60 flex items-center justify-center p-2">
+                        {currentCard?.imageUrl ? (
+                          <img
+                            src={currentCard.imageUrl}
+                            alt={currentCard.english}
+                            className="max-h-full max-w-full object-contain drop-shadow-md hover:scale-105 transition-transform duration-200"
+                          />
+                        ) : (
+                          <div className="w-36 h-36 rounded-3xl bg-amber-100 flex items-center justify-center text-5xl">
+                            🎴
                           </div>
+                        )}
+
+                        {/* Speaker Button On Card */}
+                        <button
+                          type="button"
+                          aria-label={`Nghe phát âm từ ${currentCard?.english}`}
+                          onClick={() => handlePlayWord(currentCard?.english || '', currentCard?.audioUrl)}
+                          className={`absolute top-2 right-2 w-12 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer ${
+                            playingWord === currentCard?.english ? 'animate-bounce ring-4 ring-amber-300' : ''
+                          }`}
+                        >
+                          <Volume2 size={24} />
+                        </button>
+                      </div>
+
+                      {/* English & Vietnamese Word Label */}
+                      <div className="space-y-1 mt-4">
+                        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                          {currentCard?.english}
+                        </h2>
+                        {currentCard?.phonetic && (
+                          <p className="text-xs sm:text-sm font-mono text-slate-500">
+                            /{currentCard.phonetic}/
+                          </p>
+                        )}
+                        <p className="text-lg sm:text-xl font-bold text-amber-700">
+                          {currentCard?.vietnamese}
+                        </p>
+                      </div>
+
+                      {/* Flip Card Action Pill */}
+                      <button
+                        type="button"
+                        onClick={handleFlipCard}
+                        className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-100 hover:bg-amber-200/80 text-amber-950 font-black text-xs sm:text-sm transition-all cursor-pointer hover:scale-102"
+                      >
+                        <RotateCw size={15} />
+                        <span>Lật Thẻ Xem Động Tác TPR & Khẩu Lệnh Của Cô</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── BACK SIDE: TPR GESTURE & TEACHER CUE ── */
+                    <div className="relative flex flex-col items-center justify-between p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-teal-50 via-white to-sky-50 border-2 border-teal-200 shadow-sm transition-all text-center space-y-5">
+                      <div className="w-full flex items-center justify-between border-b border-teal-100 pb-3">
+                        <div className="flex items-center gap-2 text-teal-900 font-black text-base">
+                          <span>🤸 Động Tác Vận Động TPR Mầm Non</span>
+                        </div>
+                        <span className="text-xs font-bold text-teal-700 bg-teal-100 px-2.5 py-0.5 rounded-full">
+                          Từ vựng: {currentCard?.english}
+                        </span>
+                      </div>
+
+                      {/* Gesture Box */}
+                      <div className="max-w-md w-full space-y-4 py-2">
+                        <div className="p-4 rounded-2xl bg-white border-2 border-teal-200/80 shadow-xs space-y-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-teal-800 block">
+                            Hướng dẫn động tác cho bé:
+                          </span>
+                          <p className="text-base sm:text-lg font-bold text-slate-800 leading-relaxed">
+                            "{currentCard?.tprGesture}"
+                          </p>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            title="Nghe phát âm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePlayWord(gap.english);
-                            }}
-                            className="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                          >
-                            <Volume2 size={13} className={playingWord === gap.english ? 'animate-bounce text-amber-600' : ''} />
-                          </button>
-                          <span
-                            className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
-                              isCritical
-                                ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                : 'bg-amber-100 text-amber-800 border border-amber-300'
-                            }`}
-                          >
-                            {isCritical ? 'Cần ôn gấp' : 'Nên ôn'}
+                        {/* Teacher Cue */}
+                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-left space-y-1">
+                          <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <Sparkles size={14} className="text-amber-600" />
+                            <span>Khẩu lệnh cô giáo hướng dẫn lớp:</span>
                           </span>
+                          <p className="text-xs sm:text-sm text-amber-950 font-semibold italic">
+                            "Look at teacher! Listen: <strong>{currentCard?.english}</strong>! Everyone say: <strong>{currentCard?.english}</strong> and do the action!"
+                          </p>
                         </div>
                       </div>
+
+                      {/* Flip Back Button */}
+                      <button
+                        type="button"
+                        onClick={handleFlipCard}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-black text-xs sm:text-sm transition-all cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <RotateCw size={15} />
+                        <span>Quay Lại Mặt Tranh & Phát Âm</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* CARD NAVIGATION CONTROLS */}
+                <div className="flex items-center justify-between gap-4 pt-2">
+                  <button
+                    type="button"
+                    onClick={handlePrevCard}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm transition-all cursor-pointer active:scale-95"
+                  >
+                    <ChevronLeft size={18} />
+                    <span>Thẻ trước</span>
+                  </button>
+
+                  {/* Dots Indicator */}
+                  <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                    {activeReviewWords.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          sfx.playPop();
+                          setIsFlipped(false);
+                          setActiveCardIndex(idx);
+                        }}
+                        className={`h-2.5 rounded-full transition-all cursor-pointer ${
+                          idx === activeCardIndex
+                            ? 'w-7 bg-amber-500'
+                            : 'w-2.5 bg-slate-200 hover:bg-slate-300'
+                        }`}
+                        title={`Xem thẻ ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNextCard}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <span>Thẻ tiếp theo</span>
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ── INTERACTIVE REVIEW MINI-GAME: LISTEN & TAP ── */
+              <div className="rounded-3xl border-3 border-amber-300 bg-white p-6 sm:p-8 shadow-md space-y-6">
+                {/* Game Header */}
+                <div className="flex items-center justify-between border-b border-amber-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black">
+                      <Gamepad2 size={22} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                        Trò Chơi: Nghe & Chạm Đúng Tranh
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        Bấm loa nghe từ phát âm, sau đó mời bé hoặc cô chạm vào thẻ tranh tương ứng!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Round & Score Pill */}
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-1 rounded-xl bg-amber-100 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1 border border-amber-300">
+                      <Star size={14} className="text-amber-600 fill-amber-500" />
+                      <span>{gameScore} Điểm</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-500">
+                      Câu {gameRound} / {totalRounds}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Question Prompt */}
+                <div className="rounded-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 p-6 text-white text-center shadow-sm space-y-3">
+                  <p className="text-xs uppercase font-black tracking-wider text-amber-100">
+                    Bấm loa để nghe lại từ vựng cần tìm:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (gameTarget) handlePlayWord(gameTarget.english, gameTarget.audioUrl);
+                    }}
+                    className="inline-flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-white text-amber-900 font-black text-base sm:text-lg shadow-md hover:bg-amber-50 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Volume2 size={24} className="text-amber-600 animate-pulse" />
+                    <span>Nghe phát âm: "{gameTarget?.english}"</span>
+                  </button>
+                  <p className="text-xs text-amber-100 font-medium">
+                    (Nghĩa tiếng Việt gợi ý: <em>{gameTarget?.vietnamese}</em>)
+                  </p>
+                </div>
+
+                {/* Choices Grid (2 to 4 interactive cards) */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                  {gameChoices.map((choice) => {
+                    const isSelected = selectedChoiceWord === choice.english;
+                    const isTarget = choice.english.toLowerCase() === gameTarget?.english.toLowerCase();
+                    let cardBorder = 'border-slate-200 hover:border-amber-400 bg-white';
+                    if (isSelected && isTarget) {
+                      cardBorder = 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 scale-105';
+                    } else if (isSelected && !isTarget) {
+                      cardBorder = 'border-rose-400 bg-rose-50 ring-4 ring-rose-200 animate-shake';
+                    }
+
+                    return (
+                      <button
+                        key={choice.english}
+                        type="button"
+                        onClick={() => handleSelectGameChoice(choice)}
+                        className={`group relative flex flex-col items-center justify-between p-4 rounded-3xl border-3 transition-all duration-200 cursor-pointer shadow-xs active:scale-95 ${cardBorder}`}
+                      >
+                        <div className="w-full aspect-square flex items-center justify-center p-2">
+                          {choice.imageUrl ? (
+                            <img
+                              src={choice.imageUrl}
+                              alt={choice.english}
+                              className="max-h-full max-w-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform"
+                            />
+                          ) : (
+                            <span className="text-4xl">🎴</span>
+                          )}
+                        </div>
+                        <div className="w-full mt-2 pt-2 border-t border-slate-100 text-center">
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-amber-700">
+                            {choice.english}
+                          </span>
+                          <span className="block text-xs font-semibold text-slate-500">
+                            {choice.vietnamese}
+                          </span>
+                        </div>
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
 
-            {/* Select Duration */}
-            <div className="space-y-2 pt-1 border-t border-slate-100">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Clock size={14} className="text-teal-800" />
-                <span>Thời lượng tiết ôn tập</span>
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { m: 10, label: '10 phút', desc: 'Khởi động đầu giờ' },
-                  { m: 15, label: '15 phút', desc: 'Chuẩn tiết phụ đạo' },
-                  { m: 20, label: '20 phút', desc: 'Ôn tập chuyên sâu' }
-                ].map(({ m, label, desc }) => (
+                {/* Bottom Game Controls & GameRunner Trigger */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
                   <button
-                    key={m}
                     type="button"
                     onClick={() => {
                       sfx.playPop();
-                      setDuration(m as any);
+                      setupGameRound();
                     }}
-                    className={`rounded-2xl border p-2.5 text-center transition-all cursor-pointer ${
-                      duration === m
-                        ? 'border-amber-600 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20 font-black'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                    }`}
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1.5 cursor-pointer"
                   >
-                    <div className="text-xs font-extrabold">{label}</div>
-                    <div className="text-[10px] text-slate-500 font-medium mt-0.5">{desc}</div>
+                    <RefreshCw size={14} />
+                    <span>Đổi câu hỏi khác</span>
                   </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Select Teaching Style */}
-            <div className="space-y-2 pt-1">
-              <label className="text-xs font-bold text-slate-700">Hình thức tổ chức củng cố</label>
-              <div className="space-y-2">
-                {[
-                  {
-                    id: 'tpr',
-                    title: 'Phản xạ toàn thân TPR (Khuyên dùng)',
-                    desc: 'Nhìn tranh - Nghe khẩu lệnh - Cả lớp làm động tác giải phóng năng lượng'
-                  },
-                  {
-                    id: 'game',
-                    title: 'Trò chơi phản xạ nhanh & Đập thẻ tranh',
-                    desc: 'Trò "Koko Says", "Bốc hộp thần kỳ" và thi đua đập tay theo nhóm'
-                  },
-                  {
-                    id: 'interactive',
-                    title: 'Đố vui cá nhân & Đập tay High-Five',
-                    desc: 'Khích lệ từng bé còn ngập ngừng lên phát âm và đập tay nhận sao thưởng'
-                  }
-                ].map((item) => (
-                  <div
-                    key={item.id}
+                  <button
+                    type="button"
                     onClick={() => {
                       sfx.playPop();
-                      setReviewStyle(item.id as any);
+                      setLaunchGameRunner(true);
                     }}
-                    className={`rounded-2xl border p-3 cursor-pointer transition-all ${
-                      reviewStyle === item.id
-                        ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-500/20'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-slate-900">{item.title}</span>
-                      {reviewStyle === item.id && <Check size={14} className="text-amber-800 font-bold" />}
-                    </div>
-                    <p className="text-[11px] text-slate-600 font-medium mt-1 leading-snug">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Teacher Note */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700">
-                Ghi chú riêng của cô (Tùy chọn)
-              </label>
-              <textarea
-                rows={2}
-                maxLength={500}
-                value={teacherNote}
-                onChange={(e) => setTeacherNote(e.target.value)}
-                placeholder="Ví dụ: Gọi bé An và bé Bình lên chơi trước vì 2 bé còn nhầm từ này..."
-                className="mt-1.5 w-full rounded-2xl border border-slate-200 p-3 text-xs font-normal focus:outline-none focus:border-amber-500 bg-slate-50"
-              />
-            </div>
-          </div>
-
-          {/* Quick Tip Card */}
-          <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 shadow-xs">
-            <div className="flex items-start gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-700 text-white font-bold">
-                <Lightbulb size={18} />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-xs font-black text-amber-950 uppercase tracking-wider">
-                  Mẹo Sư Phạm Ôn Lỗ Hổng Cho Trẻ
-                </h3>
-                <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
-                  Trẻ mầm non quên từ vựng vì chưa có liên kết hành động. Khi cho bé làm động tác TPR hài hước (ví dụ: làm tai mèo vuốt râu cho từ <em>cat</em>), não bộ của trẻ ghi nhớ nhanh gấp 3 lần so với chỉ đọc suông!
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Panel: Instant Actionable Remediation Plan */}
-        <div className="lg:col-span-7 space-y-6">
-          {error && (
-            <div className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-              <AlertCircle size={18} className="shrink-0 text-rose-800" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {selectedGapWords.length === 0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center space-y-3 shadow-xs">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black text-2xl">
-                🎯
-              </div>
-              <h3 className="text-base font-black text-slate-800">
-                Chưa chọn từ vựng cần ôn tập
-              </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Vui lòng tích chọn ít nhất 1 từ vựng bị cảnh báo ở cột bên trái để hệ thống hiển thị kịch bản ôn luyện chi tiết cho lớp.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Header Card */}
-              <div className="rounded-3xl border border-amber-200 bg-white p-6 space-y-4 shadow-xs">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-950 border border-amber-300">
-                        🎯 KẾ HOẠCH ÔN TẬP TRỌNG TÂM
-                      </span>
-                      <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-extrabold text-teal-900 border border-teal-200">
-                        {currentClass?.name || 'Lớp mầm non'}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 border border-slate-200">
-                        ⏱️ {duration} phút
-                      </span>
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 pt-1">
-                      Kịch Bản Khắc Phục {activeReviewWords.length} Từ Vựng Cảnh Báo
-                    </h2>
-                  </div>
-
-                  {/* Actions: Copy & Print */}
-                  <div className="flex items-center gap-2 print:hidden">
-                    <button
-                      type="button"
-                      onClick={handleCopyPlan}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-                    >
-                      {copiedPlan ? <Check size={14} className="text-emerald-700" /> : <Copy size={14} />}
-                      {copiedPlan ? 'Đã sao chép!' : 'Sao chép'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handlePrint}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-                    >
-                      <Printer size={14} /> In kế hoạch
-                    </button>
-                  </div>
-                </div>
-
-                {/* Focus Warning Words with TPR gestures */}
-                <div className="space-y-3">
-                  <span className="text-xs font-black uppercase tracking-wider text-amber-950 block flex items-center gap-1.5">
-                    <Flame size={14} className="text-amber-600" />
-                    <span>Bộ thẻ từ vựng & Cử chỉ TPR củng cố ({activeReviewWords.length} từ)</span>
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {activeReviewWords.map((word) => (
-                      <div
-                        key={word.english}
-                        className="rounded-2xl border-2 border-amber-200/80 bg-amber-50/50 p-4 space-y-2 shadow-2xs hover:border-amber-400 transition-all"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handlePlayWord(word.english)}
-                              className="w-7 h-7 rounded-lg bg-white border border-amber-300 text-amber-700 flex items-center justify-center hover:bg-amber-600 hover:text-white transition-colors"
-                            >
-                              <Volume2 size={14} className={playingWord === word.english ? 'animate-bounce' : ''} />
-                            </button>
-                            <span className="font-black text-base text-slate-900">{word.english}</span>
-                            <span className="text-xs text-slate-600 font-semibold">({word.vietnamese})</span>
-                          </div>
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-200 text-amber-900 border border-amber-300">
-                            Cảnh báo
-                          </span>
-                        </div>
-
-                        {/* TPR Action Box */}
-                        <div className="rounded-xl bg-white p-2.5 border border-amber-200 text-xs font-medium text-amber-950 space-y-1">
-                          <div className="font-bold text-[11px] text-amber-800 flex items-center gap-1">
-                            <span>🤸 Động tác TPR của bé:</span>
-                          </div>
-                          <p className="leading-snug">{word.tprGesture}</p>
-                        </div>
-
-                        {/* Teacher Talk Cue */}
-                        <div className="text-[11px] text-slate-600 italic font-medium">
-                          💬 Khẩu lệnh cô: "Look at teacher! Listen: <strong>{word.english}</strong>! Everyone say: <strong>{word.english}</strong>!"
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                    <Play size={16} className="fill-white" />
+                    <span>Mở Trò Chơi Ôn Tập Cho Cả Lớp (Màn hình lớn)</span>
+                  </button>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* 3 Practical Remediation Stations */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <Sparkles size={18} className="text-amber-600" />
-                    Kịch Bản 3 Trạm Ôn Tập Thực Tế ({duration} Phút)
+          {/* ── RIGHT PANEL: QUICK THUMBNAIL SELECTOR & REMEDIATION SUMMARY ── */}
+          <div className="lg:col-span-4 space-y-5">
+            {/* Warning Word Selector Grid */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Flame size={16} className="text-amber-600" />
+                  <h3 className="text-sm font-black text-slate-900">
+                    Từ Lỗ Hổng Của Lớp ({activeReviewWords.length})
                   </h3>
-                  <span className="text-xs text-slate-500 font-bold">Thực hành phản xạ</span>
-                </div>
-
-                {/* Station 1 */}
-                <div className="rounded-3xl border border-sky-200 bg-white overflow-hidden shadow-xs">
-                  <div className="bg-sky-50 px-5 py-3.5 border-b border-sky-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-7 h-7 rounded-xl bg-sky-600 text-white font-black text-xs flex items-center justify-center">
-                        1
-                      </span>
-                      <h4 className="text-sm font-black text-slate-900">
-                        Trạm 1: Khởi động & Nhận diện phản xạ (3–5 phút)
-                      </h4>
-                    </div>
-                    <span className="text-xs font-bold text-sky-800 bg-white px-2.5 py-0.5 rounded-lg border border-sky-200">
-                      ⏱️ 3–5p
-                    </span>
-                  </div>
-                  <div className="p-5 space-y-3 text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
-                    <p>
-                      • <strong>Hoạt động:</strong> Cô giơ lần lượt thẻ tranh các từ <span className="font-bold text-amber-800">({gapWordsString})</span> hoặc dùng màn chiếu.
-                    </p>
-                    <p>
-                      • <strong>Phương pháp:</strong> Cô làm mẫu động tác TPR thật hài hước, cả lớp vừa bắt chước động tác vừa hô to từ vựng theo nhịp vỗ tay 1-2-3.
-                    </p>
-                    <div className="p-3 rounded-2xl bg-sky-50/70 border border-sky-100 text-sky-950 font-semibold text-xs">
-                      💡 <em>Ghi chú sư phạm:</em> Tăng tốc độ hô nhanh dần để tạo không khí sôi nổi, trẻ hào hứng giải phóng năng lượng.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Station 2 */}
-                <div className="rounded-3xl border border-amber-200 bg-white overflow-hidden shadow-xs">
-                  <div className="bg-amber-50 px-5 py-3.5 border-b border-amber-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-7 h-7 rounded-xl bg-amber-600 text-white font-black text-xs flex items-center justify-center">
-                        2
-                      </span>
-                      <h4 className="text-sm font-black text-slate-900">
-                        Trạm 2: Trò chơi vận động củng cố ({duration === 10 ? '4–5' : duration === 15 ? '7–8' : '10–12'} phút)
-                      </h4>
-                    </div>
-                    <span className="text-xs font-bold text-amber-800 bg-white px-2.5 py-0.5 rounded-lg border border-amber-200">
-                      ⏱️ {duration === 10 ? '4–5' : duration === 15 ? '7–8' : '10–12'}p
-                    </span>
-                  </div>
-                  <div className="p-5 space-y-3 text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
-                    <p>
-                      • <strong>Trò chơi gợi ý:</strong> <em>"Koko Says (Simon Says)"</em> hoặc <em>"Đập thẻ tranh (Flashcard Slap)"</em>.
-                    </p>
-                    <p>
-                      • <strong>Luật chơi đơn giản:</strong> Cô dán các thẻ tranh lên bảng hoặc rải dưới sàn. Khi cô đọc to một từ vựng bị cảnh báo, đại diện 2 bạn từ 2 đội chạy lên chạm nhanh vào thẻ tranh và đọc to lại từ đó.
-                    </p>
-                    <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-100 text-amber-950 font-semibold text-xs">
-                      ⭐ Cả 2 bạn đều được cô tặng sticker/sao khen ngợi; không dùng hình thức phạt để bé không bị rụt rè.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Station 3 */}
-                <div className="rounded-3xl border border-emerald-200 bg-white overflow-hidden shadow-xs">
-                  <div className="bg-emerald-50 px-5 py-3.5 border-b border-emerald-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">
-                        3
-                      </span>
-                      <h4 className="text-sm font-black text-slate-900">
-                        Trạm 3: Thử thách cá nhân & Đập tay High-Five (3–5 phút)
-                      </h4>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-800 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-200">
-                      ⏱️ 3–5p
-                    </span>
-                  </div>
-                  <div className="p-5 space-y-3 text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
-                    <p>
-                      • <strong>Tương tác cá nhân:</strong> Cô nhẹ nhàng mời các bạn còn ngập ngừng trong lớp lên bốc 1 thẻ tranh bất kỳ.
-                    </p>
-                    <p>
-                      • <strong>Khen ngợi nồng nhiệt:</strong> Khi bé đọc đúng, cô và cả lớp cùng reo hò <em>"Bravo!"</em> và đập tay High-Five thật kêu với bé!
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Parent Message Suggestion Card */}
-              <div className="rounded-3xl border border-teal-200 bg-teal-50/80 p-5 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-teal-950 font-black text-sm">
-                    <MessageCircle size={18} className="text-teal-700" />
-                    <span>Gợi Ý Tin Nhắn Sổ Liên Lạc Gửi Phụ Huynh Tối Nay</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyParentMessage}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-teal-200 text-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors cursor-pointer"
-                  >
-                    {copiedParentMsg ? <Check size={13} className="text-emerald-700" /> : <Copy size={13} />}
-                    <span>{copiedParentMsg ? 'Đã sao chép tin nhắn!' : 'Sao chép tin nhắn'}</span>
-                  </button>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-white border border-teal-200/80 text-xs text-slate-700 leading-relaxed font-medium">
-                  "Chào ba mẹ! Hôm nay các bé lớp {currentClass?.name || ''} đã cùng cô ôn luyện phản xạ các từ vựng: <strong className="text-teal-900">{gapWordsString}</strong>. Ba mẹ hãy dành 5 phút buổi tối mở ứng dụng KC English Kids mục <strong>'5 Phút Ôn Tập Ở Nhà'</strong> để cùng bé đố vui và nhận 3 sao may mắn nhé! ❤️"
-                </div>
-              </div>
-
-              {/* Bottom Quick Action Bar */}
-              <div className="rounded-3xl border border-amber-300 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-6 text-white flex flex-wrap items-center justify-between gap-4 print:hidden shadow-md">
-                <div className="space-y-1">
-                  <div className="text-base font-black flex items-center gap-2">
-                    <CheckCircle2 size={18} className="text-amber-200" />
-                    <span>Sẵn Sàng Mở Lớp Cho Tiết Ôn Tập Này?</span>
-                  </div>
-                  <p className="text-xs text-amber-100 font-medium max-w-lg">
-                    Hệ thống sẽ nạp danh sách {activeReviewWords.length} từ cảnh báo này vào màn chiếu buổi dạy để cô và các bé cùng ôn luyện trực tiếp.
-                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={handleLaunchLiveSession}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3.5 text-sm font-black text-amber-950 hover:bg-amber-100 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+                  onClick={handleSelectAll}
+                  className="text-xs font-bold text-amber-800 hover:underline cursor-pointer"
                 >
-                  <Rocket size={18} className="text-amber-700" />
-                  <span>Vào Lớp Dạy Tiết Ôn Tập Ngay</span>
+                  {selectedGapWords.length === classGaps.length ? 'Bỏ chọn' : 'Chọn tất cả'}
                 </button>
               </div>
+
+              {/* Thumbnails list */}
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
+                {classGaps.map((word) => {
+                  const isSelected = selectedGapWords.includes(word.english);
+                  const isCurrentActive = activeReviewWords[activeCardIndex]?.english === word.english;
+                  const art = wordArt(word.english);
+                  const img = word.imageUrl || art?.url || null;
+
+                  return (
+                    <div
+                      key={word.english}
+                      onClick={() => {
+                        const targetIdx = activeReviewWords.findIndex((w) => w.english === word.english);
+                        if (targetIdx >= 0) {
+                          sfx.playPop();
+                          setIsFlipped(false);
+                          setActiveCardIndex(targetIdx);
+                        } else {
+                          handleToggleWord(word.english);
+                        }
+                      }}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isCurrentActive
+                          ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-300 shadow-xs'
+                          : isSelected
+                          ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
+                          : 'border-slate-200 bg-white opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
+                          {img ? (
+                            <img src={img} alt={word.english} className="max-h-full max-w-full object-contain" />
+                          ) : (
+                            <span className="text-lg">🎴</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900 leading-tight">
+                            {word.english}
+                          </p>
+                          <p className="text-[11px] font-semibold text-slate-500">
+                            {word.vietnamese}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          aria-label={`Nghe phát âm ${word.english}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayWord(word.english, word.audioUrl);
+                          }}
+                          className="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                        >
+                          <Volume2 size={14} className={playingWord === word.english ? 'animate-bounce text-amber-600' : ''} />
+                        </button>
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                            word.severity === 'critical'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                              : 'bg-amber-100 text-amber-800 border border-amber-200'
+                          }`}
+                        >
+                          {word.severity === 'critical' ? 'Gấp' : 'Nên ôn'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {/* Practical Teaching Guide Callout */}
+            <div className="rounded-3xl border border-teal-200 bg-teal-50/70 p-5 space-y-2.5 shadow-xs">
+              <div className="flex items-center gap-2 text-teal-900 font-black text-xs uppercase tracking-wider">
+                <Sparkles size={15} className="text-teal-700" />
+                <span>Phương Pháp Ôn Lỗ Hổng Mầm Non</span>
+              </div>
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                • <strong>Nguyên tắc vàng:</strong> Kết hợp hình ảnh Flashcard + Nghe phát âm to + Bé thực hiện động tác vận động hình thể TPR (vẫy tay, giậm chân, làm tai thỏ...).
+              </p>
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                • <strong>Khích lệ & Không phạt:</strong> Trẻ mầm non chỉ nhớ lâu khi được vui cười và đập tay khen ngợi. Tuyệt đối không chê bai khi bé đọc nhầm!
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── FULLSCREEN GAMERUNNER MODAL ── */}
+      {launchGameRunner && reviewGames[0] && (
+        <GameRunner
+          allowedGameIds={reviewGames.map((g) => g.id)}
+          config={{
+            unitId: 'gaps-review',
+            lessonId: 'class-gaps-' + (selectedClassId || 'active'),
+            gameId: reviewGames[0].id,
+            vocabularyList: gameRunnerWords,
+            ageGroup: currentClass?.ageGroupCode || '3-4',
+            childId: 'teacher-demo'
+          }}
+          onExit={() => setLaunchGameRunner(false)}
+          onGameComplete={() => {
+            setLaunchGameRunner(false);
+            sfx.playSuccess();
+            sfx.playStarFanfare();
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -12,7 +12,7 @@ async function buildReport(db, classroom, lessonId) {
   const vocabularyIds = [...new Set((selected ? [selected] : lessons).flatMap(lesson => (lesson.vocabularyItems || []).map(idOf)))];
   const [masteryRows, vocabularies] = await Promise.all([
     db.VocabularyMastery.find({ student: { $in: classroom.students || [] }, vocabulary: { $in: vocabularyIds } }).select('student vocabulary correctCount attemptCount masteryLevel').lean(),
-    db.Vocabulary.find({ _id: { $in: vocabularyIds }, status: 'ACTIVE' }).select('english vietnamese difficulty').lean(),
+    db.Vocabulary.find({ _id: { $in: vocabularyIds }, status: 'ACTIVE' }).select('english vietnamese difficulty imageUrl audioUrl phonetic pronunciation exampleSentence').lean(),
   ]);
   const data = require('./aiService').detectClassGaps({ students: classroom.students || [], vocabularies, masteryRows });
   const byWord = new Map(data.gaps.map(gap => [gap.vocabularyId, gap]));

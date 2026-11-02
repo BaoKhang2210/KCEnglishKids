@@ -248,7 +248,7 @@ function createAiController({ db = models, rewards = computeRewards, submissions
         }
         vocabQuery = { _id: { $in: practicedIds } };
       }
-      const vocabularies = await db.Vocabulary.find(vocabQuery).select('english vietnamese difficulty').lean();
+      const vocabularies = await db.Vocabulary.find(vocabQuery).select('english vietnamese difficulty imageUrl audioUrl phonetic pronunciation exampleSentence').lean();
       const data = ai.detectClassGaps({ students: studentIds, vocabularies, masteryRows });
       res.json({ success: true, data: { ...data, classroomName: classroom.name, lessonTitle: lesson?.title || null } });
     } catch (error) { next(error); }

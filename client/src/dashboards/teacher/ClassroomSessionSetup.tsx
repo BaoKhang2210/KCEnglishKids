@@ -170,13 +170,20 @@ export const ClassroomSessionSetup: React.FC = () => {
 
           if (slotLessonId) {
             setSelectedLessonId(String(slotLessonId));
-          } else if (classData?.currentLesson) {
-            const cId = typeof classData.currentLesson === 'object' ? classData.currentLesson._id : classData.currentLesson;
+          } else {
+            const cId = classData?.currentLesson
+              ? (typeof classData.currentLesson === 'object' ? classData.currentLesson._id : classData.currentLesson)
+              : null;
             const completed = new Set([
-              ...(classData.completedLessons || []).map((item: any) => String(item?._id || item)),
+              ...(classData?.completedLessons || []).map((item: any) => String(item?._id || item)),
               ...list.filter(countsTowardCurriculum).map(item => String(item.lesson?._id || item.lesson))
             ]);
-            if (cId && !completed.has(String(cId))) setSelectedLessonId(String(cId));
+            if (cId && !completed.has(String(cId))) {
+              setSelectedLessonId(String(cId));
+            } else {
+              const nextUntaught = (content?.lessons || []).find((l: any) => !completed.has(String(l._id)));
+              if (nextUntaught) setSelectedLessonId(String(nextUntaught._id));
+            }
           }
         }
 

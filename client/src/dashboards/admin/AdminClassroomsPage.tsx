@@ -780,7 +780,7 @@ export const AdminClassroomsPage: React.FC = () => {
             className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all  cursor-pointer"
           >
             <Plus size={20} />
-            <span>+ Tạo Lớp Học Mới</span>
+            <span>Tạo Lớp Học Mới</span>
           </button>
         </div>
       </div>
