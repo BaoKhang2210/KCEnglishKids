@@ -115,6 +115,7 @@ exports.createSession = wrap(async (req, res) => {
   const session = await ClassroomSession.create({ classroom: room._id, teacher: req.user._id, lesson: lesson?._id || null,
     title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
     status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,
+    isGapReview: body.isGapReview === true || body.reviewMode === true || plan?.isGapReview === true || plan?.meta?.isReviewPlan === true,
     activities: activityIds, lessonPlan: plan, teachingGoals: lessonGuide(lesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(lesson,room.ageGroupCode),
     studentScores: roster.map(student => ({ student, attendance: map.get(idOf(student)) || 'PRESENT' }))
   });
@@ -193,7 +194,7 @@ exports.endSession = wrap(async (req, res) => {
     const lesson = session.lesson ? await Lesson.findById(session.lesson).populate('vocabularyItems') : null;
     const guide = session.teachingGuideSnapshot || lessonGuide(lesson,session.ageGroup);
     if(session.teachingGoals?.length)guide.goals=session.teachingGoals;
-    session.teachingOutcome = closureDecision(req.body||{},guide,session.studentScores);
+    session.teachingOutcome = closureDecision(session.isGapReview ? { ...(req.body || {}), coverage: 'REVIEW' } : req.body||{},guide,session.studentScores);
     session.status = 'COMPLETED'; session.endedAt = new Date(); rules.summarize(session);
   }, true);
   // Idempotent progress update and automatic advance to the next untaught curriculum lesson

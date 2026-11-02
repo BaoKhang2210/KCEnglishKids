@@ -160,9 +160,13 @@ async function getHomeReview(child) {
     const sortedWords = [...activeLessonWords].sort((a, b) => {
       const mA = masteryRecords.find(m => String(m.vocabulary) === String(a._id));
       const mB = masteryRecords.find(m => String(m.vocabulary) === String(b._id));
-      const scoreA = mA ? ((mA.wrongCount || 0) * 2 - (mA.masteryLevel || 0)) : 0;
-      const scoreB = mB ? ((mB.wrongCount || 0) * 2 - (mB.masteryLevel || 0)) : 0;
-      return scoreB - scoreA;
+      const wrongA = mA ? (mA.wrongCount || 0) : 0;
+      const wrongB = mB ? (mB.wrongCount || 0) : 0;
+      if (wrongA !== wrongB) return wrongB - wrongA;
+      const hasRecordA = Boolean(mA);
+      const hasRecordB = Boolean(mB);
+      if (hasRecordA !== hasRecordB) return hasRecordA ? -1 : 1;
+      return 0;
     });
 
     words = sortedWords.slice(0, 5).map(w => ({

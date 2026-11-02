@@ -63,6 +63,7 @@ export interface LessonPlanRequest {
   vocabularyList?: Array<{ english: string; vietnamese?: string; pronunciation?: string }>;
   sentencePatterns?: Array<{ english: string; vietnamese?: string }>;
   reviewMode?: boolean;
+  reviewVocabularyIds?: string[];
   gapWords?: string;
 }
 
@@ -87,6 +88,8 @@ export interface LessonPlanPhase {
 }
 
 export interface LessonPlan {
+  isGapReview?: boolean;
+  reviewFocus?: Array<{ vocabularyId?: string; english: string; vietnamese?: string; reasons?: string[] }>;
   meta: {
     lessonTitle: string;
     targetTopic: string;
@@ -373,6 +376,7 @@ export interface SessionSummary {
 }
 
 export interface ClassroomSession {
+  isGapReview?: boolean;
   teachingGuide?: import('../components/teacher/TeachingGuidePanel').TeachingGuide;
   teachingGoals?: {key:string;label:string}[];
   teachingOutcome?: {coverage:'COMPLETE'|'CONTINUE'|'REVIEW';goalsCovered:string[];reflection?:string};

@@ -362,6 +362,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         sessionNumber: Number(sessionNumber) || 1,
         includeWarmup: includeWarmup,
         lessonPlan: preparedPlan,
+        isGapReview: searchParams.get('reviewMode') === 'true' || preparedPlan?.isGapReview === true || preparedPlan?.meta?.isReviewPlan === true,
         attendanceRecords,
         attendanceDate,
         attendanceNote

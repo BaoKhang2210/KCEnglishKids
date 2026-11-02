@@ -133,7 +133,7 @@ export const TeacherLessonPlanner: React.FC = () => {
               setClassGaps(defaultWords);
               setSelectedGapWords(defaultWords.map((w) => w.english));
             }
-          }).catch(() => {});
+          }).catch(() => { });
         }
       })
       .catch((err) => {
@@ -275,7 +275,7 @@ export const TeacherLessonPlanner: React.FC = () => {
           spread: 60,
           origin: { y: 0.6 }
         });
-      } catch {}
+      } catch { }
 
       setTimeout(() => {
         if (gameRound < totalRounds) {
@@ -298,7 +298,7 @@ export const TeacherLessonPlanner: React.FC = () => {
   // Copy parent notification message for Zalo
   const handleCopyParentMessage = () => {
     sfx.playPop();
-    const msg = `[KC English Kids - Lớp ${currentClass?.name || 'Mầm non'}] Chào ba mẹ! Hôm nay các bé đã cùng cô ôn luyện phản xạ các từ vựng: ${gapWordsString}. Ba mẹ hãy dành 5 phút buổi tối mở ứng dụng KC English Kids mục "5 Phút Ôn Tập Ở Nhà" để cùng bé đố vui và nhận 3 sao may mắn nhé! ❤️`;
+    const msg = `[KC English Kids - Lớp ${currentClass?.name || 'Mầm non'}] Chào ba mẹ! Hôm nay các bé đã cùng cô ôn luyện các từ vựng: ${gapWordsString}. Gia đình có thể cùng bé nghe và chỉ tranh trong khoảng 5 phút, dừng khi bé muốn nghỉ. Buổi ôn này chỉ ghi nhận tiến bộ, không cộng sao. ❤️`;
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(msg).then(() => {
         setCopiedParentMsg(true);
@@ -365,8 +365,9 @@ export const TeacherLessonPlanner: React.FC = () => {
               className="inline-flex items-center gap-1.5 rounded-2xl bg-black/15 hover:bg-black/25 border border-white/30 px-4 py-3 text-xs sm:text-sm font-bold text-white transition-all cursor-pointer backdrop-blur-xs"
             >
               {copiedParentMsg ? <Check size={16} className="text-emerald-300" /> : <Copy size={16} />}
-              <span>{copiedParentMsg ? 'Đã sao chép tin nhắn Zalo!' : 'Sao chép tin nhắn Zalo gửi phụ huynh'}</span>
+              <span>{copiedParentMsg ? 'Đã sao chép tin nhắn!' : 'Sao chép tin nhắn dặn dò phụ huynh'}</span>
             </button>
+            
           </div>
         </div>
       </div>
@@ -404,11 +405,10 @@ export const TeacherLessonPlanner: React.FC = () => {
               sfx.playPop();
               setActiveTab('flashcard');
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              activeTab === 'flashcard'
-                ? 'bg-white text-amber-900 shadow-xs scale-102'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${activeTab === 'flashcard'
+              ? 'bg-white text-amber-900 shadow-xs scale-102'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             <Layers size={16} className={activeTab === 'flashcard' ? 'text-amber-600' : ''} />
             <span>🎴 Thẻ Flashcard Tương Tác</span>
@@ -419,11 +419,10 @@ export const TeacherLessonPlanner: React.FC = () => {
               sfx.playPop();
               setActiveTab('game');
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-              activeTab === 'game'
-                ? 'bg-amber-500 text-white shadow-xs scale-102'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${activeTab === 'game'
+              ? 'bg-amber-500 text-white shadow-xs scale-102'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             <Gamepad2 size={16} />
             <span>🎮 Trò Chơi Ôn Tập Nhanh</span>
@@ -526,9 +525,8 @@ export const TeacherLessonPlanner: React.FC = () => {
                           type="button"
                           aria-label={`Nghe phát âm từ ${currentCard?.english}`}
                           onClick={() => handlePlayWord(currentCard?.english || '', currentCard?.audioUrl)}
-                          className={`absolute top-2 right-2 w-12 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer ${
-                            playingWord === currentCard?.english ? 'animate-bounce ring-4 ring-amber-300' : ''
-                          }`}
+                          className={`absolute top-2 right-2 w-12 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer ${playingWord === currentCard?.english ? 'animate-bounce ring-4 ring-amber-300' : ''
+                            }`}
                         >
                           <Volume2 size={24} />
                         </button>
@@ -629,11 +627,10 @@ export const TeacherLessonPlanner: React.FC = () => {
                           setIsFlipped(false);
                           setActiveCardIndex(idx);
                         }}
-                        className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                          idx === activeCardIndex
-                            ? 'w-7 bg-amber-500'
-                            : 'w-2.5 bg-slate-200 hover:bg-slate-300'
-                        }`}
+                        className={`h-2.5 rounded-full transition-all cursor-pointer ${idx === activeCardIndex
+                          ? 'w-7 bg-amber-500'
+                          : 'w-2.5 bg-slate-200 hover:bg-slate-300'
+                          }`}
                         title={`Xem thẻ ${idx + 1}`}
                       />
                     ))}
@@ -814,13 +811,12 @@ export const TeacherLessonPlanner: React.FC = () => {
                           handleToggleWord(word.english);
                         }
                       }}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                        isCurrentActive
-                          ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-300 shadow-xs'
-                          : isSelected
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isCurrentActive
+                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-300 shadow-xs'
+                        : isSelected
                           ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
                           : 'border-slate-200 bg-white opacity-60 hover:opacity-100'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
@@ -853,11 +849,10 @@ export const TeacherLessonPlanner: React.FC = () => {
                           <Volume2 size={14} className={playingWord === word.english ? 'animate-bounce text-amber-600' : ''} />
                         </button>
                         <span
-                          className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                            word.severity === 'critical'
-                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                              : 'bg-amber-100 text-amber-800 border border-amber-200'
-                          }`}
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md ${word.severity === 'critical'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}
                         >
                           {word.severity === 'critical' ? 'Gấp' : 'Nên ôn'}
                         </span>
@@ -890,6 +885,7 @@ export const TeacherLessonPlanner: React.FC = () => {
         <GameRunner
           allowedGameIds={reviewGames.map((g) => g.id)}
           config={{
+            preview: true,
             unitId: 'gaps-review',
             lessonId: 'class-gaps-' + (selectedClassId || 'active'),
             gameId: reviewGames[0].id,

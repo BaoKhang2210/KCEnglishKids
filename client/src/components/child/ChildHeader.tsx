@@ -8,7 +8,7 @@ import { ChildBadgesModal } from './ChildBadgesModal';
 import { ParentNotebookModal } from './ParentNotebookModal';
 import { DailyStreakBadge } from './DailyStreakBadge';
 import { DailyStreakModal } from './DailyStreakModal';
-import { streakApi } from '../../services/api';
+import { streakApi, parentNotificationApi } from '../../services/api';
 import type { ChildStreakData } from '../../types';
 
 interface ChildHeaderProps {
@@ -34,6 +34,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const [showParentModal, setShowParentModal] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [localStreakData, setLocalStreakData] = useState<ChildStreakData | null>(propStreakData || null);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   useEffect(() => {
     if (propStreakData) {
@@ -50,6 +51,16 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
         })
         .catch((err) => {
           console.error('Failed to load streak in header:', err);
+        });
+
+      parentNotificationApi.getChildNotificationsForParent(childId)
+        .then((res) => {
+          const list = res.data || [];
+          const unread = list.filter((n: any) => !n.readAt).length;
+          setUnreadNotifCount(unread);
+        })
+        .catch(() => {
+          setUnreadNotifCount(0);
         });
     }
   }, [propStreakData, user]);
@@ -238,6 +249,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => {
                   sfx.playPop();
                   setShowParentModal(true);
+                  setUnreadNotifCount(0);
                 }}
                 title="Mở Sổ liên lạc của bé & Lời nhắn từ cô giáo"
                 aria-label="Sổ liên lạc của bé"
@@ -252,7 +264,9 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 >
                   Sổ liên lạc
                 </span>
-                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
+                )}
               </button>
 
               {/* Change Password */}
@@ -287,7 +301,10 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
         <ParentNotebookModal
           childId={user.id || (user as any)._id}
           childName={user.name}
-          onClose={() => setShowParentModal(false)}
+          onClose={() => {
+            setShowParentModal(false);
+            setUnreadNotifCount(0);
+          }}
         />
       )}
 

@@ -49,6 +49,7 @@ const questionResultSchema = new mongoose.Schema({
 
 const classroomSessionSchema = new mongoose.Schema(
   {
+    isGapReview: { type: Boolean, default: false },
     classroom: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ClassRoom',
