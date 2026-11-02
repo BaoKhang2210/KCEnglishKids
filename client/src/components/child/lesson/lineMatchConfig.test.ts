@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   LINE_MATCH_MAX_PAIRS,
+  LINE_MATCH_HINT_ATTEMPTS,
+  LINE_MATCH_REVEAL_ATTEMPTS,
   maxPairsThatFit,
   partitionRoundTwoBoards,
   boardOwnSizes,
@@ -9,6 +11,7 @@ import {
   shuffleRightColumn,
   markAbstractRoundTwoWords,
   rowHeightFor,
+  selectLineMatchDistractors,
 } from './lineMatchConfig';
 import type { Vocabulary } from '../../../types';
 
@@ -22,14 +25,12 @@ describe('partitionRoundTwoBoards', () => {
     expect(partitionRoundTwoBoards(7, 4)).toEqual([[0, 1, 2, 3], [4, 5, 6]]);
     expect(partitionRoundTwoBoards(2, 2)).toEqual([[0, 1]]);
     // 3 words & max 2 → singleton board borrows one word (appears twice)
-    expect(partitionRoundTwoBoards(3, 2)).toEqual([[0, 1], [2, 1]]);
+    expect(partitionRoundTwoBoards(3, 2)).toEqual([[0, 1], [2]]);
   });
 
-  it('borrows so every board has at least 2 items when possible', () => {
-    // 5 words & max 2 → [[0,1],[2,3],[4,3]] — the singleton board borrows index 3
-    expect(partitionRoundTwoBoards(5, 2)).toEqual([[0, 1], [2, 3], [4, 3]]);
-    // 7 words & max 2 → [[0,1],[2,3],[4,5],[6,5]]
-    expect(partitionRoundTwoBoards(7, 2)).toEqual([[0, 1], [2, 3], [4, 5], [6, 5]]);
+  it('never duplicates a target to fill a small board', () => {
+    expect(partitionRoundTwoBoards(5, 2)).toEqual([[0, 1], [2, 3], [4]]);
+    expect(partitionRoundTwoBoards(7, 2)).toEqual([[0, 1], [2, 3], [4, 5], [6]]);
   });
 
   it('covers every word at least once and keeps boards small', () => {
@@ -38,10 +39,7 @@ describe('partitionRoundTwoBoards', () => {
       const covered = new Set(boards.flat());
       expect(covered.size).toBe(total);
       expect([...covered].sort((a, b) => a - b)).toEqual(Array.from({ length: total }, (_, i) => i));
-      // A board exceeds maxPairs only by the single borrowed word.
-      for (const board of boards) {
-        expect(board.length).toBeLessThanOrEqual(max + 1);
-      }
+      for (const board of boards) expect(board.length).toBeLessThanOrEqual(max);
     }
   });
 
@@ -129,6 +127,32 @@ describe('LINE_MATCH_MAX_PAIRS', () => {
   it('matches the age hypotheses', () => {
     expect(LINE_MATCH_MAX_PAIRS['3-4']).toBe(2);
     expect(LINE_MATCH_MAX_PAIRS['4-5']).toBe(3);
-    expect(LINE_MATCH_MAX_PAIRS['5-6']).toBe(4);
+    expect(LINE_MATCH_MAX_PAIRS['5-6']).toBe(3);
+  });
+});
+
+describe('age-sensitive help', () => {
+  it('shows hints later for older learners and keeps an extra attempt after the 4–5 hint', () => {
+    expect(LINE_MATCH_HINT_ATTEMPTS).toEqual({ '3-4': 2, '4-5': 3, '5-6': Number.POSITIVE_INFINITY });
+    expect(LINE_MATCH_REVEAL_ATTEMPTS).toEqual({ '3-4': 3, '4-5': 4, '5-6': 3 });
+  });
+});
+
+describe('selectLineMatchDistractors', () => {
+  it('excludes board targets, duplicate meanings and duplicate artwork', () => {
+    const board = [word('father', '/father.png')];
+    const candidates = [
+      word('dad', '/dad.png'),
+      word('father', '/other-father.png'),
+      word('kitten', '/kitten.png'),
+      word('dog', '/dog.png'),
+      word('wolf', '/dog.png'),
+      word('bird', '/bird.png'),
+    ];
+    const chosen = selectLineMatchDistractors(board, candidates, 3);
+    expect(chosen.map((entry) => entry._id)).toEqual(expect.arrayContaining(['dog', 'bird']));
+    expect(chosen).toHaveLength(3);
+    expect(new Set(chosen.map((entry) => entry.imageUrl)).size).toBe(3);
+    expect(chosen.some((entry) => ['dad', 'father'].includes(String(entry._id)))).toBe(false);
   });
 });

@@ -40,7 +40,7 @@ export const ImageWordMatchEngine: React.FC<ImageWordMatchEngineProps> = ({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-0 w-full max-w-6xl mx-auto text-center select-none animate-fade-in">
+    <div className="practice-b-layout flex h-full min-h-0 min-w-0 flex-col items-center gap-[clamp(0.25rem,1vh,0.75rem)] overflow-visible py-1 w-full max-w-6xl mx-auto text-center select-none animate-fade-in">
       {/* Banner */}
       {!practiceMode && <span className="shrink-0 inline-flex items-center gap-3 bg-gradient-to-r from-amber-100 via-orange-100 to-yellow-100 text-amber-950 font-black px-6 py-2 rounded-full text-lg sm:text-2xl border-3 border-amber-300 shadow-md">
         <Sparkles className="w-6 h-6 text-amber-600" />
@@ -49,10 +49,10 @@ export const ImageWordMatchEngine: React.FC<ImageWordMatchEngineProps> = ({
 
       {/* Target Image Card at Top */}
       <div className={practiceMode
-        ? 'relative mb-5 shrink-0 bg-white rounded-4xl border-4 border-amber-400 p-3 sm:p-4 shadow-2xl w-[min(40vh,240px)] aspect-square flex items-center justify-center'
+        ? 'practice-b-target relative shrink-0 bg-white rounded-4xl border-4 border-amber-400 p-[clamp(0.375rem,1vh,1rem)] shadow-2xl h-[clamp(72px,22dvh,180px)] aspect-square flex items-center justify-center'
         : 'mb-5 bg-white rounded-4xl border-4 border-amber-400 p-6 sm:p-8 shadow-2xl w-full max-w-md flex flex-col items-center'}>
         <div className={practiceMode
-          ? 'w-full h-full flex items-center justify-center p-3 rounded-3xl bg-amber-50/60 border-2 border-amber-200'
+          ? 'w-full h-full min-h-0 flex items-center justify-center p-[clamp(0.25rem,1vh,0.75rem)] rounded-3xl bg-amber-50/60 border-2 border-amber-200'
           : 'w-52 h-52 sm:w-64 sm:h-64 mb-4 flex items-center justify-center p-3 rounded-3xl bg-amber-50/60 border-2 border-amber-200'}>
           {targetImage ? (
             <img
@@ -89,18 +89,18 @@ export const ImageWordMatchEngine: React.FC<ImageWordMatchEngineProps> = ({
       )}
 
       {/* Choice Cards (2, 3, or 4 options) - Big Clear Word Blocks for 5-6 yo */}
-      <div className={`mt-5 grid ${question.options.length <= 2 ? 'grid-cols-2 max-w-3xl' : question.options.length === 3 ? 'grid-cols-3 max-w-5xl' : 'grid-cols-4 max-w-6xl'} grid-rows-1 gap-3 sm:gap-5 w-full mx-auto px-2`}>
+      <div className={`practice-b-choices mt-0 grid flex-1 min-h-0 h-full ${question.options.length <= 2 ? 'grid-cols-2 max-w-3xl' : question.options.length === 3 ? 'grid-cols-3 max-w-5xl' : 'grid-cols-4 max-w-6xl'} grid-rows-1 items-stretch gap-[clamp(0.375rem,1.2vw,1.25rem)] w-full mx-auto px-2 py-1`}>
         {question.options.map((opt) => {
           const isSelected = selectedOptionId === opt.id;
           const isRevealed = revealOptionId === opt.id && !isSelected;
           let cardStyle = 'border-slate-200 bg-white hover:border-amber-400 hover:scale-104 shadow-lg';
 
           if (isRevealed) {
-            cardStyle = 'border-emerald-500 bg-emerald-50 ring-8 ring-emerald-300 animate-pulse shadow-2xl';
+            cardStyle = 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 animate-pulse shadow-2xl';
           } else if (isSelected) {
             cardStyle = opt.isCorrect
-              ? 'border-emerald-500 bg-emerald-50 ring-8 ring-emerald-300 scale-105 shadow-2xl animate-soft-bounce'
-              : practiceMode ? 'border-amber-500 bg-amber-50 ring-8 ring-amber-300 animate-gentle-wobble' : 'border-rose-500 bg-rose-50 ring-8 ring-rose-300 animate-gentle-wobble';
+              ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 scale-105 shadow-2xl animate-soft-bounce'
+              : practiceMode ? 'border-amber-500 bg-amber-50 ring-4 ring-amber-300 animate-gentle-wobble' : 'border-rose-500 bg-rose-50 ring-4 ring-rose-300 animate-gentle-wobble';
           }
 
           return (
@@ -109,7 +109,7 @@ export const ImageWordMatchEngine: React.FC<ImageWordMatchEngineProps> = ({
               onClick={() => handleSelectOption(opt)}
               disabled={disabled || selectedOptionId !== null || disabledOptionIds.includes(opt.id)}
               aria-label={opt.text || 'Chọn từ'}
-              className={`btn-kid min-w-0 min-h-[clamp(96px,14vh,150px)] rounded-3xl border-4 p-3 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all relative group ${cardStyle}`}
+              className={`btn-kid min-w-0 min-h-[96px] h-full rounded-3xl border-4 p-[clamp(0.375rem,1vh,1rem)] flex flex-col items-center justify-center cursor-pointer transition-all relative group overflow-visible motion-reduce:transform-none ${cardStyle}`}
             >
               <span className="font-black text-3xl sm:text-4xl text-slate-800 capitalize font-display tracking-wide mb-1">
                 {opt.text}

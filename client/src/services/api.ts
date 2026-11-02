@@ -6,7 +6,15 @@ import type {
   SpeakingRequest,
   SpeakingFeedback,
   LessonPlanRequest,
-  LessonPlan
+  LessonPlan,
+  VideoSeriesSummary,
+  VideoSeriesDetail,
+  VideoSeriesListMeta,
+  VideoContinueItem,
+  VideoEpisodeProgress,
+  VideoEpisodeSummary,
+  VideoCue,
+  VideoProgressEvent
 } from '../types';
 
 const BASE_URL = '/api';
@@ -98,10 +106,12 @@ export const api = {
     return handleResponse(res);
   },
 
-  async put(endpoint: string, body: any) {
+  async put(endpoint: string, body: any, signal?: AbortSignal, keepalive = false) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'PUT',
       headers: getHeaders(),
+      signal,
+      keepalive,
       body: JSON.stringify(body)
     });
     return handleResponse(res);
@@ -206,6 +216,73 @@ export const topicsApi = {
   }
 };
 
+// Video learning library API
+export interface VideoSeriesQuery {
+  ageGroup?: string;
+  level?: string;
+  source?: string;
+  hasDubbing?: boolean;
+  favorite?: boolean;
+  search?: string;
+  childId?: string;
+}
+
+export const videoApi = {
+  listSeries: (query: VideoSeriesQuery = {}) => {
+    const params = new URLSearchParams();
+    if (query.ageGroup) params.append('ageGroup', query.ageGroup);
+    if (query.level) params.append('level', query.level);
+    if (query.source) params.append('source', query.source);
+    if (query.hasDubbing !== undefined) params.append('hasDubbing', query.hasDubbing ? '1' : '0');
+    if (query.favorite) params.append('favorite', '1');
+    if (query.search) params.append('search', query.search);
+    if (query.childId) params.append('childId', query.childId);
+    const qs = params.toString();
+    return api.get(`/videos/series${qs ? `?${qs}` : ''}`) as Promise<{
+      success: boolean;
+      data: VideoSeriesSummary[];
+      meta: VideoSeriesListMeta;
+    }>;
+  },
+  getSeries: (idOrSlug: string) =>
+    api.get(`/videos/series/${encodeURIComponent(idOrSlug)}`) as Promise<{
+      success: boolean;
+      data: VideoSeriesDetail;
+    }>,
+  getEpisode: (episodeId: string) =>
+    api.get(`/videos/episodes/${encodeURIComponent(episodeId)}`) as Promise<{
+      success: boolean;
+      data: { episode: VideoEpisodeSummary; series: VideoSeriesSummary };
+    }>,
+  getCues: (episodeId: string) =>
+    api.get(`/videos/episodes/${encodeURIComponent(episodeId)}/cues`) as Promise<{
+      success: boolean;
+      data: {
+        cues: VideoCue[];
+        count: number;
+        source: 'stored' | 'source' | 'none';
+        unavailable: boolean;
+      };
+    }>,
+  getContinue: () =>
+    api.get('/videos/continue') as Promise<{ success: boolean; data: VideoContinueItem[] }>,
+  saveProgress: (episodeId: string, event: VideoProgressEvent, keepalive = false) =>
+    api.put(`/videos/progress/${encodeURIComponent(episodeId)}`, { event }, undefined, keepalive) as Promise<{
+      success: boolean;
+      data: VideoEpisodeProgress & { updatedAt?: string; clipEnd: number };
+    }>,
+  toggleFavorite: (seriesId: string, favorite?: boolean) =>
+    api.post(`/videos/series/${encodeURIComponent(seriesId)}/favorite`, { favorite }) as Promise<{
+      success: boolean;
+      data: { favorite: boolean };
+    }>,
+  report: (episodeId: string, content: string, cueIdx?: number) =>
+    api.post('/videos/reports', { episodeId, content, cueIdx }) as Promise<{
+      success: boolean;
+      data: { _id: string; status: string; createdAt: string };
+    }>
+};
+
 // Lessons API
 export const lessonsApi = {
   getCurriculumPath: (ageGroup?: string, childId?: string) => {
@@ -283,7 +360,7 @@ export const stageProgressApi = {
   completeStage: async (
     childId: string,
     lessonId: string,
-    payload: { stage: 1 | 2 | 3; submissionId?: string; attemptToken?: string; visitedWordIds?: string[]; gameId?: string; answers?: Array<{wordId: string; round?: number; selectedId: string | null}> }
+    payload: { stage: 1 | 2 | 3; submissionId?: string; attemptToken?: string; visitedWordIds?: string[]; gameId?: string; answers?: Array<{wordId: string; round?: number; selectedId: string | null; wrongAttemptCount?: number; usedHint?: boolean}> }
   ) => {
     try {
       return await api.put(`/children/${childId}/progress/${lessonId}/stage`, payload);

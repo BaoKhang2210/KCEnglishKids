@@ -27,7 +27,7 @@ describe('durable learning synchronization',()=>{
   let release!:()=>void;const blocked=new Promise<void>(resolve=>{release=resolve;});
   const fetcher=vi.fn().mockImplementationOnce(async()=>{await blocked;return new Response('{"success":true}');}).mockImplementation(async()=>new Response('{"success":true}'));vi.stubGlobal('fetch',fetcher);
   const first=learningOutbox.enqueue('child-a','lesson-a',{stage:1});
-  const second=learningOutbox.enqueue('child-a','lesson-a',{stage:2});
+  const second=learningOutbox.enqueue('child-a','lesson-a',{stage:1});
   release();await Promise.all([first,second]);
   expect(fetcher).toHaveBeenCalledTimes(2);expect(learningOutbox.pending('child-a')).toHaveLength(0);
  });
@@ -36,8 +36,14 @@ describe('durable learning synchronization',()=>{
   await expect(learningOutbox.enqueue('child-a','lesson-a',{stage:1})).rejects.toThrow('quota');expect(fetch).not.toHaveBeenCalled();
  });
  it('keeps a rejected lesson visible and still synchronizes unrelated vocabulary',async()=>{
-  vi.stubGlobal('fetch',vi.fn().mockImplementation(async(url:string)=>url.includes('/stage')?new Response('{"message":"Lesson hidden"}',{status:409}):new Response('{"success":true}')));
+  const fetcher=vi.fn().mockImplementation(async(url:string)=>url.includes('/stage')?new Response('{"message":"Lesson hidden"}',{status:409}):new Response('{"success":true}'));vi.stubGlobal('fetch',fetcher);
   await expect(learningOutbox.enqueue('child-a','lesson-a',{stage:1})).rejects.toThrow('Lesson hidden');
+  const originalId=learningOutbox.pending('child-a')[0].payload.submissionId;
+  await learningOutbox.flush('child-a');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await learningOutbox.retryRejected('child-a');
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(learningOutbox.pending('child-a')[0].payload.submissionId).toBe(originalId);
   await learningOutbox.enqueueMastery('child-a','word-a',true);
   expect(learningOutbox.pending('child-a')).toHaveLength(1);
   expect(learningOutbox.pending('child-a')[0].error).toBe('Lesson hidden');
@@ -47,5 +53,15 @@ describe('durable learning synchronization',()=>{
   const res = await learningOutbox.enqueue('child-a','lesson-a',{stage:1});
   expect(res).toEqual({ success: true, offline: true });
   expect(learningOutbox.pending('child-a')).toHaveLength(1);
+ });
+ it('refreshes a missing Chặng 2 plan token before syncing saved answers',async()=>{
+  const fetcher=vi.fn()
+   .mockResolvedValueOnce(new Response('{"success":true,"data":{"stage2Token":"fresh-plan-token"}}',{status:200}))
+   .mockResolvedValueOnce(new Response('{"success":true}',{status:200}));
+  vi.stubGlobal('fetch',fetcher);
+  await learningOutbox.enqueue('child-a','lesson-a',{stage:2,answers:[{wordId:'word-a',round:1,selectedId:'word-a'}]});
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(fetcher.mock.calls[1][1].body).toContain('fresh-plan-token');
+  expect(learningOutbox.pending('child-a')).toHaveLength(0);
  });
 });

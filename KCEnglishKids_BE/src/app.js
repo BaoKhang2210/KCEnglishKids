@@ -53,6 +53,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/teacher/classroom-sessions', classroomSessionRoutes);
 app.use('/api/teacher/sentence-patterns', sentencePatternRoutes);
+app.use('/api/videos', require('./routes/videoRoutes'));
 
 // Error Handling Middlewares
 app.use(notFound);

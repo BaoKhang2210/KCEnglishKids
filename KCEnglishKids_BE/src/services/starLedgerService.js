@@ -1,8 +1,9 @@
 const { User, CurriculumUnit, Lesson, Progress, UnitCompletion, Activity, ActivityResult } = require('../models');
 const { calculateLessonStars } = require('./starService');
+const { completedStageCount, REQUIRED_STAGE3_GAMES: STAGE3_GAME_COUNT } = require('./stageStarPolicy');
 
 const STARS_PER_UNIT = 5;
-const REQUIRED_STAGE3_GAMES = 2;
+const REQUIRED_STAGE3_GAMES = STAGE3_GAME_COUNT;
 
 const numeric = (value) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
 
@@ -11,9 +12,8 @@ function resolveLessonStars(progress, activityRating) {
   const source = progress.completionSnapshot?.source;
   const stageBased = source === 'STAGES' || progress.stage1Completed || progress.stage2Completed || progress.stage3Completed || (progress.stage3Games || []).length > 0;
   if (stageBased) {
-    const stage3Complete = progress.stage3Completed || new Set(progress.stage3Games || []).size >= REQUIRED_STAGE3_GAMES;
-    // One star per completed stage; Stage 2 accuracy is practice feedback only.
-    return Number(Boolean(progress.stage1Completed)) + Number(Boolean(progress.stage2Completed)) + Number(Boolean(stage3Complete));
+    // Keep historical totals visible; stage completion is the sole source for new stars.
+    return Math.min(3, Math.max(numeric(progress.stars), completedStageCount(progress)));
   }
   const stars = source === 'CURRENT_ACTIVITIES' || source === 'LEGACY_PROGRESS'
     ? Math.max(numeric(progress.stars), activityRating?.completed ? numeric(activityRating.stars) : 0)

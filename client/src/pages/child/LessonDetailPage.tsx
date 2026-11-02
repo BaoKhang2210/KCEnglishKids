@@ -8,6 +8,7 @@ import type { Lesson, Vocabulary } from '../../types';
 import { sfx, stopWordAudio } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
 import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2PracticeFlow';
+import type { Stage2EvidenceAnswer, Stage2ServerReport } from '../../components/child/lesson/stage2ReportTypes';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer';
 import { GamesTab, REQUIRED_GAMES_TO_COMPLETE } from '../../games/hub/GamesTab';
@@ -18,6 +19,13 @@ import { getAvailableLessonGames } from '../../games/registry';
 import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
 
 const childIdFor = (user: any) => user?._id || user?.id || 'child_guest';
+const friendlySyncError = (message: string) => {
+  if (message.includes('Complete earlier lessons first')) return 'Bé cần hoàn thành bài học trước trong hành trình rồi mới lưu được chặng này.';
+  if (message.includes('Complete previous stages first')) return 'Hãy hoàn thành chặng trước rồi thử đồng bộ lại nhé.';
+  if (message.includes('Kế hoạch luyện tập hết hạn') || message.includes('Kế hoạch không khớp')) return 'Kế hoạch luyện tập đã thay đổi. Hãy mở lại bài khi có mạng và chơi lại chặng này.';
+  if (message.includes('Game targets do not match')) return 'Minigame đã thay đổi nên kết quả cũ chưa thể ghi nhận. Hãy mở lại bài khi có mạng và chơi lại minigame.';
+  return 'Máy chủ chưa nhận được kết quả này. Hãy kết nối mạng, mở lại bài và thử đồng bộ.';
+};
 const cache = {
   getItem(key: string) { try { return localStorage.getItem(key); } catch { return null; } },
   setItem(key: string, value: string) { try { localStorage.setItem(key, value); } catch { /* UI cache only */ } },
@@ -31,6 +39,7 @@ export const LessonDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [plan,setPlan] = useState<any>(null);
+  const [lessonProgress, setLessonProgress] = useState<any>(null);
   const [loadError,setLoadError] = useState('');
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +62,7 @@ export const LessonDetailPage: React.FC = () => {
     }
 
     let cancelled = false;
-    setLoading(true); setLesson(null); setPlan(null); setLoadError('');setCompletedGames([]);
+    setLoading(true); setLesson(null); setPlan(null); setLessonProgress(null); setLoadError('');setCompletedGames([]);
     const fetchLesson = async () => {
       try {
         if (!id) return;
@@ -76,6 +85,7 @@ export const LessonDetailPage: React.FC = () => {
           try {
             const progRes = await stageProgressApi.getLessonProgress(childId, id);
             if (cancelled) return;
+            setLessonProgress(progRes.data || null);
             const hasPending = learningOutbox.pending(childId).some(row => row.lessonId === id);
             if (hasPending) setCompletedGames(JSON.parse(cache.getItem(`kc_stage3_games_${childId}_${id}`) || '[]'));
             if (!hasPending && !progRes.data) {
@@ -172,7 +182,9 @@ export const LessonDetailPage: React.FC = () => {
         setSyncNotice('Kết quả đang chờ đồng bộ. Kết nối mạng để ghi nhận sao và mở chặng tiếp theo.');
         return false;
       }
-      setSyncNotice(learningOutbox.pending(childId).length ? 'Đã lưu bài này. Một số kết quả khác vẫn đang chờ đồng bộ.' : 'Đã lưu kết quả.');
+      // Successful progress is already reflected by the lesson UI. Avoid a
+      // persistent success banner over the learning activity.
+      setSyncNotice('');
       void refreshRewards();
       return true;
     } catch (error: any) {
@@ -181,11 +193,32 @@ export const LessonDetailPage: React.FC = () => {
     }
   };
   useEffect(() => {
-    const status = () => { setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : ''); refresh(n => n + 1); };
+    const status = () => {
+      const pending = learningOutbox.pending(childId);
+      const rejected = learningOutbox.rejected(childId);
+      setSyncNotice(!pending.length ? '' : rejected
+        ? friendlySyncError(rejected)
+        : 'Kết quả đang chờ đồng bộ. Kết nối mạng để ghi nhận sao và mở chặng tiếp theo.');
+      if (!pending.length && id) {
+        const scope = childId + ':' + id;
+        void stageProgressApi.getLessonProgress(childId, id).then((response) => {
+          if (activeScope.current !== scope || !response?.data) return;
+          const progress = response.data;
+          setLessonProgress(progress);
+          setCompletedGames(progress.stage3Games || []);
+          for (const [stage, completed] of [[1, progress.stage1Completed], [2, progress.stage2Completed], [3, progress.stage3Completed]] as const) {
+            const key = `kc_stage${stage}_${childId}_${id}`;
+            if (completed) cache.setItem(key, 'true');
+            else cache.removeItem(key);
+          }
+        }).catch(() => {});
+      }
+      refresh(n => n + 1);
+    };
     const retry = () => { void learningOutbox.flush(childId); };
     window.addEventListener('online', retry); window.addEventListener('kc_learning_sync', status); status();
     return () => { window.removeEventListener('online', retry); window.removeEventListener('kc_learning_sync', status); };
-  }, [childId]);
+  }, [childId, id]);
   const handleGameCompleted = async (gameId: string, _stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => {
     try {
       const saved = await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken});
@@ -222,7 +255,21 @@ export const LessonDetailPage: React.FC = () => {
     };
   }, [lesson, id, user?.ageGroupCode, user?.role, childId]);
 
-  const handleStartGame = (gameId: string) => {
+  const handleStartGame = async (gameId: string) => {
+    let activePlan = plan;
+    if (!activePlan?.games?.some((game: any) => game.id === gameId && game.attemptToken && game.targetOrder?.length)) {
+      try {
+        const response = await stageProgressApi.getPlan(childId, id || '');
+        activePlan = response?.data;
+        if (activePlan) setPlan(activePlan);
+      } catch {
+        activePlan = null;
+      }
+    }
+    if (!activePlan?.games?.some((game: any) => game.id === gameId && game.attemptToken && game.targetOrder?.length)) {
+      setSyncNotice('Chưa tải được kế hoạch minigame. Hãy kết nối mạng rồi thử mở lại trò chơi để kết quả được ghi nhận.');
+      return;
+    }
     sfx.playPop();
     setActiveGameId(gameId as GameId);
   };
@@ -263,20 +310,29 @@ export const LessonDetailPage: React.FC = () => {
     cache.setItem(`kc_stage1_${childId}_${id}`, 'true');
     setActiveStage(2);
   };
-  const handleCompleteStage2 = async (stats?: {answers: Array<{wordId: string; round: number; selectedId: string | null}>}) => {
-    if (isStage2Completed && !stats?.answers.length) { setActiveStage(3); return; }
+  const handleCompleteStage2 = async (stats?: { answers: Stage2EvidenceAnswer[]; submissionId?: string }): Promise<Stage2ServerReport | null> => {
+    if (isStage2Completed && !stats?.answers.length) {
+      stopWordAudio();
+      setActiveStage(3);
+      return lessonProgress?.stage2Report || null;
+    }
     if (stats?.answers.length) {
       try {
-        const saved = await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token});
-        if (!saved) return;
+        const saved = await persistStage({stage: 2, answers: stats.answers, attemptToken:plan?.stage2Token, submissionId: stats.submissionId});
+        if (!saved) return null;
+        const progressResponse = await stageProgressApi.getLessonProgress(childId, id || '');
+        const confirmedProgress = progressResponse.data;
+        if (!confirmedProgress?.stage2Completed) return null;
+        setLessonProgress(confirmedProgress);
+        cache.setItem(`kc_stage2_${childId}_${id}`, 'true');
+        sfx.playSuccess();
+        return confirmedProgress.stage2Report || null;
       } catch (e) {
         if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 2:', e);
-        return;
+        return null;
       }
     }
-    sfx.playSuccess();
-    cache.setItem(`kc_stage2_${childId}_${id}`, 'true');
-    setActiveStage(3);
+    return null;
   };
 
   const topicIcon = (lesson as any)?.topic?.icon || '🌟';
@@ -313,6 +369,9 @@ export const LessonDetailPage: React.FC = () => {
           <h1 className="text-xs sm:text-sm font-black text-slate-800 truncate leading-tight">
             {lesson?.title || 'Lesson'}
           </h1>
+          <p className="truncate text-[10px] font-bold leading-tight text-indigo-700 sm:text-xs" aria-label={`Đang học Unit ${unitNumber}, Lesson ${lessonNumber}`}>
+            Unit {unitNumber} · Lesson {lessonNumber}
+          </p>
         </div>
       </div>
 
@@ -384,7 +443,7 @@ export const LessonDetailPage: React.FC = () => {
 
   return (
     <>
-    {syncNotice && <div role="status" className="fixed bottom-2 left-2 right-2 z-[200] rounded-xl bg-amber-100 p-2 text-sm text-slate-900 text-center">{syncNotice} <button className="underline font-bold" onClick={() => void learningOutbox.flush(childId)}>Đồng bộ lại</button></div>}
+    {syncNotice && <div role="status" className="fixed right-3 top-16 z-[200] max-w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl border border-amber-300 bg-amber-50/95 p-3 text-sm font-semibold text-slate-900 shadow-lg backdrop-blur-sm">{syncNotice}{learningOutbox.pending(childId).length > 0 && <button className="ml-2 inline-flex min-h-10 items-center rounded-xl bg-amber-200 px-3 font-black underline" onClick={() => void learningOutbox.retryRejected(childId)}>Đồng bộ lại</button>}</div>}
     <ScreenShell
       completedCount={completedCount}
       titleBar={titleBarElement}
@@ -419,9 +478,11 @@ export const LessonDetailPage: React.FC = () => {
               <div className="w-full h-full min-h-0 flex flex-col overflow-hidden">
                 <Stage2PracticeFlow key={childId + ':' + id}
                   vocabulary={lesson.vocabularyItems || []}
+                  distractorVocabulary={distractorPool}
                   lessonId={id || ''}
                   stage2Completed={isStage2Completed}
                   ageGroup={user?.ageGroupCode}
+                  stage2Report={lessonProgress?.stage2Report || null}
                   unitNumber={unitNumber}
                   lessonNumber={lessonNumber}
                   onBackToStage1={() => {

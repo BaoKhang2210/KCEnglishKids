@@ -7,6 +7,7 @@ const schema = new mongoose.Schema({
   gameId: String,
   score: Number,
   answers: [mongoose.Schema.Types.Mixed],
+  stage2Report: mongoose.Schema.Types.Mixed,
   payloadHash: String,
   lessonCompleted: { type: Boolean, default: false }
 }, { timestamps: true });

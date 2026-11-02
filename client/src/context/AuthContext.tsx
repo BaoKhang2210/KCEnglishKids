@@ -26,7 +26,18 @@ interface AuthContextType {
   setAgeGroup: (ageGroup: AgeGroupCode) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Keep one context object across Vite HMR updates. Recreating a context while
+// its provider is preserved can leave route consumers attached to the old one.
+const authContextGlobal = globalThis as typeof globalThis & {
+  __KC_ENGLISH_KIDS_AUTH_CONTEXT__?: React.Context<AuthContextType | undefined>;
+};
+const AuthContext = authContextGlobal.__KC_ENGLISH_KIDS_AUTH_CONTEXT__ ??= createContext<AuthContextType | undefined>(undefined);
+const syncChildVocabulary = (childId?: string) => {
+  if (!childId) return;
+  void vocabMasteryService.syncWithBackend(childId).catch((error) => {
+    if (import.meta.env.DEV) console.warn('[Auth] Deferred vocabulary sync.', error);
+  });
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -45,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(res.data);
             browserStorage.setItem('kc_user', JSON.stringify(res.data));
             if (res.data.role === 'CHILD') {
-              vocabMasteryService.syncWithBackend(res.data.id || res.data._id);
+              syncChildVocabulary(res.data.id || res.data._id);
             }
           }
         } catch (e) {
@@ -68,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
       if (res.user?.role === 'CHILD') {
-        vocabMasteryService.syncWithBackend(res.user.id || res.user._id);
+        syncChildVocabulary(res.user.id || res.user._id);
       }
     }
   };
@@ -80,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       browserStorage.setItem('kc_user', JSON.stringify(res.user));
       setUser(res.user);
       if (res.user?.role === 'CHILD') {
-        vocabMasteryService.syncWithBackend(res.user.id || res.user._id);
+        syncChildVocabulary(res.user.id || res.user._id);
       }
     }
   };

@@ -140,6 +140,211 @@ export interface Topic {
   featured?: boolean;
 }
 
+// ─── Video learning (library + watch step) ──────────────────────────────────
+export type VideoLevel = 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+export type VideoSource = 'youtube' | 'stored';
+export type VideoSkillKey = 'listen' | 'read' | 'speak' | 'quiz' | 'dub';
+
+export interface VideoLevelMeta {
+  label: string;
+  title?: string;
+  ageLabel: string;
+  ageMin: number;
+  ageMax: number;
+  blurb: string;
+}
+
+export interface VideoSkill {
+  key: VideoSkillKey;
+  label: string;
+  done: boolean;
+}
+
+export type VideoActivityKey = 'listen' | 'read' | 'speak' | 'dub';
+
+export interface VideoActivity {
+  key: VideoActivityKey;
+  label: string;
+  done: boolean;
+}
+
+export interface VideoEpisodeProgress {
+  episodeId: string;
+  availableSkills: VideoSkillKey[];
+  skills: VideoSkill[];
+  completed: boolean;
+  percent: number;
+  /** The four-part lesson counter shown in the source lesson sidebar. */
+  activities?: VideoActivity[];
+  activityDone?: number;
+  activityTotal?: number;
+  activityPercent?: number;
+  watchedPercent: number;
+  lastPositionSec: number;
+  readIdx?: number[];
+  speakIdx?: number[];
+  quiz: { answers: Array<{ idx: number; firstTryCorrect: boolean }>; score: number; total: number; done: boolean };
+  dubDone: boolean;
+}
+
+export interface VideoCue {
+  idx: number;
+  start: number;
+  end: number;
+  text: string;
+  translationVi?: string;
+}
+
+export interface VideoVocabulary {
+  word: string;
+  meaningVi?: string;
+  audioUrl?: string;
+}
+
+export interface VideoEpisodeSummary {
+  _id: string;
+  number: number;
+  slug: string;
+  lessonCode?: string;
+  title: string;
+  subtitle?: string;
+  source: VideoSource;
+  videoUrl?: string;
+  youtubeId?: string;
+  duration: number;
+  videoStartMs?: number;
+  videoEndMs?: number;
+  clipStart: number;
+  clipEnd: number;
+  dialogueStartSec: number;
+  thumbnail?: string;
+  captionCueCount?: number;
+  canReading?: boolean;
+  canDubbing?: boolean;
+  dubbingVideoUrl?: string;
+  audioUrl?: string;
+  cueUrl?: string;
+  cueProxyAvailable?: boolean;
+  sourceChannelName?: string;
+  learningMode?: string;
+  contentFormat?: string;
+  difficultyLabel?: string;
+  vocabulary?: VideoVocabulary[];
+  cueCount?: number;
+  availableSkills: VideoSkillKey[];
+  progress: VideoEpisodeProgress;
+  cues?: VideoCue[];
+}
+
+export interface VideoContinueTarget {
+  episodeId: string;
+  number: number;
+  slug: string;
+  title: string;
+  thumbnail?: string;
+  lastPositionSec: number;
+  watchedPercent: number;
+  percent: number;
+}
+
+export interface VideoSeriesSummary {
+  _id: string;
+  slug: string;
+  title: string;
+  titleEn?: string;
+  subtitle?: string;
+  description?: string;
+  thumbnail?: string;
+  level: VideoLevel;
+  levelLabel: string;
+  levelTitle?: string;
+  targetAge?: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  ageLabel: string;
+  ageGroups: AgeGroupCode[];
+  topicCode?: string;
+  difficultyLabel?: string;
+  source: VideoSource;
+  sourceLabel: string;
+  hasDubbing: boolean;
+  dubbingCount?: number;
+  order: number;
+  /** Declared catalogue count; the exact seed publishes every lesson. */
+  episodeCount: number;
+  availableEpisodeCount: number;
+  completedEpisodes: number;
+  isFavorite: boolean;
+  availableSkills: VideoSkillKey[];
+  firstEpisode?: { episodeId: string; number: number; slug: string; title: string } | null;
+  progress: {
+    percent: number;
+    completed: boolean;
+    continue: VideoContinueTarget | null;
+  };
+}
+
+export interface VideoSeriesDetail extends VideoSeriesSummary {
+  attribution?: string;
+  episodes: VideoEpisodeSummary[];
+}
+
+export interface VideoSeriesListMeta {
+  ageGroup: AgeGroupCode | null;
+  childAge: AgeGroupCode | null;
+  accessibleAgeGroups: AgeGroupCode[];
+  levels: VideoLevel[];
+  accessibleLevels: VideoLevel[];
+  levelOrder: VideoLevel[];
+  levelMeta: Record<VideoLevel, VideoLevelMeta>;
+  levelAgeGroups: Record<VideoLevel, AgeGroupCode[]>;
+  sourceMeta: Record<VideoSource, { label: string; short: string }>;
+  ageOrder: AgeGroupCode[];
+  catalogue: {
+    total: number;
+    totalEpisodes: number;
+    byLevel: Record<VideoLevel, number>;
+    bySource: Record<VideoSource, number>;
+  };
+  facets: {
+    total: number;
+    totalEpisodes: number;
+    availableEpisodes: number;
+    byAgeGroup: Record<AgeGroupCode, number>;
+    byLevel: Record<VideoLevel, number>;
+    bySource: Record<VideoSource, number>;
+    dubbing: { yes: number; no: number };
+  };
+}
+
+export interface VideoContinueItem {
+  episodeId: string;
+  episodeNumber: number;
+  episodeTitle: string;
+  seriesId: string;
+  seriesSlug: string;
+  seriesTitle: string;
+  thumbnail?: string;
+  level: VideoLevel;
+  levelLabel: string;
+  ageLabel: string;
+  source: VideoSource;
+  lastPositionSec: number;
+  watchedPercent: number;
+  percent: number;
+  availableSkills: VideoSkillKey[];
+  updatedAt?: string;
+}
+
+export type VideoProgressEvent =
+  | { type: 'listen'; watchedPercent: number }
+  | { type: 'heartbeat'; watchedPercent: number; lastPositionSec?: number }
+  | { type: 'position'; lastPositionSec: number }
+  | { type: 'read'; idx: number }
+  | { type: 'speak'; idx: number }
+  | { type: 'quiz_answer'; idx: number; firstTryCorrect: boolean }
+  | { type: 'dub'; done: boolean };
+
 export type VocabWordType = 'noun' | 'verb' | 'number' | 'color' | 'adjective';
 
 export interface Vocabulary {

@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "source": "https://tienganhvui.com/video-english",
+  "ageOrder": ["3-4", "4-5", "5-6"],
+  "ageLevels": {
+    "3-4": ["L1"],
+    "4-5": ["L1", "L2"],
+    "5-6": ["L1", "L2", "L3"]
+  },
+  "levelAgeGroups": {
+    "L1": ["3-4", "4-5"],
+    "L2": ["4-5", "5-6"],
+    "L3": ["5-6"],
+    "L4": [],
+    "L5": []
+  },
+  "levels": ["L1", "L2", "L3", "L4", "L5"],
+  "levelMeta": {
+    "L1": {
+      "label": "L1",
+      "title": "Làm quen & phản xạ",
+      "ageLabel": "4–5 tuổi",
+      "ageMin": 4,
+      "ageMax": 5,
+      "blurb": "Câu ngắn, tranh lớn; bé làm quen với video tiếng Anh và phản xạ nghe."
+    },
+    "L2": {
+      "label": "L2",
+      "title": "Từ vựng & âm chữ",
+      "ageLabel": "4–6 tuổi",
+      "ageMin": 4,
+      "ageMax": 6,
+      "blurb": "Từ vựng và âm chữ qua bài hát, hội thoại đơn giản theo chủ đề gần gũi."
+    },
+    "L3": {
+      "label": "L3",
+      "title": "Câu đơn & mẫu âm",
+      "ageLabel": "5–7 tuổi",
+      "ageMin": 5,
+      "ageMax": 7,
+      "blurb": "Câu đơn và mẫu âm; bé nghe hiểu câu chuyện ngắn rồi kể lại."
+    },
+    "L4": {
+      "label": "L4",
+      "title": "Hội thoại & đọc hiểu",
+      "ageLabel": "6–8 tuổi",
+      "ageMin": 6,
+      "ageMax": 8,
+      "blurb": "Hội thoại và đọc hiểu; bé theo dõi nội dung dài hơn."
+    },
+    "L5": {
+      "label": "L5",
+      "title": "Thử thách tiếng Anh",
+      "ageLabel": "7–8 tuổi",
+      "ageMin": 7,
+      "ageMax": 8,
+      "blurb": "Thử thách tiếng Anh; bé nghe hiểu và dùng ngôn ngữ linh hoạt."
+    }
+  },
+  "maxEpisodeSecondsByAge": {
+    "3-4": 180
+  },
+  "sources": ["youtube", "stored"],
+  "sourceMeta": {
+    "youtube": { "label": "YouTube", "short": "YouTube" },
+    "stored": { "label": "Video lưu trữ", "short": "Lưu trữ" }
+  },
+  "skills": ["listen", "read", "speak", "quiz", "dub"],
+  "progress": {
+    "listenDonePercent": 80,
+    "readDoneRatio": 0.5,
+    "speakDoneRatio": 0.7,
+    "quizFirstTryPercent": 60
+  },
+  "quiz": {
+    "minCues": 4,
+    "minWordsPerCue": 3
+  },
+  "autoNext": {
+    "enabledByDefault": false,
+    "countdownSeconds": 5
+  }
+}

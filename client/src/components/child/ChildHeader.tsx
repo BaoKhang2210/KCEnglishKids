@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound } from 'lucide-react';
+import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, PlayCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
@@ -71,10 +71,11 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
   const currentAge = user?.ageGroupCode || '3-4';
   const searchParams = new URLSearchParams(location.search);
-  const currentTab = propActiveTab || searchParams.get('tab') || (location.pathname.startsWith('/topics') ? 'topics' : 'path');
+  const currentTab = propActiveTab || searchParams.get('tab') || (location.pathname.startsWith('/topics') ? 'topics' : location.pathname.startsWith('/videos') ? 'videos' : 'path');
 
-  const isPathActive = currentTab === 'path' && !location.pathname.startsWith('/topics');
+  const isPathActive = currentTab === 'path' && !location.pathname.startsWith('/topics') && !location.pathname.startsWith('/videos');
   const isTopicsActive = currentTab === 'topics' || location.pathname.startsWith('/topics');
+  const isVideosActive = currentTab === 'videos' || location.pathname.startsWith('/videos');
   const isVocabActive = currentTab === 'vocab';
   const isGamesActive = currentTab === 'games' || currentTab === 'arcade';
   const isBadgesActive = currentTab === 'badges';
@@ -115,12 +116,12 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
               </div>
             </button>
 
-            {/* Desktop navigation: 5 destinations */}
-            <div className="hidden xl:flex items-center gap-2 2xl:gap-4 ml-4 2xl:ml-6 pl-4 2xl:pl-6 border-l-2 border-amber-200/80 flex-shrink-0">
+            {/* Desktop navigation: 6 destinations */}
+            <div className="hidden xl:flex items-center gap-1 2xl:gap-2 ml-2 2xl:ml-6 pl-2 2xl:pl-6 border-l-2 border-amber-200/80 flex-shrink-0">
               
               <button
                 onClick={() => handleNav('path')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isPathActive
                     ? 'bg-amber-400 text-amber-950 shadow-[inset_0_-3px_0_#b45309]'
                     : 'text-slate-600 hover:bg-amber-100/70 hover:text-amber-900 border-2 border-transparent hover:border-amber-200 shadow-2xs'
@@ -133,7 +134,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
               <button
                 onClick={() => handleNav('topics')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isTopicsActive
                     ? 'bg-emerald-500 text-white shadow-[inset_0_-3px_0_#047857]'
                     : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 border-2 border-transparent hover:border-emerald-200 shadow-2xs'
@@ -145,8 +146,21 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
               </button>
 
               <button
+                onClick={() => handleNav('videos')}
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  isVideosActive
+                    ? 'bg-indigo-500 text-white shadow-[inset_0_-3px_0_#4338ca]'
+                    : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-900 border-2 border-transparent hover:border-indigo-200 shadow-2xs'
+                }`}
+                style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+              >
+                <PlayCircle className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isVideosActive ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[14px] 2xl:text-[16px] leading-none">Video</span>
+              </button>
+
+              <button
                 onClick={() => handleNav('vocab')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isVocabActive
                     ? 'bg-rose-500 text-white shadow-[inset_0_-3px_0_#be123c]'
                     : 'text-slate-600 hover:bg-rose-50 hover:text-rose-900 border-2 border-transparent hover:border-rose-200 shadow-2xs'
@@ -159,7 +173,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
               <button
                 onClick={() => handleNav('games')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isGamesActive
                     ? 'bg-sky-500 text-white shadow-[inset_0_-3px_0_#0369a1]'
                     : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900 border-2 border-transparent hover:border-sky-200 shadow-2xs'
@@ -172,7 +186,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
               <button
                 onClick={() => handleNav('badges')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isBadgesActive
                     ? 'bg-purple-500 text-white shadow-[inset_0_-3px_0_#6d28d9]'
                     : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900 border-2 border-transparent hover:border-purple-200 shadow-2xs'
@@ -207,7 +221,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                     sfx.playPop();
                     setShowBadgesModal(true);
                   }}
-                  className="hidden lg:flex items-center gap-2 sm:gap-3 bg-amber-50/90 hover:bg-amber-100 border-2 border-amber-200/80 hover:border-amber-300 pl-1.5 pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs"
+                  className="hidden min-[1700px]:flex items-center gap-2 sm:gap-3 bg-amber-50/90 hover:bg-amber-100 border-2 border-amber-200/80 hover:border-amber-300 pl-1.5 pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs flex-shrink-0"
                   title={`Hồ sơ của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel}`}
                 >
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0">
@@ -227,7 +241,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 whitespace-nowrap">
                       <BookOpen className="h-3 w-3" aria-hidden="true" />
-                      {currentOption.book} <span className="text-amber-100/80">· {currentOption.ageLabel}</span>
+                      {currentOption.book} <span className="text-amber-800/80">· {currentOption.ageLabel}</span>
                     </span>
                   </span>
                 </button>

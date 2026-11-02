@@ -21,7 +21,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 
 import earlyLearning from '../../../../../shared/earlyLearning.json';
 
-import { X, Volume2, ArrowRight, Check, ThumbsUp, ThumbsDown, RefreshCw, Star } from 'lucide-react';
+import { X, Volume2, Check, ThumbsUp, ThumbsDown } from 'lucide-react';
 import type { Vocabulary, AgeGroupCode, ActivityQuestion } from '../../../types';
 import { sfx, playWordAudio, preloadWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
@@ -34,17 +34,21 @@ import {
 import { buildPracticePlan, getAgeOptionsLimits, roundOneVariantsByAge, shuffle, type PracticeQuestion } from './buildPracticePlan';
 import {
   LINE_MATCH_MAX_PAIRS,
+  LINE_MATCH_DISTRACTORS,
   boardIndexForQuestionIndex,
   boardOwnSizes,
   boardStartIndex,
   maxPairsThatFit,
   partitionRoundTwoBoards,
+  selectLineMatchDistractors,
 } from './lineMatchConfig';
 import { LineMatchEngine, emptyLineMatchState, type LineMatchRoundState } from './LineMatchEngine';
 import { KokoMascot, type MascotState } from '../KokoMascot';
 import { ListenChooseEngine } from '../games/ListenChooseEngine';
 import { ImageWordMatchEngine } from '../games/ImageWordMatchEngine';
 import { wordArt } from '../../../utils/learningArt';
+import { Stage2CompletionSummary } from './Stage2CompletionSummary';
+import type { Stage2EvidenceAnswer, Stage2ServerReport } from './stage2ReportTypes';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -102,6 +106,7 @@ function getWordEmoji(vocab: Vocabulary): string {
 
 export interface Stage2PracticeFlowProps {
   vocabulary: Vocabulary[];
+  distractorVocabulary?: Vocabulary[];
   lessonId: string;
   stage2Completed?: boolean;
   lessonTitle?: string;
@@ -109,7 +114,8 @@ export interface Stage2PracticeFlowProps {
   ageGroupCode?: string;
   unitNumber?: number;
   lessonNumber?: number;
-  onComplete: (stats?: { answers: Array<{wordId: string; round: number; selectedId: string | null}> }) => void;
+  onComplete: (stats?: { answers: Stage2EvidenceAnswer[]; submissionId?: string }) => Promise<Stage2ServerReport | null | void> | Stage2ServerReport | null | void;
+  stage2Report?: Stage2ServerReport | null;
   onBackToStage1?: () => void;
 }
 
@@ -120,7 +126,7 @@ interface Stage2Checkpoint {
   questions: PracticeQuestion[];
   variantByWordId: Record<string, 'A' | 'B'>;
   requeuedWordIds?: string[];
-  evidence?: Array<{wordId: string; round: number; selectedId: string | null}>;
+  evidence?: Stage2EvidenceAnswer[];
   questionIndex: number;
   attemptCount: number;
   totalWrongAttempts: number;
@@ -596,10 +602,12 @@ const SSActivity: React.FC<SSActivityProps> = ({
 
 export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   vocabulary,
+  distractorVocabulary = [],
   lessonId,
   stage2Completed = false,
   ageGroup,
   ageGroupCode,
+  stage2Report = null,
   unitNumber = 1,
   lessonNumber = 1,
   onComplete,
@@ -621,6 +629,13 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     practiceSessionIdRef.current = checkpoint?.sessionId || globalThis.crypto?.randomUUID?.() || `stage2-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
   const [showSavedSummary, setShowSavedSummary] = useState(stage2Completed);
+  const [isReplayAttempt, setIsReplayAttempt] = useState(false);
+  const [summaryReport, setSummaryReport] = useState<Stage2ServerReport | null>(stage2Report || null);
+  const [summarySaving, setSummarySaving] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
+  const summarySaveStartedRef = useRef(false);
+  const autoSubmittedSessionRef = useRef('');
+  const replayAttemptActiveRef = useRef(false);
   const [showResumePrompt, setShowResumePrompt] = useState(Boolean(checkpoint && !stage2Completed));
   const [showSessionIntro, setShowSessionIntro] = useState(!checkpoint && !stage2Completed);
   // Break dialog removed — no longer interrupts practice flow
@@ -628,6 +643,11 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const exitButtonRef = useRef<HTMLButtonElement>(null);
   const { statsMap, recordAttempt } = useVocabStats(childId);
 
+  useEffect(() => {
+    // Parent progress refreshes can race with a replay and still carry the
+    // previous report. The replay's own submission response becomes canonical.
+    if (!replayAttemptActiveRef.current && stage2Report?.confirmed) setSummaryReport(stage2Report);
+  }, [stage2Report]);
   const plan = useMemo(
     () => {
       const storedVariants = checkpoint?.variantByWordId || Object.fromEntries(
@@ -699,6 +719,12 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     () => partitionRoundTwoBoards(roundTwoQuestions.length, roundTwoFitMax),
     [roundTwoQuestions.length, roundTwoFitMax],
   );
+  const roundTwoDistractors = useMemo(() => roundTwoBoards.map((board) => {
+    const words = board.map((index) => roundTwoQuestions[index]?.targetVocab).filter(Boolean);
+    const desiredCount = Math.max(LINE_MATCH_DISTRACTORS[effectiveAgeGroup], 3 - words.length);
+    const candidates = [...vocabulary, ...distractorVocabulary];
+    return selectLineMatchDistractors(words, candidates, desiredCount);
+  }), [roundTwoBoards, roundTwoQuestions, effectiveAgeGroup, vocabulary, distractorVocabulary]);
   const roundTwoOwnSizes = useMemo(
     () => boardOwnSizes(roundTwoQuestions.length, roundTwoFitMax),
     [roundTwoQuestions.length, roundTwoFitMax],
@@ -708,9 +734,11 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     : 0;
   const lastRoundTwoIdx = roundTwoStartIdx >= 0 ? roundTwoStartIdx + Math.max(0, roundTwoQuestions.length - 1) : -1;
 
-  const evidenceRef = useRef<Array<{wordId: string; round: number; selectedId: string | null}>>(checkpoint?.evidence || []);
-  const recordEvidence = (wordId: string, round: number, selectedId: string | null) => {
-    if (!evidenceRef.current.some(a => a.wordId === wordId && a.round === round)) evidenceRef.current.push({wordId, round, selectedId});
+  const evidenceRef = useRef<Stage2EvidenceAnswer[]>(checkpoint?.evidence || []);
+  const recordEvidence = (wordId: string, round: number, selectedId: string | null, wrongAttemptCount = 0, usedHint = false) => {
+    if (!evidenceRef.current.some(a => a.wordId === wordId && a.round === round)) {
+      evidenceRef.current.push({ wordId, round, selectedId, wrongAttemptCount, usedHint });
+    }
   };
 
   const handleRound2StateChange = useCallback((next: LineMatchRoundState) => {
@@ -719,7 +747,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
 
   // ONE answer per word for word status: recorded once when the word completes.
   const handleRound2WordMatched = useCallback((wordId: string, info: { firstTry: boolean; revealed: boolean; wrongAttempts?: number; chosenWrongWordId?: string }) => {
-    recordEvidence(wordId, 2, info.firstTry && !info.revealed ? wordId : (info.chosenWrongWordId || null));
+    recordEvidence(wordId, 2, info.firstTry && !info.revealed ? wordId : (info.chosenWrongWordId || null), info.wrongAttempts || 0, info.revealed);
     const word = roundTwoQuestions.find((question) => question.wordId === wordId)?.targetVocab;
     setSessionWordStats((prev) => ({
       ...prev,
@@ -798,7 +826,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
 
   // Session timing
   const [sessionStartTime] = useState<number>(() => checkpoint?.startedAt || Date.now());
-  const [currentSession, setCurrentSession] = useState<Stage2PracticeSession | null>(null);
   const sessionSavedRef = useRef(false);
 
   const currentQ = questions[currentIdx];
@@ -956,7 +983,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setKokoMood('celebrating');
     setKokoBubble(`${randomPraise()} ${currentQ.targetVocab.english}! 🎉`);
 
-    if (!currentQ.isRequeue) recordEvidence(currentQ.wordId, Number(currentQ.turn), wrongCount === 0 ? currentQ.wordId : null);
+    if (!currentQ.isRequeue) recordEvidence(currentQ.wordId, Number(currentQ.turn), wrongCount === 0 ? currentQ.wordId : null, wrongCount, wrongCount >= 2);
     const firstTry = wrongCount === 0 && !currentQ.isRequeue;
     const wId = currentQ.wordId;
 
@@ -1174,15 +1201,21 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     if (!isCompleted || sessionSavedRef.current) return;
     sessionSavedRef.current = true;
     const session = buildCurrentSession();
-    setCurrentSession(session);
     vocabStatsService.saveStage2Session(session);
   }, [isCompleted, buildCurrentSession]);
 
   // ── Practice again ───────────────────────────────────────────────────────────
 
-  const startPracticeAgain = (weakWordsOnly = false) => {
+  const startPracticeAgain = () => {
     sfx.playPop();
+    setIsReplayAttempt(true);
+    replayAttemptActiveRef.current = true;
     practiceSessionIdRef.current = globalThis.crypto?.randomUUID?.() || `stage2-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    // A replay is a new reportable attempt even when this stage was completed
+    // earlier. Never let the prior attempt's confirmed summary suppress its save.
+    setSummaryReport(null);
+    setSummaryError('');
+    summarySaveStartedRef.current = false;
     setShowSavedSummary(false);
     setCurrentIdx(0);
     setQuestionOverride(plan.questions);
@@ -1201,19 +1234,42 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setRound2State(emptyLineMatchState());
     round2InitialRef.current = null;
     sessionSavedRef.current = false;
-    setCurrentSession(null);
     setIsCompleted(false);
-    // (weakWordsOnly is noted; in future we can filter questions by weak words)
-    void weakWordsOnly;
   };
 
-  const handleFinish = () => {
-    if (!currentSession) {
-      const session = buildCurrentSession();
-      vocabStatsService.saveStage2Session(session);
+  const saveSummaryResult = async () => {
+    if (summaryReport?.confirmed || summarySaveStartedRef.current) return;
+    summarySaveStartedRef.current = true;
+    setSummarySaving(true);
+    setSummaryError('');
+    try {
+      const result = await onComplete({
+        answers: evidenceRef.current,
+        submissionId: stage2OutcomeSubmissionId(practiceSessionIdRef.current || lessonId, 2, 'complete'),
+      });
+      if (result?.confirmed) {
+        setSummaryReport(result);
+        setSummaryError('');
+      } else {
+        setSummaryError('Kết quả đang chờ máy chủ xác nhận. Bé thử đồng bộ lại nhé.');
+      }
+    } catch {
+      setSummaryError('Chưa lưu được kết quả. Bé thử đồng bộ lại nhé.');
+    } finally {
+      summarySaveStartedRef.current = false;
+      setSummarySaving(false);
     }
-    onComplete({ answers: evidenceRef.current });
   };
+
+  useEffect(() => {
+    if (!isCompleted || summaryReport?.confirmed) return;
+    const sessionId = practiceSessionIdRef.current || '';
+    if (!sessionId || autoSubmittedSessionRef.current === sessionId) return;
+    autoSubmittedSessionRef.current = sessionId;
+    void saveSummaryResult();
+    // Submission is once per practice session; an explicit button retries failures.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCompleted, stage2Completed, summaryReport?.confirmed]);
 
   const saveAndExit = () => {
     try {
@@ -1293,7 +1349,6 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setShowSessionIntro(false);
     setShowSavedSummary(false);
     setIsCompleted(false);
-    setCurrentSession(null);
     setRound2State(emptyLineMatchState());
     round2InitialRef.current = null;
     sessionSavedRef.current = false;
@@ -1308,45 +1363,18 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   // ── Completion / Summary screen ──────────────────────────────────────────────
 
   if (isCompleted || showSavedSummary) {
-    const latestSavedList = vocabStatsService.getStage2Sessions(childId, lessonId);
-    const activeSession: Stage2PracticeSession | null = currentSession || (latestSavedList.length > 0 ? latestSavedList[0] : null);
-    const wordsToDisplay: WordPracticeResult[] = activeSession?.words || vocabulary.map((word) => {
-      const id = word._id || (word as any).id || word.english;
-      return { wordId: id, english: word.english, vietnamese: word.vietnamese || '', imageUrl: word.imageUrl, emoji: getWordEmoji(word), firstTryCorrect: 0, wrongCount: 0, isConfident: false };
-    });
-    const sessionDateStr = activeSession?.completedAt
-      ? new Date(activeSession.completedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      : new Date().toLocaleDateString('vi-VN');
-    const firstTryCount = activeSession?.firstTryCorrectTotal ?? wordsToDisplay.filter((word) => word.firstTryCorrect > 0).length;
-    const totalWrongCount = activeSession?.totalWrongAttempts ?? wordsToDisplay.reduce((sum, word) => sum + word.wrongCount, 0);
-    const wordsConfident = wordsToDisplay.filter((word) => word.isConfident);
-    const wordsNeedReview = wordsToDisplay.filter((word) => !word.isConfident);
-
     return (
-      <div className="w-full h-full min-h-0 flex flex-col bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-950 text-slate-100 select-none overflow-hidden">
-        <header className="shrink-0 px-3 pt-3 pb-1 text-center">
-          <div className="flex items-center justify-center gap-2 mb-1"><KokoMascot state="celebrating" size="sm" interactive={false} speechBubble="Bé giỏi quá! 🎉" bubblePosition="top" /></div>
-          <h2 className="text-[clamp(1.3rem,3vh,1.8rem)] font-black text-white leading-tight">Hoàn thành Chặng 2!</h2>
-          <p className="text-xs sm:text-sm font-bold text-slate-400 mt-0.5">{sessionDateStr} · {activeSession?.totalQuestions || totalQ} lượt luyện tập</p>
-        </header>
-        <div className="shrink-0 px-3 py-2"><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl mx-auto">
-          <div className="rounded-2xl border-2 border-sky-700/60 bg-sky-900/40 p-2 text-center"><span className="block text-xl" aria-hidden>📚</span><span className="block text-[10px] sm:text-xs font-bold text-sky-300">Số từ</span><strong className="text-base sm:text-lg font-black text-sky-200">{wordsToDisplay.length}</strong></div>
-          <div className="rounded-2xl border-2 border-emerald-700/60 bg-emerald-900/40 p-2 text-center"><span className="block text-xl" aria-hidden>🎯</span><span className="block text-[10px] sm:text-xs font-bold text-emerald-300">Đúng ngay</span><strong className="text-base sm:text-lg font-black text-emerald-200">{firstTryCount}</strong></div>
-          <div className="rounded-2xl border-2 border-amber-700/60 bg-amber-900/40 p-2 text-center"><span className="block text-xl" aria-hidden>🔁</span><span className="block text-[10px] sm:text-xs font-bold text-amber-300">Lần sai</span><strong className="text-base sm:text-lg font-black text-amber-200">{totalWrongCount}</strong></div>
-          <div className="rounded-2xl border-2 border-yellow-600/70 bg-yellow-900/40 p-2 text-center" aria-label="Hoàn thành Chặng 2 nhận một sao"><span className="flex justify-center" aria-hidden><Star className="h-6 w-6 fill-yellow-300 text-yellow-300"/></span><span className="block text-[10px] sm:text-xs font-bold text-yellow-300">Phần thưởng Chặng 2</span><strong className="text-base sm:text-lg font-black text-yellow-100">Hoàn thành: +1 sao</strong></div>
-        </div></div>
-        <main className="flex-1 min-h-0 overflow-y-auto px-3 pb-1 space-y-2">
-          {wordsConfident.length > 0 && <section><h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><span>✅</span> Đã ghi nhớ tốt ({wordsConfident.length})</h3><div className="space-y-1.5">{wordsConfident.map((word) => <article key={word.wordId} className="flex items-center gap-3 rounded-2xl border border-emerald-700/50 bg-emerald-900/30 px-3 py-2"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-800/60 text-2xl">{word.emoji || '🌟'}</span><div className="min-w-0 flex-1"><p className="text-sm sm:text-base font-black text-emerald-100 capitalize">{word.english}</p>{word.vietnamese && <p className="text-xs font-bold text-emerald-400/80">{word.vietnamese}</p>}</div><span className="shrink-0 rounded-xl px-2 py-0.5 text-xs font-black bg-emerald-700/60 text-emerald-200">Tự tin ✓</span></article>)}</div></section>}
-          {wordsNeedReview.length > 0 && <section><h3 className="text-xs font-black text-amber-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"><span>📌</span> Nên ôn lại ({wordsNeedReview.length})</h3><div className="space-y-1.5">{wordsNeedReview.map((word) => <article key={word.wordId} className="flex items-center gap-3 rounded-2xl border border-amber-700/50 bg-amber-900/25 px-3 py-2"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-800/50 text-2xl">{word.emoji || '🌟'}</span><div className="min-w-0 flex-1"><p className="text-sm sm:text-base font-black text-amber-100 capitalize">{word.english}</p>{word.vietnamese && <p className="text-xs font-bold text-amber-400/80">{word.vietnamese}</p>}</div><span className="shrink-0 rounded-xl px-2 py-0.5 text-xs font-black bg-amber-700/60 text-amber-200">{word.wrongCount > 0 ? `Sai ${word.wrongCount}×` : 'Ôn thêm'}</span></article>)}</div></section>}
-        </main>
-        <div className="shrink-0 px-3 pb-3 pt-2 flex items-center gap-2 max-w-sm mx-auto w-full">
-          {wordsNeedReview.length > 0
-            ? <button type="button" onClick={() => startPracticeAgain(true)} aria-label="Ôn lại từ cần ôn" className="flex-1 min-h-[52px] rounded-2xl bg-amber-600/80 hover:bg-amber-500/90 active:bg-amber-700 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 border-2 border-amber-400/70 shadow-lg active:scale-95 transition-all cursor-pointer"><RefreshCw className="w-4 h-4 stroke-[2.5]" /><span>Ôn lại</span></button>
-            : <button type="button" onClick={restartFromBeginning} aria-label="Học lại từ đầu" className="flex-1 min-h-[52px] rounded-2xl border-2 border-slate-600 bg-slate-800/70 hover:bg-slate-700/80 active:bg-slate-900 text-slate-300 font-black text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"><RefreshCw className="w-4 h-4 stroke-[2.5]" /><span>Học lại</span></button>
-          }
-          <button type="button" onClick={handleFinish} aria-label="Đến Khu vui chơi" className="flex-1 min-h-[52px] rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"><span>Khu vui chơi 🚀</span><ArrowRight className="w-4 h-4 stroke-[3]" /></button>
-        </div>
-      </div>
+      <Stage2CompletionSummary
+        vocabulary={vocabulary}
+        ageGroup={effectiveAgeGroup}
+        report={summaryReport}
+        resultSaved={isReplayAttempt ? Boolean(summaryReport?.confirmed) : stage2Completed || Boolean(summaryReport?.confirmed)}
+        isSaving={summarySaving}
+        errorMessage={summaryError}
+        onSync={() => { void saveSummaryResult(); }}
+        onContinue={() => { void onComplete(); }}
+        onPractice={startPracticeAgain}
+      />
     );
   }
   if (showResumePrompt) {
@@ -1431,7 +1459,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     <div className="stage2-practice-shell w-full h-full min-h-0 flex flex-col overflow-hidden select-none bg-slate-900 text-slate-100">
 
       {/* TOP BAR */}
-      <div className="shrink-0 h-14 min-h-14 px-3 flex items-center gap-3 border-b border-white/10 bg-slate-950/60 backdrop-blur-sm">
+      <div className="stage2-topbar shrink-0 h-14 min-h-14 px-3 flex items-center gap-3 border-b border-white/10 bg-slate-950/60 backdrop-blur-sm">
         <button
           type="button"
           ref={exitButtonRef}
@@ -1469,7 +1497,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         </span>
       </div>
 
-      <main className="flex-1 min-h-0 min-w-0 p-3 sm:px-6 flex items-center justify-center overflow-hidden">
+      <main className="stage2-question-area flex-1 min-h-0 min-w-0 p-3 sm:px-6 flex items-stretch justify-center overflow-auto">
 
           {/* LT: Listen & Tap */}
           {currentQ.turn === 1 && currentQ.variant === 'A' && roundOneActivityQuestion && (
@@ -1508,6 +1536,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
               key="round2-line-match"
               questions={roundTwoQuestions}
               boards={roundTwoBoards}
+              distractors={roundTwoDistractors}
               boardIndex={roundTwoBoardIndex}
               ageGroup={effectiveAgeGroup}
               initialState={round2InitialRef.current}
@@ -1588,7 +1617,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
             />
           )}
       </main>
-      <div className="shrink-0 h-11 min-h-11 px-4 flex items-center justify-center text-xl font-black text-emerald-200" aria-live="polite">
+      <div className="stage2-feedback shrink-0 h-11 min-h-11 px-4 flex items-center justify-center text-xl font-black text-emerald-200" aria-live="polite">
         {showCheck ? kokoBubble : wiggling ? 'Try again! You can do it!' : currentQ.type === 'MATCH_LINES' ? round2Feedback : ''}
       </div>
       </div>

@@ -10,6 +10,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/seeds/index.js && node scripts/install_learning_assets.js --apply",
+    "seed:video": "node src/scripts/seed_video_library.js",
     "audit:db": "node scripts/audit_database.js",
     "repair:db": "node scripts/repair_database.js",
     "assets:build": "node scripts/build_learning_assets.js",

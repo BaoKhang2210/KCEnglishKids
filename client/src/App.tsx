@@ -3,7 +3,7 @@ import { LearningSync } from './components/LearningSync';
 import { StaffSurface } from './components/staff/StaffSurface';
 const ClassRecognitionsPage = lazy(() => import('./dashboards/shared/ClassRecognitionsPage').then(module => ({default:module.ClassRecognitionsPage})));
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { RewardProvider } from './context/RewardContext';
 const StudentLoginPage = lazy(() => import('./pages/child/StudentLoginPage').then(module => ({default:module.StudentLoginPage})));
@@ -11,6 +11,8 @@ const ChildHomePage = lazy(() => import('./pages/child/ChildHomePage').then(modu
 const TopicDetailPage = lazy(() => import('./pages/child/TopicDetailPage').then(module => ({default:module.TopicDetailPage})));
 const LessonDetailPage = lazy(() => import('./pages/child/LessonDetailPage').then(module => ({default:module.LessonDetailPage})));
 const ActivityPlayPage = lazy(() => import('./pages/child/ActivityPlayPage').then(module => ({default:module.ActivityPlayPage})));
+const VideoSeriesPage = lazy(() => import('./pages/child/VideoSeriesPage').then(module => ({default:module.VideoSeriesPage})));
+const VideoWatchPage = lazy(() => import('./pages/child/VideoWatchPage').then(module => ({default:module.VideoWatchPage})));
 const TeacherLoginPage = lazy(() => import('./dashboards/teacher/TeacherLoginPage').then(module => ({default:module.TeacherLoginPage})));
 const TeacherLayout = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherLayout})));
 const TeacherDashboard = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherDashboard})));
@@ -85,7 +87,7 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
 
 export function App() {
   return (
-    <AuthProvider>
+    <>
       <LearningSync/>
       <ThemeProvider>
         <RewardProvider>
@@ -150,6 +152,22 @@ export function App() {
             element={
               <ProtectedChildRoute>
                 <ChangePinPage />
+              </ProtectedChildRoute>
+            }
+          />
+          <Route
+            path="/videos/:seriesSlug"
+            element={
+              <ProtectedChildRoute>
+                <VideoSeriesPage />
+              </ProtectedChildRoute>
+            }
+          />
+          <Route
+            path="/videos/:seriesSlug/:episodeNumber"
+            element={
+              <ProtectedChildRoute>
+                <VideoWatchPage />
               </ProtectedChildRoute>
             }
           />
@@ -221,7 +239,7 @@ export function App() {
         </Router>
       </RewardProvider>
       </ThemeProvider>
-    </AuthProvider>
+    </>
   );
 }
 

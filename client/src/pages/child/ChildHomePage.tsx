@@ -22,6 +22,7 @@ import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
+import { ChildVideoLibrarySection } from '../../components/child/video/ChildVideoLibrarySection';
 import { StarCollectionSection } from '../../components/child/StarCollectionSection';
 import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
@@ -308,11 +309,15 @@ export const ChildHomePage: React.FC = () => {
       </div>
 
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-        <div className="w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 md:pb-12">
-        <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
-        <ChildRecognitions />
+        <div className="w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12">
+        {activeTab !== 'videos' && (
+          <>
+            <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
+            <ChildRecognitions />
+          </>
+        )}
         {/* COMPACT BANNER */}
-        {activeTab !== 'vocab' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
+        {activeTab !== 'vocab' && activeTab !== 'videos' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
           <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_62%]" />
           <div className="absolute inset-0 bg-gradient-to-r from-teal-950/85 via-teal-950/55 to-teal-950/15" />
           <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
@@ -598,6 +603,13 @@ export const ChildHomePage: React.FC = () => {
                     );
                   })}
                 </div>
+              </section>
+            )}
+
+            {/* ==================== TAB: HỌC QUA VIDEO THEO NHÓM TUỔI ==================== */}
+            {activeTab === 'videos' && (
+              <section className="space-y-6">
+                <ChildVideoLibrarySection ageGroupCode={ageCode} />
               </section>
             )}
 

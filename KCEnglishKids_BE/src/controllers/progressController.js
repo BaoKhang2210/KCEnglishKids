@@ -1,4 +1,4 @@
-const { Progress, User, ActivityResult } = require('../models');
+const { Progress, User, ActivityResult, Lesson, Vocabulary } = require('../models');
 
 // @desc    Get child learning progress summary and weak words
 // @route   GET /api/children/:childId/progress
@@ -73,7 +73,30 @@ const getLessonProgress = async (req, res, next) => {
     const progress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
       'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage3Completed stage3Stars stage3Games'
     );
-    res.status(200).json({ success: true, data: progress });
+    if (!progress) return res.status(200).json({ success: true, data: progress });
+    let stage2Report = null;
+    if (progress.stage2Completed) {
+      const LearningEvent = require('../models/LearningEvent');
+      const event = await LearningEvent.findOne({ child: childId, lesson: lessonId, stage: 2 }).sort({ createdAt: -1, _id: -1 }).lean();
+      if (event?.stage2Report) {
+        stage2Report = {
+          ...event.stage2Report,
+          starsBest: Math.min(3, Number(progress.stars) || 0),
+          stageStars: {
+            stage1: Number(Boolean(progress.stage1Completed)),
+            stage2: Number(Boolean(progress.stage2Completed)),
+            stage3: Number(Boolean(progress.stage3Completed || new Set(progress.stage3Games || []).size >= 2)),
+          },
+        };
+      } else if (event?.answers?.length) {
+        const { buildStage2Report } = require('../config/stage2Report');
+        const lesson = await Lesson.findById(lessonId).select('vocabularyItems').lean();
+        const words = await Vocabulary.find({ _id: { $in: lesson?.vocabularyItems || [] }, status: 'ACTIVE' }).select('english vietnamese imageUrl audioUrl').lean();
+        stage2Report = buildStage2Report(event.answers, words, progress, 0);
+        stage2Report.legacy = true;
+      }
+    }
+    res.status(200).json({ success: true, data: { ...progress.toObject(), stage2Report } });
   } catch (error) {
     next(error);
   }
