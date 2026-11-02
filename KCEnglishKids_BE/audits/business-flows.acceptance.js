@@ -49,7 +49,7 @@ test.before(async()=>{
   {role:'CHILD',name:'QA C',ageGroupCode:'3-4',pin:'6318',password:'QApassword!42'},
   {role:'TEACHER',name:'QA TA'}, {role:'TEACHER',name:'QA TB'}, {role:'ADMIN',name:'QA Admin'}
  ]);
- f.room=await M.ClassRoom.create({name:'QA A',teacher:f.ta._id,students:[f.a._id],ageGroupCode:'3-4',status:'ACTIVE'});
+ f.room=await M.ClassRoom.create({name:'QA A',teacher:f.ta._id,students:[f.a._id],ageGroupCode:'3-4',status:'ACTIVE',completedLessons:[f.lessons[0]._id]});
  await M.ClassRoom.create({name:'QA B',teacher:f.tb._id,students:[f.c._id],ageGroupCode:'3-4',status:'ACTIVE'});
  await M.User.updateOne({_id:f.a._id},{$set:{assignedClass:f.room._id}});f.a.assignedClass=f.room._id;
  f.session=await M.LearningSession.create({child:f.a._id,lesson:f.lessons[0]._id});
@@ -78,7 +78,7 @@ scenario('stage skipping, invalid evidence, wrong age and locked lessons do not 
  assert.equal((await stage(f.lessons[1],{stage:1,visitedWordIds:f.words.map(w=>String(w._id))})).status,409);
  assert.equal(await M.Progress.countDocuments({}),0);
 });
-scenario('teacher creates a frozen Lesson assignment before learning starts',async()=>{
+scenario('teacher assigns a previously taught Lesson before home learning starts',async()=>{
  const r=await request('/api/teacher/assignments',f.ta,'POST',{classRoomId:String(f.room._id),lessonId:String(f.lessons[0]._id),assignedToType:'CLASS'});
  assert.equal(r.status,201,JSON.stringify(r.data));f.assignment=r.data.data;
  assert.equal(f.assignment.completionMode,'LESSON');assert.equal(f.assignment.contentSnapshot.length,1);
@@ -99,10 +99,11 @@ scenario('three real stages persist server-graded accuracy; retries and concurre
  const fresh=(await request(`/api/children/${f.a._id}/progress/${lesson._id}`,f.a)).data.data;assert.equal(fresh.stage3Games.length,2);
  const path=(await request('/api/lessons/curriculum-path',f.a)).data.data;assert.equal(path[0].lessons[0].stars,1);
 });
-scenario('Lesson completion appears in homework, supports review replacement and uses FAMILY identity',async()=>{
+scenario('Lesson completion appears in homework, supports review replacement and allows family read receipts only',async()=>{
  const tasks=await request('/api/teacher/tasks',f.ta);assert.equal(tasks.status,200,JSON.stringify(tasks.data));assert.ok(tasks.data.data.some(task=>task.kind==='REVIEW'));
  const detail=await request('/api/teacher/assignments/'+f.assignment._id,f.ta);assert.equal(detail.status,200);
  assert.equal(detail.data.data.studentSubmissions[0].hasSubmitted,true);
+ const note=await request('/api/ai/generate-parent-note',f.ta,'POST',{childId:String(f.a._id),assignmentId:String(f.assignment._id),resultId:String(detail.data.data.studentSubmissions[0].submission._id)});assert.equal(note.status,200,JSON.stringify(note.data));assert.equal(note.data.data.options.length,3);
  for(const bonusStars of [2,1]){
   const review=await request(`/api/teacher/assignments/${f.assignment._id}/submissions/${f.a._id}/review`,f.ta,'POST',{comment:'QA feedback',bonusStars});
   assert.equal(review.status,200,JSON.stringify(review.data));
@@ -110,7 +111,8 @@ scenario('Lesson completion appears in homework, supports review replacement and
  const assignment=await M.Assignment.findById(f.assignment._id);assert.equal(assignment.reviews.length,1);assert.equal(assignment.reviews[0].bonusStars,1);
  const notification=await M.ParentNotification.findOne({child:f.a._id});assert.ok(notification);
  const reply=await request(`/api/children/${f.a._id}/parent-notifications/${notification._id}/reply`,f.a,'POST',{message:'QA reply',parentName:'Impersonated name'});
- assert.equal(reply.status,200);assert.equal(reply.data.data.replies[0].senderRole,'FAMILY');assert.notEqual(reply.data.data.replies[0].senderName,'Impersonated name');
+ assert.equal(reply.status,404);
+ const read=await request(`/api/children/${f.a._id}/parent-notifications/${notification._id}/read`,f.a,'PATCH',{});assert.equal(read.status,200);assert.ok(read.data.data.readAt);
 });
 scenario('completing the Unit and retrying a final game grants one chest only',async()=>{
  const lesson=f.lessons[1];
@@ -198,11 +200,13 @@ scenario('attendance and LIVE scoring run on real MongoDB, reject absent awards 
  const created=await request('/api/teacher/classroom-sessions',f.ta,'POST',{classroomId:String(f.room._id),lessonId:String(f.lessons[0]._id),activityIds:[String(f.activity._id)],attendanceRecords:records,lessonPlan:{meta:{lessonTitle:f.lessons[0].title,ageGroup:'3-4',durationMinutes:25},phases:[]}});
  assert.equal(created.status,201,JSON.stringify(created.data));f.live=created.data.data;
  const endpoint='/api/teacher/classroom-sessions/'+f.live._id;
+ await M.Schedule.create({classroom:f.room._id,teacher:f.ta._id,effectiveFrom:new Date('2020-01-01'),weeklySlots:Array.from({length:7},(_,dayOfWeek)=>({dayOfWeek,startTime:'00:00',endTime:'23:59'}))});
  assert.equal((await request(endpoint+'/start',f.ta,'POST',{})).status,200);
- const score={studentId:String(f.a._id),points:10,stars:2,operationId:op()};
+ const score={studentId:String(f.a._id),stars:2,operationId:op()};
+ assert.equal((await request(endpoint+'/score-student',f.ta,'POST',{...score,points:10})).status,400);
  for(let i=0;i<2;i++)assert.equal((await request(endpoint+'/score-student',f.ta,'POST',score)).status,200);
  assert.equal((await request(endpoint+'/score-student',f.ta,'POST',{...score,operationId:op(),studentId:String(absent._id)})).status,400);
- assert.equal((await request(endpoint+'/end',f.ta,'POST',{})).status,200);
+ assert.equal((await request(endpoint+'/end',f.ta,'POST',{coverage:'CONTINUE',goalsCovered:[]})).status,200);
  assert.equal((await request(endpoint+'/score-student',f.ta,'POST',{...score,operationId:op()})).status,409);
  const summary=await request(endpoint+'/summary',f.ta);assert.equal(summary.status,200);assert.equal(summary.data.data.studentScores.find(row=>String(row.student._id)===String(f.a._id)).stars,2);
 });
@@ -217,7 +221,7 @@ scenario('closed-period recognition publishes once and reaches only its winning 
 scenario('full backup restores BSON, indexes and credentials into a second empty QA database',async()=>{
  const response=await request('/api/admin/system/backup',f.admin);assert.equal(response.status,200);
  const payload=mongoose.mongo.BSON.EJSON.deserialize(response.data,{relaxed:false});
- assert.equal(payload.version,'3.1.0');
+ assert.equal(payload.version,'3.4.0');
  const restoreName=dbName+'_restore';const connection=await mongoose.createConnection(process.env.MONGODB_URI,{dbName:restoreName,autoIndex:false}).asPromise();
  try{
   assert.equal(connection.name,restoreName);

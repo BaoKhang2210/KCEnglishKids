@@ -32,12 +32,14 @@ async function proposal(child,room,lessonId){
   }
   const lesson=selected&&await M.Lesson.findOne({_id:selected,ageGroupCode:child.ageGroupCode,status:'ACTIVE'}).populate('vocabularyItems').lean();
   if(!lesson)return {available:false,revision:current?.revision||0,message:'Chưa có bài đang hoạt động phù hợp độ tuổi để chuẩn bị ôn.'};
+  lesson.vocabularyItems=(lesson.vocabularyItems||[]).filter(Boolean);
   const source=sessions.find(session=>idOf(session.lesson)===idOf(lesson));
   const actual=sessions.find(session=>idOf(session.lesson)===idOf(lesson)&&session.studentScores.some(row=>idOf(row.student)===idOf(child)&&present(row)));
   const own=observations.filter(row=>idOf(row.lesson)===idOf(lesson));
-  const mastery=await M.VocabularyMastery.find({student:child._id,vocabulary:{$in:lesson.vocabularyItems.map(word=>word._id)}}).lean();
+  const mastery=await M.VocabularyMastery.find({student:child._id,vocabulary:{$in:lesson.vocabularyItems.map(word=>word._id)}}).sort({vocabulary:1,_id:1}).lean();
   const guide=lessonGuide(lesson,child.ageGroupCode);
   const items=chooseWords(lesson.vocabularyItems,mastery,own,guide,Boolean(actual));
+  if(!items.length)return {available:false,revision:current?.revision||0,message:'Bài này chưa có từ đang hoạt động kèm tranh. Hãy chọn bài khác hoặc nhờ quản trị viên bổ sung học liệu.'};
   const basisToken=hash({lesson:idOf(lesson),updated:lesson.updatedAt,profile:guide.profileRevision,words:lesson.vocabularyItems.map(word=>[idOf(word),word.updatedAt,word.status]),observations:own.map(row=>[idOf(row),row.updatedAt,row.level]),mastery:mastery.map(row=>[idOf(row.vocabulary),row.updatedAt,row.masteryLevel,row.wrongCount,row.streak]),sessions:sessions.filter(row=>idOf(row.lesson)===idOf(lesson)).map(row=>[idOf(row),row.updatedAt,row.studentScores.find(item=>idOf(item.student)===idOf(child))?.attendance])});
   return {available:true,lesson:{_id:lesson._id,title:lesson.vietnameseTitle||lesson.title},guide,items,suggestedWordIds:items.slice(0,guide.reviewWords).map(item=>idOf(item.vocabulary)),observations:own.map(row=>({_id:row._id,skill:row.skill,level:row.level,evidence:row.evidence,nextStep:row.nextStep,observedAt:row.observedAt})),attended:Boolean(actual),sourceSession:actual?._id||source?._id||null,attendanceBasis:actual?'Có ghi nhận bé tham dự bài này':source?'Có buổi lớp dạy bài này nhưng chưa ghi nhận bé có mặt':'Chưa có ghi nhận bé tham dự bài này',revision:current?.revision||0,basisToken};
 }
@@ -77,4 +79,194 @@ async function familyCurrent(child){
   // The family gets the approved activity, not internal observation notes or future drafts.
   return {_id:plan._id,revision:plan.revision,lessonTitle:plan.lessonTitle,lessonId:plan.lesson,teacherNote:plan.teacherNote,words:plan.words.map(word=>({...word,_id:word.vocabulary})),homeActivity:plan.homeActivity,approvedAt:plan.createdAt};
 }
-module.exports={proposal,approve,familyCurrent,latest,safe,chooseWords,hash};
+
+async function getHomeReview(child) {
+  const approved = await familyCurrent(child);
+  let targetLessonId = approved ? approved.lessonId : null;
+  let recentSession = null;
+
+  if (!targetLessonId && child.assignedClass) {
+    if (M.ClassroomSession && typeof M.ClassroomSession.findOne === 'function') {
+      recentSession = await M.ClassroomSession.findOne({
+        classroom: child.assignedClass,
+        status: 'COMPLETED'
+      }).sort({ endedAt: -1, _id: -1 }).populate('lesson').lean();
+      if (recentSession?.lesson) {
+        targetLessonId = recentSession.lesson._id || recentSession.lesson;
+      }
+    }
+  }
+
+  if (!targetLessonId && child.assignedClass) {
+    const room = await M.ClassRoom.findById(child.assignedClass).lean();
+    if (room?.currentLesson) {
+      targetLessonId = room.currentLesson;
+    }
+  }
+
+  if (!targetLessonId) {
+    const unit = await M.CurriculumUnit.findOne({
+      ageGroupCode: child.ageGroupCode,
+      status: 'ACTIVE'
+    }).sort({ bookNumber: 1, unitNumber: 1 }).lean();
+    const fallbackLesson = await M.Lesson.findOne({
+      ageGroupCode: child.ageGroupCode,
+      status: 'ACTIVE',
+      ...(unit ? { curriculumUnits: unit._id } : {})
+    }).sort({ displayOrder: 1, _id: 1 }).lean();
+    if (fallbackLesson) {
+      targetLessonId = fallbackLesson._id;
+    }
+  }
+
+  if (!targetLessonId) return null;
+
+  const lesson = await M.Lesson.findById(targetLessonId).populate('vocabularyItems').lean();
+  if (!lesson) return null;
+
+  let words = [];
+  if (approved && approved.words && approved.words.length > 0) {
+    words = approved.words;
+  } else {
+    words = (lesson.vocabularyItems || [])
+      .filter(w => w && w.status === 'ACTIVE' && w.imageUrl)
+      .slice(0, 5)
+      .map(w => ({
+        _id: w._id,
+        english: w.english,
+        vietnamese: w.vietnamese,
+        imageUrl: w.imageUrl,
+        audioUrl: w.audioUrl
+      }));
+  }
+
+  let sentencePatterns = [];
+  if (M.LanguageContent && typeof M.LanguageContent.find === 'function') {
+    sentencePatterns = await M.LanguageContent.find({
+      $or: [
+        { lesson: lesson._id },
+        { topic: lesson.topic, ageGroupCode: child.ageGroupCode }
+      ],
+      status: 'ACTIVE'
+    }).limit(4).lean();
+  }
+
+  if (!sentencePatterns || sentencePatterns.length === 0) {
+    const sampleWord = words[0]?.english || 'this';
+    const sampleVi = words[0]?.vietnamese || 'đồ vật này';
+    sentencePatterns = [
+      {
+        _id: 'pattern-q1',
+        english: 'What is this?',
+        vietnamese: 'Đây là cái gì thế con?',
+        contentType: 'QUESTION'
+      },
+      {
+        _id: 'pattern-a1',
+        english: `It's a ${sampleWord}.`,
+        vietnamese: `Đó là ${sampleVi}.`,
+        contentType: 'ANSWER'
+      }
+    ];
+  } else {
+    sentencePatterns = sentencePatterns.map(s => ({
+      _id: s._id,
+      english: s.english,
+      vietnamese: s.vietnamese,
+      contentType: s.contentType,
+      pronunciation: s.pronunciation,
+      audioUrl: s.audioMedia?.url || null
+    }));
+  }
+
+  const { vnDate } = require('./teacherRules');
+  const todayStr = vnDate();
+  let completion = null;
+  if (M.HomePracticeCompletion && typeof M.HomePracticeCompletion.findOne === 'function') {
+    completion = await M.HomePracticeCompletion.findOne({
+      child: child._id,
+      date: todayStr
+    }).lean();
+  }
+
+  const parentGuidance = {
+    title: approved?.homeActivity?.title || '3 Bước Cùng Con Ôn Tập 5 Phút Tại Nhà',
+    steps: approved?.homeActivity?.steps?.length
+      ? approved.homeActivity.steps
+      : [
+          'Chỉ tranh & Hỏi bé: Ba mẹ chạm vào từng hình từ vựng ở trên hoặc đồ vật trong nhà, hỏi bé: "What is this?" để bé gọi tên to rõ.',
+          'Cùng luyện mẫu câu: Ba mẹ bấm loa nghe câu hỏi và câu trả lời mẫu, cùng bé đối thoại luân phiên.',
+          'High-five & Xác nhận: Đập tay khen ngợi bé thật nồng nhiệt và bấm nút "Xác nhận hoàn thành" để bé nhận 3 sao may mắn!'
+        ],
+    teacherNote: approved?.teacherNote || 'Ba mẹ hãy dành 5 phút trò chuyện vui vẻ cùng con nhé!'
+  };
+
+  return {
+    lessonId: lesson._id,
+    lessonTitle: lesson.title,
+    lessonVietnameseTitle: lesson.vietnameseTitle || lesson.title,
+    recentSession: recentSession ? {
+      _id: recentSession._id,
+      title: recentSession.title,
+      endedAt: recentSession.endedAt
+    } : null,
+    words,
+    sentencePatterns,
+    parentGuidance,
+    completedToday: Boolean(completion),
+    starsAwarded: completion ? completion.stars : 0,
+    approvedPlan: approved
+  };
+}
+
+async function completeHomeReview(child, lessonId) {
+  const { vnDate } = require('./teacherRules');
+  const todayStr = vnDate();
+  let completion = null;
+  let newlyCompleted = false;
+
+  if (M.HomePracticeCompletion) {
+    completion = await M.HomePracticeCompletion.findOne({
+      child: child._id,
+      date: todayStr
+    });
+
+    if (!completion) {
+      try {
+        completion = await M.HomePracticeCompletion.create({
+          child: child._id,
+          lesson: lessonId,
+          date: todayStr,
+          stars: 3,
+          completedAt: new Date()
+        });
+        newlyCompleted = true;
+      } catch (err) {
+        if (err.code === 11000) {
+          completion = await M.HomePracticeCompletion.findOne({
+            child: child._id,
+            date: todayStr
+          });
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  const { computeRewards } = require('./rewardService');
+  const rewardState = await computeRewards(child._id);
+
+  return {
+    completedToday: true,
+    newlyCompleted,
+    starsAwarded: newlyCompleted ? 3 : 0,
+    totalStars: rewardState.totalStars,
+    message: newlyCompleted
+      ? 'Tuyệt vời! Bé đã xuất sắc hoàn thành 5 phút ôn tập hôm nay và nhận được 3 ngôi sao!'
+      : 'Hôm nay bé đã nhận thưởng 3 sao cho bài ôn tập rồi!'
+  };
+}
+
+module.exports={proposal,approve,familyCurrent,latest,safe,chooseWords,hash,getHomeReview,completeHomeReview};
+

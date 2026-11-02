@@ -69,7 +69,12 @@ export const SessionSummaryPage: React.FC = () => {
 
   if (!session) {
     return (
-      <div className="p-8 text-center text-slate-600">{error || 'Không tìm thấy buổi dạy này.'}<Link className="teacher-button ml-4" to="/teacher/classroom-sessions">Về nhật ký</Link></div>
+      <div className="p-8 text-center text-slate-600">
+        {error || 'Không tìm thấy buổi dạy này.'}
+        <Link className="teacher-button ml-4" to="/teacher/classroom-sessions">
+          Quay lại xem toàn bộ những buổi học
+        </Link>
+      </div>
     );
   }
 
@@ -289,10 +294,10 @@ export const SessionSummaryPage: React.FC = () => {
             <Send size={18} /> Gửi báo cáo cho phụ huynh
           </button>
           <Link
-            to={`/teacher/classes/${(session.classroom as any)?._id || ''}`}
+            to="/teacher/classroom-sessions"
             className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            <ArrowLeft size={16} /> Quay lại lớp học
+            <ArrowLeft size={16} /> Quay lại xem toàn bộ những buổi học
           </Link>
         </div>
       </div>

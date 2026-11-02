@@ -1,10 +1,8 @@
-require('dotenv').config();
-if (!process.env.SEED_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD.length < 12) throw new Error('Set SEED_ADMIN_PASSWORD (at least 12 characters) before seeding.');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
 const path = require('path');
-
+const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '../../.env') });
+const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@123';
+const mongoose = require('mongoose');
 
 const connectDB = require('../config/db');
 const {
@@ -24,8 +22,22 @@ const {
   Progress,
   ClassroomSession,
   VocabularyMastery,
-  ParentNotification
+  ParentNotification,
+  Attendance,
+  Schedule,
+  LearningObservation,
+  HomePracticePlan,
+  Assignment,
+  LearningEvent,
+  MasteryEvent,
+  TeacherNote,
+  UnitCompletion,
+  SchoolRecognition,
+  GameCatalogSetting,
+  SystemSetting,
+  AuditLog
 } = require('../models');
+const ClassRecognition = require('../models/ClassRecognition');
 
 // Modular Dataset Imports
 const { AGE_GROUPS_DATA, BOOKS_DATA, UNITS_DATA } = require('./curriculumData');
@@ -127,10 +139,13 @@ const createCardSvg = (text, bg, emoji) => {
 async function seedDatabase() {
   try {
     await connectDB();
-    // Full seeding is only safe in an empty database. Preserve operational history.
-    for (const collection of await mongoose.connection.db.listCollections().toArray()) {
-      if (!collection.name.startsWith('system.') && await mongoose.connection.db.collection(collection.name).estimatedDocumentCount()) {
-        throw new Error('Seed refused: database is not empty. Use a new empty database or an explicit, backed-up migration.');
+    // Full seeding is only safe in an empty database unless --force or --clean is passed.
+    const force = process.argv.includes('--force') || process.argv.includes('--clean');
+    if (!force) {
+      for (const collection of await mongoose.connection.db.listCollections().toArray()) {
+        if (!collection.name.startsWith('system.') && await mongoose.connection.db.collection(collection.name).estimatedDocumentCount()) {
+          throw new Error('Seed refused: database is not empty. Pass --force to wipe and reseed clean demo data.');
+        }
       }
     }
     console.log('==================================================');
@@ -138,7 +153,7 @@ async function seedDatabase() {
     console.log('==================================================');
 
     // 0. Clear collections idempotently
-    console.log('[Seed] 1/9 Clearing collections to maintain idempotent consistency...');
+    console.log('[Seed] 1/9 Clearing all 31 collections to maintain idempotent consistency...');
     await Promise.all([
       AgeGroup.deleteMany({}),
       CurriculumBook.deleteMany({}),
@@ -153,9 +168,26 @@ async function seedDatabase() {
       ClassRoom.deleteMany({}),
       LearningSession.deleteMany({}),
       ActivityResult.deleteMany({}),
-      Progress.deleteMany({})
+      Progress.deleteMany({}),
+      ClassroomSession.deleteMany({}),
+      VocabularyMastery.deleteMany({}),
+      ParentNotification.deleteMany({}),
+      Attendance.deleteMany({}),
+      Schedule.deleteMany({}),
+      LearningObservation.deleteMany({}),
+      HomePracticePlan.deleteMany({}),
+      Assignment.deleteMany({}),
+      LearningEvent.deleteMany({}),
+      MasteryEvent.deleteMany({}),
+      TeacherNote.deleteMany({}),
+      UnitCompletion.deleteMany({}),
+      ClassRecognition.deleteMany({}),
+      SchoolRecognition.deleteMany({}),
+      GameCatalogSetting.deleteMany({}),
+      SystemSetting.deleteMany({}),
+      AuditLog.deleteMany({})
     ]);
-    console.log('[Seed] Collections cleared successfully.');
+    console.log('[Seed] All collections cleared successfully.');
 
     // 1. Seed Age Groups (3)
     console.log('[Seed] 2/9 Seeding 3 Age Groups...');
@@ -461,13 +493,30 @@ async function seedDatabase() {
 
     const insertedActivities = await Activity.insertMany(activityDocsToInsert);
 
-    // 9. Seed Demo Users (Admin, Teacher, Children) & Classroom
-    console.log('[Seed] Creating Demo Users and Classroom...');
+    // 9. Seed Demo Users, Classrooms, Schedules, Attendance, Sessions & Streaks
+    console.log('[Seed] Creating Demo Users, Classrooms, Schedules, and Learning Records...');
+
+    const getVietnamDateStr = (date = new Date()) => {
+      const vnDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const y = vnDate.getFullYear();
+      const m = String(vnDate.getMonth() + 1).padStart(2, '0');
+      const d = String(vnDate.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const today = new Date();
+    const todayStr = getVietnamDateStr(today);
+    const yesterday = new Date(Date.now() - 86400000);
+    const yesterdayStr = getVietnamDateStr(yesterday);
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000);
+    const twoDaysAgoStr = getVietnamDateStr(twoDaysAgo);
+
+    // 9.1 Admin User
     const adminUser = new User({
       role: 'ADMIN',
       username: 'admin',
       email: 'admin@kcenglishkids.com',
-      password: process.env.SEED_ADMIN_PASSWORD,
+      password: adminPassword,
       name: 'System Administrator',
       avatar: 'bear',
       avatarUrl: createCardSvg('Admin', '#D7CCC8', '🐻'),
@@ -475,43 +524,106 @@ async function seedDatabase() {
     });
     await adminUser.save();
 
-    const teacherUser = new User({
+    // 9.2 Teachers (1 per age group & classroom)
+    const teacher1 = new User({
       role: 'TEACHER',
       username: 'teacher_sarah',
       email: 'teacher@kcenglishkids.com',
       password: 'Teacher@123',
       name: 'Ms. Sarah Johnson',
+      phone: '0901111111',
+      contact: '0901111111',
       avatar: 'fox',
-      avatarUrl: createCardSvg('Teacher', '#FFE0B2', '🦊'),
+      avatarUrl: createCardSvg('Teacher Sarah', '#FFE0B2', '🦊'),
       status: 'ACTIVE'
     });
-    await teacherUser.save();
+    await teacher1.save();
 
-    const demoClass = await ClassRoom.create({
+    const teacher2 = new User({
+      role: 'TEACHER',
+      username: 'teacher_emily',
+      email: 'emily@kcenglishkids.com',
+      password: 'Teacher@123',
+      name: 'Ms. Emily Watson',
+      phone: '0902222222',
+      contact: '0902222222',
+      avatar: 'koala',
+      avatarUrl: createCardSvg('Teacher Emily', '#E1BEE7', '🐨'),
+      status: 'ACTIVE'
+    });
+    await teacher2.save();
+
+    const teacher3 = new User({
+      role: 'TEACHER',
+      username: 'teacher_david',
+      email: 'david@kcenglishkids.com',
+      password: 'Teacher@123',
+      name: 'Mr. David Miller',
+      phone: '0903333333',
+      contact: '0903333333',
+      avatar: 'bear',
+      avatarUrl: createCardSvg('Teacher David', '#C8E6C9', '🐻'),
+      status: 'ACTIVE'
+    });
+    await teacher3.save();
+
+    // 9.3 3 Classrooms across 3 Age Groups
+    const class1 = await ClassRoom.create({
       name: 'Little Stars Class (Age 3–4)',
-      teacher: teacherUser._id,
+      teacher: teacher1._id,
       ageGroup: ageGroupsMap['3-4']._id,
       ageGroupCode: '3-4',
       academicYear: '2026-2027',
       students: [],
       status: 'ACTIVE'
     });
-    teacherUser.assignedClass = demoClass._id;
-    await teacherUser.save();
+    teacher1.assignedClass = class1._id;
+    await teacher1.save();
 
+    const class2 = await ClassRoom.create({
+      name: 'Sunny Kindergarten (Age 4–5)',
+      teacher: teacher2._id,
+      ageGroup: ageGroupsMap['4-5']._id,
+      ageGroupCode: '4-5',
+      academicYear: '2026-2027',
+      students: [],
+      status: 'ACTIVE'
+    });
+    teacher2.assignedClass = class2._id;
+    await teacher2.save();
+
+    const class3 = await ClassRoom.create({
+      name: 'Rainbow Explorers (Age 5–6)',
+      teacher: teacher3._id,
+      ageGroup: ageGroupsMap['5-6']._id,
+      ageGroupCode: '5-6',
+      academicYear: '2026-2027',
+      students: [],
+      status: 'ACTIVE'
+    });
+    teacher3.assignedClass = class3._id;
+    await teacher3.save();
+
+    // 9.4 3 Primary Children for 3 Age Groups (PIN: 1232)
     const childLeo = new User({
       role: 'CHILD',
       name: 'Leo',
+      username: 'leo',
       email: 'leo@kcenglishkids.com',
       phone: '0901234567',
       contact: '0901234567',
+      parentContact: 'parent.leo@example.com',
       avatar: 'lion',
       avatarUrl: createCardSvg('Leo', '#FFE082', '🦁'),
       password: '1232',
       pin: '1232',
       ageGroup: ageGroupsMap['3-4']._id,
       ageGroupCode: '3-4',
-      assignedClass: demoClass._id,
+      assignedClass: class1._id,
+      streak: 3,
+      longestStreak: 3,
+      lastActiveDate: todayStr,
+      activeDates: [twoDaysAgoStr, yesterdayStr, todayStr],
       status: 'ACTIVE'
     });
     await childLeo.save();
@@ -519,16 +631,22 @@ async function seedDatabase() {
     const childMia = new User({
       role: 'CHILD',
       name: 'Mia',
+      username: 'mia',
       email: 'mia@kcenglishkids.com',
       phone: '0902345678',
       contact: '0902345678',
+      parentContact: 'parent.mia@example.com',
       avatar: 'panda',
       avatarUrl: createCardSvg('Mia', '#CFD8DC', '🐼'),
       password: '1232',
       pin: '1232',
       ageGroup: ageGroupsMap['4-5']._id,
       ageGroupCode: '4-5',
-      assignedClass: demoClass._id,
+      assignedClass: class2._id,
+      streak: 1,
+      longestStreak: 1,
+      lastActiveDate: todayStr,
+      activeDates: [todayStr],
       status: 'ACTIVE'
     });
     await childMia.save();
@@ -536,32 +654,46 @@ async function seedDatabase() {
     const childToby = new User({
       role: 'CHILD',
       name: 'Toby',
+      username: 'toby',
       email: 'toby@kcenglishkids.com',
       phone: '0903456789',
       contact: '0903456789',
+      parentContact: 'parent.toby@example.com',
       avatar: 'rabbit',
       avatarUrl: createCardSvg('Toby', '#F8BBD0', '🐰'),
       password: '1232',
       pin: '1232',
       ageGroup: ageGroupsMap['5-6']._id,
       ageGroupCode: '5-6',
+      assignedClass: class3._id,
+      streak: 1,
+      longestStreak: 1,
+      lastActiveDate: todayStr,
+      activeDates: [todayStr],
       status: 'ACTIVE'
     });
     await childToby.save();
 
-    const extraKids = [
+    // 9.5 18 Classmates Partitioned Cleanly by Age Group and Class
+    const class1KidsDef = [
       { name: 'Emma', avatar: 'fox', pin: '2001' },
       { name: 'Liam', avatar: 'bear', pin: '2002' },
       { name: 'Sophia', avatar: 'koala', pin: '2003' },
       { name: 'Noah', avatar: 'lion', pin: '2004' },
       { name: 'Ava', avatar: 'rabbit', pin: '2005' },
-      { name: 'Oliver', avatar: 'panda', pin: '2006' },
+      { name: 'Oliver', avatar: 'panda', pin: '2006' }
+    ];
+
+    const class2KidsDef = [
       { name: 'Lucas', avatar: 'fox', pin: '2007' },
       { name: 'Isabella', avatar: 'koala', pin: '2008' },
       { name: 'Ethan', avatar: 'bear', pin: '2009' },
       { name: 'Harper', avatar: 'rabbit', pin: '2010' },
       { name: 'Chloe', avatar: 'panda', pin: '2011' },
-      { name: 'Mason', avatar: 'lion', pin: '2012' },
+      { name: 'Mason', avatar: 'lion', pin: '2012' }
+    ];
+
+    const class3KidsDef = [
       { name: 'James', avatar: 'fox', pin: '2013' },
       { name: 'Ella', avatar: 'koala', pin: '2014' },
       { name: 'Jackson', avatar: 'bear', pin: '2015' },
@@ -570,35 +702,68 @@ async function seedDatabase() {
       { name: 'Grace', avatar: 'fox', pin: '2018' }
     ];
 
-    const studentIds = [childLeo._id, childMia._id];
-    for (let i = 0; i < extraKids.length; i++) {
-      const k = extraKids[i];
-      const email = `${k.name.toLowerCase()}@kcenglishkids.com`;
-      const kidUser = new User({
-        role: 'CHILD',
-        name: k.name,
-        email,
-        phone: `09000000${(i + 1).toString().padStart(2, '0')}`,
-        contact: `09000000${(i + 1).toString().padStart(2, '0')}`,
-        parentContact: `parent.${k.name.toLowerCase()}@example.com`,
-        avatar: k.avatar,
-        avatarUrl: createCardSvg(k.name, BG_COLORS[i % BG_COLORS.length], EMOJI_MAP[k.avatar] || '🦁'),
-        password: '123456',
-        pin: k.pin,
-        ageGroup: ageGroupsMap['3-4']._id,
-        ageGroupCode: '3-4',
-        assignedClass: demoClass._id,
-        status: 'ACTIVE'
-      });
-      await kidUser.save();
-      studentIds.push(kidUser._id);
-    }
+    const createKids = async (defs, classroom, ageCode, startIdx) => {
+      const kids = [];
+      for (let i = 0; i < defs.length; i++) {
+        const k = defs[i];
+        const num = (startIdx + i + 1).toString().padStart(2, '0');
+        const kid = new User({
+          role: 'CHILD',
+          name: k.name,
+          username: k.name.toLowerCase(),
+          email: `${k.name.toLowerCase()}@kcenglishkids.com`,
+          phone: `09000000${num}`,
+          contact: `09000000${num}`,
+          parentContact: `parent.${k.name.toLowerCase()}@example.com`,
+          avatar: k.avatar,
+          avatarUrl: createCardSvg(k.name, BG_COLORS[(startIdx + i) % BG_COLORS.length], EMOJI_MAP[k.avatar] || '🦁'),
+          password: '1232',
+          pin: k.pin,
+          ageGroup: ageGroupsMap[ageCode]._id,
+          ageGroupCode: ageCode,
+          assignedClass: classroom._id,
+          status: 'ACTIVE'
+        });
+        await kid.save();
+        kids.push(kid);
+      }
+      return kids;
+    };
 
-    demoClass.students = studentIds;
-    await demoClass.save();
+    const class1Kids = await createKids(class1KidsDef, class1, '3-4', 0);
+    const class2Kids = await createKids(class2KidsDef, class2, '4-5', 6);
+    const class3Kids = await createKids(class3KidsDef, class3, '5-6', 12);
 
-    // Link demo progress for Leo to demo lesson: B1_U5_L1 (Pet Animals)
+    class1.students = [childLeo._id, ...class1Kids.map(k => k._id)];
+    await class1.save();
+
+    class2.students = [childMia._id, ...class2Kids.map(k => k._id)];
+    await class2.save();
+
+    class3.students = [childToby._id, ...class3Kids.map(k => k._id)];
+    await class3.save();
+
+    // 9.6 Learning Lessons references
     const petAnimalsLesson = lessonsMapByKey.get('B1_U5_L1');
+    const b2Lesson = lessonsMapByKey.get('B2_U1_L1') || petAnimalsLesson;
+    const b3Lesson = lessonsMapByKey.get('B3_U1_L1') || petAnimalsLesson;
+
+    const petAnimalsActivities = petAnimalsLesson
+      ? await Activity.find({ lesson: petAnimalsLesson._id }).sort({ order: 1 })
+      : [];
+
+    const petSession = await LearningSession.create({
+      child: childLeo._id,
+      lesson: petAnimalsLesson._id,
+      status: 'COMPLETED',
+      score: 100,
+      stars: 3,
+      currentActivity: petAnimalsActivities[0]?._id,
+      completedActivities: petAnimalsActivities.map(a => a._id),
+      startedAt: twoDaysAgo,
+      lastActivityAt: today
+    });
+
     if (petAnimalsLesson) {
       await Progress.create({
         child: childLeo._id,
@@ -611,46 +776,218 @@ async function seedDatabase() {
       });
     }
 
-    // Seed VocabularyMastery sample records
-    const sampleVocabs = await Vocabulary.find({}).limit(5);
-    for (const v of sampleVocabs) {
-      await VocabularyMastery.create({
-        student: childLeo._id,
-        vocabulary: v._id,
-        correctCount: 4,
-        wrongCount: 1,
-        attemptCount: 5,
-        streak: 3,
-        masteryLevel: 3,
-        lastReviewedAt: new Date()
+    // 9.7 ActivityResults and LearningEvents for Leo's 3-day flame streak
+    const actResultDates = [twoDaysAgo, yesterday, today, today];
+    for (let i = 0; i < petAnimalsActivities.length; i++) {
+      const act = petAnimalsActivities[i];
+      const d = actResultDates[Math.min(i, actResultDates.length - 1)];
+      await ActivityResult.create({
+        child: childLeo._id,
+        session: petSession._id,
+        lesson: petAnimalsLesson._id,
+        activity: act._id,
+        score: 100,
+        maxScore: 100,
+        correctCount: act.questionCount || 4,
+        incorrectCount: 0,
+        completed: true,
+        stars: 3,
+        timeSpentSeconds: 45,
+        createdAt: d,
+        updatedAt: d
       });
-      await VocabularyMastery.create({
-        student: childMia._id,
-        vocabulary: v._id,
-        correctCount: 2,
-        wrongCount: 1,
-        attemptCount: 3,
-        streak: 1,
-        masteryLevel: 2,
-        lastReviewedAt: new Date()
+
+      if (i < 3) {
+        await LearningEvent.create({
+          child: childLeo._id,
+          lesson: petAnimalsLesson._id,
+          submissionId: `sub_leo_stage${i + 1}_${Date.now()}_${i}`,
+          stage: (i % 3) + 1,
+          score: 100,
+          lessonCompleted: i === 2,
+          createdAt: d,
+          updatedAt: d
+        });
+      }
+    }
+
+    // Mia and Toby streak events (today)
+    if (b2Lesson) {
+      await LearningEvent.create({
+        child: childMia._id,
+        lesson: b2Lesson._id,
+        submissionId: `sub_mia_stage1_${Date.now()}`,
+        stage: 1,
+        score: 100,
+        lessonCompleted: false,
+        createdAt: today,
+        updatedAt: today
+      });
+    }
+    if (b3Lesson) {
+      await LearningEvent.create({
+        child: childToby._id,
+        lesson: b3Lesson._id,
+        submissionId: `sub_toby_stage1_${Date.now()}`,
+        stage: 1,
+        score: 100,
+        lessonCompleted: false,
+        createdAt: today,
+        updatedAt: today
       });
     }
 
-    // Seed sample ClassroomSession
-    const sampleActivities = petAnimalsLesson
-      ? await Activity.find({ lesson: petAnimalsLesson._id }).limit(3)
-      : [];
-    const sampleSession = await ClassroomSession.create({
-      classroom: demoClass._id,
-      teacher: teacherUser._id,
+    // 9.8 VocabularyMastery Records
+    const animalVocabs = await Vocabulary.find({ english: { $in: ['dog', 'cat', 'rabbit', 'fish', 'bird'] } });
+    for (const v of animalVocabs) {
+      await VocabularyMastery.create({
+        student: childLeo._id,
+        vocabulary: v._id,
+        correctCount: 5,
+        wrongCount: 0,
+        attemptCount: 5,
+        streak: 3,
+        masteryLevel: 3,
+        lastReviewedAt: today
+      });
+    }
+
+    const foodVocabs = await Vocabulary.find({ english: { $in: ['apple', 'banana', 'pear', 'orange', 'carrot'] } });
+    for (const v of foodVocabs) {
+      await VocabularyMastery.create({
+        student: childMia._id,
+        vocabulary: v._id,
+        correctCount: 3,
+        wrongCount: 1,
+        attemptCount: 4,
+        streak: 2,
+        masteryLevel: 2,
+        lastReviewedAt: today
+      });
+    }
+
+    const schoolVocabs = await Vocabulary.find({ english: { $in: ['book', 'crayon', 'chair', 'table', 'pencil'] } });
+    for (const v of schoolVocabs) {
+      await VocabularyMastery.create({
+        student: childToby._id,
+        vocabulary: v._id,
+        correctCount: 4,
+        wrongCount: 0,
+        attemptCount: 4,
+        streak: 3,
+        masteryLevel: 3,
+        lastReviewedAt: today
+      });
+    }
+
+    // 9.9 Timetables / Schedules (Monday to Friday slots for all 3 classes)
+    const b1Lessons = insertedLessons.filter(l => l.ageGroupCode === '3-4');
+    const b2Lessons = insertedLessons.filter(l => l.ageGroupCode === '4-5');
+    const b3Lessons = insertedLessons.filter(l => l.ageGroupCode === '5-6');
+
+    const buildSlotsForClass = (lessons, startTime, endTime, room, defaultNote) => {
+      return [1, 2, 3, 4, 5].map((dayOfWeek, idx) => {
+        const l = lessons[idx] || lessons[0];
+        return {
+          dayOfWeek,
+          startTime,
+          endTime,
+          room,
+          subjectNote: `${defaultNote} - ${l ? l.title : ''}`,
+          lesson: l ? l._id : null,
+          lessonNumber: idx + 1,
+          lessonTitle: l ? l.title : ''
+        };
+      });
+    };
+
+    await Schedule.create({
+      classroom: class1._id,
+      teacher: teacher1._id,
+      academicYear: '2026-2027',
+      colorTag: 'indigo',
+      isActive: true,
+      weeklySlots: buildSlotsForClass(b1Lessons, '08:30', '09:15', 'Phòng Mầm 1', 'English Morning Discovery')
+    });
+
+    await Schedule.create({
+      classroom: class2._id,
+      teacher: teacher2._id,
+      academicYear: '2026-2027',
+      colorTag: 'emerald',
+      isActive: true,
+      weeklySlots: buildSlotsForClass(b2Lessons, '09:30', '10:15', 'Phòng Chồi 2', 'Interactive Vocabulary & Communication')
+    });
+
+    await Schedule.create({
+      classroom: class3._id,
+      teacher: teacher3._id,
+      academicYear: '2026-2027',
+      colorTag: 'purple',
+      isActive: true,
+      weeklySlots: buildSlotsForClass(b3Lessons, '10:30', '11:15', 'Phòng Lá 3', 'Sentence Patterns & Oracy Presentation')
+    });
+
+    // 9.10 Daily Attendance for Class 1, 2, 3
+    await Attendance.create({
+      classroom: class1._id,
+      teacher: teacher1._id,
+      date: todayStr,
+      records: [
+        { student: childLeo._id, status: 'PRESENT', note: 'Đi học đúng giờ, rất hào hứng' },
+        { student: class1Kids[0]._id, status: 'PRESENT', note: '' },
+        { student: class1Kids[1]._id, status: 'PRESENT', note: '' },
+        { student: class1Kids[2]._id, status: 'PRESENT', note: '' },
+        { student: class1Kids[3]._id, status: 'PRESENT', note: '' },
+        { student: class1Kids[4]._id, status: 'LATE', note: 'Đến muộn 15 phút do kẹt xe' },
+        { student: class1Kids[5]._id, status: 'EXCUSED', note: 'Nghỉ có phép từ phụ huynh (khám răng)' }
+      ],
+      note: 'Điểm danh buổi sáng lớp Little Stars'
+    });
+
+    await Attendance.create({
+      classroom: class2._id,
+      teacher: teacher2._id,
+      date: todayStr,
+      records: [
+        { student: childMia._id, status: 'PRESENT', note: 'Hào hứng tham gia phát biểu' },
+        { student: class2Kids[0]._id, status: 'PRESENT', note: '' },
+        { student: class2Kids[1]._id, status: 'EXCUSED', note: 'Nghỉ ốm có đơn xin phép từ phụ huynh' },
+        { student: class2Kids[2]._id, status: 'PRESENT', note: '' },
+        { student: class2Kids[3]._id, status: 'ABSENT', note: 'Vắng không phép, giáo viên đã gọi điện nhắc nhở' },
+        { student: class2Kids[4]._id, status: 'PRESENT', note: '' }
+      ],
+      note: 'Điểm danh lớp Sunny Kindergarten'
+    });
+
+    await Attendance.create({
+      classroom: class3._id,
+      teacher: teacher3._id,
+      date: todayStr,
+      records: [
+        { student: childToby._id, status: 'PRESENT', note: 'Đi học đúng giờ' },
+        { student: class3Kids[0]._id, status: 'PRESENT', note: '' },
+        { student: class3Kids[1]._id, status: 'LATE', note: 'Đến muộn 10 phút' },
+        { student: class3Kids[2]._id, status: 'EXCUSED', note: 'Gia đình có việc bận xin nghỉ' },
+        { student: class3Kids[3]._id, status: 'PRESENT', note: '' },
+        { student: class3Kids[4]._id, status: 'PRESENT', note: '' }
+      ],
+      note: 'Điểm danh lớp Rainbow Explorers'
+    });
+
+    // 9.11 ClassroomSessions (COMPLETED for all 3 classes with rich attendance & performance)
+    const sampleSession1 = await ClassroomSession.create({
+      classroom: class1._id,
+      teacher: teacher1._id,
       lesson: petAnimalsLesson ? petAnimalsLesson._id : undefined,
       title: 'Pet Animals Live Exploration',
       ageGroup: '3-4',
       status: 'COMPLETED',
-      startedAt: new Date(Date.now() - 45 * 60 * 1000),
-      endedAt: new Date(),
+      sessionNumber: 1,
+      startedAt: new Date(Date.now() - 50 * 60 * 1000),
+      endedAt: new Date(Date.now() - 5 * 60 * 1000),
       plannedDuration: 45,
-      activities: sampleActivities.map((a) => a._id),
+      activities: petAnimalsActivities.slice(0, 3).map(a => a._id),
       studentScores: [
         {
           student: childLeo._id,
@@ -659,36 +996,384 @@ async function seedDatabase() {
           correctCount: 5,
           incorrectCount: 0,
           notAnswered: 0,
+          attendance: 'PRESENT',
           status: 'COMPLETED'
         },
         {
-          student: childMia._id,
+          student: class1Kids[0]._id,
+          points: 45,
+          stars: 3,
+          correctCount: 4,
+          incorrectCount: 1,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class1Kids[1]._id,
           points: 35,
           stars: 2,
           correctCount: 3,
           incorrectCount: 2,
           notAnswered: 0,
+          attendance: 'PRESENT',
           status: 'COMPLETED'
+        },
+        {
+          student: class1Kids[2]._id,
+          points: 48,
+          stars: 3,
+          correctCount: 5,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class1Kids[3]._id,
+          points: 30,
+          stars: 2,
+          correctCount: 3,
+          incorrectCount: 2,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class1Kids[4]._id,
+          points: 20,
+          stars: 1,
+          correctCount: 2,
+          incorrectCount: 3,
+          notAnswered: 0,
+          attendance: 'LATE',
+          status: 'NEEDS_PRACTICE'
+        },
+        {
+          student: class1Kids[5]._id,
+          points: 0,
+          stars: 0,
+          correctCount: 0,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'EXCUSED',
+          status: 'ACTIVE'
         }
       ],
+      questionResults: [
+        {
+          key: 'q1',
+          questionIndex: 1,
+          promptText: 'Which animal says woof woof? (Con vật nào kêu gâu gâu?)',
+          studentAnswers: [
+            { student: childLeo._id, result: 'CORRECT' },
+            { student: class1Kids[0]._id, result: 'CORRECT' },
+            { student: class1Kids[1]._id, result: 'CORRECT' },
+            { student: class1Kids[2]._id, result: 'CORRECT' },
+            { student: class1Kids[3]._id, result: 'CORRECT' },
+            { student: class1Kids[4]._id, result: 'INCORRECT' },
+            { student: class1Kids[5]._id, result: 'NOT_ANSWERED' }
+          ]
+        },
+        {
+          key: 'q2',
+          questionIndex: 2,
+          promptText: 'Listen and tap the cute cat (Nghe và chọn chú mèo con)',
+          studentAnswers: [
+            { student: childLeo._id, result: 'CORRECT' },
+            { student: class1Kids[0]._id, result: 'CORRECT' },
+            { student: class1Kids[1]._id, result: 'INCORRECT' },
+            { student: class1Kids[2]._id, result: 'CORRECT' },
+            { student: class1Kids[3]._id, result: 'CORRECT' },
+            { student: class1Kids[4]._id, result: 'CORRECT' },
+            { student: class1Kids[5]._id, result: 'NOT_ANSWERED' }
+          ]
+        }
+      ],
+      teachingOutcome: {
+        coverage: 'COMPLETE',
+        goalsCovered: ['Nhận biết tên con vật cưng', 'Phát âm chuẩn từ vựng', 'Hát bài hát Old MacDonald'],
+        reflection: 'Các bé lớp Little Stars học rất hăng say, tương tác sôi nổi với các thẻ bài thú cưng. Bé Leo và Sophia rất xuất sắc, bé Ava vào muộn cần ôn lại từ vựng.',
+        recordedAt: new Date()
+      },
       summary: {
-        participationCount: 2,
-        averageAccuracy: 80,
-        totalStars: 5,
-        studentsNeedingPractice: []
+        participationCount: 6,
+        averageAccuracy: 84,
+        totalStars: 14,
+        totalPoints: 228,
+        studentsNeedingPractice: [class1Kids[4]._id],
+        topPerformers: [childLeo._id, class1Kids[2]._id]
       }
     });
 
-    // Seed sample ParentNotification
-    await ParentNotification.create({
-      teacher: teacherUser._id,
+    const b2Activities = b2Lesson ? await Activity.find({ lesson: b2Lesson._id }).limit(3) : [];
+    await ClassroomSession.create({
+      classroom: class2._id,
+      teacher: teacher2._id,
+      lesson: b2Lesson ? b2Lesson._id : undefined,
+      title: b2Lesson ? `${b2Lesson.title} - Buổi học tương tác` : 'Things in the Classroom',
+      ageGroup: '4-5',
+      status: 'COMPLETED',
+      sessionNumber: 1,
+      startedAt: new Date(Date.now() - 60 * 60 * 1000),
+      endedAt: new Date(Date.now() - 15 * 60 * 1000),
+      plannedDuration: 45,
+      activities: b2Activities.map(a => a._id),
+      studentScores: [
+        {
+          student: childMia._id,
+          points: 50,
+          stars: 3,
+          correctCount: 5,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class2Kids[0]._id,
+          points: 45,
+          stars: 3,
+          correctCount: 4,
+          incorrectCount: 1,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class2Kids[1]._id,
+          points: 0,
+          stars: 0,
+          correctCount: 0,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'EXCUSED',
+          status: 'ACTIVE'
+        },
+        {
+          student: class2Kids[2]._id,
+          points: 40,
+          stars: 3,
+          correctCount: 4,
+          incorrectCount: 1,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class2Kids[3]._id,
+          points: 0,
+          stars: 0,
+          correctCount: 0,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'ABSENT',
+          status: 'ACTIVE'
+        },
+        {
+          student: class2Kids[4]._id,
+          points: 25,
+          stars: 1,
+          correctCount: 2,
+          incorrectCount: 3,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'NEEDS_PRACTICE'
+        }
+      ],
+      teachingOutcome: {
+        coverage: 'COMPLETE',
+        goalsCovered: ['Nhận diện đồ dùng học tập', 'Thực hành phản xạ TPR'],
+        reflection: 'Lớp 4-5 tiếp thu từ vựng nhanh. Bé Mia rất tích cực, bé Isabella nghỉ ốm có phép, Harper vắng không phép.',
+        recordedAt: new Date()
+      },
+      summary: {
+        participationCount: 4,
+        averageAccuracy: 80,
+        totalStars: 10,
+        totalPoints: 160,
+        studentsNeedingPractice: [class2Kids[4]._id],
+        topPerformers: [childMia._id]
+      }
+    });
+
+    const b3Activities = b3Lesson ? await Activity.find({ lesson: b3Lesson._id }).limit(3) : [];
+    await ClassroomSession.create({
+      classroom: class3._id,
+      teacher: teacher3._id,
+      lesson: b3Lesson ? b3Lesson._id : undefined,
+      title: b3Lesson ? `${b3Lesson.title} - Thuyết trình & Giao tiếp` : 'All About Our School',
+      ageGroup: '5-6',
+      status: 'COMPLETED',
+      sessionNumber: 1,
+      startedAt: new Date(Date.now() - 70 * 60 * 1000),
+      endedAt: new Date(Date.now() - 25 * 60 * 1000),
+      plannedDuration: 45,
+      activities: b3Activities.map(a => a._id),
+      studentScores: [
+        {
+          student: childToby._id,
+          points: 50,
+          stars: 3,
+          correctCount: 5,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class3Kids[0]._id,
+          points: 48,
+          stars: 3,
+          correctCount: 5,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class3Kids[1]._id,
+          points: 35,
+          stars: 2,
+          correctCount: 3,
+          incorrectCount: 2,
+          notAnswered: 0,
+          attendance: 'LATE',
+          status: 'COMPLETED'
+        },
+        {
+          student: class3Kids[2]._id,
+          points: 0,
+          stars: 0,
+          correctCount: 0,
+          incorrectCount: 0,
+          notAnswered: 0,
+          attendance: 'EXCUSED',
+          status: 'ACTIVE'
+        },
+        {
+          student: class3Kids[3]._id,
+          points: 42,
+          stars: 3,
+          correctCount: 4,
+          incorrectCount: 1,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'COMPLETED'
+        },
+        {
+          student: class3Kids[4]._id,
+          points: 26,
+          stars: 1,
+          correctCount: 2,
+          incorrectCount: 3,
+          notAnswered: 0,
+          attendance: 'PRESENT',
+          status: 'NEEDS_PRACTICE'
+        }
+      ],
+      teachingOutcome: {
+        coverage: 'COMPLETE',
+        goalsCovered: ['Thuyết trình về trường lớp', 'Giao tiếp mẫu câu hoàn chỉnh'],
+        reflection: 'Lớp Lá 5-6 tuổi nói câu rất chuẩn. Bé Toby và Charlotte nói tự tin, Amelia nghỉ phép.',
+        recordedAt: new Date()
+      },
+      summary: {
+        participationCount: 5,
+        averageAccuracy: 82,
+        totalStars: 12,
+        totalPoints: 201,
+        studentsNeedingPractice: [class3Kids[4]._id],
+        topPerformers: [childToby._id, class3Kids[0]._id]
+      }
+    });
+
+    // 9.12 Learning Observations & Home Practice Plan
+    const leoVocabs = petAnimalsLesson?.vocabularyItems?.slice(0, 3) || [];
+    const obsLeo = await LearningObservation.create({
       child: childLeo._id,
-      session: sampleSession._id,
+      classroom: class1._id,
+      teacher: teacher1._id,
+      lesson: petAnimalsLesson._id,
+      session: sampleSession1._id,
+      skill: 'EXPRESS',
+      vocabulary: leoVocabs,
+      unitKey: 'B1_U5',
+      unitLabel: 'Unit 5 - Pet Animals',
+      level: 'INDEPENDENT',
+      evidence: 'Bé Leo phản xạ nhanh khi nhìn thẻ tranh, phát âm to rõ từ "dog", "cat" và bắt chước tiếng kêu chuẩn xác.',
+      nextStep: 'Khuyến khích bé ghép thành câu dài hơn: "I see a cute dog."',
+      consentConfirmed: true,
+      observedAt: new Date(),
+      operationId: `obs_seed_leo_${Date.now()}`,
+      payloadHash: 'seed_hash_leo_obs_01'
+    });
+
+    const homeWords = animalVocabs.slice(0, 3).map(v => ({
+      vocabulary: v._id,
+      english: v.english,
+      vietnamese: v.vietnamese,
+      imageUrl: v.imageUrl,
+      audioUrl: v.audioUrl,
+      wordType: 'noun',
+      reason: 'Từ vựng trọng tâm buổi học'
+    }));
+
+    await HomePracticePlan.create({
+      child: childLeo._id,
+      classroom: class1._id,
+      teacher: teacher1._id,
+      lesson: petAnimalsLesson._id,
+      sourceSession: sampleSession1._id,
+      revision: 1,
+      status: 'APPROVED',
+      operationId: `plan_seed_leo_${Date.now()}`,
+      payloadHash: 'seed_hash_leo_plan_01',
+      lessonTitle: petAnimalsLesson.title,
+      ageGroupCode: '3-4',
+      teacherNote: 'Ba mẹ hãy cùng Leo mở thẻ tranh động vật và nghe phát âm tiếng Anh 5 phút mỗi tối nhé!',
+      words: homeWords,
+      homeActivity: {
+        title: 'Thử thách đố vui tiếng kêu thú cưng',
+        steps: [
+          'Ba mẹ phát âm tiếng kêu (woof / meow) và bé tìm đúng con vật',
+          'Bé đọc to tên con vật bằng tiếng Anh và cùng cả nhà vỗ tay khen ngợi'
+        ]
+      },
+      observations: [
+        {
+          observation: obsLeo._id,
+          skill: obsLeo.skill,
+          level: obsLeo.level,
+          evidence: obsLeo.evidence,
+          nextStep: obsLeo.nextStep
+        }
+      ]
+    });
+
+    // 9.13 Homework Assignments
+    await Assignment.create({
+      teacher: teacher1._id,
+      classRoom: class1._id,
+      lesson: petAnimalsLesson._id,
+      activity: petAnimalsActivities[0]?._id || null,
+      assignedToType: 'CLASS',
+      completionMode: 'ACTIVITY',
+      dueDate: new Date(Date.now() + 7 * 86400000),
+      startDate: new Date(),
+      status: 'ASSIGNED'
+    });
+
+    // 9.14 Parent Notifications
+    await ParentNotification.create({
+      teacher: teacher1._id,
+      child: childLeo._id,
+      session: sampleSession1._id,
       recipientContact: '0901234567',
       childName: 'Leo',
-      className: demoClass.name,
+      className: class1.name,
       sessionDate: new Date(),
-      subject: 'Learning Update — Leo',
+      subject: 'Báo cáo buổi học — Bé Leo',
       content: 'Bé Leo đã tham gia rất sôi nổi trong buổi học Pet Animals hôm nay!',
       teacherNote: 'Leo nhớ từ rất nhanh và phát âm to rõ ràng!',
       score: 100,
@@ -699,6 +1384,56 @@ async function seedDatabase() {
       templateType: 'SESSION_REPORT',
       status: 'SENT',
       sentAt: new Date()
+    });
+
+    await ParentNotification.create({
+      teacher: teacher2._id,
+      child: childMia._id,
+      recipientContact: '0902345678',
+      childName: 'Mia',
+      className: class2.name,
+      sessionDate: new Date(),
+      subject: 'Chào mừng bé Mia đến với lớp Sunny Kindergarten',
+      content: 'Cô Emily chúc bé Mia có những giờ học tiếng Anh thật nhiều niềm vui và bổ ích!',
+      teacherNote: 'Cô đã chuẩn bị nhiều trò chơi tương tác thú vị chờ đón Mia.',
+      templateType: 'GENERAL',
+      status: 'SENT',
+      sentAt: new Date()
+    });
+
+    // 9.15 Teacher Note
+    await TeacherNote.create({
+      teacher: teacher1._id,
+      student: childLeo._id,
+      lesson: petAnimalsLesson._id,
+      noteType: 'PARTICIPATION',
+      content: 'Leo rất hào hứng với các hình ảnh động vật cưng, giơ tay nhiệt tình và động viên các bạn cùng bàn.'
+    });
+
+    // 9.16 Class Recognition Trophy
+    await ClassRecognition.create({
+      classroom: class1._id,
+      className: class1.name,
+      kind: 'WEEK',
+      periodStart: new Date(Date.now() - 7 * 86400000),
+      periodEnd: new Date(),
+      publishedBy: teacher1._id,
+      reward: {
+        title: 'Ngôi sao chăm chỉ tuần này',
+        symbol: '⭐',
+        description: 'Bé tích cực học tập và tham gia đầy đủ buổi học',
+        suggestion: 'Dành tặng bé 1 cái ôm và lời khen từ ba mẹ!'
+      },
+      winners: [
+        {
+          child: childLeo._id,
+          name: 'Leo',
+          stars: 15
+        }
+      ],
+      ranking: [
+        { rank: 1, name: 'Leo', stars: 15 }
+      ]
     });
 
     // =========================================================================

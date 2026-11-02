@@ -1,0 +1,111 @@
+{
+  "tool": "built-in imagegen",
+  "collection": "Koko Friends v1",
+  "assets": [
+    {
+      "name": "lion",
+      "prompt": "An original cheerful little lion character holding a green leaf, sitting with a small teal scarf, golden rounded mane, expressive brown eyes. Beautiful polished clay-style 3D illustration for a reward sticker, full body centered, warm amber and cream colors, soft studio lighting, clear silhouette. Isolated on a transparent background, square image, no words or letters, no frame.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-16cef829-5ebc-4bf2-9f3e-4e001e3dbc01.png"
+    },
+    {
+      "name": "tiger",
+      "prompt": "Original collectible sticker illustration: a cheerful little orange tiger cub with rounded stripes, holding a tiny blue butterfly on one paw. Premium soft sculpted clay and plush-like 3D cartoon, large expressive eyes, rounded friendly forms, warm soft studio lighting, delicate tactile details, harmonious pastel colors, charming children's picture book character. Full subject centered and fully inside the square image with 8% empty margins. One character only, transparent background, no text, no letters, no frame, no logo.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-89096e57-de11-4854-9e0a-95291f0c33ca.png"
+    },
+    {
+      "name": "panda",
+      "prompt": "Original collectible sticker illustration: an adorable sitting panda with a mint green backpack, hugging a small bamboo sprout. Premium soft sculpted clay and plush-like 3D cartoon, large expressive eyes, rounded friendly forms, warm soft studio lighting, delicate tactile details, harmonious pastel colors, charming children's picture book character. Full subject centered and fully inside the square image with 8% empty margins. One character only, transparent background, no text, no letters, no frame, no logo.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-379befc5-614e-447e-baf1-89d88a8bda2a.png"
+    },
+    {
+      "name": "rocket",
+      "prompt": "Original collectible sticker illustration: a whimsical coral and teal toy rocket with a round smiling star pilot visible inside a golden round window, soft cream smoke puffs attached below. Premium soft sculpted clay and plush-like 3D cartoon, large expressive eyes, rounded friendly forms, warm soft studio lighting, delicate tactile details, harmonious pastel colors, charming children's picture book character. Full subject centered and fully inside the square image with 8% empty margins. One character only, transparent background, no text, no letters, no frame, no logo.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-026fe211-93d1-4806-a16a-fa2d68da7d4b.png"
+    },
+    {
+      "name": "unicorn",
+      "prompt": "Original collectible sticker illustration: a darling cream unicorn with a lavender and peach fluffy mane, tiny golden horn and mint hooves, sitting and hugging a small pastel star. Premium soft sculpted clay and plush-like 3D cartoon, large expressive eyes, rounded friendly forms, warm soft studio lighting, delicate tactile details, harmonious pastel colors, charming children's picture book character. Full subject centered and fully inside the square image with 8% empty margins. One character only, transparent background, no text, no letters, no frame, no logo.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-e84e6c53-b9ed-42c6-9584-6925589eef30.png"
+    },
+    {
+      "name": "dino",
+      "prompt": "Original collectible sticker illustration: a friendly mint green baby dinosaur with small peach back spikes, round tummy and tiny arms, holding a little yellow flower. Premium soft sculpted clay and plush-like 3D cartoon, large expressive eyes, rounded friendly forms, warm soft studio lighting, delicate tactile details, harmonious pastel colors, charming children's picture book character. Full subject centered and fully inside the square image with 8% empty margins. One character only, transparent background, no text, no letters, no frame, no logo.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-edb924a9-d701-49dc-8778-6950f9d262b1.png"
+    },
+    {
+      "name": "trophy",
+      "prompt": "Original preschool reward illustration: a little golden trophy with a smiling star inset, teal handles and a tiny coral victory ribbon. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-a03ed97d-d293-495f-8e9d-5e0b26f0f3d4.png"
+    },
+    {
+      "name": "rainbow",
+      "prompt": "Original preschool reward illustration: a plush pastel rainbow arch with two cheerful fluffy cream clouds, tiny golden star accents. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-5e30badf-d8a7-49ba-bde3-4854b1545c18.png"
+    },
+    {
+      "name": "star",
+      "prompt": "Original preschool reward illustration: a cheerful plump golden star character wearing a tiny teal explorer scarf, rosy cheeks and expressive brown eyes. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-4b454cbe-ff80-4f20-a20c-ba02ff5b83ae.png"
+    },
+    {
+      "name": "apple",
+      "prompt": "Original preschool reward illustration: a cheerful glossy red apple character with little cream hands, a green leaf and a tiny blossom. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-e4690702-bba6-44d2-94bc-d0f64474ab67.png"
+    },
+    {
+      "name": "artist",
+      "prompt": "Original preschool reward illustration: a charming wooden painter palette with bright pastel paint blobs, a little smiling star face and a soft teal paintbrush. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-5dc10e93-204e-4738-bab8-91c885230e64.png"
+    },
+    {
+      "name": "dolphin",
+      "prompt": "Original preschool reward illustration: a happy sky blue baby dolphin leaping through a small curling turquoise wave, holding a little pink seashell. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-9fe55c74-af0d-4ec7-ac8f-08cbd4a28a31.png"
+    },
+    {
+      "name": "crown",
+      "prompt": "Original preschool reward illustration: a whimsical rounded golden royal crown with three soft points, colorful pastel gemstone hearts and a tiny smiling star center. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-c62a6217-ba42-4d58-b3ce-1b156944278b.png"
+    },
+    {
+      "name": "balloon",
+      "prompt": "Original preschool reward illustration: three beautiful pastel coral, lavender and mint balloons with cute friendly faces and short curling golden ribbons tied together. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-c75544b7-fa02-4613-967a-66f863fc4d39.png"
+    },
+    {
+      "name": "strawberry",
+      "prompt": "Original preschool reward illustration: a plump rosy red strawberry character with a fluffy leafy green cap, tiny cream hands and a little white blossom. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-e47c92e4-ed9a-43b8-b47b-1caa310eb8e4.png"
+    },
+    {
+      "name": "badge-lesson",
+      "prompt": "Original preschool reward illustration: a complete collectible achievement badge: an adorable teddy bear wearing a teal explorer backpack and holding an open little book, inside a sculpted amber enamel medallion with small laurel leaves and two coral ribbon tails. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-d1bb2d42-d07e-48e8-bbd0-ae3d06c17332.png"
+    },
+    {
+      "name": "badge-unit",
+      "prompt": "Original preschool reward illustration: a complete collectible achievement badge: a miniature enchanted open storybook with a little growing sage tree and an explorer compass, inside a rounded turquoise enamel medallion with gold rim and mint ribbon tails. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-5d8e8881-2a7c-4eb2-ada6-36e43f3c7b65.png"
+    },
+    {
+      "name": "badge-star",
+      "prompt": "Original preschool reward illustration: a complete collectible achievement badge: three cheerful golden star characters grouped into a little constellation, inside a lavender enamel medallion with gold laurel rim and purple ribbon tails. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-4b6da477-0a93-42e1-89ad-cdb8ce5a0cf0.png"
+    },
+    {
+      "name": "badge-perfect",
+      "prompt": "Original preschool reward illustration: a complete collectible achievement badge: a polished miniature golden trophy with three pastel stars and a little smiling face, inside a peach enamel medallion with gold laurel rim and coral ribbon tails. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-16dc07b9-94e0-4b6f-b6ed-840608bbfa4a.png"
+    },
+    {
+      "name": "badge-chest",
+      "prompt": "Original preschool reward illustration: a complete collectible achievement badge: an adorable open turquoise and gold treasure chest with pastel jewels, tiny golden key and a smiling star peeking out, inside a lilac enamel medallion with purple ribbon tails. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-09f7da56-3f4b-4dfa-b5b6-929f23fc6305.png"
+    },
+    {
+      "name": "badge-streak",
+      "prompt": "Original preschool reward illustration: a complete collectible achievement badge: a friendly smiling little golden flame character hugging a heart, inside a warm coral enamel medallion with gold laurel rim and orange ribbon tails. Premium soft sculpted clay-toy 3D cartoon with gentle tactile detail, rounded friendly forms, warm soft studio light, harmonious cream, amber, sage, teal and peach pastels, beautiful collectible quality. Clear silhouette readable as a small app icon. Entire subject fully inside a square image with empty safe margins. Genuinely transparent background. No text, no letters, no numbers, no logo, no rectangular card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-f1fe57e3-7e04-4cee-95aa-b2c84a01ad63.png"
+    }
+  ]
+}

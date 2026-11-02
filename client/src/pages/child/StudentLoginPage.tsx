@@ -357,13 +357,13 @@ export const StudentLoginPage: React.FC = () => {
             <div className="flex items-center justify-between border-b-2 border-amber-100 pb-4 mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-amber-700">
-                  <Search className="w-5 h-5" />
+                  <Lock className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-black text-lg text-slate-800" style={{ fontFamily: QS }}>
-                    Hỗ trợ tài khoản của bé
+                    Quên Mã PIN Đăng Nhập?
                   </h3>
-                  <p className="text-xs font-bold text-amber-700">Bé tự lấy lại PIN ngay tại đây</p>
+                  <p className="text-xs font-bold text-amber-700">Hỗ trợ tài khoản học sinh mầm non</p>
                 </div>
               </div>
               <button
@@ -375,15 +375,29 @@ export const StudentLoginPage: React.FC = () => {
               </button>
             </div>
 
-            <p className="rounded-2xl bg-amber-50 border border-amber-200 p-4 font-bold text-slate-700">Nếu bé quên mã PIN, bố mẹ có thể cùng bé tự khôi phục trong 1 phút bằng “hai bạn bí mật” mà bé đã chọn khi cài PIN.</p>
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 space-y-2">
+                <p className="font-bold text-slate-800 text-sm leading-relaxed">
+                  Vì tài khoản của bé thuộc lứa tuổi mầm non (3–6 tuổi), mã PIN 4 số được nhà trường cấp phát và quản lý an toàn.
+                </p>
+                <p className="font-extrabold text-amber-900 text-sm leading-relaxed">
+                  Bố mẹ hoặc bé quên mã PIN vui lòng liên hệ trực tiếp với <span className="underline decoration-amber-500 decoration-2 font-black">cô giáo chủ nhiệm</span> hoặc <span className="underline decoration-amber-500 decoration-2 font-black">quản trị viên nhà trường</span> để được cấp lại mã PIN mới ngay lập tức nhé!
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 font-semibold flex items-center gap-2">
+                <span className="text-base">💡</span>
+                <span>Mã PIN mới gồm 4 số sẽ có hiệu lực ngay khi cô giáo hoặc Admin đặt lại.</span>
+              </div>
+            </div>
+
             <button
               type="button"
-              onClick={() => { sfx.playPop(); setShowLookup(false); navigate('/recover'); }}
-              className="mt-4 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-lg py-3.5 px-6 shadow-md cursor-pointer transition-colors"
+              onClick={() => { sfx.playPop(); setShowLookup(false); }}
+              className="mt-6 w-full rounded-2xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-base py-3.5 px-6 shadow-md cursor-pointer transition-colors"
             >
-              🔑 Bé tự lấy lại mã PIN ngay
+              Đã hiểu, quay lại đăng nhập
             </button>
-            <p className="mt-3 text-sm text-slate-600">Bé chưa cài “bạn bí mật”? Giáo viên hoặc quản trị viên vẫn đặt lại được PIN cho bé, và lần đổi PIN tới nhớ cài hai bạn bí mật nhé.</p>
 
           </div>
         </div>

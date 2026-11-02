@@ -28,6 +28,7 @@ const {
   exportClassroomExcel,
   getClassroomCurriculumProgress,
   updateClassroomCurriculumProgress,
+  getClassroomSessions,
   exportSystemBackup,
   getUnassignedStudents,
   getDeepCurriculum,
@@ -53,6 +54,8 @@ const {
   updateSchedule,
   deleteSchedule,
   getTeacherSchedule,
+  autoAssignCurriculumSchedules,
+  clearScheduleLessons,
   // Activities & Games
   getAdminActivities,
   getAdminActivityById,
@@ -89,6 +92,7 @@ router.get('/curriculum/lessons/:id/readiness', protect, authorize('ADMIN'), asy
 
 // Activity & Games Management (Kho Trò chơi & Hoạt động)
 router.get('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').get);
+router.get('/game-catalog/preview', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').preview);
 router.put('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').update);
 router.get('/activities', protect, authorize('ADMIN'), getAdminActivities);
 router.get('/activities/:id', protect, authorize('ADMIN'), getAdminActivityById);
@@ -125,6 +129,7 @@ router.put('/classrooms/:id', protect, authorize('ADMIN'), updateClassroom);
 router.delete('/classrooms/:id', protect, authorize('ADMIN'), deleteClassroom);
 router.get('/classrooms/:id/curriculum-progress', protect, authorize('ADMIN'), getClassroomCurriculumProgress);
 router.put('/classrooms/:id/curriculum-progress', protect, authorize('ADMIN'), updateClassroomCurriculumProgress);
+router.get('/classrooms/:id/sessions', protect, authorize('ADMIN'), getClassroomSessions);
 router.post('/classrooms/:id/assign-students', protect, authorize('ADMIN'), assignStudentsToClassroom);
 router.post('/classrooms/:id/students', protect, authorize('ADMIN'), addStudentToClassroom);
 router.post('/classrooms/:id/import-students-excel', protect, authorize('ADMIN'), importStudentsFromExcel);
@@ -136,6 +141,8 @@ router.get('/students/unassigned', protect, authorize('ADMIN'), getUnassignedStu
 // Schedule Management (Thời Khóa Biểu)
 router.get('/schedules', protect, authorize('ADMIN'), getSchedules);
 router.post('/schedules', protect, authorize('ADMIN'), createSchedule);
+router.post('/schedules/auto-assign-curriculum', protect, authorize('ADMIN'), autoAssignCurriculumSchedules);
+router.post('/schedules/clear-lessons', protect, authorize('ADMIN'), clearScheduleLessons);
 router.put('/schedules/:id', protect, authorize('ADMIN'), updateSchedule);
 router.delete('/schedules/:id', protect, authorize('ADMIN'), deleteSchedule);
 router.get('/schedules/by-teacher/:teacherId', protect, authorize('ADMIN', 'TEACHER'), getTeacherSchedule);

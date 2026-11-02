@@ -2,7 +2,7 @@ import { api } from './api';
 
 export type RecognitionKind = 'WEEK' | 'MONTH';
 export interface RecognitionReward { title: string; symbol: string; description: string; suggestion: string }
-export interface RecognitionRow { child: string; name: string; avatarUrl: string; stars: number; sessions: number; winner: boolean; eligible?: boolean; starsPerSession?: number | null; rank?: number | null }
+export interface RecognitionRow { child: string; name: string; avatarUrl: string; stars: number; sessions: number; winner: boolean; eligible?: boolean; starsPerSession?: number | null; rank?: number | null; totalStars?: number; className?: string }
 export interface RecognitionPreview {
   className: string;
   period: { kind: RecognitionKind; date: string; start: string; end: string; lastDate: string };

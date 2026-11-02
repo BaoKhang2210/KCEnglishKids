@@ -16,7 +16,6 @@ const navigation = [
     { label: 'Giáo trình & bài học', path: '/admin/curriculum', icon: BookOpen },
     { label: 'Thư viện mẫu câu', path: '/admin/sentences', icon: MessageSquare },
     { label: 'Kho trò chơi', path: '/admin/games', icon: Gamepad2 },
-    { label: 'Xưởng học liệu', path: '/admin/learning-studio', icon: BookOpen },
     { label: 'Vinh danh của trường', path: '/admin/recognitions', icon: Award }
   ] },
   { title: 'Quản trị hệ thống', items: [

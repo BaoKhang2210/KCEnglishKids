@@ -14,10 +14,13 @@ import {
   AlertCircle,
   MapPin,
   CheckCircle2,
-  BookOpen
+  ChevronLeft,
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
+import { getSequentialLessonForSlot } from '../../utils/teachingSchedule';
 
 interface ClassroomOption {
   _id: string;
@@ -181,6 +184,9 @@ export const AdminSchedulePage: React.FC = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
+  // Map classId -> sequential syllabus lessons
+  const [classSyllabusMap, setClassSyllabusMap] = useState<Record<string, any[]>>({});
+
   // Fetch data
   const fetchData = async () => {
     try {
@@ -201,6 +207,27 @@ export const AdminSchedulePage: React.FC = () => {
 
       const tList = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || teachersRes?.users || []);
       setTeachers(tList);
+
+      // Load syllabus lessons for each classroom to calculate weekly lesson progression
+      void Promise.all(
+        cList.map(async (c: any) => {
+          try {
+            const res = await adminApi.getClassroomCurriculumProgress(c._id);
+            if (res.success && res.data?.sequentialSyllabus) {
+              return { classId: String(c._id), syllabus: res.data.sequentialSyllabus };
+            }
+          } catch {
+            // ignore
+          }
+          return null;
+        })
+      ).then(results => {
+        const newMap: Record<string, any[]> = {};
+        results.forEach(r => {
+          if (r) newMap[r.classId] = r.syllabus;
+        });
+        setClassSyllabusMap(newMap);
+      });
     } catch (error: any) {
       console.error('Lỗi khi tải dữ liệu thời khóa biểu:', error);
       showAlert('error', error?.message || 'Không thể tải thời khóa biểu.');
@@ -237,39 +264,6 @@ export const AdminSchedulePage: React.FC = () => {
     });
   }, [schedules, selectedClassFilter, selectedTeacherFilter]);
 
-  // Lessons available for the selected classroom (để gắn buổi học cụ thể là bài mấy lên TKB)
-  const [classroomLessons, setClassroomLessons] = useState<Array<{
-    _id: string;
-    title: string;
-    vietnameseTitle?: string;
-    syllabusOrder: number;
-    unitNumber?: number;
-    unitTitle?: string;
-  }>>([]);
-  const [loadingLessons, setLoadingLessons] = useState(false);
-
-  // Load sequential syllabus lessons for classroom
-  const loadClassroomLessons = async (classroomId: string) => {
-    if (!classroomId) {
-      setClassroomLessons([]);
-      return;
-    }
-    try {
-      setLoadingLessons(true);
-      const res = await adminApi.getClassroomCurriculumProgress(classroomId);
-      if (res.success && res.data?.sequentialSyllabus) {
-        setClassroomLessons(res.data.sequentialSyllabus);
-      } else {
-        setClassroomLessons([]);
-      }
-    } catch (err) {
-      console.warn('Could not load lessons for classroom:', err);
-      setClassroomLessons([]);
-    } finally {
-      setLoadingLessons(false);
-    }
-  };
-
   // Open Modal for Create Schedule
   const handleOpenCreateModal = () => {
     setEditingSchedule(null);
@@ -277,20 +271,14 @@ export const AdminSchedulePage: React.FC = () => {
     const firstClass = classrooms[0];
     const initialTeacher = firstClass?.teacher?._id || teachers[0]?._id || '';
 
-    if (firstClass?._id) {
-      loadClassroomLessons(firstClass._id);
-    } else {
-      setClassroomLessons([]);
-    }
-
     setFormData({
       classroom: firstClass?._id || '',
       teacher: initialTeacher,
       academicYear: firstClass?.academicYear || defaultYear,
       colorTag: 'indigo',
       weeklySlots: [
-        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101', lesson: null, lessonNumber: 1, lessonTitle: 'Bài 1: Làm quen & Chào hỏi' },
-        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101', lesson: null, lessonNumber: 2, lessonTitle: 'Bài 2: Từ vựng & Mẫu câu' }
+        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45', subjectNote: 'English Communication', room: 'Phòng 101', lesson: null, lessonNumber: null, lessonTitle: '' },
+        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45', subjectNote: 'Phonics & Story', room: 'Phòng 101', lesson: null, lessonNumber: null, lessonTitle: '' }
       ],
       effectiveTo: '',
       effectiveFrom: new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -305,12 +293,6 @@ export const AdminSchedulePage: React.FC = () => {
     setModalError(null);
     const cId = typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom;
     const tId = typeof sch.teacher === 'object' ? sch.teacher?._id : sch.teacher;
-
-    if (cId) {
-      loadClassroomLessons(cId);
-    } else {
-      setClassroomLessons([]);
-    }
 
     setFormData({
       classroom: cId,
@@ -327,7 +309,7 @@ export const AdminSchedulePage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // Class change in form -> auto populate teacher & reload lessons
+  // Class change in form -> auto populate teacher
   const handleClassChange = (classId: string) => {
     const selected = classrooms.find((c) => String(c._id) === String(classId));
     setFormData((prev) => ({
@@ -337,7 +319,6 @@ export const AdminSchedulePage: React.FC = () => {
       teacher: selected?.teacher?._id || prev.teacher,
       academicYear: selected?.academicYear || prev.academicYear
     }));
-    loadClassroomLessons(classId);
   };
 
   // Slot handlers
@@ -382,15 +363,54 @@ export const AdminSchedulePage: React.FC = () => {
       return;
     }
 
+    // Validate each slot time
+    for (let i = 0; i < formData.weeklySlots.length; i++) {
+      const slot = formData.weeklySlots[i];
+      if (!slot.startTime || !slot.endTime) {
+        setModalError(`Ca thứ ${i + 1}: Vui lòng nhập đầy đủ giờ bắt đầu và giờ kết thúc.`);
+        return;
+      }
+      if (slot.startTime >= slot.endTime) {
+        setModalError(`Ca thứ ${i + 1}: Giờ kết thúc (${slot.endTime}) phải sau giờ bắt đầu (${slot.startTime}).`);
+        return;
+      }
+    }
+
+    // Check duplicate/overlap in same day
+    for (let i = 0; i < formData.weeklySlots.length; i++) {
+      for (let j = i + 1; j < formData.weeklySlots.length; j++) {
+        const s1 = formData.weeklySlots[i];
+        const s2 = formData.weeklySlots[j];
+        if (s1.dayOfWeek === s2.dayOfWeek) {
+          if (s1.startTime < s2.endTime && s2.startTime < s1.endTime) {
+            setModalError(`Ca thứ ${i + 1} và ca thứ ${j + 1} bị trùng lặp hoặc chồng chéo khung giờ trong cùng một ngày.`);
+            return;
+          }
+        }
+      }
+    }
+
     try {
       setModalLoading(true);
       setModalError(null);
 
+      // Clean slots: schedule establishes teaching timeslots, curriculum progression flows automatically
+      const cleanPayload = {
+        ...formData,
+        effectiveTo: formData.effectiveTo || null,
+        weeklySlots: formData.weeklySlots.map(s => ({
+          ...s,
+          lesson: null,
+          lessonNumber: null,
+          lessonTitle: ''
+        }))
+      };
+
       if (editingSchedule) {
-        await adminApi.updateSchedule(editingSchedule._id, { ...formData, effectiveTo: formData.effectiveTo || null });
+        await adminApi.updateSchedule(editingSchedule._id, cleanPayload);
         showAlert('success', 'Đã cập nhật thời khóa biểu thành công!');
       } else {
-        await adminApi.createSchedule({ ...formData, effectiveTo: formData.effectiveTo || null });
+        await adminApi.createSchedule(cleanPayload);
         showAlert('success', 'Đã thiết lập thời khóa biểu mới thành công!');
       }
 
@@ -486,17 +506,78 @@ export const AdminSchedulePage: React.FC = () => {
     }
   };
 
-  // Organize timetable weekly slots by Day (1..6, 0)
+  // Week navigation (offset 0 = current week, -1 = last week, +1 = next week)
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  // Vietnam Time now
+  const getVietnamNow = () => {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + 7 * 3600000);
+  };
+
+  // Calendar days for the selected week (Monday to Sunday)
+  const currentWeekDays = useMemo(() => {
+    const now = getVietnamNow();
+    const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7);
+
+    // Find Monday (day 1)
+    const currentDayOfWeek = targetDate.getDay();
+    const distanceToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    const monday = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + distanceToMonday);
+
+    const days = [];
+    const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    const dayNums = [1, 2, 3, 4, 5, 6, 0];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      const shortDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const isToday = now.getFullYear() === d.getFullYear() && now.getMonth() === d.getMonth() && now.getDate() === d.getDate();
+
+      days.push({
+        dayNum: dayNums[i],
+        dayName: dayNames[i],
+        date: d,
+        dateString,
+        formattedDate,
+        shortDate,
+        isToday
+      });
+    }
+
+    return days;
+  }, [weekOffset]);
+
+  // Check if a schedule applies on a given date (effectiveFrom / effectiveTo)
+  const scheduleAppliesOnDate = (sch: ClassSchedule, dateString: string) => {
+    if (!sch.isActive) return false;
+    if (sch.effectiveFrom) {
+      const fromStr = new Date(+new Date(sch.effectiveFrom) + 7 * 3600000).toISOString().slice(0, 10);
+      if (dateString < fromStr) return false;
+    }
+    if (sch.effectiveTo) {
+      const toStr = new Date(+new Date(sch.effectiveTo) + 7 * 3600000).toISOString().slice(0, 10);
+      if (dateString > toStr) return false;
+    }
+    return true;
+  };
+
+  // Organize timetable weekly slots by Day (1..6, 0) for the selected week
   const timetableByDay = useMemo(() => {
     const map: { [key: number]: Array<{ schedule: ClassSchedule; slot: ScheduleWeeklySlot }> } = {};
     for (let d = 0; d <= 6; d++) map[d] = [];
 
-    filteredSchedules.forEach((sch) => {
-      if (!sch.isActive || sch.effectiveFrom && +new Date(sch.effectiveFrom) > Date.now() || sch.effectiveTo && +new Date(sch.effectiveTo) < Date.now()) return;
-      sch.weeklySlots?.forEach((slot) => {
-        if (map[slot.dayOfWeek]) {
-          map[slot.dayOfWeek].push({ schedule: sch, slot });
-        }
+    currentWeekDays.forEach((day) => {
+      filteredSchedules.forEach((sch) => {
+        if (!scheduleAppliesOnDate(sch, day.dateString)) return;
+        sch.weeklySlots?.forEach((slot) => {
+          if (slot.dayOfWeek === day.dayNum) {
+            map[day.dayNum].push({ schedule: sch, slot });
+          }
+        });
       });
     });
 
@@ -507,15 +588,12 @@ export const AdminSchedulePage: React.FC = () => {
     });
 
     return map;
-  }, [filteredSchedules]);
+  }, [filteredSchedules, currentWeekDays]);
 
   // Check if a slot is currently in session right now
-  const isSlotLiveNow = (dayOfWeek: number, startTime: string, endTime: string) => {
-    const now = new Date();
-    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const vnNow = new Date(utc + 7 * 3600000);
-    if (vnNow.getDay() !== dayOfWeek) return false;
-
+  const isSlotLiveNow = (_dayOfWeek: number, startTime: string, endTime: string, isTodayDate: boolean) => {
+    if (!isTodayDate) return false;
+    const vnNow = getVietnamNow();
     const currentMin = vnNow.getHours() * 60 + vnNow.getMinutes();
     const [sH, sM] = startTime.split(':').map(Number);
     const [eH, eM] = endTime.split(':').map(Number);
@@ -643,6 +721,60 @@ export const AdminSchedulePage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Week Navigation Controls ──────────────────────────────────────── */}
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+          <button
+            type="button"
+            onClick={() => setWeekOffset((prev) => prev - 1)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 text-xs sm:text-sm font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+            title="Xem thời khóa biểu tuần trước"
+          >
+            <ChevronLeft size={18} />
+            <span>Tuần trước</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWeekOffset(0)}
+            className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-2xs cursor-pointer active:scale-95 ${
+              weekOffset === 0
+                ? 'bg-indigo-700 text-white shadow-indigo-200'
+                : 'border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900'
+            }`}
+            title="Quay về tuần học hiện tại"
+          >
+            <span>Hôm nay (Tuần này)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWeekOffset((prev) => prev + 1)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 text-xs sm:text-sm font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+            title="Xem thời khóa biểu tuần sau"
+          >
+            <span>Tuần sau</span>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 flex-wrap justify-center md:justify-end">
+          <div className="flex items-center gap-2 bg-indigo-50/80 px-4 py-2 rounded-2xl border border-indigo-200/80 text-indigo-950 font-black">
+            <Calendar size={18} className="text-indigo-700 shrink-0" />
+            <span>
+              Tuần từ {currentWeekDays[0].formattedDate} đến {currentWeekDays[6].formattedDate}
+            </span>
+          </div>
+          {weekOffset !== 0 && (
+            <span className="text-xs font-black text-amber-900 bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-300">
+              {weekOffset < 0
+                ? `📅 Đang xem ${Math.abs(weekOffset)} tuần trước`
+                : `📅 Đang xem ${weekOffset} tuần tới`}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* ── Main View: Weekly Grid or List ─────────────────────────────────── */}
       {loading ? (
         <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center">
@@ -674,13 +806,13 @@ export const AdminSchedulePage: React.FC = () => {
       ) : viewMode === 'grid' ? (
         /* ── WEEKLY GRID VIEW ────────────────────────────────────────────── */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-          {[1, 2, 3, 4, 5, 6, 0].map((dayNum) => {
-            const daySlots = timetableByDay[dayNum] || [];
-            const isToday = new Date().getDay() === dayNum;
+          {currentWeekDays.map((day) => {
+            const daySlots = timetableByDay[day.dayNum] || [];
+            const isToday = day.isToday;
 
             return (
               <div
-                key={dayNum}
+                key={day.dayNum}
                 className={`rounded-3xl border transition-all flex flex-col min-h-[380px] ${
                   isToday
                     ? 'bg-indigo-50/40 border-indigo-300 ring-2 ring-indigo-500/20'
@@ -693,13 +825,18 @@ export const AdminSchedulePage: React.FC = () => {
                     isToday ? 'bg-indigo-700 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
                   }`}
                 >
-                  <span className="font-black text-base">{DAY_LABELS[dayNum]}</span>
+                  <div className="flex flex-col">
+                    <span className="font-black text-base">{day.dayName}</span>
+                    <span className={`text-[11px] font-bold ${isToday ? 'text-indigo-100' : 'text-slate-500'}`}>
+                      {day.shortDate}
+                    </span>
+                  </div>
                   {isToday ? (
-                    <span className="text-[11px] font-black uppercase tracking-wider bg-black/10 text-inherit px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full">
                       Hôm nay
                     </span>
                   ) : (
-                    <span className="text-xs font-bold text-inherit">
+                    <span className="text-xs font-bold text-slate-500">
                       {daySlots.length} ca
                     </span>
                   )}
@@ -718,7 +855,7 @@ export const AdminSchedulePage: React.FC = () => {
                         typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp học';
                       const tName =
                         typeof schedule.teacher === 'object' ? schedule.teacher?.name : 'Chưa phân công';
-                      const isLive = isSlotLiveNow(dayNum, slot.startTime, slot.endTime);
+                      const isLive = isSlotLiveNow(day.dayNum, slot.startTime, slot.endTime, isToday);
 
                       return (
                         <div
@@ -758,18 +895,21 @@ export const AdminSchedulePage: React.FC = () => {
                             GV: {tName}
                           </p>
 
-                          {/* Attached Lesson Badge (Bài mấy) */}
-                          {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
-                            <div className="mt-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200/90 flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0" />
-                              <span className="text-[11px] font-black truncate" title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}>
-                                {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài học'}:{' '}
-                                {slot.lessonTitle
-                                  ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '')
-                                  : (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
-                              </span>
-                            </div>
-                          )}
+                          {/* Attached Lesson Badge (Bài mấy) - tính lũy tiến chính xác theo tuần */}
+                          {(() => {
+                            const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
+                            const classLessons = classSyllabusMap[cId] || [];
+                            const seq = getSequentialLessonForSlot(schedule, slot, day.dateString, classLessons);
+                            const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                            return displayName ? (
+                              <div className="mt-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200/90 flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0" />
+                                <span className="text-[11px] font-black truncate" title={displayName}>
+                                  Bài {seq.lessonNumber}: {displayName}
+                                </span>
+                              </div>
+                            ) : null;
+                          })()}
 
                           {slot.room && (
                             <p className="text-[11px] text-slate-600 font-bold flex items-center gap-1 mt-1 truncate">
@@ -867,17 +1007,21 @@ export const AdminSchedulePage: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
-                            <span
-                              className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-black border border-amber-200 truncate max-w-[200px]"
-                              title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
-                            >
-                              🎯 {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài'}:{' '}
-                              {slot.lessonTitle
-                                ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '')
-                                : (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
-                            </span>
-                          )}
+                          {(() => {
+                            const cId = String(typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom);
+                            const classLessons = classSyllabusMap[cId] || [];
+                            const targetDay = currentWeekDays.find(d => d.dayNum === slot.dayOfWeek);
+                            const seq = getSequentialLessonForSlot(sch, slot, targetDay?.dateString || currentWeekDays[0].dateString, classLessons);
+                            const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                            return displayName ? (
+                              <span
+                                className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-black border border-amber-200 truncate max-w-[200px]"
+                                title={displayName}
+                              >
+                                🎯 Bài {seq.lessonNumber}: {displayName}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -930,11 +1074,47 @@ export const AdminSchedulePage: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmitModal} className="flex-1 overflow-y-auto py-5 space-y-5 pr-1">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="grid gap-2">Có hiệu lực từ<input type="date" required value={formData.effectiveFrom} onChange={event => setFormData(previous => ({ ...previous, effectiveFrom: event.target.value }))} /></label>
-                <label className="grid gap-2">Có hiệu lực đến (tùy chọn)<input type="date" min={formData.effectiveFrom} value={formData.effectiveTo} onChange={event => setFormData(previous => ({ ...previous, effectiveTo: event.target.value }))} /></label>
-                <label className="flex items-center gap-3"><input type="checkbox" checked={formData.isActive} onChange={event => setFormData(previous => ({ ...previous, isActive: event.target.checked }))} /> Kích hoạt lịch dạy</label>
+              {/* Ngày hiệu lực & Kích hoạt */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Có hiệu lực từ <span className="text-rose-800">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.effectiveFrom}
+                    onChange={(e) => setFormData((p) => ({ ...p, effectiveFrom: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Có hiệu lực đến (Tùy chọn)
+                  </label>
+                  <input
+                    type="date"
+                    min={formData.effectiveFrom}
+                    value={formData.effectiveTo}
+                    onChange={(e) => setFormData((p) => ({ ...p, effectiveTo: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
               </div>
+
+              <div className="flex items-center gap-2.5 px-1">
+                <input
+                  type="checkbox"
+                  id="isActiveSchedule"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
+                  className="w-4 h-4 rounded text-indigo-700 focus:ring-indigo-500 border-slate-300"
+                />
+                <label htmlFor="isActiveSchedule" className="text-sm font-bold text-slate-800 cursor-pointer">
+                  Kích hoạt lịch dạy cho lớp ngay sau khi lưu
+                </label>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Lớp học */}
                 <div>
@@ -1028,77 +1208,83 @@ export const AdminSchedulePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Danh sách các buổi học trong tuần */}
-              <p className="text-sm text-slate-600">Mỗi khung giờ là một buổi học cố định mỗi tuần. Để trống bài học để tự đề xuất bài chưa dạy tiếp theo; chọn bài cố định khi cần ôn tập.</p>
+              {/* Danh sách các buổi học trong tuần - Tinh gọn */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-black uppercase tracking-wider text-slate-700">
-                    Khung Giờ Học Hàng Tuần ({formData.weeklySlots.length} buổi/tuần) <span className="text-rose-800">*</span>
-                  </label>
+                  <div>
+                    <label className="text-sm font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <Clock size={16} className="text-indigo-700" />
+                      <span>Khung Giờ Học Hàng Tuần ({formData.weeklySlots.length} ca/tuần)</span> <span className="text-rose-800">*</span>
+                    </label>
+                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                      Cài đặt thứ và giờ học định kỳ. Hệ thống sẽ tự động gán bài học theo giáo trình chuẩn của lớp.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={handleAddSlot}
-                    className="py-1.5 px-3 rounded-xl bg-indigo-50 text-indigo-800 font-bold text-xs hover:bg-indigo-100 flex items-center gap-1 cursor-pointer"
+                    className="py-1.5 px-3 rounded-xl bg-indigo-50 text-indigo-800 font-bold text-xs hover:bg-indigo-100 flex items-center gap-1 cursor-pointer shrink-0 border border-indigo-200"
                   >
                     <Plus size={14} />
-                    <span>Thêm buổi học</span>
+                    <span>Thêm ca học</span>
                   </button>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {formData.weeklySlots.map((slot, index) => (
                     <div
                       key={index}
-                      className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3"
+                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all"
                     >
-                      {/* Row 1: Time, Day and Room */}
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
-                        <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                        <div className="sm:col-span-3">
                           <label className="block text-[11px] font-bold text-slate-600 mb-1">Thứ</label>
                           <select
                             value={slot.dayOfWeek}
                             onChange={(e) => handleSlotChange(index, 'dayOfWeek', Number(e.target.value))}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
                           >
-                            <option value={1}>Thứ 2</option>
-                            <option value={2}>Thứ 3</option>
-                            <option value={3}>Thứ 4</option>
-                            <option value={4}>Thứ 5</option>
-                            <option value={5}>Thứ 6</option>
-                            <option value={6}>Thứ 7</option>
+                            <option value={1}>Thứ Hai</option>
+                            <option value={2}>Thứ Ba</option>
+                            <option value={3}>Thứ Tư</option>
+                            <option value={4}>Thứ Năm</option>
+                            <option value={5}>Thứ Sáu</option>
+                            <option value={6}>Thứ Bảy</option>
                             <option value={0}>Chủ Nhật</option>
                           </select>
                         </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Bắt đầu</label>
+                        <div className="sm:col-span-3">
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Giờ bắt đầu</label>
                           <input
                             type="time"
+                            required
                             value={slot.startTime}
                             onChange={(e) => handleSlotChange(index, 'startTime', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
                           />
                         </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Kết thúc</label>
+                        <div className="sm:col-span-3">
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Giờ kết thúc</label>
                           <input
                             type="time"
+                            required
                             value={slot.endTime}
                             onChange={(e) => handleSlotChange(index, 'endTime', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold"
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
                           />
                         </div>
 
-                        <div className="flex items-center gap-2 pt-1 sm:pt-0">
+                        <div className="sm:col-span-3 flex items-center gap-2 pt-1 sm:pt-0">
                           <div className="flex-1">
                             <label className="block text-[11px] font-bold text-slate-600 mb-1">Phòng học</label>
                             <input
                               type="text"
-                              placeholder="Phòng 101"
+                              placeholder="Phòng học chính"
                               value={slot.room || ''}
                               onChange={(e) => handleSlotChange(index, 'room', e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-semibold"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600"
                             />
                           </div>
 
@@ -1106,83 +1292,12 @@ export const AdminSchedulePage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleRemoveSlot(index)}
-                              className="mt-4 p-2 text-rose-800 hover:bg-rose-100 rounded-xl cursor-pointer shrink-0"
-                              title="Xóa buổi này"
+                              className="mt-5 p-2 text-rose-600 hover:bg-rose-100 rounded-xl cursor-pointer shrink-0 transition-colors"
+                              title="Xóa ca này"
                             >
                               <Trash2 size={16} />
                             </button>
                           )}
-                        </div>
-                      </div>
-
-                      {/* Row 2: Lesson Assignment (Gắn buổi học cụ thể là bài mấy) */}
-                      <div className="pt-2 border-t border-slate-200/70 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                        <div className="sm:col-span-7">
-                          <label className="block text-[11px] font-black uppercase tracking-wider text-indigo-800 mb-1 flex items-center gap-1.5">
-                            <BookOpen size={13} className="text-indigo-800" />
-                            <span>Gắn Bài Học Theo Giáo Trình (Bài mấy)</span>
-                          </label>
-                          <select
-                            value={typeof slot.lesson === 'object' ? slot.lesson?._id : (slot.lesson || '')}
-                            onChange={(e) => {
-                              const selectedLessonId = e.target.value;
-                              if (!selectedLessonId) {
-                                handleSlotChange(index, 'lesson', null);
-                                handleSlotChange(index, 'lessonNumber', null);
-                                handleSlotChange(index, 'lessonTitle', '');
-                              } else {
-                                const found = classroomLessons.find(l => l._id === selectedLessonId);
-                                const lessonNum = found?.syllabusOrder || index + 1;
-                                const titleStr = found
-                                  ? `Bài ${lessonNum}: ${found.title}${found.vietnameseTitle ? ` - ${found.vietnameseTitle}` : ''}`
-                                  : `Bài ${lessonNum}`;
-                                handleSlotChange(index, 'lesson', selectedLessonId);
-                                handleSlotChange(index, 'lessonNumber', lessonNum);
-                                handleSlotChange(index, 'lessonTitle', titleStr);
-                              }
-                            }}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
-                          >
-                            <option value="">-- Không gắn bài học cố định --</option>
-                            {classroomLessons.map((les) => (
-                              <option key={les._id} value={les._id}>
-                                🎯 Bài {les.syllabusOrder}: {les.title} {les.vietnameseTitle ? `(${les.vietnameseTitle})` : ''} {les.unitNumber ? `• Unit ${les.unitNumber}` : ''}
-                              </option>
-                            ))}
-                            {classroomLessons.length === 0 && (
-                              <option value="" disabled>
-                                {loadingLessons ? 'Đang tải danh sách bài học...' : 'Chưa có bài học trong giáo trình của lớp'}
-                              </option>
-                            )}
-                          </select>
-                        </div>
-
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                            Bài Số
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={100}
-                            placeholder="Số bài"
-                            value={slot.lessonNumber ?? ''}
-                            onChange={(e) => handleSlotChange(index, 'lessonNumber', e.target.value ? Number(e.target.value) : null)}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs sm:text-sm font-bold text-indigo-800"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                            Tiêu Đề / Ghi Chú Ca
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ví dụ: Bài 1: Hello"
-                            value={slot.lessonTitle || ''}
-                            onChange={(e) => handleSlotChange(index, 'lessonTitle', e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-800"
-                          />
                         </div>
                       </div>
                     </div>
@@ -1190,22 +1305,48 @@ export const AdminSchedulePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-base cursor-pointer"
-                >
-                  Hủy Bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={modalLoading}
-                  className="py-3 px-7 rounded-2xl bg-indigo-700 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-base cursor-pointer"
-                >
-                  {modalLoading ? 'Đang lưu lịch...' : 'Lưu Thời Khóa Biểu'}
-                </button>
+              {/* Action buttons with Clear Schedule option */}
+              <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                {editingSchedule ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const cName = classrooms.find(c => c._id === formData.classroom)?.name || 'lớp này';
+                      if (window.confirm(`Bạn có chắc chắn muốn xóa toàn bộ thời khóa biểu của lớp "${cName}" không? Các ca học định kỳ sẽ được giải phóng hoàn toàn.`)) {
+                        try {
+                          await adminApi.deleteSchedule(editingSchedule._id);
+                          showAlert('success', 'Đã xóa thời khóa biểu của lớp thành công.');
+                          setIsModalOpen(false);
+                          await fetchData();
+                        } catch (err: any) {
+                          showAlert('error', err?.message || 'Không thể xóa thời khóa biểu.');
+                        }
+                      }
+                    }}
+                    className="py-2.5 px-4 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer border border-rose-200 transition-all"
+                    title="Xóa hoàn toàn thời khóa biểu của lớp này"
+                  >
+                    <Trash2 size={15} />
+                    <span>Xóa Toàn Bộ Lịch Lớp Này</span>
+                  </button>
+                ) : <div />}
+
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="py-2.5 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base cursor-pointer"
+                  >
+                    Hủy Bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={modalLoading}
+                    className="py-2.5 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-black text-sm sm:text-base cursor-pointer shadow-xs transition-all"
+                  >
+                    {modalLoading ? 'Đang lưu lịch...' : 'Lưu Thời Khóa Biểu'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

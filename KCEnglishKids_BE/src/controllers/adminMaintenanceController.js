@@ -4,6 +4,7 @@ const ClassRecognition = require('../models/ClassRecognition');
 const { User, ClassRoom, AgeGroup, VocabularyMastery, ActivityResult, ClassroomSession, Progress } = models;
 const I = require('../services/adminIntegrity');
 const { computeRewards } = require('../services/rewardService');
+const { statsFor } = require('../services/teacherStatistics');
 const handler = fn => async (req, res, next) => { try { await fn(req, res); } catch (error) { next(error); } };
 const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 
@@ -163,7 +164,7 @@ exports.deleteClassroom = handler(async (req, res) => {
 });
 
 exports.getAdminAnalytics = handler(async (req, res) => {
-  const students = await User.find({ role: 'CHILD', status: 'ACTIVE' }).select('name avatar ageGroupCode assignedClass createdAt').populate('assignedClass', 'name').lean();
+  const students = await User.find({ role: 'CHILD', status: 'ACTIVE' }).select('name username avatar avatarUrl ageGroupCode assignedClass createdAt').populate('assignedClass', 'name').lean();
   // Use exactly the same reward calculation as the child portal, including best Lesson ratings.
   const ranked = [];
   for (let offset = 0; offset < students.length; offset += 20) {
@@ -173,18 +174,44 @@ exports.getAdminAnalytics = handler(async (req, res) => {
     })));
   }
   const rooms = await ClassRoom.find({ deletionPending: { $ne: true } }).populate('teacher', 'name').lean();
-  const sessions = await ClassroomSession.find({ status: 'COMPLETED' }).select('classroom studentScores').lean();
+  const sessions = await ClassroomSession.find({ status: 'COMPLETED' }).select('classroom studentScores startedAt endedAt').lean();
+
+  const allResults = await ActivityResult.find().select('score stars correctCount incorrectCount duration').lean();
+  const totalActivitiesPlayed = allResults.length;
+  const totalCorrect = allResults.reduce((sum, r) => sum + (r.correctCount || 0), 0);
+  const totalAnswered = allResults.reduce((sum, r) => sum + (r.correctCount || 0) + (r.incorrectCount || 0), 0);
+  const overallAccuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+  let sessionMinutes = 0;
+  for (const s of sessions) {
+    if (s.startedAt && s.endedAt && new Date(s.endedAt) > new Date(s.startedAt)) {
+      sessionMinutes += Math.round((new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000);
+    }
+  }
+  const totalLearningMinutes = Math.round(allResults.reduce((sum, r) => sum + (r.duration || 0), 0) / 60) + sessionMinutes;
+
   const classroomStats = rooms.map(room => {
     const members = ranked.filter(student => String(student.assignedClass?._id) === String(room._id));
     const homeStars = members.reduce((sum, student) => sum + student.homeStars, 0);
     const classStars = members.reduce((sum, student) => sum + student.classStars, 0);
     const ownSessions = sessions.filter(session => String(session.classroom) === String(room._id));
+
+    let totalRosterAcrossSessions = 0;
+    let totalPresentAcrossSessions = 0;
+    ownSessions.forEach(s => {
+      (s.studentScores || []).forEach(sc => {
+        totalRosterAcrossSessions++;
+        if (['PRESENT', 'LATE'].includes(sc.attendance)) totalPresentAcrossSessions++;
+      });
+    });
+    const classAttendanceRate = totalRosterAcrossSessions > 0 ? Math.round((totalPresentAcrossSessions / totalRosterAcrossSessions) * 100) : (members.length > 0 ? 100 : 0);
+
     return { _id: room._id, name: room.name, ageGroupCode: room.ageGroupCode, teacherName: room.teacher?.name || 'Chưa phân công', studentCount: members.length, sessionCount: ownSessions.length,
-      homeStars, classStars, totalStars: homeStars + classStars, classSessionStars: ownSessions.reduce((sum, session) => sum + session.studentScores.reduce((total, score) => total + (['ABSENT', 'EXCUSED'].includes(score.attendance) ? 0 : score.stars || 0), 0), 0), avgStarsPerStudent: members.length ? Math.round((homeStars + classStars) / members.length) : 0 };
+      homeStars, classStars, totalStars: homeStars + classStars, classAttendanceRate, classSessionStars: ownSessions.reduce((sum, session) => sum + session.studentScores.reduce((total, score) => total + (['ABSENT', 'EXCUSED'].includes(score.attendance) ? 0 : score.stars || 0), 0), 0), avgStarsPerStudent: members.length ? Math.round((homeStars + classStars) / members.length) : 0 };
   });
   const home = ranked.reduce((sum, student) => sum + student.homeStars, 0);
   const cls = ranked.reduce((sum, student) => sum + student.classStars, 0);
   res.json({ success: true, data: { totalStudents: students.length, totalClassrooms: rooms.length, totalSessionsConducted: sessions.length,
+    totalActivitiesPlayed, overallAccuracy, totalLearningMinutes,
     totalHomeStars: home, totalClassStars: cls, totalAllStars: home + cls, classroomStats,
     topStudents: ranked.sort((a, b) => b.totalStars - a.totalStars).slice(0, 5), recentStudents: students.sort((a, b) => +b.createdAt - +a.createdAt).slice(0, 10) } });
 });
@@ -192,21 +219,34 @@ exports.getAdminAnalytics = handler(async (req, res) => {
 exports.getStudentCompetency = handler(async (req, res) => {
   const student = await User.findOne({ _id: req.params.id, role: 'CHILD' }).select('-password -pin');
   if (!student) throw I.fail('Không tìm thấy học sinh.', 404);
-  const [reward, results, mastery, progress] = await Promise.all([
-    computeRewards(student._id), ActivityResult.find({ child: student._id }).populate('activity', 'activityType').lean(),
-    VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese').lean(), Progress.countDocuments({ child: student._id, completed: true })
+  const [reward, statResult, results, mastery, progress] = await Promise.all([
+    computeRewards(student._id),
+    mongoose.connection.readyState === 1 ? statsFor([student._id]).catch(() => []) : Promise.resolve([]),
+    ActivityResult.find({ child: student._id }).populate('activity', 'activityType').lean(),
+    VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese').lean(),
+    Progress.countDocuments({ child: student._id, completed: true })
   ]);
+  const stat = statResult[0];
   const listening = results.filter(result => ['LISTEN_CHOOSE', 'ANIMAL_SOUND', 'COLOR_RECOGNITION', 'TAP_PICTURE'].includes(result.activity?.activityType));
   const answered = listening.reduce((sum, result) => sum + (result.correctCount || 0) + (result.incorrectCount || 0), 0);
   const correct = listening.reduce((sum, result) => sum + (result.correctCount || 0), 0);
   const words = mastery.filter(record => record.vocabulary);
   const mastered = words.filter(record => record.masteryLevel === 3);
   const review = words.filter(record => record.wrongCount > 0 && record.masteryLevel < 3);
-  res.json({ success: true, data: { stats: { totalStars: reward.totalStars, completedLessons: progress, learningTime: results.reduce((sum, result) => sum + (result.duration || 0), 0) }, competencyReport: {
+  res.json({ success: true, data: { stats: {
+    ...(stat || {}),
+    totalStars: reward.totalStars,
+    completedLessons: progress,
+    learningTime: stat?.learningTime || results.reduce((sum, result) => sum + (result.duration || 0), 0),
+    practiceLearningTime: stat?.practiceLearningTime || 0,
+    classroomLearningTime: stat?.classroomLearningTime || 0,
+    hasLearningTime: Boolean(stat?.hasLearningTime),
+    hasUnmeasuredLearning: Boolean(stat?.hasUnmeasuredLearning)
+  }, competencyReport: {
     explorerLevel: reward.explorerLevel,
     vocabularyCompetency: { totalEncountered: words.length, masteredCount: mastered.length, practicingCount: words.filter(record => record.masteryLevel === 2).length, learningCount: words.filter(record => record.masteryLevel <= 1).length,
       masteredWords: mastered.slice(0, 8).map(record => record.vocabulary), needsReviewWords: review.slice(0, 8).map(record => ({ ...record.vocabulary, wrongCount: record.wrongCount })) },
-    listeningCompetency: { accuracyRate: answered ? Math.round(correct / answered * 100) : 0, totalResponses: answered, correctResponses: correct, reactionSpeed: 'Chưa đánh giá tốc độ phản xạ', status: answered ? 'RECORDED' : 'NO_DATA' },
+    listeningCompetency: { accuracyRate: answered ? Math.round(correct / answered * 100) : null, totalResponses: answered, correctResponses: correct, reactionSpeed: 'Chưa đánh giá tốc độ phản xạ', status: answered ? 'RECORDED' : 'NOT_ASSESSED' },
     // Transcript matching is not an acoustic pronunciation assessment.
     pronunciationCompetency: { averageScore: null, confidence: 'Chưa có dữ liệu đánh giá phát âm', starsEarned: 0 },
     recommendedAction: !answered && !words.length ? 'Chưa có dữ liệu học tập. Hãy cho bé hoàn thành một hoạt động trước khi nhận xét.' : review.length ? `Cùng bé ôn lại: ${review.slice(0, 5).map(record => record.vocabulary.english).join(', ')}.` : 'Tiếp tục theo dõi các hoạt động học để nhận xét phù hợp.'

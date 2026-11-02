@@ -4,8 +4,9 @@ import { aiApi } from '../services/api';
 import { ChildSpeechEngine } from '../utils/speechRecognition';
 import { playWordAudio, stopWordAudio, sfx } from '../utils/audio';
 import type { AgeGroupCode, SpeakingFeedback } from '../types';
+import { captureSpeechAudio } from '../utils/captureSpeechAudio';
 
-const ACK_KEY = 'kc_speaking_privacy_ack_v1';
+const ACK_KEY = 'kc_speaking_privacy_ack_v2';
 
 export function useSpeakingCoach(targetWord: string, audioUrl?: string, ageGroup?: AgeGroupCode) {
   const engine = useRef(new ChildSpeechEngine());
@@ -17,6 +18,13 @@ export function useSpeakingCoach(targetWord: string, audioUrl?: string, ageGroup
   const [feedback, setFeedback] = useState<SpeakingFeedback | null>(null);
   const [message, setMessage] = useState('');
   const [needsAcknowledgment, setNeedsAcknowledgment] = useState(false);
+  const [audioAvailable, setAudioAvailable] = useState(false);
+  const [audioMode, setAudioMode] = useState(false);
+  useEffect(() => {
+    const abort = new AbortController();
+    aiApi.capabilities(abort.signal).then(result => { if (!abort.signal.aborted) setAudioAvailable(result.data.audioCoaching); }).catch(() => {});
+    return () => abort.abort();
+  }, []);
 
   useEffect(() => {
     const capture = engine.current;
@@ -50,15 +58,23 @@ export function useSpeakingCoach(targetWord: string, audioUrl?: string, ageGroup
     setMessage('');
     setStatus('listening');
     try {
-      const capture = await engine.current.listen(8000);
-      if (attempt !== generation.current) return;
-      if (!capture.success) {
-        setMessage(capture.error === 'aborted' ? '' : capture.message);
-        setStatus('idle');
-        return;
+      let response;
+      if (audioMode) {
+        const audio = await captureSpeechAudio(controller.signal);
+        if (attempt !== generation.current) return;
+        setStatus('processing');
+        response = await aiApi.evaluateAudio({ targetWord, ageGroup, ...audio }, controller.signal);
+      } else {
+        const capture = await engine.current.listen(8000);
+        if (attempt !== generation.current) return;
+        if (!capture.success) {
+          setMessage(capture.error === 'aborted' ? '' : capture.message);
+          setStatus('idle');
+          return;
+        }
+        setStatus('processing');
+        response = await aiApi.evaluatePronunciation({ targetWord, spokenTranscript: capture.spokenText, ageGroup }, controller.signal);
       }
-      setStatus('processing');
-      const response = await aiApi.evaluatePronunciation({ targetWord, spokenTranscript: capture.spokenText, ageGroup }, controller.signal);
       if (attempt !== generation.current || controller.signal.aborted) return;
       setFeedback(response.data);
       setStatus('done');
@@ -82,19 +98,19 @@ export function useSpeakingCoach(targetWord: string, audioUrl?: string, ageGroup
 
   const toggle = () => {
     if (active.current || needsAcknowledgment) { cancel(); return; }
-    if (!engine.current.isAvailable()) {
+    if (!audioMode && !engine.current.isAvailable()) {
       setFeedback(null);
       setMessage('Speech recognition is unavailable in this browser. Listen and repeat with Koko instead.');
       return;
     }
-    try { acknowledged.current ||= sessionStorage.getItem(ACK_KEY) === 'yes'; } catch { /* Acknowledgment still works without storage. */ }
+    try { acknowledged.current ||= sessionStorage.getItem(ACK_KEY + (audioMode ? '_audio' : '_text')) === 'yes'; } catch { /* Acknowledgment still works without storage. */ }
     if (!acknowledged.current) { setNeedsAcknowledgment(true); return; }
     void start();
   };
 
   const acknowledge = () => {
     acknowledged.current = true;
-    try { sessionStorage.setItem(ACK_KEY, 'yes'); } catch { /* Keep acknowledgment in memory for this panel. */ }
+    try { sessionStorage.setItem(ACK_KEY + (audioMode ? '_audio' : '_text'), 'yes'); } catch { /* Keep acknowledgment in memory for this panel. */ }
     setNeedsAcknowledgment(false);
     void start();
   };
@@ -104,5 +120,6 @@ export function useSpeakingCoach(targetWord: string, audioUrl?: string, ageGroup
     void playWordAudio(targetWord, audioUrl);
   };
 
-  return { status, feedback, message, needsAcknowledgment, toggle, cancel, acknowledge, replay };
+  const changeAudioMode = (value: boolean) => { cancel(); acknowledged.current = false; setAudioMode(value); };
+  return { status, feedback, message, needsAcknowledgment, toggle, cancel, acknowledge, replay, audioAvailable, audioMode, changeAudioMode };
 }

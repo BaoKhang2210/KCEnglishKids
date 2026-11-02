@@ -1,0 +1,8 @@
+{
+  "checkedAt": "2026-11-01T10:12:04.519Z",
+  "scope": "read-only active lessons with saved admin catalog",
+  "lessons": 108,
+  "blocked": [],
+  "clientServerMismatches": [],
+  "passed": true
+}

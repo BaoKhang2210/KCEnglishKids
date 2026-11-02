@@ -25,9 +25,15 @@ let schoolRecords = [];
 let sessions = [];
 let simulateConcurrentPublish = false;
 function query(value) {
-  return { select() { return this; }, sort() { return this; }, limit() { return this; },
+  return { select() { return this; }, populate() { return this; }, sort() { return this; }, limit() { return this; },
     lean: async () => value, then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) };
 }
+// Recognition also reads lifetime statistics; keep this controller test isolated
+// from MongoDB while its period-ranking fixtures remain defined below.
+const statisticsModels = require('../src/models');
+for (const Model of [statisticsModels.ActivityResult, statisticsModels.Progress, ClassroomSession, statisticsModels.UnitCompletion, statisticsModels.LearningEvent]) Model.aggregate = async () => [];
+statisticsModels.Progress.find = () => query([]);
+statisticsModels.Assignment.find = () => query([]);
 User.findById = id => query(users.find(user => String(user._id) === String(id)));
 User.find = () => query(users.filter(user => user.role === 'CHILD'));
 ClassRoom.find = filter => query(!filter.teacher || String(filter.teacher) === ids.teacher ? [classroom] : []);

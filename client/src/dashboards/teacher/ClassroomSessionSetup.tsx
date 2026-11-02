@@ -1,7 +1,8 @@
+import { lessonPosition } from '../../utils/curriculumLessons';
 import { TeachingGuidePanel } from '../../components/teacher/TeachingGuidePanel';
 import { scheduleEffectiveAt, countsTowardCurriculum } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock } from '../../utils/vietnamTime';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
@@ -45,12 +46,16 @@ export const ClassroomSessionSetup: React.FC = () => {
   const { classId: routeClassId = '' } = useParams<{ classId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const preparedPlan = useLocation().state?.lessonPlan;
+  const locationState = useLocation().state;
+  const preparedPlan = locationState?.lessonPlan;
+  const selectedRowRef = useRef<HTMLTableRowElement>(null);
+  const scheduleTableRef = useRef<HTMLDivElement>(null);
 
   const [activeClassId, setActiveClassId] = useState<string>(
     routeClassId || searchParams.get('classroomId') || ''
   );
   const [allClasses, setAllClasses] = useState<any[]>([]);
+  const [classesLoading, setClassesLoading] = useState(true);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [classroom, setClassroom] = useState<any>(null);
@@ -69,7 +74,10 @@ export const ClassroomSessionSetup: React.FC = () => {
   // Session metadata
   const [sessionNumber, setSessionNumber] = useState(1);
   const [includeWarmup, setIncludeWarmup] = useState(true);
-  const [duration, setDuration] = useState(45);
+  const [duration, setDuration] = useState(() => {
+    const value = Number(preparedPlan?.meta?.durationMinutes || locationState?.durationMinutes || searchParams.get('duration') || searchParams.get('durationMinutes'));
+    return [15, 20, 25, 30, 35, 45, 60].includes(value) ? value : 25;
+  });
   const [title, setTitle] = useState('');
 
   // Pre-Session Attendance Check-in State
@@ -83,6 +91,7 @@ export const ClassroomSessionSetup: React.FC = () => {
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('ALL');
 
   const [creating, setCreating] = useState(false);
+  const [createdDraftId, setCreatedDraftId] = useState('');
   const [error, setError] = useState('');
 
   // Live timer for timetable check
@@ -105,12 +114,14 @@ export const ClassroomSessionSetup: React.FC = () => {
           setActiveClassId(String(list[0]._id));
         }
       })
-      .catch(() => {});
+      .catch((e) => setError(e.message || 'Chưa tải được danh sách lớp.'))
+      .finally(() => setClassesLoading(false));
   }, []);
 
   useEffect(() => {
     if (!activeClassId) return;
     let cancelled = false;
+    setError('');
     const todayStr = attendanceDate || vietnamDate();
     setLoadingAttendance(true);
 
@@ -323,6 +334,7 @@ export const ClassroomSessionSetup: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    if (createdDraftId) { navigate(`/teacher/classroom-sessions/${createdDraftId}/live`); return; }
     if (!activeClassId || loadingAttendance || creating) return;
 
     // Strict timetable verification
@@ -348,6 +360,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         attendanceNote
       });
       const sessionId = res.data._id;
+      setCreatedDraftId(sessionId);
       // Start session immediately
       await classroomSessionApi.startSession(sessionId);
       navigate(`/teacher/classroom-sessions/${sessionId}/live`);
@@ -507,7 +520,15 @@ export const ClassroomSessionSetup: React.FC = () => {
     });
   }, [scheduleItems, selectedUnitFilter, searchQuery]);
 
+  useEffect(() => {
+    const row = selectedRowRef.current, table = scheduleTableRef.current;
+    if (step === 1 && row && table) {
+      table.scrollTop += row.getBoundingClientRect().top - table.getBoundingClientRect().top - table.clientHeight / 2 + row.clientHeight / 2;
+    }
+  }, [step, selectedLessonId, filteredSchedule]);
+
   if (error && (!classroom || !content)) return <div className="p-8"><div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div><button className="teacher-button mt-4" onClick={() => navigate('/teacher/classes')}>Về lớp phụ trách</button></div>;
+  if (!classesLoading && !activeClassId) return <div className="p-8"><div className="teacher-panel"><h1 className="text-xl font-bold">Chưa có lớp đang hoạt động</h1><p className="my-4">Giáo viên cần được phân công lớp và thời khóa biểu trước khi mở buổi dạy.</p><button className="teacher-button" onClick={() => navigate('/teacher/schedule')}>Xem lịch dạy</button></div></div>;
   if (!classroom || !content) return <Loader />;
 
   const ageLabel: Record<string, string> = {
@@ -673,6 +694,7 @@ export const ClassroomSessionSetup: React.FC = () => {
           <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border-2 border-rose-200 flex items-center gap-3">
             <AlertTriangle size={20} className="text-rose-800 shrink-0" />
             <span>{error}</span>
+            {createdDraftId && <button className="teacher-button" onClick={() => navigate(`/teacher/classroom-sessions/${createdDraftId}/live`)}>Buổi đã lưu · Mở kế hoạch để thử lại</button>}
           </div>
         )}
 
@@ -788,7 +810,7 @@ export const ClassroomSessionSetup: React.FC = () => {
             </div>
 
             {/* Schedule Table View */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <div ref={scheduleTableRef} className="relative max-h-[32rem] overflow-auto rounded-2xl border border-slate-200">
               <div className="">
                 <table className="w-full min-w-[760px] text-left text-sm border-collapse">
                   <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-xs font-black text-slate-700 uppercase tracking-wider">
@@ -814,6 +836,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                         return (
                           <tr
                             key={`${item._id}-${idx}`}
+                            ref={isSelected ? selectedRowRef : undefined}
                             tabIndex={0}
                             aria-selected={isSelected}
                             onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedLessonId(item._id); } }}
@@ -854,7 +877,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                             {/* Lesson Title */}
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
-                                <p className="font-extrabold text-slate-900 text-base">{item.title}</p>
+                                <p className="font-extrabold text-slate-900 text-base">Lesson {lessonPosition(item, content.units).lesson}: {item.title}</p>
                                 {item.isAdminAssigned && (
                                   <span className="rounded-full bg-amber-700 text-white px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider">
                                     🎯 Kế hoạch Admin
@@ -1059,30 +1082,15 @@ export const ClassroomSessionSetup: React.FC = () => {
               )}
             </div>
 
-            {/* Duration Selector */}
-            <div className="border-t border-slate-100 pt-5">
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                Thời lượng dự kiến buổi học
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {[20, 30, 45, 60].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDuration(d)}
-                    className={`rounded-2xl px-5 py-2.5 text-sm font-black transition-all cursor-pointer ${
-                      duration === d
-                        ? 'bg-teal-700 text-white'
-                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {d} phút
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+              <label htmlFor="session-duration" className="text-sm font-bold text-slate-700">Thời lượng buổi học</label>
+              <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-black text-teal-900">{duration} phút</span>
+              <select id="session-duration" value={duration} onChange={e => setDuration(Number(e.target.value))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                {[15, 20, 25, 30, 35, 45, 60].map(d => <option key={d} value={d}>{d} phút</option>)}
+              </select>
             </div>
 
-<p className="text-sm text-slate-600">Thời lượng dùng để theo dõi đồng hồ và nhắc chuyển sang tổng kết khi hết giờ. Giáo viên chủ động kết thúc; hệ thống không tự chốt buổi học.</p>
+<p className="text-sm text-slate-600">Số phút dùng để chia thời gian giáo án thành khởi động, làm quen, cùng chơi và tổng kết; đồng hồ sẽ nhắc cô khi đến thời lượng dự kiến. Cô có thể linh hoạt cho bé nghỉ và chủ động kết thúc buổi học.</p>
 
             {/* Step 2 Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">
@@ -1359,7 +1367,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={creating || loadingAttendance || !scheduleLiveTiming.canTeachNow}
+                  disabled={creating || (!createdDraftId && (loadingAttendance || !scheduleLiveTiming.canTeachNow))}
                   className={`w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl px-9 py-4 text-base font-black transition-all ${
                     scheduleLiveTiming.canTeachNow
                       ? 'bg-emerald-700 hover:bg-emerald-700 text-white  active:scale-95 cursor-pointer animate-pulse'
@@ -1371,7 +1379,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
                       <span>Đang lưu điểm danh & khởi tạo phòng học…</span>
                     </>
-                  ) : !scheduleLiveTiming.canTeachNow ? (
+                  ) : createdDraftId ? <span>Mở kế hoạch đã lưu</span> : !scheduleLiveTiming.canTeachNow ? (
                     <>
                       <Lock size={20} />
                       <span>🔒 Chưa đến giờ dạy theo thời khóa biểu</span>

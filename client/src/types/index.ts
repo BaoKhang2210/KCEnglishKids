@@ -18,8 +18,8 @@ export interface ParentNoteOption {
 
 export interface ParentNoteSuggestions {
   options: ParentNoteOption[];
-  source: 'template';
-  generative: false;
+  source: 'template' | 'gemini';
+  generative: boolean;
   fallback: boolean;
   metrics: {
     scope: 'all_time' | 'assignment';
@@ -39,8 +39,8 @@ export interface SpeakingRequest {
 }
 
 export interface SpeakingFeedback {
-  evaluationType: 'transcript_match';
-  source: 'rules';
+  evaluationType: 'transcript_match' | 'audio_coaching';
+  source: 'rules' | 'gemini';
   evaluated: boolean;
   score: number | null;
   displayStars: number;
@@ -52,15 +52,18 @@ export interface SpeakingFeedback {
 }
 
 export interface LessonPlanRequest {
+  teacherRequest?: string;
   lessonId?: string;
   classroomId?: string;
-  durationMinutes?: 15 | 25 | 35;
+  durationMinutes?: number;
   teachingStyle?: 'active_tpr' | 'story_song' | 'interactive_drills';
   ageGroup?: AgeGroupCode;
   lessonTitle?: string;
   targetTopic?: string;
   vocabularyList?: Array<{ english: string; vietnamese?: string; pronunciation?: string }>;
   sentencePatterns?: Array<{ english: string; vietnamese?: string }>;
+  reviewMode?: boolean;
+  gapWords?: string;
 }
 
 export interface LessonPlanActivity {
@@ -110,8 +113,9 @@ export interface LessonPlan {
   teacherPrepTips: string[];
   phases: LessonPlanPhase[];
   homeConnectPrompt: string;
-  source: 'pedagogical_engine';
-  generative: false;
+  source: 'pedagogical_engine' | 'gemini';
+  generative: boolean;
+  fallback?: boolean;
 }
 
 export interface User {

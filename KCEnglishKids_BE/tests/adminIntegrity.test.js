@@ -160,7 +160,7 @@ test('classroom cleanup reports failures and resumes the saved work list on retr
   const room = { _id: id(2), name: 'Room', status: 'ACTIVE', deletionPending: false, save: async () => {} };
   t.mock.method(ClassRoom, 'findById', async () => room);
   t.mock.method(User, 'find', () => query([{ _id: id(1) }]));
-  for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent', 'LearningObservation', 'TeacherNote', 'VocabularyMastery', 'Assignment', 'ParentNotification', 'Attendance', 'ClassroomSession']) t.mock.method(models[name], 'deleteMany', async () => ({}));
+  for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent', 'LearningObservation', 'HomePracticePlan', 'TeacherNote', 'VocabularyMastery', 'Assignment', 'HomePracticeCompletion', 'ParentNotification', 'Attendance', 'ClassroomSession']) t.mock.method(models[name], 'deleteMany', async () => ({}));
   for (const name of ['Attendance', 'ClassroomSession', 'ClassRoom', 'User']) t.mock.method(models[name], 'updateMany', async () => ({}));
   t.mock.method(User, 'deleteMany', async () => ({}));
   t.mock.method(ClassRecognition, 'deleteMany', async () => ({}));
@@ -198,6 +198,7 @@ test('admin analytics uses best Lesson stars and includes homework awards withou
   t.mock.method(ClassRoom, 'find', () => query([{ _id: id(2), name: 'Room', teacher: { name: 'Teacher' } }]));
   t.mock.method(models.Progress, 'find', () => query([{ lesson: id(3), completed: true, stars: 3 }]));
   t.mock.method(models.UnitCompletion, 'find', () => query([]));
+  t.mock.method(models.HomePracticeCompletion, 'find', () => query([]));
   t.mock.method(models.ClassroomSession, 'find', filter => { assert.equal(filter.status, 'COMPLETED'); return query([]); });
   t.mock.method(Activity, 'find', () => query([{ _id: id(4), lesson: id(3), questions: [{}], pointsPerQuestion: 10 }]));
   t.mock.method(models.ActivityResult, 'find', () => query([{ activity: id(4), lesson: id(3), score: 10, stars: 3 }, { activity: id(4), lesson: id(3), score: 10, stars: 3 }]));
@@ -210,7 +211,7 @@ test('admin analytics uses best Lesson stars and includes homework awards withou
 });
 test('a new child competency report has no fabricated vocabulary or pronunciation measurements', async t => {
   t.mock.method(User, 'findOne', () => query({ _id: id(1), name: 'New child' }));
-  for (const name of ['Progress', 'UnitCompletion', 'ClassroomSession', 'ActivityResult', 'VocabularyMastery', 'Assignment']) t.mock.method(models[name], 'find', () => query([]));
+  for (const name of ['Progress', 'UnitCompletion', 'ClassroomSession', 'ActivityResult', 'VocabularyMastery', 'Assignment', 'HomePracticeCompletion']) t.mock.method(models[name], 'find', () => query([]));
   t.mock.method(models.Progress, 'countDocuments', async () => 0);
   const res = await invoke(C.getStudentCompetency, {}, { id: id(1) });
   assert.equal(res.error, undefined);

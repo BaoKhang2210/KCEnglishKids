@@ -242,6 +242,9 @@ exports.list = async (req, res, next) => {
         { lesson: lessonId },
         { _id: { $in: lessonDoc.languageContents || [] } }
       ];
+      if (!lessonDoc.languageContents?.length && lessonDoc.curriculumUnits?.length) {
+        orConditions.push({ sourceUnit: { $in: lessonDoc.curriculumUnits } });
+      }
       (q.$and = q.$and || []).push({ $or: orConditions });
     }
 

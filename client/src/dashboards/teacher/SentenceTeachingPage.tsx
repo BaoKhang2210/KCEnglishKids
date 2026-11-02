@@ -115,14 +115,6 @@ const TYPE_META: Record<string, { label: string; cls: string; borderCls: string 
 const typeMeta = (t: string) =>
   TYPE_META[t] || { label: t, cls: 'bg-slate-100 text-slate-700 border-slate-200', borderCls: 'border-slate-400' };
 
-const TYPE_FILTERS: Array<[string, string]> = [
-  ['', 'Tất cả'],
-  ['QUESTION', 'Hỏi & Đáp'],
-  ['PATTERN', 'Mẫu câu'],
-  ['SENTENCE', 'Câu đơn'],
-  ['ORACY', 'Đàm thoại']
-];
-
 const unitLabel = (u: UnitOverview) => `Sách ${u.bookNumber} · Unit ${u.unitNumber} — ${u.bigQuestion}`;
 
 export const SentenceTeachingPage: React.FC = () => {
@@ -134,7 +126,6 @@ export const SentenceTeachingPage: React.FC = () => {
   const [age, setAge] = useState('');
   const [unitId, setUnitId] = useState(urlUnitId);
   const [lessonId, setLessonId] = useState(urlLessonId);
-  const [type, setType] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -165,11 +156,13 @@ export const SentenceTeachingPage: React.FC = () => {
 
   // Units overview
   useEffect(() => {
+    let cancelled = false;
     sentenceApi
-      .getUnitsOverview({ ageGroupCode: age || undefined, contentType: type || undefined })
-      .then((x) => setUnits(x.data || []))
-      .catch(() => setUnits([]));
-  }, [age, type]);
+      .getUnitsOverview({ ageGroupCode: age || undefined })
+      .then((x) => { if (!cancelled) setUnits(x.data || []); })
+      .catch(() => { if (!cancelled) setUnits([]); });
+    return () => { cancelled = true; };
+  }, [age]);
 
   // Teaching list
   useEffect(() => {
@@ -181,7 +174,6 @@ export const SentenceTeachingPage: React.FC = () => {
         ageGroupCode: age || undefined,
         unitId: unitId || undefined,
         lessonId: lessonId || undefined,
-        contentType: type || undefined,
         search: debouncedSearch || undefined
       })
       .then((x) => {
@@ -196,7 +188,7 @@ export const SentenceTeachingPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [age, unitId, lessonId, type, debouncedSearch, reloadTick]);
+  }, [age, unitId, lessonId, debouncedSearch, reloadTick]);
 
   useEffect(() => setClassIdx(0), [rows]);
   useEffect(() => {
@@ -412,7 +404,7 @@ export const SentenceTeachingPage: React.FC = () => {
 
       {/* Responsive Filter Bar */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
-        {/* Left Side: Age Groups & Content Types */}
+        {/* Age Groups */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Age Groups */}
           <div className="flex flex-wrap items-center gap-1">
@@ -430,25 +422,6 @@ export const SentenceTeachingPage: React.FC = () => {
               </button>
             ))}
           </div>
-
-          <span className="hidden sm:inline-block h-5 w-px bg-slate-200" />
-
-          {/* Content Type Filter */}
-          <div className="flex flex-wrap items-center gap-1">
-            {TYPE_FILTERS.map(([v, label]) => (
-              <button
-                key={v || 'alltype'}
-                onClick={() => setType(v)}
-                className={`rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  type === v
-                    ? 'bg-white text-inherit'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Right Side: Unit Selector & Search Box */}
@@ -459,7 +432,7 @@ export const SentenceTeachingPage: React.FC = () => {
             onChange={(e) => setUnitId(e.target.value)}
             className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-teal-500"
           >
-            <option value="">Tất cả 27 Unit ({units.length})</option>
+            <option value="">Tất cả {units.length} Unit</option>
             {units.map((u) => (
               <option key={u.unitId} value={u.unitId}>
                 {unitLabel(u)} · {u.sentenceCount} câu
@@ -527,7 +500,6 @@ export const SentenceTeachingPage: React.FC = () => {
             <button
               onClick={() => {
                 setAge('');
-                setType('');
                 setUnitId('');
                 setSearch('');
                 clearLessonFilter();

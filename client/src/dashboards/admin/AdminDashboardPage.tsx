@@ -12,7 +12,9 @@ import {
   Activity,
   Layers,
   Award,
-  CalendarDays
+  CalendarDays,
+  AlertTriangle,
+  Radio
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
@@ -212,6 +214,133 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="rounded-2xl bg-rose-50 border border-rose-200 dark:bg-rose-50 dark:border-rose-900/60 p-4 text-rose-800 dark:text-rose-800 text-sm flex items-center gap-3">
           <ShieldAlert size={18} />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* ── Giám sát Giảng dạy Hôm nay (Executive Teaching Monitor) ──────── */}
+      {stats?.teachingMonitor && (
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-indigo-50 text-indigo-800">
+                  <CalendarDays size={20} />
+                </span>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                  Giám Sát Giảng Dạy Hôm Nay (Thời Khóa Biểu vs Thực Tế)
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                Tự động đối chiếu lịch học trong ngày và phát hiện nếu giáo viên chưa vào lớp giảng dạy
+              </p>
+            </div>
+
+            <Link
+              to="/admin/classrooms"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 hover:text-indigo-900 self-start sm:self-auto"
+            >
+              <span>Xem chi tiết các lớp</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {/* Alert if any missed classes today */}
+          {stats.teachingMonitor.alerts && stats.teachingMonitor.alerts.length > 0 && (
+            <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse-subtle">
+              <div className="flex items-center gap-3">
+                <AlertTriangle size={22} className="text-rose-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-rose-900">
+                    Cảnh báo: Có {stats.teachingMonitor.alerts.length} lớp học có lịch hôm nay nhưng giáo viên chưa vào dạy!
+                  </p>
+                  <p className="text-xs font-semibold text-rose-800 mt-0.5">
+                    {stats.teachingMonitor.alerts.map((a: any) => `${a.classroomName} (${a.teacherName})`).join(' • ')}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/admin/classrooms"
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 shrink-0 transition-colors"
+              >
+                Kiểm tra ngay
+              </Link>
+            </div>
+          )}
+
+          {/* Live Teaching Sessions Alert */}
+          {stats.teachingMonitor.liveSessions && stats.teachingMonitor.liveSessions.length > 0 && (
+            <div className="mt-4 p-4 rounded-2xl bg-sky-50 border-2 border-sky-300 text-sky-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-3.5 w-3.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-sky-600"></span>
+                </span>
+                <div>
+                  <p className="text-sm font-black text-sky-900 flex items-center gap-2">
+                    <span>🔴 Đang có {stats.teachingMonitor.liveSessions.length} lớp học trong giờ dạy trực tiếp:</span>
+                  </p>
+                  <p className="text-xs font-bold text-sky-800 mt-0.5">
+                    {stats.teachingMonitor.liveSessions.map((ls: any) => `${ls.classroomName} — Bài: ${ls.lessonTitle} (GV: ${ls.teacherName})`).join(' • ')}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/admin/classrooms"
+                className="px-3.5 py-1.5 rounded-xl bg-sky-700 text-white font-bold text-xs hover:bg-sky-800 shrink-0 transition-colors"
+              >
+                Giám sát lớp học
+              </Link>
+            </div>
+          )}
+
+          {/* Quick status counters */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Lịch Học Hôm Nay</p>
+                <p className="text-xl font-black text-slate-900 mt-0.5">{stats.teachingMonitor.scheduledTodayCount || 0} lớp</p>
+              </div>
+              <CalendarDays size={20} className="text-slate-400" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800">Đã Dạy Xong</p>
+                <p className="text-xl font-black text-emerald-950 mt-0.5">{stats.teachingMonitor.taughtCount || 0} lớp</p>
+              </div>
+              <CheckCircle2 size={20} className="text-emerald-600" />
+            </div>
+
+            <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
+              (stats.teachingMonitor.missedCount || 0) > 0
+                ? 'bg-rose-50 border-rose-200'
+                : 'bg-slate-50 border-slate-100'
+            }`}>
+              <div>
+                <p className={`text-[11px] font-black uppercase tracking-wider ${
+                  (stats.teachingMonitor.missedCount || 0) > 0 ? 'text-rose-800 font-extrabold' : 'text-slate-500'
+                }`}>
+                  Chưa Dạy / Quá Giờ
+                </p>
+                <p className={`text-xl font-black mt-0.5 ${
+                  (stats.teachingMonitor.missedCount || 0) > 0 ? 'text-rose-700' : 'text-slate-900'
+                }`}>
+                  {stats.teachingMonitor.missedCount || 0} lớp
+                </p>
+              </div>
+              <AlertTriangle size={20} className={(stats.teachingMonitor.missedCount || 0) > 0 ? 'text-rose-600' : 'text-slate-400'} />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-100 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">Đang Dạy / Sắp Tới</p>
+                <p className="text-xl font-black text-sky-950 mt-0.5">
+                  {(stats.teachingMonitor.liveCount || 0) + (stats.teachingMonitor.upcomingCount || 0)} lớp
+                </p>
+              </div>
+              <Radio size={20} className="text-sky-600" />
+            </div>
+          </div>
         </div>
       )}
 

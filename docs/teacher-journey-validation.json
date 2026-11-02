@@ -1,0 +1,67 @@
+{
+  "checkedAt": "2026-11-02T12:00:40.933Z",
+  "method": "Real HTTP and MongoDB in a unique disposable database; local pedagogical AI fallback",
+  "checks": [
+    {
+      "name": "Teacher login accepts the demo credentials and rejects the wrong password",
+      "passed": true
+    },
+    {
+      "name": "Schedule and content contain only the assigned class",
+      "passed": true
+    },
+    {
+      "name": "Lesson preview has real local pictures; sentence screen falls back to the Unit",
+      "passed": true
+    },
+    {
+      "name": "Homework is unavailable before there is any evidence of learning",
+      "passed": true
+    },
+    {
+      "name": "Planner creates a 25 minute pedagogical plan, even with generative AI unavailable",
+      "passed": true
+    },
+    {
+      "name": "Prepare attendance, retain duration and plan, then start one live classroom",
+      "passed": true
+    },
+    {
+      "name": "Live scoring rejects absence and deduplicates repeated clicks",
+      "passed": true
+    },
+    {
+      "name": "Observation saved from the session also appears in the Unit overview",
+      "passed": true
+    },
+    {
+      "name": "Closing validates objectives, advances class curriculum once and freezes live scoring",
+      "passed": true
+    },
+    {
+      "name": "Teacher assigns one homework activity and the child receives that same assignment",
+      "passed": true
+    },
+    {
+      "name": "Child submits the real activity; teacher reviews it and family reads the feedback",
+      "passed": true
+    },
+    {
+      "name": "Family report uses evidence and assigned homework; retries do not duplicate delivery",
+      "passed": true
+    },
+    {
+      "name": "All remaining teacher destinations load their real data and absent/no-data children stay distinct",
+      "passed": true
+    },
+    {
+      "name": "Private notes can be created, edited and removed without sending a family message",
+      "passed": true
+    },
+    {
+      "name": "Cancelling homework removes it from current work while keeping submission history",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { learningApi, topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
+import { api, learningApi, topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
 import type { ProgressSummary, Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildRecognitions } from '../../components/child/ChildRecognitions';
@@ -161,6 +161,13 @@ export const ChildHomePage: React.FC = () => {
   const [streakData, setStreakData] = useState<ChildStreakData | null>(null);
   const [showStreakModal, setShowStreakModal] = useState(false);
 
+  // 5-minute daily home review summary
+  const [homeReviewSummary, setHomeReviewSummary] = useState<{
+    lessonTitle?: string;
+    lessonVietnameseTitle?: string;
+    completedToday?: boolean;
+  } | null>(null);
+
   // Friendly Sequential Gatekeeper Toast State
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -231,6 +238,20 @@ export const ChildHomePage: React.FC = () => {
           } catch (stErr) {
             console.warn('Could not fetch daily streak:', stErr);
           }
+
+          // Fetch 5-minute home review status
+          api.get(`/children/${childId}/home-practice`)
+            .then((res: any) => {
+              const rev = res.data?.homeReview;
+              if (rev) {
+                setHomeReviewSummary({
+                  lessonTitle: rev.lessonTitle,
+                  lessonVietnameseTitle: rev.lessonVietnameseTitle,
+                  completedToday: rev.completedToday
+                });
+              }
+            })
+            .catch(() => {});
         }
       } catch (err) {
         console.error('Failed to load child home data:', err);
@@ -301,7 +322,64 @@ export const ChildHomePage: React.FC = () => {
 
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 md:pb-12">
-        <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
+        {/* 5-MINUTE DAILY HOME PRACTICE HERO BANNER */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            sfx.playPop();
+            navigate('/my-learning');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              sfx.playPop();
+              navigate('/my-learning');
+            }
+          }}
+          className="relative mb-4 cursor-pointer overflow-hidden rounded-3xl border-3 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-4 sm:p-5 text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] group"
+        >
+          {/* Playful background decorative shapes */}
+          <div className="absolute -right-6 -bottom-6 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
+          <div className="absolute top-2 right-16 w-20 h-20 rounded-full bg-yellow-200/20 blur-md pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-white/30 flex-shrink-0 animate-bounce">
+                ⚡
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider bg-white/25 backdrop-blur-md border border-white/30 text-amber-50">
+                    🌱 5 Phút Ôn Tập Ở Nhà Cùng Ba Mẹ
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-yellow-300 text-amber-950 flex items-center gap-1 shadow-sm">
+                    ⭐ Thưởng +3 Sao
+                  </span>
+                </div>
+                <h2 className="text-base sm:text-lg lg:text-xl font-black text-white drop-shadow-sm">
+                  {homeReviewSummary?.lessonVietnameseTitle 
+                    ? `Bài vừa học ở lớp: ${homeReviewSummary.lessonVietnameseTitle} (${homeReviewSummary.lessonTitle})`
+                    : 'Cùng Ba Mẹ ôn lại kiến thức buổi học gần nhất!'}
+                </h2>
+                <p className="text-xs sm:text-sm text-amber-100 font-bold">
+                  Bé ôn từ vựng với trò chơi mini & cùng ba mẹ luyện mẫu câu đàm thoại 👨‍👩‍👧
+                </p>
+              </div>
+            </div>
+
+            <div className="self-end sm:self-center flex-shrink-0">
+              {homeReviewSummary?.completedToday ? (
+                <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md border border-emerald-300">
+                  <Check className="w-4 h-4 stroke-[3]" /> Đã nhận 3⭐ (Bấm ôn lại)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-orange-600 font-black text-xs sm:text-sm shadow-md hover:bg-yellow-50 group-hover:scale-105 transition-transform">
+                  Bắt đầu ngay <ArrowRight className="w-4 h-4" />
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
         <ChildRecognitions />
         {/* COMPACT BANNER */}
         <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">

@@ -9,10 +9,11 @@ async function classroom(req, id, teaching = false) {
   return room;
 }
 const studentIds = req => ClassRoom.find({ ...classScope(req), ...(req.user.role === 'ADMIN' ? {} : { status: { $in: ['ACTIVE', 'UPCOMING'] } }) }).distinct('students');
+const classroomIds = req => ClassRoom.find({ ...classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).distinct('_id');
 async function child(req, id) {
   if (!validId(id)) fail('Mã học sinh không hợp lệ.');
   const item = await User.findOne({ _id: id, role: 'CHILD', ...(req.user.role === 'ADMIN' ? {} : { _id: { $eq: id, $in: await studentIds(req) } }) }).select('-password -pin -importKey');
   if (!item) fail('Bạn không được phân công phụ trách học sinh này.', 403);
   return item;
 }
-module.exports = { classScope, classroom, studentIds, child };
+module.exports = { classScope, classroom, classroomIds, studentIds, child };

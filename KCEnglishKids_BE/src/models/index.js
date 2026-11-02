@@ -27,6 +27,7 @@ const Schedule = require('./Schedule');
 
 module.exports = {
   HomePracticePlan: require('./HomePracticePlan'),
+  HomePracticeCompletion: require('./HomePracticeCompletion'),
   LearningObservation: require('./LearningObservation'),
   GameCatalogSetting: require('./GameCatalogSetting'),
   SchoolRecognition: require('./SchoolRecognition'),
@@ -57,4 +58,5 @@ module.exports = {
   Attendance,
   Schedule
 };
+
 

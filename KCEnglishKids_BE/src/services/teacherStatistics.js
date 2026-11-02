@@ -17,6 +17,7 @@ const statsFor = async ids => {
           incorrectAnswers: { $sum: '$incorrectCount' },
           resultCount: { $sum: 1 },
           learningTime: { $sum: '$duration' },
+          timedResults: { $sum: { $cond: [{ $isNumber: '$duration' }, 1, 0] } },
           lastActivity: { $max: '$createdAt' }
       } }
     ]),
@@ -38,6 +39,8 @@ const statsFor = async ids => {
           classroomSessions: { $sum: 1 },
           correctAnswers: { $sum: '$studentScores.correctCount' },
           incorrectAnswers: { $sum: '$studentScores.incorrectCount' }
+          ,learningTime: { $sum: { $cond: [{ $and: [{ $ne: ['$startedAt', null] }, { $gt: ['$endedAt', '$startedAt'] }] }, { $divide: [{ $subtract: ['$endedAt', '$startedAt'] }, 1000] }, 0] } }
+          ,timedSessions: { $sum: { $cond: [{ $and: [{ $ne: ['$startedAt', null] }, { $gt: ['$endedAt', '$startedAt'] }] }, 1, 0] } }
       } }
     ]),
     UnitCompletion.aggregate([
@@ -51,8 +54,11 @@ const statsFor = async ids => {
     ]),
     Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars completionSnapshot').lean(),
     LearningEvent.aggregate([
-      { $match: { child: { $in: ids }, stage: { $in: [2, 3] } } },
-      { $group: { _id: '$child', attempts: { $sum: 1 }, lastActivity: { $max: '$createdAt' },
+      { $match: { child: { $in: ids } } },
+      { $group: { _id: '$child', attempts: { $sum: { $cond: [{ $in: ['$stage', [2, 3]] }, 1, 0] } }, lastActivity: { $max: '$createdAt' },
+        learningTime: { $sum: '$durationSeconds' },
+        timedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 1, 0] } },
+        untimedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 0, 1] } },
         correctAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$$answer.isCorrect', true] } } } } },
         incorrectAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$$answer.isCorrect', false] } } } } }
       } }
@@ -121,10 +127,15 @@ const statsFor = async ids => {
     const teacherStars = teacherStarsByChild.get(sid) || 0;
     const totalStars = earnedStars + classroomStars + bonusStars + teacherStars;
 
-    const { correctAnswers, answeredCount, averageScore } = combineAssessment([r, c, event]);
+    const overall = combineAssessment([r, c, event]);
+    const practice = combineAssessment([r, event]);
+    const classroom = combineAssessment([c]);
+    const { correctAnswers, answeredCount, averageScore } = practice;
     const completedLessons = p?.completedLessons || 0;
     const attempts = (r?.resultCount || 0) + (event?.attempts || 0);
-    const learningTime = r?.learningTime || 0;
+    const practiceLearningTime = (r?.learningTime || 0) + (event?.learningTime || 0);
+    const classroomLearningTime = c?.learningTime || 0;
+    const learningTime = practiceLearningTime + classroomLearningTime;
 
     let lastActivity = r?.lastActivity || p?.lastProgressDate || null;
     if (r?.lastActivity && p?.lastProgressDate) {
@@ -136,6 +147,11 @@ const statsFor = async ids => {
       _id: id,
       averageScore, correctAnswers, answeredCount,
       hasAssessment: answeredCount > 0,
+      overallAccuracy: overall.averageScore, overallAnsweredCount: overall.answeredCount,
+      practiceAccuracy: practice.averageScore, practiceAnsweredCount: practice.answeredCount, practiceCorrectAnswers: practice.correctAnswers,
+      hasPracticeAssessment: practice.answeredCount > 0,
+      classroomAccuracy: classroom.averageScore, classroomAnsweredCount: classroom.answeredCount, classroomCorrectAnswers: classroom.correctAnswers,
+      hasClassroomAssessment: classroom.answeredCount > 0,
       stars: totalStars,
       totalStars,
       earnedStars,
@@ -145,6 +161,9 @@ const statsFor = async ids => {
       completedLessons,
       attempts,
       learningTime,
+      practiceLearningTime, classroomLearningTime,
+      hasLearningTime: (r?.timedResults || 0) + (event?.timedEvents || 0) + (c?.timedSessions || 0) > 0,
+      hasUnmeasuredLearning: (event?.untimedEvents || 0) > 0 || (r?.resultCount || 0) > (r?.timedResults || 0) || (c?.classroomSessions || 0) > (c?.timedSessions || 0),
       lastActivity
     };
   });

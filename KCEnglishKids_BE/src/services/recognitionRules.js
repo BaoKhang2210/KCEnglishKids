@@ -32,7 +32,8 @@ function rewardFor(kind) {
 function rankClassroomStars(students, sessions) {
   const totals = new Map(students.map(student => [String(student._id), {
     child: String(student._id), name: student.name, avatarUrl: student.avatarUrl || '',
-    stars: 0, sessions: 0
+    className: student.className || student.assignedClass?.name || '',
+    stars: 0, sessions: 0, totalStars: student.totalStars ?? 0
   }]));
   for (const session of sessions) {
     if (session.status !== 'COMPLETED') continue;
@@ -44,7 +45,7 @@ function rankClassroomStars(students, sessions) {
       if (Number.isFinite(stars)) row.stars += Math.max(0, Math.floor(stars));
     }
   }
-  const ranking = [...totals.values()].sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name, 'vi'));
+  const ranking = [...totals.values()].sort((a, b) => b.stars - a.stars || (b.totalStars || 0) - (a.totalStars || 0) || a.name.localeCompare(b.name, 'vi'));
   const maximum = ranking[0]?.stars || 0;
   return ranking.map(row => ({ ...row, winner: maximum > 0 && row.stars === maximum }));
 }

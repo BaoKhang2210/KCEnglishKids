@@ -12,7 +12,7 @@ async function sessionFor(req, writing = false, active = true) {
   const query = ClassroomSession.findOne({ _id: req.params.id, ...scope(req) });
   const item = await (writing ? query.select('+appliedOperations') : query);
   if (!item) fail('Không tìm thấy buổi học được phân công.', 404);
-  if (writing) await access.classroom(req, item.classroom, active);
+  await access.classroom(req, item.classroom, writing && active);
   return item;
 }
 async function saveSession(req, mutate, closing = false) {
@@ -65,6 +65,7 @@ async function populateSession(item, summary = false) {
 }
 exports.getSessions = wrap(async (req, res) => {
   const query = scope(req);
+  if (req.user.role !== 'ADMIN') query.classroom = { $in: await access.classroomIds(req) };
   if (req.query.status) {
     if (!['SCHEDULED', 'LIVE', 'COMPLETED'].includes(req.query.status)) fail('Trạng thái buổi học không hợp lệ.');
     query.status = req.query.status;
@@ -110,7 +111,7 @@ exports.createSession = wrap(async (req, res) => {
   let plan = body.lessonPlan || null;
   if (plan && (typeof plan !== 'object' || Array.isArray(plan) || JSON.stringify(plan).length > 200000)) fail('Giáo án không hợp lệ.');
   if (plan && lesson && (plan.meta?.lessonTitle !== lesson.title || plan.meta?.ageGroup !== room.ageGroupCode || plan.meta?.durationMinutes !== duration)) plan = null;
-  if (!plan && lesson) plan = await ai.generateLessonPlan({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
+  if (!plan && lesson) plan = await ai.generateLessonPlanWithAI({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
   const session = await ClassroomSession.create({ classroom: room._id, teacher: req.user._id, lesson: lesson?._id || null,
     title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
     status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,

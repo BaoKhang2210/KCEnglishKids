@@ -44,11 +44,12 @@ function SpeakingPanel({ targetWord, audioUrl, ageGroup }: Props) {
           </div>
         </div>
       </div>
+      {coach.audioAvailable && <label className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold"><input type="checkbox" checked={coach.audioMode} disabled={busy} onChange={event => coach.changeAudioMode(event.target.checked)} />Người lớn chọn: nghe âm thanh cùng Koko AI (6 giây)</label>}
       {coach.needsAcknowledgment && (
         <div role="dialog" aria-label="Microphone privacy acknowledgment" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left text-xs">
           <p className="font-bold">Please ask an adult before using the microphone.</p>
-          <p className="mt-1">Your browser may send audio to its speech-recognition service. This app sends only recognized text to its own backend and does not store audio or transcripts. Recognition may need an internet connection.</p>
-          <p className="mt-1">This session acknowledgment is not a production consent policy. You can always choose listen-and-repeat practice.</p>
+          <p className="mt-1">{coach.audioMode ? 'Ứng dụng ghi âm 6 giây và gửi qua máy chủ tới Google Gemini để gợi ý luyện nói. Ứng dụng không lưu bản ghi. Google xử lý dữ liệu theo điều khoản dịch vụ của họ. Người lớn hãy đồng hành cùng bé và tránh nói thông tin riêng trong bản ghi.' : 'Trình duyệt có thể gửi âm thanh tới dịch vụ nhận diện giọng nói của trình duyệt. Ứng dụng chỉ gửi phần chữ đã nhận diện về máy chủ để so khớp từ, không lưu âm thanh hoặc bản chép lời.'}</p>
+          <p className="mt-1">Có thể chọn chỉ nghe mẫu và nhắc lại bất cứ lúc nào.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={coach.acknowledge} className="rounded-lg bg-teal-700 px-3 py-2 font-bold text-white cursor-pointer">Adult: I understand — start</button>
             <button type="button" onClick={coach.cancel} className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-bold cursor-pointer">Listen only</button>
@@ -56,7 +57,7 @@ function SpeakingPanel({ targetWord, audioUrl, ageGroup }: Props) {
         </div>
       )}
       <div aria-live="polite" aria-atomic="true" className="text-center">
-        {busy && <p className="mt-2 text-sm font-semibold">{coach.status === 'listening' ? 'Listening… say the words when you are ready.' : 'Matching the recognized words…'}</p>}
+        {busy && <p className="mt-2 text-sm font-semibold">{coach.status === 'listening' ? 'Listening… say the words when you are ready.' : coach.audioMode ? 'Koko đang lắng nghe bản ghi…' : 'Matching the recognized words…'}</p>}
         {coach.message && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs text-amber-900">{coach.message}</p>}
         {coach.feedback && <div className="mt-3 rounded-2xl bg-white p-3">
           {coach.feedback.evaluated && <div className="flex justify-center gap-1" aria-label={`${coach.feedback.displayStars} practice stars, display only`}>
@@ -64,7 +65,7 @@ function SpeakingPanel({ targetWord, audioUrl, ageGroup }: Props) {
           </div>}
           <p className="mt-1 text-sm font-bold">{coach.feedback.kokoSpeech}</p>
           <p className="mt-1 text-xs text-slate-600">{coach.feedback.practiceTip}</p>
-          {coach.feedback.score != null && <p className="mt-2 text-[11px] text-slate-500">Approximate transcript match: {coach.feedback.score}% — not a pronunciation assessment.</p>}
+          {coach.feedback.score != null && <p className="mt-2 text-[11px] text-slate-500">{coach.feedback.evaluationType === 'audio_coaching' ? `Gợi ý luyện nói từ âm thanh: ${coach.feedback.score}/100. Điểm tham khảo để khích lệ; cô vẫn cần quan sát trực tiếp.` : `Độ khớp từ nhận diện: ${coach.feedback.score}%. Chế độ này chỉ so phần chữ, chưa đánh giá âm vị.`}</p>}
         </div>}
       </div>
     </section>

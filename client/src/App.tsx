@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { LearningSync } from './components/LearningSync';
 import { StaffSurface } from './components/staff/StaffSurface';
 const ClassRecognitionsPage = lazy(() => import('./dashboards/shared/ClassRecognitionsPage').then(module => ({default:module.ClassRecognitionsPage})));
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { RewardProvider } from './context/RewardContext';
@@ -22,7 +22,6 @@ const TeacherAssignmentDetail = lazy(() => import('./dashboards/teacher/TeacherW
 const TeacherStudents = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherStudents})));
 const TeacherStudentDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherStudentDetail})));
 const TeacherAnalytics = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAnalytics})));
-const TeacherInbox = lazy(() => import('./dashboards/teacher/TeacherInbox').then(module => ({default:module.TeacherInbox})));
 import './styles/teacher.css';
 const ClassroomSessionSetup = lazy(() => import('./dashboards/teacher/ClassroomSessionSetup').then(module => ({default:module.ClassroomSessionSetup})));
 const LiveSessionPage = lazy(() => import('./dashboards/teacher/LiveSessionPage').then(module => ({default:module.LiveSessionPage})));
@@ -31,9 +30,6 @@ const ClassroomSessionsList = lazy(() => import('./dashboards/teacher/ClassroomS
 const SentenceTeachingPage = lazy(() => import('./dashboards/teacher/SentenceTeachingPage').then(module => ({default:module.SentenceTeachingPage})));
 const TeacherTeachingSchedule = lazy(() => import('./dashboards/teacher/TeacherTeachingSchedule').then(module => ({default:module.TeacherTeachingSchedule})));
 const TeacherLessonPlanner = lazy(() => import('./dashboards/teacher/TeacherLessonPlanner').then(module => ({default:module.TeacherLessonPlanner})));
-const LearningStudioPage = lazy(() => import('./dashboards/teacher/LearningStudioPage').then(module=>({default:module.LearningStudioPage})));
-const HomePracticePage = lazy(() => import('./dashboards/teacher/HomePracticePage').then(module=>({default:module.HomePracticePage})));
-const UnitReviewPage = lazy(() => import('./dashboards/teacher/UnitReviewPage').then(module=>({default:module.UnitReviewPage})));
 const ChangePinPage = lazy(() => import('./pages/child/ChangePinPage').then(module => ({default:module.ChangePinPage})));
 const RecoverAccountPage = lazy(() => import('./pages/child/RecoverAccountPage').then(module => ({default:module.RecoverAccountPage})));
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -167,14 +163,14 @@ export function App() {
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
             <Route path="analytics" element={<TeacherAnalytics />} />
-            <Route path="notifications" element={<TeacherInbox />} />
+            <Route path="notifications" element={<Navigate to="/teacher/students" replace />} />
             <Route path="recognitions" element={<ClassRecognitionsPage />} />
             <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
             <Route path="sentences" element={<SentenceTeachingPage />} />
             <Route path="lesson-planner" element={<TeacherLessonPlanner />} />
-            <Route path="learning-studio" element={<LearningStudioPage />} />
-            <Route path="home-practice" element={<HomePracticePage />} />
-            <Route path="unit-review" element={<UnitReviewPage />} />
+            <Route path="learning-studio" element={<TeacherLegacyRedirect target="/teacher/content" />} />
+            <Route path="home-practice" element={<TeacherLegacyRedirect target="/teacher/assignments" />} />
+            <Route path="unit-review" element={<TeacherLegacyRedirect target="/teacher/analytics" />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
@@ -205,7 +201,6 @@ export function App() {
             <Route path="curriculum" element={<AdminCurriculumPage />} />
             <Route path="sentences" element={<AdminSentencesPage />} />
             <Route path="games" element={<AdminGamesPage />} />
-            <Route path="learning-studio" element={<LearningStudioPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />
             <Route path="recognitions" element={<ClassRecognitionsPage />} />
@@ -226,3 +221,8 @@ export function App() {
 }
 
 export default App;
+
+function TeacherLegacyRedirect({ target }: { target: string }) {
+  const { search } = useLocation();
+  return <Navigate to={target + search} replace />;
+}

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Star, Sparkles } from 'lucide-react';
 import { sfx } from '../../utils/audio';
-import { LearningSymbol } from '../common/LearningSymbol';
+import { StickerArtwork } from './StickerArtwork';
 import type { RewardChest, RevealedChest } from '../../types';
 import { ALL_STICKERS } from '../../data/stickers';
 import { useRewards } from '../../context/RewardContext';
@@ -44,6 +44,7 @@ export const ChestRevealModal: React.FC<ChestRevealModalProps> = ({ chest, onClo
       try {
         confetti({
           particleCount: 140,
+          disableForReducedMotion: true,
           spread: 90,
           origin: { y: 0.5 },
           colors: ['#F59E0B', '#10B981', '#38BDF8', '#EC4899', '#8B5CF6']
@@ -100,10 +101,8 @@ export const ChestRevealModal: React.FC<ChestRevealModalProps> = ({ chest, onClo
 
             {/* Sticker reward */}
             {sticker && (
-              <div
-                className={`mx-auto w-32 h-32 sm:w-40 sm:h-40 rounded-[36px] bg-gradient-to-tr ${sticker.bgGradient} border-4 border-white shadow-2xl flex items-center justify-center text-7xl sm:text-8xl mb-4 animate-star-celebrate`}
-              >
-                <LearningSymbol symbol={sticker.icon} label={sticker.name} className="w-24 h-24 sm:w-32 sm:h-32" />
+              <div className="mx-auto mb-4 flex justify-center">
+                <StickerArtwork sticker={sticker} unlocked size="xl" />
               </div>
             )}
             {sticker && (

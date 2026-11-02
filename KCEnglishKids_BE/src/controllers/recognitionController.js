@@ -5,6 +5,7 @@ const User = require('../models/User');
 const ClassRecognition = require('../models/ClassRecognition');
 const SchoolRecognition = require('../models/SchoolRecognition');
 const { recognitionPeriod, rewardFor, rankClassroomStars, rankSchoolStars } = require('../services/recognitionRules');
+const { statsFor } = require('../services/teacherStatistics');
 
 const fail = (res, status, message) => res.status(status).json({ success: false, message });
 const validId = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
@@ -26,14 +27,22 @@ function periodFor(req, res) {
 const keyFor = (classroom, period) => ({ classroom: classroom._id, kind: period.kind, periodStart: period.start });
 
 async function calculate(classroom, period) {
-  const [students, sessions] = await Promise.all([
-    User.find({ _id: { $in: classroom.students }, role: 'CHILD', status: 'ACTIVE' }).select('name avatarUrl').lean(),
+  const students = await User.find({ _id: { $in: classroom.students }, role: 'CHILD', status: 'ACTIVE' }).select('name avatarUrl').lean();
+  const studentIds = students.map(s => s._id);
+  const [sessions, statsList] = await Promise.all([
     ClassroomSession.find({
       classroom: classroom._id, status: 'COMPLETED',
       endedAt: { $gte: period.start, $lt: period.end }
-    }).select('status studentScores').lean()
+    }).select('status studentScores endedAt startedAt').lean(),
+    statsFor(studentIds).catch(() => [])
   ]);
-  return rankClassroomStars(students, sessions);
+  const statsMap = new Map((statsList || []).map(s => [String(s._id), s]));
+  const studentsWithTotal = students.map(s => ({
+    ...s,
+    className: classroom.name,
+    totalStars: statsMap.get(String(s._id))?.totalStars || 0
+  }));
+  return rankClassroomStars(studentsWithTotal, sessions);
 }
 
 exports.classes = async (req, res, next) => {
@@ -123,12 +132,29 @@ exports.read = async (req, res, next) => {
 };
 
 async function schoolRanking(period) {
-  const [students, sessions] = await Promise.all([
-    User.find({ role: 'CHILD', status: 'ACTIVE' }).select('name avatarUrl').lean(),
-    ClassroomSession.find({ status: 'COMPLETED', endedAt: { $gte: period.start, $lt: period.end } }).select('status studentScores').lean()
+  const students = await User.find({ role: 'CHILD', status: 'ACTIVE' })
+    .select('name avatarUrl assignedClass')
+    .populate('assignedClass', 'name')
+    .lean();
+  const studentIds = students.map(s => s._id);
+  const [sessions, statsList] = await Promise.all([
+    ClassroomSession.find({
+      status: 'COMPLETED',
+      endedAt: { $gte: period.start, $lt: period.end }
+    }).select('status studentScores endedAt startedAt').lean(),
+    statsFor(studentIds).catch(() => [])
   ]);
-  const minimumSessions = period.kind === 'WEEK' ? 2 : 4;
-  return { minimumSessions, ranking: rankSchoolStars(students, sessions, minimumSessions) };
+  const statsMap = new Map((statsList || []).map(s => [String(s._id), s]));
+  const studentsWithTotal = students.map(s => ({
+    ...s,
+    className: s.assignedClass?.name || 'Chưa phân lớp',
+    totalStars: statsMap.get(String(s._id))?.totalStars || 0
+  }));
+  const rows = rankClassroomStars(studentsWithTotal, sessions);
+  const maxAttended = Math.max(0, ...rows.map(r => r.sessions));
+  const targetMin = period.kind === 'WEEK' ? 2 : 4;
+  const minimumSessions = period.kind === 'MONTH' && maxAttended > 0 && maxAttended < targetMin ? maxAttended : targetMin;
+  return { minimumSessions, ranking: rankSchoolStars(studentsWithTotal, sessions, minimumSessions) };
 }
 const schoolKey = period => ({ kind: period.kind, periodStart: period.start });
 exports.schoolPreview = async (req, res, next) => {

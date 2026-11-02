@@ -57,16 +57,20 @@ export const ClassroomSessionsList: React.FC = () => {
   }, [classId, searchParams]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError('');
     Promise.all([
       classroomSessionApi.getSessions(selectedClassFilter ? { classroomId: selectedClassFilter } : undefined),
       teacherApi.getClasses().catch(() => ({ data: [] }))
     ])
       .then(([sessRes, classRes]) => {
+        if (cancelled) return;
         setSessions(sessRes.data || []);
         setClasses(classRes.data || []);
       })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch(e => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [selectedClassFilter]);
 
   const filteredSessions = useMemo(() => {
@@ -88,9 +92,7 @@ export const ClassroomSessionsList: React.FC = () => {
         const lId = String(typeof s.lesson === 'object' ? (s.lesson as any)?._id : s.lesson);
         return lId === initialLessonId;
       });
-      if (matchLesson.length > 0) {
-        result = matchLesson;
-      }
+      result = matchLesson;
     }
 
     if (search.trim()) {

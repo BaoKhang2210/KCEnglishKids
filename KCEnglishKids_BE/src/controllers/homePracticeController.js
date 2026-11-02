@@ -1,10 +1,26 @@
-const M=require('../models');
-const access=require('../services/teacherAccess');
-const practice=require('../services/homePractice');
-const wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(error){next(error);}};
-async function scope(req){const child=await access.child(req,req.params.studentId);const room=await access.classroom(req,child.assignedClass);return{child,room};}
-exports.proposal=wrap(async(req,res)=>{const {child,room}=await scope(req);res.json({success:true,data:await practice.proposal(child,room,req.query.lessonId)});});
-exports.history=wrap(async(req,res)=>{const {child}=await scope(req);const items=await M.HomePracticePlan.find({child:child._id}).sort({revision:-1}).limit(20).lean();res.json({success:true,data:{items:items.map(practice.safe)}});});
-exports.approve=wrap(async(req,res)=>{const {child,room}=await scope(req);res.status(201).json({success:true,data:await practice.approve(req,child,room,req.body||{})});});
-exports.revoke=wrap(async(req,res)=>{const {child,room}=await scope(req);res.status(201).json({success:true,data:await practice.approve(req,child,room,req.body||{},true)});});
-exports.family=wrap(async(req,res)=>{const child=await M.User.findById(req.params.childId);res.json({success:true,data:{plan:child?await practice.familyCurrent(child):null}});});
+const M = require('../models');
+const practice = require('../services/homePractice');
+const wrap = fn => async (req, res, next) => { try { await fn(req, res); } catch (error) { next(error); } };
+
+exports.family = wrap(async (req, res) => {
+  const child = await M.User.findById(req.params.childId);
+  const catalog = await require('../services/gameCatalog').loadCatalog();
+  const assignment = child ? await require('../services/teacherAssignments').currentForChild(child) : null;
+  const homeReview = child ? await practice.getHomeReview(child) : null;
+  res.json({
+    success: true,
+    data: {
+      assignment,
+      plan: homeReview?.approvedPlan || (child && !assignment ? await practice.familyCurrent(child) : null),
+      gameIds: catalog.games.filter(game => game.enabled).map(game => game.id),
+      homeReview
+    }
+  });
+});
+
+exports.complete = wrap(async (req, res) => {
+  const child = await M.User.findById(req.params.childId);
+  if (!child) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin bé.' });
+  const result = await practice.completeHomeReview(child, req.body?.lessonId);
+  res.json({ success: true, data: result });
+});

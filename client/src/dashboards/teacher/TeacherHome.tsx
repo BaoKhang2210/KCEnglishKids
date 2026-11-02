@@ -111,11 +111,121 @@ const ClassGapsPanel = ({ classes }: { classes: any[] }) => {
           <p className="text-xs text-slate-600">{gap.reasons.join(' · ')}</p>
           <p className="text-xs font-bold text-amber-800 flex items-start gap-1"><Lightbulb size={14} className="shrink-0 mt-[1px]" /> {gap.suggestion}</p>
         </div>
-        <div className="text-right text-xs font-bold text-slate-700"><p>{gap.masteredPercent}% thành thạo</p><p className="text-slate-500">{gap.accuracyPercent == null ? 'chưa luyện' : `${gap.accuracyPercent}% đúng`}</p></div>
+        <div className="text-right text-xs font-bold text-slate-700">
+          <p>{gap.masteredPercent}% thành thạo</p>
+          <p className="text-slate-500">
+            {gap.practicedStudents === 0
+              ? 'Chưa có lượt làm'
+              : gap.accuracyPercent == null
+              ? 'Chưa luyện'
+              : `${gap.accuracyPercent}% đúng (${gap.practicedStudents}/${report.meta.studentCount} bé)`}
+          </p>
+          <Link
+            to={`/teacher/lesson-planner?classroomId=${classRoomId}&reviewMode=true&gapWords=${encodeURIComponent(gap.english)}`}
+            className="text-[11px] font-bold text-teal-700 hover:text-teal-900 block mt-1 transition-colors"
+          >
+            Ôn từ này →
+          </Link>
+        </div>
       </li>)}</ul>
-      {gaps.length > 0 && <Link className="teacher-button" to="/teacher/lesson-planner">Tạo giáo án ôn tập <ArrowRight size={15} /></Link>}
+      {gaps.length > 0 && (
+        <Link
+          className="teacher-button flex items-center justify-center gap-2"
+          to={`/teacher/lesson-planner?classroomId=${classRoomId}&reviewMode=true&gapWords=${encodeURIComponent(gaps.map(g => g.english).join(', '))}`}
+        >
+          <span>🎯 Soạn giáo án ôn tập khắc phục {gaps.length} lỗ hổng kiến thức</span>
+          <ArrowRight size={15} />
+        </Link>
+      )}
     </>}
   </section>;
+};
+
+const ParentFeedbackSection = ({ items }: { items: any[] }) => {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <section className="teacher-panel rounded-2xl border border-amber-300 bg-amber-50/50 p-4 sm:p-5 mb-4 shadow-xs">
+      <div className="teacher-panel-heading border-b border-amber-200/80 pb-3 mb-3">
+        <div>
+          <p className="teacher-eyebrow text-amber-800">TƯƠNG TÁC GIA ĐÌNH · LỜI NHẮN MỚI</p>
+          <h2 className="flex items-center gap-2 text-slate-900">
+            <MessageSquare size={20} className="text-amber-700" />
+            <span>Phản Hồi &amp; Dặn Dò Từ Phụ Huynh</span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-xs font-black">
+              {items.length} lời nhắn
+            </span>
+          </h2>
+        </div>
+        <Link to="/teacher/students" className="text-xs font-bold text-teal-800 hover:text-teal-900">
+          Xem tất cả học sinh <ArrowRight size={14} className="inline ml-1" />
+        </Link>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map((it: any) => {
+          const latest = it.latestReply || (it.replies && it.replies[it.replies.length - 1]);
+          const childName = it.child?.name || 'Học sinh';
+          const childAvatar = it.child?.avatarUrl || '';
+          const author = latest?.senderName || ('Phụ huynh bé ' + childName);
+          const message = latest?.message || it.parentFeedback?.message || '';
+          const timeStr = latest?.createdAt
+            ? new Date(latest.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(latest.createdAt).toLocaleDateString('vi-VN')
+            : 'Mới gửi';
+
+          return (
+            <div
+              key={it._id}
+              className="p-3.5 rounded-2xl bg-white border border-amber-200 shadow-2xs flex flex-col justify-between gap-2.5"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100/60 border border-amber-200 p-1 shrink-0 flex items-center justify-center font-black text-amber-800">
+                  {childAvatar ? (
+                    <img src={childAvatar} alt={childName} className="w-full h-full object-contain" />
+                  ) : (
+                    childName[0]
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-black text-xs text-slate-900">{author}</span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-900 text-[10px] font-bold border border-amber-200">
+                      Bé {childName}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium ml-auto">{timeStr}</span>
+                  </div>
+
+                  <p className="mt-1.5 text-xs text-slate-800 font-medium bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 leading-relaxed whitespace-pre-wrap">
+                    &ldquo;{message}&rdquo;
+                  </p>
+
+                  <p className="text-[11px] text-slate-400 font-medium mt-1">
+                    Gắn với: <b>{it.subject || 'Phiếu nhận xét'}</b>
+                    {it.session?.title ? ` (${it.session.title})` : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+                {it.child?.contact && (
+                  <span className="text-slate-500 text-[11px] font-semibold">
+                    SĐT PH: {it.child.contact}
+                  </span>
+                )}
+                <Link
+                  to={`/teacher/students/${it.child?._id || it.child}`}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-900 ml-auto"
+                >
+                  Mở sổ bé <ArrowRight size={12} />
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 };
 
 export const TeacherDashboard = () => {
@@ -137,7 +247,7 @@ export const TeacherDashboard = () => {
   const m = data.metrics;
   const firstName = user?.name?.split(' ').filter(Boolean).slice(-1)[0] || '';
   return <div className="teacher-home">
-    <StoryBanner scene="classroom" title={`Xin chào, ${firstName || 'thầy cô'}`} eyebrow="MỖI BUỔI HỌC · MỘT BƯỚC TIẾN NHỎ"><p>Cùng chuẩn bị những trải nghiệm vui vẻ và vừa sức. Quan sát điều bé làm được, khích lệ sự cố gắng.</p><div className="teacher-welcome-actions"><Link className="teacher-button primary" to="/teacher/classroom-sessions/new"><Play size={17}/> Chuẩn bị buổi dạy</Link><Link className="teacher-button" to="/teacher/learning-studio">Mở xưởng học liệu</Link></div></StoryBanner>
+    <StoryBanner scene="classroom" title={`Xin chào, ${firstName || 'thầy cô'}`} eyebrow="MỖI BUỔI HỌC · MỘT BƯỚC TIẾN NHỎ"><p>Cùng chuẩn bị những trải nghiệm vui vẻ và vừa sức. Quan sát điều bé làm được, khích lệ sự cố gắng.</p><div className="teacher-welcome-actions"><Link className="teacher-button primary" to="/teacher/classroom-sessions/new"><Play size={17}/> Chuẩn bị buổi dạy</Link><Link className="teacher-button" to="/teacher/content">Giáo trình & in tranh</Link></div></StoryBanner>
     <div className="teacher-metrics">{[
       { label: 'Buổi dạy hôm nay', value: slots.length, icon: CalendarDays, to: 'schedule' },
       { label: 'Học sinh', value: m.students, icon: Users, to: 'students' },
@@ -146,6 +256,7 @@ export const TeacherDashboard = () => {
     ].map(item => <Link to={'/teacher/' + item.to} className="teacher-metric" key={item.label}><span><small>{item.label}</small><strong>{item.value ?? 0}</strong></span><item.icon size={23} /></Link>)}</div>
     <TeacherTasks/>
     {data.live.length > 0 && <section className="teacher-live-banner"><span className="teacher-live-dot" /><div><strong>Buổi dạy đang mở</strong><p>{data.live[0].classroom?.name} · {data.live[0].title}</p></div><Link to={`/teacher/classroom-sessions/${data.live[0]._id}/live`} className="teacher-button primary">Tiếp tục dạy <ArrowRight size={17} /></Link></section>}
+    {data.parentFeedback && data.parentFeedback.length > 0 && <ParentFeedbackSection items={data.parentFeedback} />}
     <div className="teacher-home-agenda"><section className="teacher-panel"><div className="teacher-panel-heading"><div><p className="teacher-eyebrow">SẴN SÀNG CHO GIỜ HỌC</p><h2>Lịch dạy hôm nay</h2></div><Link to="/teacher/schedule">Xem lịch <ArrowRight size={16} /></Link></div><ScheduleReminders slots={slots}/>{slots.length ? slots.map((slot: any) => <div key={slot.id} className="teacher-agenda-row"><div className="teacher-agenda-time"><b>{slot.startTime}</b><span>{slot.endTime}</span></div><div><strong>{slot.classroom?.name || 'Lớp học'}</strong><p>{slot.room || 'Theo thời khóa biểu của lớp'}</p></div><Link className="teacher-button" to={`/teacher/classes/${slot.classroom?._id}/sessions/new`}>Chuẩn bị <ArrowRight size={15} /></Link></div>) : <div className="teacher-empty"><CalendarDays size={32} /><strong>Hôm nay chưa có tiết dạy theo lịch</strong><p>Bạn có thể chuẩn bị học liệu hoặc xem lại nhận xét cho buổi tới.</p><Link to="/teacher/lesson-planner">Mở giáo án <ArrowRight size={16} /></Link></div>}</section>
 </div>
     <div className="teacher-home-columns"><section className="teacher-panel"><div className="teacher-panel-heading"><h2>Bài giao gần đây</h2><Link to="/teacher/assignments">Tất cả <ArrowRight size={16} /></Link></div>{data.recentAssignments.length ? data.recentAssignments.map((a: any) => <Link to={`/teacher/assignments/${a._id}`} key={a._id} className="teacher-list-row"><span className="teacher-list-icon"><ClipboardCheck size={20} /></span><span><strong>{a.activity?.title || a.lesson?.title || 'Bài tập'}</strong><small>{a.classRoom?.name || 'Lớp học'}</small></span><span className="teacher-status">{status[a.status] || a.status}</span></Link>) : <p className="teacher-empty-text">Chưa có bài giao. Hãy chọn hoạt động ngắn, phù hợp để bé ôn cùng gia đình.</p>}</section><section className="teacher-panel"><div className="teacher-panel-heading"><h2>Tài khoản & mã khôi phục</h2></div><AccountSecurity/></section>

@@ -15,6 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import type { StudentCompetencyReport } from '../../types';
+import { studyTimeLabel } from '../../utils/learningMetrics';
 
 interface StudentCompetencyModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const StudentCompetencyModal: React.FC<StudentCompetencyModalProps> = ({
 
   const totalStars = stats?.totalStars ?? student?.stars ?? 0;
   const completedLessons = stats?.completedLessons ?? 0;
-  const learningMinutes = Math.round((stats?.learningTime || 0) / 60);
+  const learningTimeText = studyTimeLabel(stats?.learningTime, stats?.hasLearningTime);
 
   // Fallback report if not returned from backend
   const report = competencyReport || {
@@ -119,6 +120,7 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
         {/* Modal Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-700 text-xs">
           {/* Top Banner: Explorer Level & Stars */}
+          <p className="rounded-xl bg-slate-50 p-3">Tự luyện: {studyTimeLabel(stats?.practiceLearningTime, (stats?.practiceLearningTime || 0) > 0)} · Trên lớp: {studyTimeLabel(stats?.classroomLearningTime, (stats?.classroomLearningTime || 0) > 0)}. {stats?.hasUnmeasuredLearning ? 'Một số lượt học cũ chưa ghi thời lượng nên chưa được cộng; không ước lượng bằng thời lượng giáo án.' : 'Chỉ cộng thời lượng đã ghi nhận.'}</p>
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl">
@@ -144,7 +146,7 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
                 <Clock size={13} className="text-indigo-800" />
-                <span>{learningMinutes} phút học</span>
+                <span>{learningTimeText}</span>
               </div>
             </div>
           </div>

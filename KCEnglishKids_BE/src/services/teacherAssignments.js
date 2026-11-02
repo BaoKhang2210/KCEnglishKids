@@ -59,4 +59,24 @@ async function submissions(assignment, students) {
   });
   return { data, results };
 }
-module.exports = { recipients, resultQuery, submissions };
+async function currentForChild(child) {
+  const M = require('../models');
+  if (!child?.assignedClass) return null;
+  const room = await M.ClassRoom.findById(child.assignedClass).lean();
+  if (!room || room.status !== 'ACTIVE' || !room.teacher || !room.students?.some(student => idOf(student) === idOf(child))) return null;
+  const items = await M.Assignment.find({ teacher: room.teacher, classRoom: room._id, status: { $in: ['ASSIGNED', 'IN_PROGRESS'] },
+    $and: [
+      { $or: [{ recipients: child._id }, { recipients: { $exists: false }, assignedToType: 'CLASS' }, { recipients: { $exists: false }, student: child._id }] },
+      { $or: [{ startDate: null }, { startDate: { $lte: new Date() } }] },
+    ]
+  }).populate('lesson', 'title vietnameseTitle status ageGroupCode').populate('activity', 'title status').sort({ createdAt: -1 }).lean();
+  for (const item of items) {
+    if (!item.lesson || item.lesson.status !== 'ACTIVE' || item.lesson.ageGroupCode !== child.ageGroupCode || (item.activity && item.activity.status !== 'ACTIVE')) continue;
+    const { data } = await submissions(item, [child]);
+    if (data[0]?.hasSubmitted) continue;
+    return { _id: item._id, lessonId: idOf(item.lesson), activityId: item.activity ? idOf(item.activity) : null,
+      lessonTitle: item.lesson.vietnameseTitle || item.lesson.title, instructions: item.instructions || '', dueDate: item.dueDate };
+  }
+  return null;
+}
+module.exports = { recipients, resultQuery, submissions, currentForChild };

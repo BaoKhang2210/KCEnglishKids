@@ -43,6 +43,7 @@ import { KokoSpeakingCoach } from '../../components/child/KokoSpeakingCoach';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import type { SentencePattern } from './SentenceTeachingPage';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
+import { getPreschoolTprGesture } from '../../utils/tprGestures';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const initials = (name?: string) =>
@@ -216,11 +217,13 @@ export const LiveSessionPage: React.FC = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   // Mini-game in classroom state (Chiếc Hộp Bí Mật, Nghe & Chọn, Đúng/Sai, Tiếng Kêu Con Vật)
+  const [gamesCategory, setGamesCategory] = useState<'curriculum' | 'interactive'>('curriculum');
   const [classroomGameMode, setClassroomGameMode] = useState<'mystery-box' | 'listen-choose' | 'true-false' | 'animal-sound'>('mystery-box');
   const [gameQuestionIdx, setGameQuestionIdx] = useState(0);
   const [isMysteryBoxOpen, setIsMysteryBoxOpen] = useState(false);
   const [isMysteryShaking, setIsMysteryShaking] = useState(false);
   const [mysteryVocabIndex, setMysteryVocabIndex] = useState(0);
+  const [mysteryPickedStudent, setMysteryPickedStudent] = useState<StudentSessionScore | null>(null);
 
   // Game 2: Nghe & Chọn interactive states
   const [listenPickSelectedId, setListenPickSelectedId] = useState<string | null>(null);
@@ -484,13 +487,13 @@ export const LiveSessionPage: React.FC = () => {
     };
   }, [session?.lesson]);
 
-  // Current Vocabulary TPR Physical Mime Action from Lesson Plan
+  // Current Vocabulary TPR Physical Mime Action from Lesson Plan or Rich Preschool TPR Map
   const currentTprGesture = useMemo(() => {
     if (!currentVocab) return '';
     const match = lessonPlan?.targetVocabulary?.find(
       (w) => w.english.toLowerCase() === currentVocab.english.toLowerCase()
     );
-    return match?.tprGesture || '';
+    return getPreschoolTprGesture(currentVocab.english, currentVocab.vietnamese, match?.tprGesture);
   }, [currentVocab, lessonPlan]);
 
   // Magic Mystery Box Vocabulary & TPR
@@ -500,12 +503,13 @@ export const LiveSessionPage: React.FC = () => {
     const match = lessonPlan?.targetVocabulary?.find(
       (w) => w.english.toLowerCase() === currentMysteryVocab.english.toLowerCase()
     );
-    return match?.tprGesture || '';
+    return getPreschoolTprGesture(currentMysteryVocab.english, currentMysteryVocab.vietnamese, match?.tprGesture);
   }, [currentMysteryVocab, lessonPlan]);
 
   const handleOpenMysteryBox = () => {
     if (isMysteryBoxOpen) {
       setIsMysteryBoxOpen(false);
+      setMysteryPickedStudent(null);
       setMysteryVocabIndex((prev) => (prev + 1) % activeVocabList.length);
       return;
     }
@@ -518,6 +522,56 @@ export const LiveSessionPage: React.FC = () => {
       playWordAudio(currentMysteryVocab.english, currentMysteryVocab.audioUrl);
     }, 800);
   };
+
+  const handleMysteryPickStudent = () => {
+    if (!session?.studentScores || session.studentScores.length === 0) return;
+    const eligibleStudents = session.studentScores.filter(
+      (sc) => sc.attendance !== 'ABSENT' && sc.attendance !== 'EXCUSED'
+    );
+    const pool = eligibleStudents.length > 0 ? eligibleStudents : session.studentScores;
+    const rand = pool[Math.floor(Math.random() * pool.length)];
+    setMysteryPickedStudent(rand);
+    sfx.playBadgeChime();
+    setIsMysteryShaking(true);
+    sfx.playMysteryDrumroll();
+    setTimeout(() => {
+      setIsMysteryShaking(false);
+      setIsMysteryBoxOpen(true);
+      sfx.playStarFanfare();
+      playWordAudio(currentMysteryVocab.english, currentMysteryVocab.audioUrl);
+    }, 1000);
+  };
+
+  // Safe 4-option Listen & Choose choices that ALWAYS include currentVocab
+  const listenChooseOptions = useMemo(() => {
+    if (!currentVocab || activeVocabList.length === 0) return [];
+    const target = currentVocab;
+    const others = activeVocabList.filter(
+      (v) => (v._id || v.english) !== (target._id || target.english)
+    );
+    const selectedDistractors: typeof activeVocabList = [];
+    for (let i = 0; i < Math.min(3, others.length); i++) {
+      const idx = (gameQuestionIdx + i * 3) % others.length;
+      if (!selectedDistractors.includes(others[idx])) {
+        selectedDistractors.push(others[idx]);
+      }
+    }
+    for (const item of others) {
+      if (selectedDistractors.length >= 3) break;
+      if (!selectedDistractors.includes(item)) {
+        selectedDistractors.push(item);
+      }
+    }
+    const combined = [target, ...selectedDistractors];
+    // Deterministic shuffle position for target based on gameQuestionIdx
+    const targetPos = (gameQuestionIdx * 3 + (target.english.charCodeAt(0) || 0)) % combined.length;
+    if (targetPos !== 0 && targetPos < combined.length) {
+      const temp = combined[0];
+      combined[0] = combined[targetPos];
+      combined[targetPos] = temp;
+    }
+    return combined;
+  }, [currentVocab, activeVocabList, gameQuestionIdx]);
 
   // ── Question result submission ─────────────────────────────────────────────
   const submitQuestionResult = async (activityId?: string, qIndex = 0, promptText = '', answerMap = answers) => {
@@ -2050,8 +2104,42 @@ export const LiveSessionPage: React.FC = () => {
         {/* ========================================================================= */}
         {activeTab === 'games' && (
           <div className="flex-1 flex flex-col w-full max-w-[2000px] 2xl:max-w-none mx-auto bg-slate-900/90 rounded-4xl border-3 border-purple-500/40 p-6 sm:p-8">
-            <ClassroomActivities session={session} onSave={submitQuestionResult} />
-            <details className="rounded-2xl border border-white/20 p-4" hidden={!session.activities.length}><summary className="cursor-pointer text-lg font-bold text-white">Trò chơi chung bổ sung</summary>
+            {/* Top Switcher: Curriculum Activities vs Koko Interactive Mini-Games */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2 bg-slate-800/90 p-1.5 rounded-2xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setGamesCategory('curriculum')}
+                  className={`px-4 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-all ${
+                    gamesCategory === 'curriculum'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span>🎯</span>
+                  <span>Trò Chơi Theo Bài ({session.activities.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGamesCategory('interactive')}
+                  className={`px-4 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-all ${
+                    gamesCategory === 'interactive'
+                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black shadow-lg shadow-amber-400/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span>✨</span>
+                  <span>Trò Chơi Tương Tác Koko (4 Chế Độ)</span>
+                </button>
+              </div>
+            </div>
+
+            {gamesCategory === 'curriculum' && (
+              <ClassroomActivities session={session} onSave={submitQuestionResult} />
+            )}
+
+            {gamesCategory === 'interactive' && (
+              <div>
             {/* Game Header & Mode selection */}
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6">
               <div className="flex items-center gap-3">
@@ -2116,6 +2204,16 @@ export const LiveSessionPage: React.FC = () => {
                 <div className="flex flex-col items-center py-4 w-full">
                   {!isMysteryBoxOpen ? (
                     <div className="flex flex-col items-center">
+                      {mysteryPickedStudent && (
+                        <div className="mb-4 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 text-slate-950 font-black text-sm sm:text-base shadow-lg animate-bounce flex items-center gap-2">
+                          <span>🎲 Mời bé:</span>
+                          <span className="text-purple-950 underline font-black text-lg">
+                            {(mysteryPickedStudent.student as User)?.name || 'Bé'}
+                          </span>
+                          <span>lên mở hộp quà! 🎉</span>
+                        </div>
+                      )}
+
                       {/* Bouncing Gift Box */}
                       <div
                         onClick={handleOpenMysteryBox}
@@ -2148,7 +2246,7 @@ export const LiveSessionPage: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={pickRandomStudent}
+                          onClick={handleMysteryPickStudent}
                           className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm px-5 py-3.5 rounded-2xl border border-white/20 cursor-pointer"
                         >
                           <Shuffle size={16} />
@@ -2158,6 +2256,16 @@ export const LiveSessionPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center animate-fade-in w-full">
+                      {mysteryPickedStudent && (
+                        <div className="mb-4 px-5 py-2 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-300 font-black text-sm sm:text-base flex items-center gap-2">
+                          <span>🎉 Bé</span>
+                          <span className="text-white underline font-black">
+                            {(mysteryPickedStudent.student as User)?.name || 'Bé'}
+                          </span>
+                          <span>đã mở hộp quà thành công!</span>
+                        </div>
+                      )}
+
                       {/* Revealed Card Frame */}
                       <div className="w-52 h-52 sm:w-64 sm:h-64 rounded-4xl bg-white p-4 border-4 border-amber-300 mb-4 flex items-center justify-center relative ring-8 ring-amber-400/30">
                         <img
@@ -2205,6 +2313,25 @@ export const LiveSessionPage: React.FC = () => {
 
                       {/* Action buttons */}
                       <div className="flex flex-wrap items-center justify-center gap-3">
+                        {mysteryPickedStudent && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playSuccess();
+                              const sid = typeof mysteryPickedStudent.student === 'string'
+                                ? mysteryPickedStudent.student
+                                : (mysteryPickedStudent.student as User)._id;
+                              if (sid) {
+                                void applyScore(sid, { stars: 1 }, 'correct', `⭐ Bé ${(mysteryPickedStudent.student as User)?.name} mở hộp và gọi đúng "${currentMysteryVocab.english}"!`);
+                              }
+                              showToast(`⭐ Đã thưởng +1 sao cho bé ${(mysteryPickedStudent.student as User)?.name || ''}!`);
+                            }}
+                            className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer shadow-lg"
+                          >
+                            <Star size={18} className="fill-slate-950" />
+                            <span>Thưởng bé {(mysteryPickedStudent.student as User)?.name} (+1 ⭐)</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -2215,12 +2342,17 @@ export const LiveSessionPage: React.FC = () => {
                           className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-white font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer"
                         >
                           <Star size={18} className="fill-white" />
-                          <span>Bé / Cả lớp đoán đúng (+1 ⭐)</span>
+                          <span>Thưởng Cả Lớp (+1 ⭐)</span>
                         </button>
                         <button
                           type="button"
-                          onClick={handleOpenMysteryBox}
-                          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 text-slate-950 font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer"
+                          onClick={() => {
+                            setIsMysteryBoxOpen(false);
+                            setMysteryPickedStudent(null);
+                            setMysteryVocabIndex((prev) => (prev + 1) % activeVocabList.length);
+                            sfx.playPop();
+                          }}
+                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-black text-sm px-6 py-3 rounded-2xl active:scale-95 cursor-pointer"
                         >
                           <Gift size={18} />
                           <span>Hộp Tiếp Theo ➔</span>
@@ -2252,7 +2384,7 @@ export const LiveSessionPage: React.FC = () => {
 
                   {/* 4 Interactive Choice Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl mb-6">
-                    {activeVocabList.slice(0, 4).map((v) => {
+                    {listenChooseOptions.map((v) => {
                       const isChosen = listenPickSelectedId === v._id;
                       const isCorrectAnswer = v._id === currentVocab._id || v.english === currentVocab.english;
 
@@ -2744,7 +2876,8 @@ export const LiveSessionPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            </details>
+            </div>
+            )}
           </div>
         )}
 

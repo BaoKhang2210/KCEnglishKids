@@ -149,7 +149,7 @@ Hệ thống đã nạp sẵn dữ liệu chuẩn (seed data) với các tài kh
  (3–6 tuổi & Phụ huynh)           (Giảng dạy & Sư phạm)            (Quản trị hệ thống)
    ├── Bản đồ đảo học tập           ├── Bàn làm việc tổng quan       ├── Bảng phân tích Analytics
    ├── Lộ trình 3 nhóm tuổi         ├── Bật buổi học trực tiếp       ├── Quản lý Người dùng (Users)
-   ├── 11 Mini-Games tương tác      ├── Dạy Mẫu câu phản xạ TPR      ├── Quản lý Chương trình học
+   ├── 12 mẫu Mini-Games dùng chung      ├── Dạy Mẫu câu phản xạ TPR      ├── Quản lý Chương trình học
    ├── Koko Mascot biểu cảm         ├── Hộp thư nhận xét Phụ huynh   ├── Cấu hình Game Catalog
    ├── Hệ thống thưởng Gamification ├── Hồ sơ quan sát năng lực      ├── Quản lý Lịch dạy & Lớp học
    └── Tự khôi phục mã PIN bí mật   └── Xem báo cáo tiến độ tuần     └── Nhật ký Audit & Bảo trì DB
@@ -164,18 +164,12 @@ Hệ thống đã nạp sẵn dữ liệu chuẩn (seed data) với các tài kh
    - **3–4 tuổi (Lớp Mầm - Book 1):** Học từ đơn qua hình ảnh lớn, tối đa 2-3 lựa chọn, ưu tiên âm thanh, không áp lực thời gian.
    - **4–5 tuổi (Lớp Chồi - Book 2):** Mở rộng trường từ vựng (gia đình, đồ chơi, đồ ăn), câu mệnh lệnh ngắn, mini-game tư duy tương phản.
    - **5–6 tuổi (Lớp Lá - Book 3):** Mẫu câu ghép nối (Subject + Verb + Object), phản xạ tình huống, game logic tìm bóng và ghi nhớ.
-3. **Kho 11 Mini-Games tương tác phong phú:**
-   - `Listen & Choose`: Nghe phát âm và chọn tranh đúng.
-   - `Animal Sound`: Lắng nghe tiếng kêu động vật tự nhiên và chọn bạn thú cưng.
-   - `Line Match`: Nối từ vựng với hình ảnh tương ứng.
-   - `Picture Builder`: Ghép các mảnh ghép để tạo thành bức tranh hoàn chỉnh.
-   - `Memory Match`: Lật thẻ bài tìm cặp hình giống nhau.
-   - `Koko Says (TPR)`: Lắng nghe khẩu lệnh và làm theo hành động của Koko.
-   - `Star Catcher`: Bắt các ngôi sao mang từ vựng mục tiêu.
-   - `Balloon Float`: Làm nổ bong bóng từ vựng đúng.
-   - `Shadow Puzzle`: Kéo thả hình ảnh vào bóng đen tương ứng.
-   - `Feed the Monsters`: Cho quái vật dễ thương ăn đúng món từ vựng yêu cầu.
-   - `Bubble Pop`: Chạm nhanh vào các bọt nước phát âm đúng.
+3. **Kho 12 mẫu Mini-Games dùng chung phong phú:**
+   - Chạm/chọn: Bubble Pop, Balloon Float, Tunnel Runner, Prize Wheel, Koko Says.
+   - Tìm/ghép: Memory Match, Shadow Puzzle, Peek-a-Boo, Feed the Monsters, Mystery Boxes.
+   - Ghép/xếp: Picture Builder, Koko’s Delivery.
+   - Trang bài học và tab Trò chơi đều dùng `GameRunner`; hoạt động theo bài học của cô được quản lý riêng.
+   - Đặc tả tại `shared/learningGames.json`; chọn trò tại `shared/gameSelection.cjs`. Admin bật/tắt và ưu tiên, hệ thống xoay vòng các trò phù hợp, mỗi bài tối đa 4 trò, hoàn thành 2 trò khác nhau.
 4. **Gamification & Linh vật Koko (`KokoMascot.tsx`):**
    - Bạn khỉ Koko đồng hành tương tác: biểu cảm vui mừng, vỗ tay, nhún nhảy, nói khích lệ bé.
    - Huy hiệu (Badges), số sao tích lũy, chuỗi ngày học liên tục (Streak).
@@ -192,11 +186,25 @@ Hệ thống đã nạp sẵn dữ liệu chuẩn (seed data) với các tài kh
 5. **Hộp thư gửi nhận xét cho gia đình (`TeacherInbox.tsx`):** Soạn thảo nhận xét tuần, đánh giá điểm mạnh để gửi vào sổ liên lạc điện tử của phụ huynh.
 
 ### 5.3. Phân hệ Quản trị viên (Admin Workspace)
-1. **Phân tích điều hành (`AdminDashboardPage.tsx`, `AdminAnalyticsPage.tsx`):** Biểu đồ thời gian thực về phân bổ học sinh theo độ tuổi, số lượt làm bài, tỷ lệ nắm vững từ vựng (Mastery Rate).
-2. **Quản lý tài khoản (`AdminUsersPage.tsx`):** Thêm mới, chỉnh sửa, khóa/mở tài khoản, cấp phát danh sách học sinh theo lớp học.
-3. **Quản lý chương trình học (`AdminCurriculumPage.tsx`):** Cây phân cấp Chủ đề (Topics) -> Bài học (Lessons) -> Từ vựng (Vocabulary).
-4. **Cấu hình danh mục trò chơi (`AdminGamesPage.tsx`):** Bật/tắt trò chơi, điều chỉnh số câu hỏi và thời lượng cho từng lứa tuổi.
-5. **Nhật ký & Toàn vẹn hệ thống (`AdminLogsPage.tsx`, `AdminSettingsPage.tsx`):** Theo dõi lịch sử hoạt động, kiểm tra tính toàn vẹn của cơ sở dữ liệu.
+1. **Phân tích điều hành & Giám sát giảng dạy hôm nay (`AdminDashboardPage.tsx`, `AdminAnalyticsPage.tsx`):**
+   - Thống kê điều hành: phân bổ học sinh theo độ tuổi, số lượt làm bài, tỷ lệ nắm vững từ vựng (Mastery Rate).
+   - **Giám sát Giảng dạy Hôm nay:** Tự động đối chiếu Thời khóa biểu trong ngày (giờ Việt Nam UTC+7) với phiên dạy thực tế. Cảnh báo đỏ nổi bật ngay lập tức khi phát hiện lớp có lịch học nhưng quá giờ giáo viên chưa vào lớp giảng dạy (`MISSED`).
+2. **Quản lý Lớp học & Theo dõi Tiến độ 3 Tab (`AdminClassroomsPage.tsx`):**
+   - Áp dụng nguyên tắc sư phạm nghiêm ngặt 1 Giáo viên - 1 Lớp học phụ trách.
+   - Bảng cảnh báo đầu trang liệt kê các lớp bị quá giờ chưa dạy.
+   - Mỗi thẻ lớp học hiển thị huy hiệu thời gian thực: *Đã dạy xong, Đang dạy trực tiếp, Quá giờ chưa dạy (cảnh báo nhấp nháy), Sắp tới giờ, Không có lịch*.
+   - **Hộp thoại Chi tiết & Tiến độ Lớp học (3 Tab):**
+     * **Tab 1 - Tiến độ Giáo trình:** Thanh tiến độ hoàn thành (X/36 bài - Y%), cây 9 Units theo syllabus chuẩn, đánh dấu trạng thái (Bài đang dạy / Đã dạy X buổi / Chưa học) và nút đặt bài hiện tại.
+     * **Tab 2 - Giám sát Lịch & Buổi dạy:** Thẻ cảnh báo vắng dạy (kèm SĐT/Email giáo viên), Thời khóa biểu cố định trong tuần, Nhật ký các buổi dạy đã tổ chức với sĩ số và điểm trung bình.
+     * **Tab 3 - Danh sách Học sinh:** Bảng danh sách bé thuộc biên chế lớp kèm mã PIN, liên hệ phụ huynh và nút tắt mở quản lý Excel.
+3. **Quản lý tài khoản (`AdminUsersPage.tsx`):** Thêm mới, chỉnh sửa, khóa/mở tài khoản, cấp phát danh sách học sinh theo lớp học.
+4. **Quản lý chương trình học (`AdminCurriculumPage.tsx`):** Cây phân cấp 3 Bộ sách -> 27 Units -> Bài học (Lessons) -> Từ vựng chuẩn hóa (Vocabulary).
+5. **Kho trò chơi - Game Catalog (`AdminGamesPage.tsx`):**
+   - Quản lý 12 Mini-games tương tác Giai đoạn 3 (Củng cố kiến thức).
+   - Bật/tắt và sắp xếp thứ tự ưu tiên trò chơi.
+   - Thuật toán bảo vệ sư phạm `assertLessonCoverage`: Chặn vô hiệu hóa nếu khiến bài học có ít hơn 2 trò chơi phù hợp với tính chất bộ từ vựng.
+   - Trải nghiệm và chơi thử trực tiếp trên dữ liệu từ vựng thực của từng bài học ngay tại Admin.
+6. **Nhật ký & Toàn vẹn hệ thống (`AdminLogsPage.tsx`, `AdminSettingsPage.tsx`):** Theo dõi lịch sử hoạt động, trích xuất file sao lưu JSON an toàn toàn bộ hệ thống (`/api/admin/system/backup`).
 
 ---
 
@@ -227,19 +235,38 @@ Các quy tắc sau đây là **bắt buộc** để duy trì tính ổn định 
 
 ---
 
-## 🤖 7. KẾ HOẠCH BƯỚC TIẾP THEO: TRIỂN KHAI HỆ THỐNG AI
+## 🤖 7. AI ĐÃ TRIỂN KHAI VÀ CÁCH KÍCH HOẠT (01/11/2026)
 
-Dự án đã chuẩn bị sẵn cấu trúc Endpoint và Service tại backend (`KCEnglishKids_BE/src/services/aiService.js` và `aiController.js`). Bước quan trọng cuối cùng trước khi bảo vệ khóa luận là tích hợp AI tạo sinh (Google Gemini API):
+Trước đợt sửa này, nhận xét phụ huynh dùng mẫu, giáo án được ghép bằng quy tắc TPR và phần nói chỉ so khớp chữ từ Web Speech API. Chúng chưa gọi AI tạo sinh và chưa đánh giá trực tiếp âm thanh.
 
-1. **Koko AI Speaking Coach (`/api/ai/evaluate-pronunciation`):**
-   - Đánh giá âm thanh giọng nói của trẻ khi phát âm các từ vựng tiếng Anh.
-   - Đưa ra điểm số trực quan (1-3 sao) và lời nhận xét khích lệ ấm áp từ linh vật Koko bằng tiếng Việt/tiếng Anh.
-2. **AI Lesson Plan Copilot (`/api/ai/generate-lesson-plan`):**
-   - Giáo viên nhập yêu cầu bằng ngôn ngữ tự nhiên (Ví dụ: *"Soạn giáo án 20 phút dạy từ vựng hoa quả cho lớp Mầm 3-4 tuổi"*).
-   - Gemini sinh tự động cấu trúc bài giảng chuẩn TPR: Khởi động (Warm-up) -> Khám phá từ vựng -> Hoạt động tương tác -> Tổng kết (Cool-down).
-3. **AI Parent Note Generator (`/api/ai/generate-parent-note`):**
-   - Phân tích điểm số, số từ đã thuộc và các mini-game bé đã chơi trong tuần.
-   - Tự động soạn sẵn đoạn tin nhắn nhận xét ấm áp, tinh tế để cô giáo duyệt và gửi tới phụ huynh chỉ bằng 1 nút bấm.
+Hiện có adapter Gemini tại `KCEnglishKids_BE/src/services/geminiProvider.js`:
+
+| Chức năng | API | Hành vi |
+| --- | --- | --- |
+| Soạn giáo án | `POST /api/ai/generate-lesson-plan` | Gemini cá nhân hóa hoạt động/khẩu lệnh theo bài và yêu cầu cô nhập. Ứng dụng giữ nguyên nhóm từ, bốn giai đoạn và tổng số phút. Khi AI lỗi/chưa cấu hình, dùng mẫu sư phạm và hiển thị đúng nguồn. |
+| Nhận xét gia đình | `POST /api/ai/generate-parent-note` | Ba bản nháp tiếng Việt từ số liệu thật; không gửi tên/ID học sinh tới Gemini. Cô chọn, chỉnh và tự gửi. Không suy diễn độ tự tin/phát âm từ điểm trò chơi. |
+| Luyện nói theo từ nhận diện | `POST /api/ai/evaluate-pronunciation` | Web Speech API → chữ → so khớp quy tắc; không gọi đây là chấm âm vị. |
+| Koko nghe âm thanh | `POST /api/ai/evaluate-audio` | Người lớn chủ động bật; ghi 6 giây, chuyển WAV mono 16 kHz tại trình duyệt rồi gửi Gemini để phản hồi khích lệ. Không lưu âm thanh/bản chép lời vào DB; điểm chỉ tham khảo. |
+| Từ cần ôn của lớp | `GET /api/ai/class-gaps` | Phân tích bằng quy tắc từ số liệu lớp được phân công; không cần LLM. |
+| Trạng thái khả dụng | `GET /api/ai/capabilities` | Cho giao diện biết có thể dùng Gemini/âm thanh hay chỉ chế độ cục bộ. Không trả khóa API. |
+
+**Kích hoạt:** xem `KCEnglishKids_BE/.env.example`. Trong `.env` backend, đặt `AI_PROVIDER=gemini`, `GEMINI_API_KEY` và `GEMINI_MODEL` là model khả dụng cho khóa của bạn rồi khởi động lại backend. Không đặt khóa trong frontend/`VITE_*`. Phiên kiểm tra này chưa có khóa Gemini: đã kiểm thử adapter bằng phản hồi giả lập, chưa xác minh cuộc gọi cloud thực tế.
+
+Có giới hạn lượt gọi theo tài khoản, giới hạn dung lượng, timeout 20 giây, kiểm tra cấu trúc đầu ra và fallback. Giáo án thành công được giữ trong bộ nhớ tối đa 10 phút (50 mục) để giảm gọi lặp. Chế độ âm thanh thông báo rõ việc gửi tới Google và cho phép chỉ nghe mẫu.
+
+Tham khảo kỹ thuật chính thức: [Gemini structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [Gemini audio](https://ai.google.dev/gemini-api/docs/audio).
+
+## 🧭 8. CÁC LUỒNG ĐÃ SỬA (01/11/2026)
+
+- **Số phút buổi học:** dùng chia ngân sách giáo án, hiển thị đồng hồ và nhắc cô tổng kết; cô chủ động kết thúc. Tất cả thời lượng hợp lệ 10–120 phút đều có tổng thời gian các giai đoạn/hoạt động khớp nhau. Giáo án chuyển sang chuẩn bị buổi dạy giữ đúng số phút.
+- **Phân quyền:** lịch và buổi học phải đồng thời khớp giáo viên cùng lớp đang được phân công. Đọc trực tiếp buổi cũ cũng kiểm tra quyền lớp. Lộ trình/giáo trình chỉ lấy sách hoặc nhóm tuổi của lớp phụ trách; không có lớp thì không trả cả giáo trình trường. Admin giữ phạm vi quản trị.
+- **Kho trò chơi:** cấu hình mẫu trò ở trên; hoạt động/câu hỏi của buổi dạy đặt trong vùng mở rộng riêng. Có thống kê số bài đủ điều kiện và chơi thử theo học liệu thật. Không thể lưu cấu hình làm bài đang hoạt động mất khả năng hoàn thành chặng 3.
+- **Tab Trò chơi của bé:** dùng cùng registry/runner với bài học, chỉ lấy từ đã khám phá hoặc có lượt luyện thật; bộ lọc bài/Unit lấy từ DB. Đã bỏ từ giả, mức thành thạo giả và game riêng không tuân theo catalog. Không có từ thì hướng dẫn bé về hành trình.
+- **Lượt chơi:** đếm lần thử theo từng vòng, kể cả khi từ lặp lại. Remount mẫu trò mỗi vòng để dọn timer cũ. Sai nhiều thì gợi ý, không tự tính như bé đã chọn đúng. Checkpoint giữ đúng thứ tự server đã cấp.
+- **Giao ôn ở nhà:** thay tên “Bài ôn cô duyệt”; đây là gợi ý cá nhân của cô cho gia đình, không phải điều kiện bắt buộc để học bài mới. Chọn học sinh/bài → chọn từ và 2–5 bước chơi → Giao ôn. Bé xem tại `/my-learning`. Bản mới thay bản đang giao; thu hồi ẩn nội dung, lịch sử vẫn giữ. Một từ dùng nghe/luyện nói, từ hai từ có thể chơi chọn tranh. Sửa xử lý liên kết học sinh, lỗi tải, gửi lặp, đổi lớp và chờ API.
+- **Huy hiệu/sticker:** 35 ảnh Microsoft Fluent Emoji 3D lưu cục bộ, bản quyền MIT tại `client/public/images/rewards/fluent-3d/LICENSE.txt`. Chạy lại trình nhập bằng `client/scripts/import-reward-art.ps1`. Sticker được tặng từ rương hoàn thành Unit, không phải ngẫu nhiên sau mỗi game.
+
+**Kiểm tra:** `npm.cmd test --prefix KCEnglishKids_BE`, `npm.cmd test --prefix client`, `npm.cmd run build --prefix client`. Kiểm tra HTTP + MongoDB đầy đủ luồng ôn bằng `node audits/learning-system.acceptance.js` trong backend; script chỉ tạo và xóa DB thử có tên riêng, không sửa DB học thật. Báo cáo: `docs/learning-system-validation-2026-11-01.json`.
 
 ---
 

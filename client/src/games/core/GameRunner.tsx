@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { GameConfig, GameDefinition, GameId } from './types';
 import { GAME_REGISTRY, getAvailableLessonGames } from '../registry';
-import { useGameSession } from './useGameSession';
+import { useGameSession, targetKey } from './useGameSession';
 import { GameFullscreenShell } from '../shell/GameFullscreenShell';
 import { GameCompleteScreen } from '../shell/GameCompleteScreen';
 import { playInstruction, playPraiseAudio, playEncouragementAudio } from './audioPhrases';
@@ -10,7 +10,6 @@ import { getWordType, isTransparentImage, pickDistractors, shuffleArray } from '
 import { vocabStatsService } from '../../services/vocabStatsService';
 import type { Vocabulary } from '../../types';
 import { KokoMascot } from '../../components/child/KokoMascot';
-import { useManagedTimeout } from '../shared/useManagedTimeout';
 
 interface GameRunnerProps {
   config: GameConfig;
@@ -31,7 +30,6 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   onGameComplete,
   onNextGame,
 }) => {
-  const scheduleTimeout = useManagedTimeout();
   const definition: GameDefinition = GAME_REGISTRY[config.gameId] || GAME_REGISTRY['bubble-pop'];
   const { state, targetVocab, attempts, isAssisted, dispatch, restart, hasCheckpoint } = useGameSession(config, definition);
 
@@ -40,6 +38,8 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   const [hasStarted, setHasStarted] = useState(false);
   const completedOnceRef = useRef(false);
   const completedTargetRef = useRef<number | null>(null);
+  const currentRound = useRef(state.targetIndex);
+  useLayoutEffect(() => { currentRound.current = state.targetIndex; }, [state.targetIndex]);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +72,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
       Math.max(1, optionCount - 1)
     );
     return shuffleArray([targetVocab, ...distractors]);
-  }, [targetVocab?._id, optionCount, config.vocabularyList, config.distractorPool, definition]);
+  }, [targetVocab, state.targetIndex, optionCount, config.vocabularyList, config.distractorPool, definition]);
 
   const phrase = definition.instructionPhrase
     || (definition.category === 'tap_pop' ? 'pop_the' : 'touch_the');
@@ -81,11 +81,10 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
     if (hasStarted && state.status === 'playing' && targetVocab) {
       void playInstruction(phrase, targetVocab.english, targetVocab.audioUrl);
     }
-  }, [hasStarted, state.status, targetVocab?._id, phrase]);
+  }, [hasStarted, state.status, state.targetIndex, targetVocab, phrase]);
 
   const handleCorrect = useCallback(() => {
-    if (!targetVocab || state.status !== 'playing') return;
-    if (completedTargetRef.current === state.targetIndex) return;
+    if (!targetVocab || state.status !== 'playing' || currentRound.current !== state.targetIndex || completedTargetRef.current === state.targetIndex) return;
     completedTargetRef.current = state.targetIndex;
     playPraiseAudio();
     if (config.childId) {
@@ -98,10 +97,10 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
       });
     }
     dispatch({ type: 'TARGET_COMPLETED', wordId: targetVocab._id });
-  }, [targetVocab, state.status, state.targetIndex, attempts, isAssisted, config.childId, config.gameId, dispatch, playPraiseAudio]);
+  }, [targetVocab, state.status, state.targetIndex, attempts, isAssisted, config.childId, dispatch]);
 
   const handleWrong = useCallback((chosenVocabId?: string) => {
-    if (!targetVocab || state.status !== 'playing') return;
+    if (!targetVocab || state.status !== 'playing' || currentRound.current !== state.targetIndex || completedTargetRef.current === state.targetIndex) return;
     dispatch({ type: 'RECORD_ATTEMPT', wordId: targetVocab._id, wrongVocabId: chosenVocabId });
     if (config.childId) {
       vocabStatsService.recordAttempt(config.childId, targetVocab._id, {
@@ -113,15 +112,10 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
       });
     }
 
-    if (attempts + 1 >= 3) {
-      dispatch({ type: 'SET_ASSISTED', wordId: targetVocab._id });
-      scheduleTimeout(() => {
-        handleCorrect();
-      }, 900);
-    } else {
-      playEncouragementAudio();
-    }
-  }, [targetVocab, state.status, config.childId, attempts, dispatch, playEncouragementAudio, handleCorrect, scheduleTimeout]);
+    if (attempts + 1 >= 2) dispatch({ type: 'SET_ASSISTED', wordId: targetVocab._id });
+    playEncouragementAudio();
+
+  }, [targetVocab, state.status, state.targetIndex, config.childId, attempts, dispatch]);
 
   const handleReplay = useCallback(() => {
     if (targetVocab) {
@@ -137,17 +131,18 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   useEffect(() => {
     if (state.status === 'complete' && !completedOnceRef.current) {
       completedOnceRef.current = true;
-      onGameComplete(config.gameId, state.stars, state.targetOrder.map(wordId => ({wordId, selectedId: !state.attemptsPerTarget[wordId] && !state.assistedPerTarget[wordId] ? wordId : null})));
+      onGameComplete(config.gameId, state.stars, state.targetOrder.map((wordId, index) => ({wordId, selectedId: !state.attemptsPerTarget[targetKey(index, wordId)] && !state.assistedPerTarget[targetKey(index, wordId)] ? wordId : null})));
     }
     if (state.status !== 'complete') {
       completedOnceRef.current = false;
     }
-  }, [state.status, config.gameId, state.stars, onGameComplete]);
+  }, [state, config.gameId, onGameComplete]);
 
   const practicedWords = useMemo(() => {
-    return state.targetOrder
+    const words = state.targetOrder
       .map((id: string) => config.vocabularyList.find((v) => v._id === id))
       .filter(Boolean) as typeof config.vocabularyList;
+    return words.filter((word, index) => words.findIndex(item => item._id === word._id) === index);
   }, [state.targetOrder, config.vocabularyList]);
 
   const nextGameId = useMemo(() => {
@@ -191,6 +186,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
         </div>
       ) : GameComponent && targetVocab ? (
         <GameComponent
+          key={`${config.gameId}:${state.targetIndex}`}
           config={config}
           targetVocab={targetVocab}
           options={options}

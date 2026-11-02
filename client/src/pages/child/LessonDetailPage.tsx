@@ -15,6 +15,7 @@ import type { GameId } from '../../games/core/types';
 import { learningOutbox } from '../../services/learningOutbox';
 import { getAvailableLessonGames } from '../../games/registry';
 import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
+import { useActiveLearningTime } from '../../hooks/useActiveLearningTime';
 
 const childIdFor = (user: any) => user?._id || user?.id || 'child_guest';
 const cache = {
@@ -43,6 +44,7 @@ export const LessonDetailPage: React.FC = () => {
   const [showParentDrawer, setShowParentDrawer] = useState(false);
 
   const childId = user?._id || user?.id || 'child_guest';
+  const takeLearningSeconds = useActiveLearningTime(childId + ':' + id, Boolean(lesson && !loading && user?.role === 'CHILD'));
 
   useEffect(() => {
     if (!user) {
@@ -158,7 +160,7 @@ export const LessonDetailPage: React.FC = () => {
     if(user?.role!=='CHILD')return true;
     const scope = childId + ':' + id;
     try {
-      await learningOutbox.enqueue(childId, id, payload);
+      await learningOutbox.enqueue(childId, id, { ...payload, durationSeconds: takeLearningSeconds() });
       if (activeScope.current !== scope) return false;
       setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : 'Đã lưu kết quả.');
       return true;

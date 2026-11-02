@@ -1,0 +1,13 @@
+#lesson-print-sheet { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  body:has(#lesson-print-sheet) > :not(#lesson-print-sheet) { display: none !important; }
+  #lesson-print-sheet { display: block; color: #111; font-family: Arial, sans-serif; }
+  #lesson-print-sheet header { margin-bottom: 6mm; font-size: 15pt; }
+  #lesson-print-sheet header p { font-size: 10pt; }
+  #lesson-print-sheet .lesson-print-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5mm; }
+  #lesson-print-sheet article { height: 75mm; break-inside: avoid; border: 1px dashed #777; border-radius: 3mm; padding: 5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; }
+  #lesson-print-sheet img { width: 58mm; height: 48mm; object-fit: contain; }
+  #lesson-print-sheet article strong { font-size: 21pt; }
+  #lesson-print-sheet article span { font-size: 11pt; }
+}

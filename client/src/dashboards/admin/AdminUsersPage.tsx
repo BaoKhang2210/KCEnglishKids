@@ -289,14 +289,14 @@ export const AdminUsersPage: React.FC = () => {
       {
         'Họ và tên': 'Nguyễn Hoàng Nam',
         'Ngày sinh': '2021-05-15',
-        'Mã PIN': '1234',
+        'Mã PIN': '2468',
         'SĐT Phụ huynh': '0901234567',
         'Nhóm tuổi': '3-4'
       },
       {
         'Họ và tên': 'Trần Mai Anh',
         'Ngày sinh': '2020-08-20',
-        'Mã PIN': '8888',
+        'Mã PIN': '3579',
         'SĐT Phụ huynh': '0912345678',
         'Nhóm tuổi': '4-5'
       },
@@ -336,26 +336,58 @@ export const AdminUsersPage: React.FC = () => {
         }
 
         const parsedRows = rawData.map((item, idx) => {
-          const rawName = item.name || item.fullName || item['Họ và tên'] || item['Họ tên'] || item['Tên'] || '';
+          // Clean keys by trimming whitespace
+          const cleaned: Record<string, any> = {};
+          for (const key of Object.keys(item)) {
+            cleaned[key.trim()] = item[key];
+          }
+
+          const rawName =
+            cleaned.name ||
+            cleaned.fullName ||
+            cleaned['Họ và tên'] ||
+            cleaned['Họ tên'] ||
+            cleaned['Tên học sinh'] ||
+            cleaned['Tên'] ||
+            cleaned['FullName'] ||
+            cleaned['Học sinh'] ||
+            '';
           const name = String(rawName).trim();
 
-          let rawPin = item.pin || item['Mã PIN'] || item['PIN'] || '';
+          let rawPin = cleaned.pin || cleaned['Mã PIN'] || cleaned['Mã pin'] || cleaned['PIN'] || '';
           rawPin = String(rawPin).trim();
+          if (/^\d{1,3}$/.test(rawPin)) {
+            rawPin = rawPin.padStart(4, '0');
+          }
 
-          let rawDob = item.dob || item.birthDate || item['Ngày sinh'] || '';
+          let rawDob = cleaned.dob || cleaned.birthDate || cleaned['Ngày sinh'] || cleaned['Ngay sinh'] || cleaned['BirthDate'] || '';
           let dobStr = '';
           if (rawDob) {
-            if (rawDob instanceof Date) {
+            if (rawDob instanceof Date && !isNaN(rawDob.getTime())) {
               dobStr = rawDob.toISOString().split('T')[0];
             } else if (typeof rawDob === 'string') {
               dobStr = rawDob.trim();
             }
           }
 
-          const rawContact = item.contact || item.parentContact || item.phone || item['SĐT Phụ huynh'] || item['Số điện thoại'] || item['SĐT'] || '';
+          const rawContact =
+            cleaned.contact ||
+            cleaned.parentContact ||
+            cleaned.phone ||
+            cleaned['SĐT Phụ huynh'] ||
+            cleaned['Số điện thoại'] ||
+            cleaned['SĐT'] ||
+            cleaned['Điện thoại'] ||
+            cleaned['Phone'] ||
+            '';
           const contact = String(rawContact).trim();
 
-          const rawAge = item.ageGroupCode || item['Nhóm tuổi'] || bulkDefaultAgeGroup;
+          const rawAge =
+            cleaned.ageGroupCode ||
+            cleaned['Nhóm tuổi'] ||
+            cleaned['Lớp tuổi'] ||
+            cleaned['Độ tuổi'] ||
+            bulkDefaultAgeGroup;
           const ageGroupCode = ['3-4', '4-5', '5-6'].includes(rawAge) ? rawAge : bulkDefaultAgeGroup;
 
           const isValid = !!name;

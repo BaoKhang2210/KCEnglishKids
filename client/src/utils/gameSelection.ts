@@ -17,3 +17,4 @@ export function selectGames<T extends { id: string; category: string; enabled?: 
   for (const game of pool) if (chosen.length < 4 && !chosen.some(item => item.id === game.id)) chosen.push(game);
   return chosen;
 }
+

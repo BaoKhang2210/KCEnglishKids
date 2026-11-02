@@ -1,4 +1,4 @@
-import { forecastLessons, scheduleEffectiveAt, scheduleSlotAppliesOn, slotKey, countsTowardCurriculum } from '../../utils/teachingSchedule';
+import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, getSequentialLessonForSlot } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -162,21 +162,25 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
         const clsList = Array.isArray(clsRes) ? clsRes : (clsRes?.data || clsRes?.classes || []);
         setClasses(clsList);
-        if (urlClassId) {
+        if (urlClassId && clsList.some((room: ClassOption) => room._id === urlClassId)) {
           setSelectedClassId(urlClassId);
+        } else if (urlClassId) {
+          setSelectedClassId('ALL');
+          setError('Lớp trong liên kết không thuộc phân công hiện tại. Đang hiển thị các lớp của bạn.');
         } else if (clsList.length === 1) {
           // 1-1 teacher-to-class rule: auto-select their single assigned class
           setSelectedClassId(String(clsList[0]._id));
         }
 
         const sList = Array.isArray(sessRes) ? sessRes : (sessRes?.data || []);
-        setSessions(sList);
+        const assigned = new Set(clsList.map((room: ClassOption) => room._id));
+        setSessions(sList.filter((session: ClassroomSession) => assigned.has(typeof session.classroom === 'object' ? session.classroom?._id : session.classroom)));
 
         const curr = currRes?.data || currRes;
         setCurriculumData(curr);
 
         const mySchedList = Array.isArray(schedRes) ? schedRes : (schedRes?.data || schedRes?.schedules || []);
-        setMySchedules(mySchedList);
+        setMySchedules(mySchedList.filter((schedule: ClassSchedule) => assigned.has(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom)));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Không thể tải lịch giảng dạy.');
       } finally {
@@ -401,7 +405,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   // Roadmap ordering: strict sequence according to book (Unit 1..9, Lesson displayOrder)
   const bookRoadmap = useMemo(() => {
-    if (!curriculumData) return { units: [], lessons: [], progress: { total: 0, completed: 0, percent: 0 } };
+    if (!curriculumData || !activeClass) return { units: [], lessons: [], progress: { total: 0, completed: 0, percent: 0 } };
 
     const { units = [], lessons = [] } = curriculumData;
 
@@ -503,10 +507,6 @@ export const TeacherTeachingSchedule: React.FC = () => {
   const nextLessonToTeach = useMemo(() => {
     return bookRoadmap.lessons.find((l: any) => l.isNext) || bookRoadmap.lessons.find((l: any) => !l.isCompleted) || null;
   }, [bookRoadmap]);
-
-  const lessonForecast = useMemo(() => forecastLessons(
-    filteredMySchedules, bookRoadmap.lessons, vietnamDate(), currentWeekDays[6].dateString
-  ), [filteredMySchedules, bookRoadmap, currentWeekDays]);
 
   const lastLessonTaught = useMemo(() => {
     const taught = bookRoadmap.lessons.filter((l: any) => l.isCompleted);
@@ -798,18 +798,20 @@ export const TeacherTeachingSchedule: React.FC = () => {
                           </div>
 
                           {/* Attached Lesson Badge (Bài mấy) */}
-                          {(slot.lessonNumber || slot.lessonTitle || slot.lesson) && (
-                            <div className="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-indigo-900 border border-indigo-200/80 font-black text-[11px] flex items-center gap-1">
-                              <span className="text-indigo-800 font-black">
-                                🎯 {slot.lessonNumber ? `Bài ${slot.lessonNumber}` : 'Bài'}:
-                              </span>
-                              <span className="truncate max-w-[170px]" title={slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}>
-                                {slot.lessonTitle
-                                  ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '')
-                                  : (typeof slot.lesson === 'object' ? slot.lesson?.title : '')}
-                              </span>
-                            </div>
-                          )}
+                          {(() => {
+                            const seq = getSequentialLessonForSlot(sch, slot, localCalendarDate(currentVnTime), bookRoadmap.lessons);
+                            const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                            return displayName ? (
+                              <div className="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-indigo-900 border border-indigo-200/80 font-black text-[11px] flex items-center gap-1">
+                                <span className="text-indigo-800 font-black">
+                                  🎯 Bài {seq.lessonNumber}:
+                                </span>
+                                <span className="truncate max-w-[170px]" title={displayName}>
+                                  {displayName}
+                                </span>
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
 
                         {isSlotNow && (
@@ -905,17 +907,29 @@ export const TeacherTeachingSchedule: React.FC = () => {
                       {dayFixedSlots.map(({ schedule, slot }, fIdx) => {
                         const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
                         const cName = typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp';
+                        const seqLesson = getSequentialLessonForSlot(schedule, slot, day.dateString, bookRoadmap.lessons);
+                        const lessonDisplayTitle = seqLesson.vietnameseTitle || seqLesson.title || 'Buổi học tiếng Anh';
                         return (
                           <div
                             key={fIdx}
-                            className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-2`}
+                            className={`rounded-xl border px-3 py-2 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-1.5`}
                           >
-                            <p className="text-sm font-black break-words">{cName}</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-black break-words">{cName}</p>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
+                                Bài #{seqLesson.lessonNumber}
+                              </span>
+                            </div>
                             <p className="font-black text-slate-900">{slot.startTime} – {slot.endTime}</p>
-                            {slot.room && <p>Phòng: {slot.room}</p>}
-                            {slot.subjectNote && <p>{slot.subjectNote}</p>}
-                            <p className="text-[11px] uppercase text-slate-500">{day.dateString < vietnamDate() ? "Theo lịch" : "Bài học dự kiến"}</p>
-                            <p className="break-words">{lessonForecast.get(slotKey(schedule._id, day.dateString, slot.startTime))?.vietnameseTitle || lessonForecast.get(slotKey(schedule._id, day.dateString, slot.startTime))?.title || (day.dateString < vietnamDate() ? "Lịch cố định" : "Ôn tập / chờ phân bài")}</p>
+                            {slot.room && <p className="text-[11px]">🏫 Phòng: {slot.room}</p>}
+                            <div className="mt-1 pt-1.5 border-t border-black/10">
+                              <p className="text-[10px] uppercase tracking-wider opacity-75 font-black">
+                                🎯 {day.dateString < vietnamDate() ? "Bài theo lịch:" : "Bài học dự kiến:"}
+                              </p>
+                              <p className="font-black text-slate-900 text-xs mt-0.5 truncate" title={lessonDisplayTitle}>
+                                Bài {seqLesson.lessonNumber}: {lessonDisplayTitle}
+                              </p>
+                            </div>
                           </div>
                         );
                       })}

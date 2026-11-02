@@ -1,8 +1,12 @@
+import { PrintLessonCards } from '../../components/teacher/PrintLessonCards';
+import { studyTimeLabel } from '../../utils/learningMetrics';
+import { LessonFlashcardPreview } from '../../components/teacher/LessonFlashcardPreview';
+import { compareLessons, lessonPosition, bilingualLessonTitle } from '../../utils/curriculumLessons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ObservationPortfolio } from '../../components/teacher/ObservationPortfolio';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, PlayCircle, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, School, BarChart3, ArrowUpDown, Send, Brain } from 'lucide-react';
-import { teacherApi, parentNotificationApi } from '../../services/api';
+import { api, teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
 import { ParentNoteSuggestions } from './ParentNoteSuggestions';
 import { SentenceTeachingPage } from './SentenceTeachingPage';
@@ -39,6 +43,7 @@ export const TeacherClasses = () => {
   useEffect(() => {
     void load();
   }, []);
+
 
   const filtered = useMemo(
     () => classes?.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
@@ -418,9 +423,9 @@ const Avatar = ({ name }: any) => (
   </div>
 );
 
-const Modal = ({ title, close, children }: any) => (
+const Modal = ({ title, close, children, maxWidth = 'max-w-lg' }: any) => (
   <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
-    <div className="w-full max-w-lg rounded-2xl bg-white p-6 max-h-[90vh] flex flex-col">
+    <div className={`w-full ${maxWidth} rounded-2xl bg-white p-6 max-h-[90vh] flex flex-col shadow-2xl`}>
       <div className="mb-4 flex items-center justify-between pb-2 border-b border-slate-100">
         <h3 className="font-bold text-slate-900">{title}</h3>
         <button onClick={close} className="p-1 rounded-lg text-slate-600 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
@@ -439,6 +444,10 @@ export const TeacherContent = () => {
   const [age, setAge] = useState('');
   const [error, setError] = useState('');
   const [lesson, setLesson] = useState<any>();
+  const requestedLessonId = searchParams.get('lessonId');
+  useEffect(() => {
+    if (requestedLessonId && data?.lessons) setLesson(data.lessons.find((item: any) => item._id === requestedLessonId));
+  }, [data, requestedLessonId]);
 
   const load = (a = '') => teacherApi.getContent(a ? `ageGroupCode=${a}` : '').then((x) => { setData(x.data); setError(''); }).catch(e => setError(e.message));
 
@@ -509,8 +518,8 @@ export const TeacherContent = () => {
         <section className="lg:col-span-2 space-y-4">
           {data.units.map((u: any) => {
             const unitLessons = data.lessons.filter((l: any) =>
-              l.curriculumUnits?.some((x: any) => String(x) === String(u._id))
-            );
+              l.curriculumUnits?.some((x: any) => String(x?._id || x) === String(u._id))
+            ).sort((a: any, b: any) => compareLessons(a, b, data.units));
 
             return (
               <div key={u._id} className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -535,7 +544,7 @@ export const TeacherContent = () => {
                       onClick={() => setLesson(l)}
                       className="group flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 hover:border-teal-400 hover:bg-teal-50/50 hover:text-teal-900 transition-all cursor-pointer"
                     >
-                      <span>{l.title}</span>
+                      <span>L{lessonPosition(l, data.units).lesson}: {l.title}</span>
                       <span className="text-[11px] text-teal-800 opacity-70 group-hover:opacity-100">💬</span>
                     </button>
                   ))}
@@ -582,8 +591,17 @@ export const TeacherContent = () => {
       )}
 
       {lesson && (
-        <Modal title={`Xem trước: ${lesson.title}`} close={() => setLesson(null)}>
-          <div className="space-y-3">
+        <Modal
+          title={`Xem trước bài học: ${lesson.title}`}
+          maxWidth="max-w-3xl"
+          close={() => {
+            setLesson(null);
+            const next = new URLSearchParams(searchParams);
+            next.delete('lessonId');
+            setSearchParams(next, { replace: true });
+          }}
+        >
+          <div className="space-y-4">
             <p className="text-sm text-slate-600">{lesson.description || 'Nội dung bài học chuẩn chương trình.'}</p>
 
             {lesson.learningObjectives?.length > 0 && (
@@ -593,21 +611,16 @@ export const TeacherContent = () => {
               </div>
             )}
 
-            {lesson.vocabularyItems?.length > 0 && (
-              <div className="rounded-xl bg-slate-50 p-3 text-xs">
-                <b className="text-slate-800 block mb-1">Từ vựng bài học ({lesson.vocabularyItems.length} từ):</b>
-                <p className="text-slate-600">
-                  {lesson.vocabularyItems.map((v: any) => v.english).join(', ')}
-                </p>
-              </div>
-            )}
+            {/* Flashcard Preview & Audio: Xem thử & Nghe thử phát âm */}
+            <LessonFlashcardPreview lesson={lesson} />
 
             <div className="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+              <PrintLessonCards lesson={lesson} />
               <Link
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition-all cursor-pointer"
                 to={`/teacher/sentences?lessonId=${lesson._id}&mode=classroom`}
               >
-                <MessageSquare size={14} /> Dạy mẫu câu bài này ngay 💬
+                Dạy mẫu câu bài này
               </Link>
               <Link
                 className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-700 px-4 py-2.5 text-xs font-semibold text-white transition-all cursor-pointer"
@@ -627,11 +640,15 @@ export const TeacherAssignments = () => {
   const [assignmentSearch, setAssignmentSearch] = useSearchParams();
   const initialLesson = assignmentSearch.get('lesson') || assignmentSearch.get('lessonId') || '';
   const initialClass = assignmentSearch.get('classroomId') || '';
+  const initialStudent = assignmentSearch.get('studentId') || '';
+  const [proposal, setProposal] = useState<any>();
+  const [proposalLoading, setProposalLoading] = useState(false);
+  const [proposalError, setProposalError] = useState('');
   const [items, setItems] = useState<any[]>();
   const [error, setError] = useState('');
   const [classes, setClasses] = useState<any[]>([]);
   const [content, setContent] = useState<any>();
-  const [create, setCreate] = useState(Boolean(initialLesson));
+  const [create, setCreate] = useState(Boolean(initialLesson || initialStudent));
   const [submitting, setSubmitting] = useState(false);
 
   // Filters
@@ -642,8 +659,8 @@ export const TeacherAssignments = () => {
   // Form State
   const [form, setForm] = useState({
     classRoomId: initialClass,
-    assignedToType: 'CLASS',
-    studentId: '',
+    assignedToType: initialStudent ? 'STUDENT' : 'CLASS',
+    studentId: initialStudent,
     lessonId: initialLesson,
     activityId: '',
     dueDate: '',
@@ -664,7 +681,7 @@ export const TeacherAssignments = () => {
     if (!content || !classes.length) return;
     setForm(current => {
       const activeClasses = classes.filter(c => c.status === 'ACTIVE');
-      const classRoomId = current.classRoomId || (activeClasses.length === 1 ? activeClasses[0]._id : '');
+      const classRoomId = current.classRoomId || activeClasses.find(c => c.students?.some((child: any) => String(child._id || child) === initialStudent))?._id || (activeClasses.length === 1 ? activeClasses[0]._id : '');
       const room = classes.find(c => c._id === classRoomId);
       const selectedLesson = content.lessons.find((lesson: any) => lesson._id === current.lessonId);
       const lessonId = selectedLesson?.ageGroupCode && room?.ageGroupCode && selectedLesson.ageGroupCode !== room.ageGroupCode ? '' : current.lessonId;
@@ -673,21 +690,38 @@ export const TeacherAssignments = () => {
   }, [classes, content]);
 
   useEffect(() => {
+    let cancelled = false;
+    setClassStudents([]);
     if (form.classRoomId) {
       teacherApi.getClassDetail(form.classRoomId).then(x => {
-        setClassStudents(x.data?.students || []);
-      }).catch(() => setClassStudents([]));
-    } else {
-      setClassStudents([]);
+        if (!cancelled) setClassStudents(x.data?.students || []);
+      }).catch(() => { if (!cancelled) setClassStudents([]); });
     }
+    return () => { cancelled = true; };
   }, [form.classRoomId]);
+
+  useEffect(() => {
+    setProposal(undefined); setProposalError('');
+    if (!create || !form.classRoomId || (form.assignedToType === 'STUDENT' && !form.studentId)) { setProposalLoading(false); return; }
+    const abort = new AbortController(); setProposalLoading(true);
+    const params = new URLSearchParams({ classRoomId: form.classRoomId });
+    if (form.assignedToType === 'STUDENT') params.set('studentId', form.studentId);
+    if (form.lessonId) params.set('lessonId', form.lessonId);
+    api.get('/teacher/assignments/proposal?' + params, abort.signal).then(result => {
+      if (abort.signal.aborted) return;
+      setProposal(result.data);
+      setForm(current => result.data.lessons.some((lesson: any) => lesson._id === current.lessonId) ? current : { ...current, lessonId: result.data.lessonId || '', activityId: '' });
+    }).catch(error => { if (!abort.signal.aborted) setProposalError(error.message); })
+      .finally(() => { if (!abort.signal.aborted) setProposalLoading(false); });
+    return () => abort.abort();
+  }, [create, form.classRoomId, form.assignedToType, form.studentId, form.lessonId]);
 
   if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div>;
   if (!items || !content) return <Loader />;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.classRoomId || !form.lessonId) return;
+    if (!form.classRoomId || !form.lessonId || proposalLoading || !proposal?.available) return;
     setSubmitting(true);
     try {
       await teacherApi.createAssignment({
@@ -892,7 +926,7 @@ export const TeacherAssignments = () => {
               label="Chọn lớp học"
               value={form.classRoomId}
               onChange={(v: string) => setForm({ ...form, classRoomId: v, studentId: '', lessonId: '', activityId: '' })}
-              options={classes.map(c => ({ value: c._id, label: `${c.name} (${c.students?.length || 0} học sinh)` }))}
+              options={classes.filter(c => c.status === 'ACTIVE').map(c => ({ value: c._id, label: `${c.name} (${c.students?.length || 0} học sinh)` }))}
             />
 
             {form.classRoomId && <>
@@ -905,11 +939,12 @@ export const TeacherAssignments = () => {
               label="Chọn bài học (Lesson)"
               value={form.lessonId}
               onChange={(v: string) => setForm({ ...form, lessonId: v, activityId: '' })}
-              options={content.lessons.filter((l: any) => !form.classRoomId || !l.ageGroupCode || l.ageGroupCode === classes.find(c => c._id === form.classRoomId)?.ageGroupCode).map((l: any) => ({ value: l._id, label: l.title }))}
+              options={(proposal?.lessons || []).filter((l: any) => !form.classRoomId || !l.ageGroupCode || l.ageGroupCode === classes.find(c => c._id === form.classRoomId)?.ageGroupCode).sort((a: any, b: any) => compareLessons(a, b, content.units)).map((l: any) => ({ value: l._id, label: `[Unit ${lessonPosition(l, content.units).unit} - Lesson ${lessonPosition(l, content.units).lesson}] ${bilingualLessonTitle(l)}` }))}
             />
 
             {form.lessonId && (
               <Select
+                required={false}
                 label="Chọn hoạt động / Game cụ thể"
                 value={form.activityId}
                 onChange={(v: string) => setForm({ ...form, activityId: v })}
@@ -921,6 +956,15 @@ export const TeacherAssignments = () => {
                 ]}
               />
             )}
+
+            {proposalLoading && <p role="status">Đang đối chiếu bài đã học…</p>}
+            {proposalError && <p role="alert" className="text-sm text-rose-700">{proposalError}</p>}
+            {proposal && <section className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm">
+              <p>{proposal.message}</p>
+              {!!proposal.items.length && <><strong className="block mt-3">Từ gợi ý cùng gia đình ôn</strong><ul className="mt-2 space-y-2">{proposal.items.map((item: any) => <li key={item.vocabulary._id}><b>{item.vocabulary.english}</b> · {item.reason}</li>)}</ul>
+              <p className="mt-2 text-xs">Bài luyện theo nội dung bài hoặc hoạt động đã chọn. Cô có thể dùng nhóm từ này trong lời dặn gia đình.</p>
+              <button type="button" className="teacher-button mt-3" onClick={() => setForm({ ...form, instructions: proposal.instructions })}>Dùng hướng dẫn gia đình gợi ý</button></>}
+            </section>}
 
             <div>
               <label className="block text-sm font-medium text-slate-700">
@@ -956,7 +1000,7 @@ export const TeacherAssignments = () => {
                 Hủy bỏ
               </button>
               <button
-                disabled={submitting}
+                disabled={submitting || proposalLoading || !proposal?.available}
                 className="rounded-xl bg-teal-700 px-5 py-2 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 {submitting ? 'Đang tạo bài…' : 'Xác nhận giao bài'}
@@ -969,16 +1013,16 @@ export const TeacherAssignments = () => {
   );
 };
 
-const Select = ({ label, value, onChange, options }: any) => (
+const Select = ({ label, value, onChange, options, required = true }: any) => (
   <label className="block text-sm font-medium text-slate-700">
     {label}
     <select
-      required
+      required={required}
       className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm outline-none focus:border-teal-500"
       value={value}
       onChange={e => onChange(e.target.value)}
     >
-      <option value="">Chọn…</option>
+      {required && <option value="">Chọn…</option>}
       {options.map((o: any) => (
         <option key={o.value} value={o.value}>
           {o.label}
@@ -2059,7 +2103,7 @@ export const TeacherStudentDetail = () => {
       {error && <div className="teacher-error mb-4" role="alert">{error}</div>}
       <Header
         title={student.name}
-        text={`Độ tuổi ${student.ageGroupCode || '—'} · ${student.assignedClass?.name || 'Chưa phân lớp'}`}
+        text={`Độ tuổi ${student.ageGroupCode || '—'} · ${(typeof student.assignedClass === 'object' ? student.assignedClass?.name : student.assignedClass) || 'Chưa phân lớp'}`}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -2078,7 +2122,7 @@ export const TeacherStudentDetail = () => {
         }
       />
 
-      {observationParams.get('unitId')&&<Link className="teacher-button mt-5" to={`/teacher/unit-review?unitId=${encodeURIComponent(observationParams.get('unitId')!)}`}>← Quay lại quan sát Unit đang chọn</Link>}
+      {observationParams.get('unitId')&&<Link className="teacher-button mt-5" to={`/teacher/analytics?unitId=${encodeURIComponent(observationParams.get('unitId')!)}&classroomId=${encodeURIComponent(observationParams.get('classroomId') || data.student?.assignedClass?._id || data.student?.assignedClass || '')}`}>← Quay lại quan sát Unit đang chọn</Link>}
       <ObservationPortfolio studentId={studentId} initialLessonId={observationParams.get("lessonId")||""} unitId={observationParams.get("unitId")||undefined} ageGroup={student.ageGroupCode}/>
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <div
@@ -2098,10 +2142,10 @@ export const TeacherStudentDetail = () => {
             <Brain size={12} /> Xem hồ sơ năng lực →
           </div>
         </div>
-        <Metric label="Từ vựng tích lũy" value={`${data?.competencyReport?.vocabularyCompetency?.masteredCount ?? 0} từ vững`} icon={<BookOpen size={16} />} />
+        <Metric label="Từ vựng tích lũy" value={`${data?.competencyReport?.vocabularyCompetency?.masteredCount ?? 0} từ vựng`} icon={<BookOpen size={16} />} />
         <Metric label="Bài đã hoàn thành" value={stats.completedLessons} icon={<CheckCircle2 size={16} />} />
         <Metric label="Số sao Koko" value={`⭐ ${stats.totalStars}`} icon={<Star size={16} className="text-amber-800 fill-amber-400" />} />
-        <Metric label="Thời gian học" value={`${Math.round(stats.learningTime / 60)} phút`} icon={<Clock size={16} />} />
+        <Metric label="Thời gian học đã ghi nhận" value={studyTimeLabel(stats.learningTime, stats.hasLearningTime)} icon={<Clock size={16} />} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -2237,6 +2281,41 @@ export const TeacherStudentDetail = () => {
                 <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-100 text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
                   {item.teacherNote || item.content}
                 </div>
+
+                {/* Phản hồi từ Phụ huynh / Gia đình gắn trực tiếp với phiếu nhận xét */}
+                {item.parentFeedback?.message ? (
+                  <div className="mt-2.5 p-3.5 rounded-xl bg-teal-50/80 border border-teal-200 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-teal-900">
+                      <span className="flex items-center gap-1.5">
+                        💬 <span>{item.parentFeedback.senderName || 'Phụ huynh bé'} phản hồi:</span>
+                      </span>
+                      {item.parentFeedback.createdAt && (
+                        <span className="text-[11px] text-teal-700 font-medium">
+                          {new Date(item.parentFeedback.createdAt).toLocaleDateString('vi-VN')} {new Date(item.parentFeedback.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-teal-950 font-medium leading-relaxed whitespace-pre-wrap">
+                      {item.parentFeedback.message}
+                    </p>
+                  </div>
+                ) : item.replies && item.replies.length > 0 ? (
+                  <div className="mt-2.5 space-y-2">
+                    {item.replies.map((reply: any, rIdx: number) => (
+                      <div key={rIdx} className={`p-3 rounded-xl border text-xs ${reply.senderRole === 'PARENT' || reply.senderRole === 'FAMILY' ? 'bg-teal-50 border-teal-200 text-teal-950' : 'bg-amber-50 border-amber-200 text-amber-950'}`}>
+                        <div className="flex items-center justify-between font-bold mb-1">
+                          <span>{reply.senderRole === 'PARENT' || reply.senderRole === 'FAMILY' ? '💬 ' : '👩‍🏫 '}{reply.senderName || (reply.senderRole === 'PARENT' ? 'Phụ huynh' : 'Giáo viên')}</span>
+                          {reply.createdAt && <span className="text-[10px] opacity-75">{new Date(reply.createdAt).toLocaleDateString('vi-VN')}</span>}
+                        </div>
+                        <p className="leading-relaxed whitespace-pre-wrap">{reply.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium pt-1">
+                    <span>⏳ Phụ huynh chưa phản hồi phiếu nhận xét này.</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

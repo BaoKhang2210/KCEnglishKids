@@ -118,7 +118,7 @@ export const api = {
 
 async function assistantPost<T>(
   endpoint: string,
-  body: ParentNoteRequest | SpeakingRequest | LessonPlanRequest,
+  body: ParentNoteRequest | SpeakingRequest | LessonPlanRequest | { targetWord: string; ageGroup?: string; audioBase64: string; mimeType: string },
   signal?: AbortSignal
 ): Promise<{ success: true; data: T }> {
   const controller = new AbortController();
@@ -135,6 +135,9 @@ async function assistantPost<T>(
 }
 
 export const aiApi = {
+  capabilities: (signal?: AbortSignal) => api.get('/ai/capabilities', signal),
+  evaluateAudio: (body: { targetWord: string; ageGroup?: string; audioBase64: string; mimeType: string }, signal?: AbortSignal) =>
+    assistantPost<SpeakingFeedback>('/ai/evaluate-audio', body, signal),
   generateParentNote: (body: ParentNoteRequest, signal?: AbortSignal) =>
     assistantPost<ParentNoteSuggestions>('/ai/generate-parent-note', body, signal),
   evaluatePronunciation: (body: SpeakingRequest, signal?: AbortSignal) =>
@@ -173,8 +176,10 @@ export const authApi = {
   teacherLogin: (payload: { email: string; password: string }) =>
     api.post('/auth/teacher-login', payload),
   getMe: () => api.get('/auth/me'),
-  changePin: (payload: { currentPin: string; newPin: string; recoveryPictures?: string[] }) =>
+  changePin: (payload: { currentPin?: string; newPin: string; recoveryPictures?: string[] }) =>
     api.post('/auth/change-pin', payload),
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    api.post('/auth/change-password', payload),
   lookupStudent: (phone: string) =>
     api.post('/auth/lookup-student', { phone }),
   // Self-service account recovery (no email/SMS gateway needed).
@@ -373,6 +378,8 @@ export const adminApi = {
     api.put(`/admin/classrooms/${id}/teacher`, { teacherId }),
   getClassroomCurriculumProgress: (id: string) =>
     api.get(`/admin/classrooms/${id}/curriculum-progress`),
+  getClassroomSessions: (id: string) =>
+    api.get(`/admin/classrooms/${id}/sessions`),
   updateClassroomCurriculumProgress: (id: string, data: any) =>
     api.put(`/admin/classrooms/${id}/curriculum-progress`, data),
   exportSystemBackup: () =>
@@ -501,6 +508,10 @@ export const adminApi = {
     api.get(`/admin/schedules/by-teacher/${teacherId}`),
   deleteSchedule: (id: string) =>
     api.delete(`/admin/schedules/${id}`),
+  autoAssignCurriculumSchedules: () =>
+    api.post('/admin/schedules/auto-assign-curriculum', {}),
+  clearScheduleLessons: (classroomId?: string) =>
+    api.post('/admin/schedules/clear-lessons', { classroomId }),
 
   // Activities & Games Management (Kho Trò chơi & Hoạt động)
   getActivities: (params?: {
@@ -754,14 +765,14 @@ export const parentNotificationApi = {
   },
   getChildNotifications: (childId: string) =>
     api.get(`/teacher/parent-notifications/child/${childId}`),
-  replyAsTeacher: (id: string, message: string) =>
-    api.post(`/teacher/parent-notifications/${id}/reply`, { message }),
   getChildNotificationsForParent: (childId: string) =>
     api.get(`/children/${childId}/parent-notifications`),
-  replyAsParent: (childId: string, id: string, message: string, parentName?: string) =>
-    api.post(`/children/${childId}/parent-notifications/${id}/reply`, { message, parentName }),
   markAsReadByParent: (childId: string, id: string) =>
     api.patch(`/children/${childId}/parent-notifications/${id}/read`, {}),
+  sendParentFeedback: (childId: string, id: string, data: { message: string; senderName?: string }) =>
+    api.post(`/children/${childId}/parent-notifications/${id}/feedback`, data),
+  getParentFeedback: () =>
+    api.get('/teacher/parent-feedback'),
   getChildAssignments: (childId: string) =>
     api.get(`/children/${childId}/assignments`),
   getChildSchedule: (childId: string) =>

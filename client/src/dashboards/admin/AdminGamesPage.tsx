@@ -603,7 +603,11 @@ export const AdminGamesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      <header className="staff-page-header"><div><h1>Kho trò chơi</h1><p>Cấu hình trò của bé từ bộ từ vựng bài học. Mỗi bài tự chọn các trò đủ điều kiện.</p></div></header>
       <AdminStage3Games />
+      <details className="rounded-2xl border border-slate-200 bg-white p-5">
+      <summary className="cursor-pointer font-bold text-slate-800">Hoạt động theo bài học và câu hỏi trên lớp</summary>
+      <p className="my-4 text-sm text-slate-600">Dùng cho bài học và buổi dạy của cô. Thêm hoạt động ở đây không tạo mẫu trò chơi mới ở chặng 3.</p>
       {/* ── Top Alert Toast ─────────────────────────────────────────────────── */}
       {alert && (
         <div
@@ -626,7 +630,7 @@ export const AdminGamesPage: React.FC = () => {
               <span>Trung tâm Tương tác Giáo dục</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Kho Trò Chơi & Hoạt Động Tương Tác
+              Hoạt động theo bài học
             </h1>
             <p className="text-sm text-slate-600 font-medium leading-relaxed">
               Quản lý trò chơi chặng 3 ở trên; quản lý hoạt động và câu hỏi theo bài học ở bên dưới.
@@ -647,7 +651,7 @@ export const AdminGamesPage: React.FC = () => {
               className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-sm  transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus size={18} />
-              <span>Thêm Trò Chơi Mới</span>
+              <span>Thêm hoạt động</span>
             </button>
           </div>
       </header>
@@ -659,7 +663,7 @@ export const AdminGamesPage: React.FC = () => {
             <Gamepad2 size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tổng Trò Chơi</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tổng hoạt động</p>
             <p className="text-2xl font-black text-inherit mt-0.5">{stats.totalActivities}</p>
           </div>
         </div>
@@ -1486,6 +1490,7 @@ export const AdminGamesPage: React.FC = () => {
           </div>
         </div>
       )}
+      </details>
     </div>
   );
 };

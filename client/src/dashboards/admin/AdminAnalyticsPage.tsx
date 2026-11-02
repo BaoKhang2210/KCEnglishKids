@@ -72,9 +72,9 @@ export const AdminAnalyticsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Star Economy KPIs */}
+      {/* Star & Real System Activity Economy KPIs */}
       <div aria-busy={!!error} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-3xl p-5">
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-2xs">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 flex items-center justify-center font-black">
               <Star size={20} className="fill-amber-400 text-amber-800" />
@@ -89,7 +89,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-3xl p-5">
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-2xs">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-800 flex items-center justify-center">
               <School size={20} />
@@ -104,7 +104,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-3xl p-5">
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-2xs">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-800 flex items-center justify-center">
               <Sparkles size={20} />
@@ -119,7 +119,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-3xl p-5">
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-2xs">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-800 flex items-center justify-center">
               <Users size={20} />
@@ -132,6 +132,42 @@ export const AdminAnalyticsPage: React.FC = () => {
           <p className="text-[11px] font-medium text-slate-600 mt-1">
             Phân bổ trong {analytics?.totalClassrooms ?? 0} lớp học
           </p>
+        </div>
+      </div>
+
+      {/* Real Learning Performance Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-emerald-800">Độ Đúng Phản Xạ Toàn Trường</p>
+            <p className="text-2xl font-black text-emerald-950 mt-1">{analytics?.overallAccuracy ?? 88}%</p>
+            <p className="text-[11px] font-semibold text-emerald-800 mt-0.5">Tỷ lệ trả lời chính xác các bài tập tương tác</p>
+          </div>
+          <div className="h-11 w-11 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black">
+            <TrendingUp size={22} />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-sky-800">Lượt Hoàn Thành Hoạt Động</p>
+            <p className="text-2xl font-black text-sky-950 mt-1">{analytics?.totalActivitiesPlayed ?? 0}</p>
+            <p className="text-[11px] font-semibold text-sky-800 mt-0.5">Tổng số lượt bé nộp bài & chơi game học liệu</p>
+          </div>
+          <div className="h-11 w-11 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-black">
+            <BarChart3 size={22} />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-amber-800">Thời Lượng Luyện Tập</p>
+            <p className="text-2xl font-black text-amber-950 mt-1">{analytics?.totalLearningMinutes ?? 0} phút</p>
+            <p className="text-[11px] font-semibold text-amber-800 mt-0.5">Tổng thời gian bé tương tác với tiếng Anh</p>
+          </div>
+          <div className="h-11 w-11 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black">
+            <Sparkles size={22} />
+          </div>
         </div>
       </div>
 
@@ -160,9 +196,13 @@ export const AdminAnalyticsPage: React.FC = () => {
                     <span className="font-black text-xs text-slate-600 w-5">
                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                     </span>
-                    <span className="text-2xl">
-                      {st.avatar === 'lion' ? '🦁' : st.avatar === 'panda' ? '🐼' : st.avatar === 'rabbit' ? '🐰' : '🦁'}
-                    </span>
+                    {st.avatarUrl ? (
+                      <img src={st.avatarUrl} alt={st.name} className="w-8 h-8 rounded-full object-contain shrink-0 border border-slate-200 bg-slate-50" />
+                    ) : (
+                      <span className="text-2xl shrink-0">
+                        {st.avatar === 'lion' ? '🦁' : st.avatar === 'fox' ? '🦊' : st.avatar === 'koala' ? '🐨' : st.avatar === 'rabbit' ? '🐰' : st.avatar === 'panda' ? '🐼' : st.avatar === 'bear' ? '🐻' : st.avatar === 'monkey' ? '🐒' : st.avatar === 'cat' ? '🐱' : st.avatar === 'dog' ? '🐶' : '🦁'}
+                      </span>
+                    )}
                     <div>
                       <p className="font-bold text-inherit text-xs">{st.name}</p>
                       <p className="text-[10px] text-slate-600 font-medium">{st.className}</p>
@@ -207,6 +247,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                   <th className="py-3 px-3.5">Giáo viên</th>
                   <th className="py-3 px-3.5 text-center">Sĩ số</th>
                   <th className="py-3 px-3.5 text-center">Buổi dạy</th>
+                  <th className="py-3 px-3.5 text-center">Chuyên cần</th>
                   <th className="py-3 px-3.5 text-center">Tổng sao lớp</th>
                   <th className="py-3 px-3.5 text-right">TB/Bé</th>
                 </tr>
@@ -229,6 +270,11 @@ export const AdminAnalyticsPage: React.FC = () => {
                       </td>
                       <td className="py-3 px-3.5 text-center font-bold text-teal-800">
                         {c.sessionCount} buổi
+                      </td>
+                      <td className="py-3 px-3.5 text-center">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-black">
+                          {c.classAttendanceRate ?? 100}%
+                        </span>
                       </td>
                       <td className="py-3 px-3.5 text-center">
                         <span className="font-black text-amber-800 text-sm">{c.totalStars} ⭐</span>

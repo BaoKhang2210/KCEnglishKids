@@ -1,4 +1,4 @@
-const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment } = require('../models');
+const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 
 /**
@@ -131,12 +131,13 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
  *   reveals the already-granted sticker.
  */
 const computeRewards = async (childId) => {
-  const [progressDocs, completions, classroomSessions] = await Promise.all([
+  const [progressDocs, completions, classroomSessions, homePracticeCompletions] = await Promise.all([
     Progress.find({ child: childId }).select('stars completed lesson completionSnapshot'),
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
-    ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores')
+    ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores'),
+    HomePracticeCompletion.find({ child: childId }).select('stars')
   ]);
 
   const completedLessonIds = progressDocs.filter((p) => p.completed).map((p) => p.lesson).filter(Boolean);
@@ -212,7 +213,8 @@ const computeRewards = async (childId) => {
   const reviewedAssignments = await Assignment.find({ 'reviews.child': childId }).select('reviews');
   const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
     .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
-  const totalStars = earnedStars + bonusStars + classroomStars + teacherStars;
+  const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
+  const totalStars = earnedStars + bonusStars + classroomStars + teacherStars + homePracticeStars;
 
   let explorerLevel = {
     level: 1,
@@ -261,6 +263,7 @@ const computeRewards = async (childId) => {
 
   return {
     totalStars,
+    homePracticeStars,
     teacherStars,
     earnedStars,
     bonusStars,
