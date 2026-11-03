@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Target,
   Volume2,
-  Copy,
-  Check,
   RefreshCw,
   AlertCircle,
   Sparkles,
@@ -43,7 +41,6 @@ interface GapWord {
 }
 
 export const TeacherLessonPlanner: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const initialClassId = searchParams.get('classroomId') || '';
@@ -64,7 +61,6 @@ export const TeacherLessonPlanner: React.FC = () => {
 
   // Audio & Notification
   const [playingWord, setPlayingWord] = useState<string | null>(null);
-  const [copiedParentMsg, setCopiedParentMsg] = useState(false);
   const [error, setError] = useState<string>('');
 
   // Mini-Game: Listen & Tap
@@ -137,7 +133,6 @@ export const TeacherLessonPlanner: React.FC = () => {
   }, [selectedGapWords, classGaps]);
 
   const currentCard = activeReviewWords[activeCardIndex] || activeReviewWords[0] || null;
-  const gapWordsString = selectedGapWords.join(', ');
 
   // Play audio for a word
   const handlePlayWord = useCallback((word: string, audioUrl?: string | null) => {
@@ -262,24 +257,6 @@ export const TeacherLessonPlanner: React.FC = () => {
     }
   };
 
-  // Copy parent notification message for Zalo
-  const handleCopyParentMessage = () => {
-    sfx.playPop();
-    const msg = `[KC English Kids - Lớp ${currentClass?.name || 'Mầm non'}] Chào ba mẹ! Hôm nay các bé cùng cô ôn các từ: ${gapWordsString}. Gia đình có thể cùng nghe và chỉ tranh khoảng 5 phút, dừng khi bé muốn nghỉ. Buổi ôn chỉ ghi nhận tiến bộ, không cộng sao. ❤️`;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(msg).then(() => {
-        setCopiedParentMsg(true);
-        setTimeout(() => setCopiedParentMsg(false), 2500);
-      });
-    }
-  };
-
-  const handleLaunchLiveSession = () => {
-    sfx.playPop();
-    if (!selectedClassId || !selectedGapWords.length) return;
-    navigate(`/teacher/classes/${selectedClassId}/sessions/new?reviewMode=true&gapWords=${encodeURIComponent(selectedGapWords.slice(0, 12).join(', '))}`);
-  };
-
   // Words converted for GameRunner compatibility
   const gameRunnerWords: Vocabulary[] = useMemo(() => {
     return activeReviewWords.map((w, idx) => ({
@@ -313,35 +290,6 @@ export const TeacherLessonPlanner: React.FC = () => {
             <p className="text-xs sm:text-sm text-amber-100 font-medium leading-relaxed">
               Tự động tập hợp những từ vựng trẻ trong lớp hay làm sai hoặc chưa vững. Cô giáo có thể chiếu Flashcard kèm động tác TPR hài hước hoặc tổ chức đố vui nhanh ngay tại chỗ!
             </p>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* <button
-              type="button"
-              onClick={handleLaunchLiveSession}
-              disabled={selectedGapWords.length === 0 || !selectedClassId}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-amber-950 hover:bg-amber-50 transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 shadow-md"
-            > */}
-            {/* <Rocket size={17} className="text-amber-700" /> */}
-            {/* <span>Vào Lớp Dạy Tiết Ôn Tập Ngay</span> */}
-            {/* </button> */}
-            {/* <button
-              type="button"
-              onClick={handleCopyParentMessage}
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-black/15 hover:bg-black/25 border border-white/30 px-4 py-3 text-xs sm:text-sm font-bold text-white transition-all cursor-pointer backdrop-blur-xs"
-            >
-              {copiedParentMsg ? <Check size={16} className="text-emerald-300" /> : <Copy size={16} />}
-              <span>{copiedParentMsg ? 'Đã sao chép tin nhắn!' : 'Sao chép tin nhắn dặn dò phụ huynh'}</span>
-            </button> */}
-            {/* <button
-              type="button"
-              onClick={handleCopyParentMessage}
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-black/15 hover:bg-black/25 border border-white/30 px-4 py-3 text-xs sm:text-sm font-bold text-white transition-all cursor-pointer backdrop-blur-xs"
-            >
-              {copiedParentMsg ? <Check size={16} className="text-emerald-300" /> : <Copy size={16} />}
-              {/* <span>{copiedParentMsg ? 'Đã sao chép tin nhắn Zalo!' : 'Sao chép tin nhắn Zalo gửi phụ huynh'}</span>
-            </button> */}
           </div>
         </div>
       </div>

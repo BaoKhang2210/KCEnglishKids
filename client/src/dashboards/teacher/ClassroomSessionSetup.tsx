@@ -410,8 +410,8 @@ export const ClassroomSessionSetup: React.FC = () => {
     classroom?.ageGroupCode === '3-4'
       ? 'Sách 1 (Mầm 3–4 tuổi)'
       : classroom?.ageGroupCode === '4-5'
-      ? 'Sách 2 (Chồi 4–5 tuổi)'
-      : 'Sách 3 (Lá 5–6 tuổi)';
+        ? 'Sách 2 (Chồi 4–5 tuổi)'
+        : 'Sách 3 (Lá 5–6 tuổi)';
 
   // Build lesson schedule items strictly sorted by BOOK SEQUENTIAL ORDER
   const scheduleItems = useMemo(() => {
@@ -700,27 +700,24 @@ export const ClassroomSessionSetup: React.FC = () => {
                 className="flex items-center gap-2.5 cursor-pointer transition-transform hover:scale-102"
               >
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl text-base font-black transition-all ${
-                    step >= s.num
-                      ? 'bg-teal-700 text-white'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl text-base font-black transition-all ${step >= s.num
+                    ? 'bg-teal-700 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                    }`}
                 >
                   {s.num}
                 </div>
                 <span
-                  className={`hidden sm:inline text-sm font-extrabold ${
-                    step >= s.num ? 'text-teal-900' : 'text-slate-600'
-                  }`}
+                  className={`hidden sm:inline text-sm font-extrabold ${step >= s.num ? 'text-teal-900' : 'text-slate-600'
+                    }`}
                 >
                   {s.label}
                 </span>
               </button>
               {i < 2 && (
                 <div
-                  className={`mx-2 h-1 flex-1 rounded-full transition-colors ${
-                    step > s.num ? 'bg-teal-700' : 'bg-slate-200'
-                  }`}
+                  className={`mx-2 h-1 flex-1 rounded-full transition-colors ${step > s.num ? 'bg-teal-700' : 'bg-slate-200'
+                    }`}
                 />
               )}
             </React.Fragment>
@@ -825,16 +822,16 @@ export const ClassroomSessionSetup: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                {selectedLessonId && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/teacher/lesson-planner?classroomId=${activeClassId}&lessonId=${selectedLessonId}`)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
-                  >
-                    <Sparkles size={16} className="text-amber-800" />
-                    Xem gợi ý giáo án AI
-                  </button>
-                )}
+                {/* {selectedLessonId && (
+                  // <button
+                  //   type="button"
+                  //   onClick={() => navigate(`/teacher/lesson-planner?classroomId=${activeClassId}&lessonId=${selectedLessonId}`)}
+                  //   className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-950 hover:bg-amber-100 transition-all cursor-pointer"
+                  // >
+                  //   <Sparkles size={16} className="text-amber-800" />
+                  //   Xem gợi ý giáo án AI
+                  // </button>
+                )} */}
 
                 <button
                   disabled={!selectedLessonId}
@@ -878,25 +875,23 @@ export const ClassroomSessionSetup: React.FC = () => {
                             aria-selected={isSelected}
                             onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedLessonId(item._id); } }}
                             onClick={() => setSelectedLessonId(item._id)}
-                            className={`cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'bg-teal-50 font-bold ring-2 ring-inset ring-teal-500'
-                                : item.isAdminAssigned
+                            className={`cursor-pointer transition-colors ${isSelected
+                              ? 'bg-teal-50 font-bold ring-2 ring-inset ring-teal-500'
+                              : item.isAdminAssigned
                                 ? 'bg-amber-100/40 hover:bg-amber-100/70'
                                 : item.isNextToTeach
-                                ? 'bg-amber-50/50 hover:bg-amber-50/90'
-                                : 'hover:bg-slate-50'
-                            }`}
+                                  ? 'bg-amber-50/50 hover:bg-amber-50/90'
+                                  : 'hover:bg-slate-50'
+                              }`}
                           >
                             {/* Sequential Book Order */}
                             <td className="py-4 px-4">
-                              <span className={`inline-flex items-center justify-center rounded-xl px-3 py-1 text-xs font-black ${
-                                item.isAdminAssigned
-                                  ? 'bg-amber-300 text-amber-950 border border-amber-400'
-                                  : item.isNextToTeach
+                              <span className={`inline-flex items-center justify-center rounded-xl px-3 py-1 text-xs font-black ${item.isAdminAssigned
+                                ? 'bg-amber-300 text-amber-950 border border-amber-400'
+                                : item.isNextToTeach
                                   ? 'bg-amber-200 text-amber-950 border border-amber-300'
                                   : 'bg-teal-100 text-teal-900'
-                              }`}>
+                                }`}>
                                 {item.bookOrderIndex || idx + 1}
                               </span>
                             </td>
@@ -1033,11 +1028,10 @@ export const ClassroomSessionSetup: React.FC = () => {
               {/* Warm-up Toggle */}
               <div
                 onClick={() => setIncludeWarmup(!includeWarmup)}
-                className={`rounded-2xl border-2 p-5 cursor-pointer transition-all ${
-                  includeWarmup
-                    ? 'border-amber-400 bg-amber-50/80 ring-2 ring-amber-400/40'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
+                className={`rounded-2xl border-2 p-5 cursor-pointer transition-all ${includeWarmup
+                  ? 'border-amber-400 bg-amber-50/80 ring-2 ring-amber-400/40'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
               >
                 <div className="flex items-start gap-3.5">
                   <div className="mt-0.5">
@@ -1062,8 +1056,8 @@ export const ClassroomSessionSetup: React.FC = () => {
 
             {/* Activities list */}
             <div>
-              <TeachingGuidePanel lessonId={selectedLessonId} compact/>
-                <div className="flex items-center justify-between mb-3">
+              <TeachingGuidePanel lessonId={selectedLessonId} compact />
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Trò chơi tương tác ({selectedActivityIds.length}/{lessonActivities.length})
                 </h3>
@@ -1095,11 +1089,10 @@ export const ClassroomSessionSetup: React.FC = () => {
                         key={a._id}
                         type="button"
                         onClick={() => toggleActivity(a._id)}
-                        className={`flex items-center gap-3.5 rounded-2xl border-2 p-4 text-left transition-all cursor-pointer ${
-                          checked
-                            ? 'border-violet-500 bg-violet-50'
-                            : 'border-slate-200 hover:border-violet-300 bg-white'
-                        }`}
+                        className={`flex items-center gap-3.5 rounded-2xl border-2 p-4 text-left transition-all cursor-pointer ${checked
+                          ? 'border-violet-500 bg-violet-50'
+                          : 'border-slate-200 hover:border-violet-300 bg-white'
+                          }`}
                       >
                         {checked ? (
                           <CheckSquare size={20} className="text-violet-800 shrink-0" />
@@ -1127,7 +1120,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               </select>
             </div>
 
-<p className="text-sm text-slate-600">Số phút dùng để chia thời gian giáo án thành khởi động, làm quen, cùng chơi và tổng kết; đồng hồ sẽ nhắc cô khi đến thời lượng dự kiến. Cô có thể linh hoạt cho bé nghỉ và chủ động kết thúc buổi học.</p>
+            <p className="text-sm text-slate-600">Số phút dùng để chia thời gian giáo án thành khởi động, làm quen, cùng chơi và tổng kết; đồng hồ sẽ nhắc cô khi đến thời lượng dự kiến. Cô có thể linh hoạt cho bé nghỉ và chủ động kết thúc buổi học.</p>
 
             {/* Step 2 Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">
@@ -1223,15 +1216,14 @@ export const ClassroomSessionSetup: React.FC = () => {
                   return (
                     <div
                       key={sId}
-                      className={`rounded-2xl border-2 p-4 transition-all ${
-                        r.status === 'PRESENT'
-                          ? 'border-emerald-300 bg-emerald-50/50'
-                          : r.status === 'LATE'
+                      className={`rounded-2xl border-2 p-4 transition-all ${r.status === 'PRESENT'
+                        ? 'border-emerald-300 bg-emerald-50/50'
+                        : r.status === 'LATE'
                           ? 'border-amber-300 bg-amber-50/50'
                           : r.status === 'EXCUSED'
-                          ? 'border-sky-300 bg-sky-50/50'
-                          : 'border-rose-300 bg-rose-50/50'
-                      }`}
+                            ? 'border-sky-300 bg-sky-50/50'
+                            : 'border-rose-300 bg-rose-50/50'
+                        }`}
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <div className="h-10 w-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center font-black text-base shrink-0">
@@ -1250,44 +1242,40 @@ export const ClassroomSessionSetup: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setStudentStatus(sId, 'PRESENT')}
-                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                            r.status === 'PRESENT'
-                              ? 'bg-emerald-700 text-white'
-                              : 'bg-white text-slate-700 hover:bg-emerald-50 border border-slate-200'
-                          }`}
+                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${r.status === 'PRESENT'
+                            ? 'bg-emerald-700 text-white'
+                            : 'bg-white text-slate-700 hover:bg-emerald-50 border border-slate-200'
+                            }`}
                         >
                           Có mặt
                         </button>
                         <button
                           type="button"
                           onClick={() => setStudentStatus(sId, 'LATE')}
-                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                            r.status === 'LATE'
-                              ? 'bg-amber-700 text-white'
-                              : 'bg-white text-slate-700 hover:bg-amber-50 border border-slate-200'
-                          }`}
+                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${r.status === 'LATE'
+                            ? 'bg-amber-700 text-white'
+                            : 'bg-white text-slate-700 hover:bg-amber-50 border border-slate-200'
+                            }`}
                         >
                           Muộn
                         </button>
                         <button
                           type="button"
                           onClick={() => setStudentStatus(sId, 'EXCUSED')}
-                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                            r.status === 'EXCUSED'
-                              ? 'bg-sky-700 text-white'
-                              : 'bg-white text-slate-700 hover:bg-sky-50 border border-slate-200'
-                          }`}
+                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${r.status === 'EXCUSED'
+                            ? 'bg-sky-700 text-white'
+                            : 'bg-white text-slate-700 hover:bg-sky-50 border border-slate-200'
+                            }`}
                         >
                           Phép
                         </button>
                         <button
                           type="button"
                           onClick={() => setStudentStatus(sId, 'ABSENT')}
-                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                            r.status === 'ABSENT'
-                              ? 'bg-rose-700 text-white'
-                              : 'bg-white text-slate-700 hover:bg-rose-50 border border-slate-200'
-                          }`}
+                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${r.status === 'ABSENT'
+                            ? 'bg-rose-700 text-white'
+                            : 'bg-white text-slate-700 hover:bg-rose-50 border border-slate-200'
+                            }`}
                         >
                           Vắng
                         </button>
@@ -1405,11 +1393,10 @@ export const ClassroomSessionSetup: React.FC = () => {
                   type="button"
                   onClick={handleCreate}
                   disabled={creating || (!createdDraftId && (loadingAttendance || !scheduleLiveTiming.canTeachNow))}
-                  className={`w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl px-9 py-4 text-base font-black transition-all ${
-                    scheduleLiveTiming.canTeachNow
-                      ? 'bg-emerald-700 hover:bg-emerald-700 text-white  active:scale-95 cursor-pointer animate-pulse'
-                      : 'bg-slate-200 text-inherit cursor-not-allowed border border-slate-300'
-                  }`}
+                  className={`w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl px-9 py-4 text-base font-black transition-all ${scheduleLiveTiming.canTeachNow
+                    ? 'bg-emerald-700 hover:bg-emerald-700 text-white  active:scale-95 cursor-pointer animate-pulse'
+                    : 'bg-slate-200 text-inherit cursor-not-allowed border border-slate-300'
+                    }`}
                 >
                   {creating ? (
                     <>

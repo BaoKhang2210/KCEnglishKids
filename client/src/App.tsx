@@ -151,7 +151,7 @@ export function App() {
           />
 
           {/* Teacher Routes (Classroom Teaching & Management) */}
-          <Route path="/teacher/login" element={<StaffSurface><TeacherLoginPage /></StaffSurface>} />
+          <Route path="/teacher/login" element={<StaffSurface className="teacher-surface"><TeacherLoginPage /></StaffSurface>} />
           <Route path="/teacher" element={<ProtectedTeacherRoute><TeacherLayout /></ProtectedTeacherRoute>}>
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="schedule" element={<TeacherTeachingSchedule />} />
