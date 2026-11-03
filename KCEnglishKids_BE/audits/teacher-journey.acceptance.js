@@ -133,11 +133,22 @@ async function verify() {
     assert.equal(unit.roster.find(row => row.child._id === childId).latest.LISTEN_POINT.level, 'SUPPORTED');
   });
   await check('Closing validates objectives, advances class curriculum once and freezes live scoring', async () => {
+    await M.ClassroomSession.updateOne({ _id: f.session._id }, { $set: { startedAt: new Date(Date.now() - 120000) } });
     await request(sessionRoute + '/end', {}, f.teacher, 400);
     const outcome = { coverage: 'COMPLETE', goalsCovered: ['LISTEN_POINT', 'EXPRESS', 'PARTICIPATE'] };
     await request(sessionRoute + '/end', outcome); await request(sessionRoute + '/end', outcome);
     await request(sessionRoute + '/score-student', { studentId: childId, stars: 1, operationId: randomUUID() }, f.teacher, 409);
     assert.equal((await M.ClassRoom.findById(roomId)).completedLessons.length, 1);
+  });
+  await check('Classroom-only answers do not fabricate practice accuracy; actual attended time is counted', async () => {
+    const students = await request('/teacher/students');
+    const row = students.find(student => student._id === childId).stats;
+    assert.equal(row.averageScore, null);
+    assert.equal(row.hasAssessment, false);
+    assert.equal(row.classroomAccuracy, 100);
+    assert.equal((await request('/teacher/dashboard')).metrics.needingAttention, 3);
+    assert.ok(row.classroomLearningTime >= 120);
+    assert.equal(students.find(student => student._id === String(f.children[2]._id)).stats.learningTime, 0);
   });
   await check('Teacher assigns one homework activity and the child receives that same assignment', async () => {
     assert.equal((await request('/teacher/assignments/proposal?classRoomId=' + roomId + '&studentId=' + childId)).available, true);
@@ -188,6 +199,50 @@ async function verify() {
     assert.equal((await M.Assignment.findById(f.assignment._id)).status, 'CANCELLED');
     assert.ok((await request('/teacher/assignments/' + f.assignment._id)).studentSubmissions[0].hasSubmitted);
     assert.equal((await request('/children/' + childId + '/home-practice', undefined, f.children[0])).assignment, null);
+  });
+  await check('Scheduled lesson is authoritative; an old lesson cannot start in that slot', async () => {
+    await M.Schedule.updateMany({ classroom: roomId }, { $set: { 'weeklySlots.$[].lesson': f.lessons[1]._id } });
+    const draft = await request('/teacher/classroom-sessions', { classroomId: roomId, lessonId, lessonPlan: f.plan }, f.teacher, 201);
+    await request('/teacher/classroom-sessions/' + draft._id + '/start', {}, f.teacher, 409);
+  });
+  await check('Gap review keeps the selected vocabulary and cannot award stars or complete a new lesson', async () => {
+    await M.VocabularyMastery.findOneAndUpdate({ student: f.children[1]._id, vocabulary: f.words[0]._id }, { $set: { correctCount: 0, wrongCount: 4, attemptCount: 4, masteryLevel: 2 } }, { upsert: true });
+    const gaps = await request('/ai/class-gaps?classRoomId=' + roomId);
+    assert.ok(gaps.gaps.some(word => word.english === 'cat'));
+    assert.ok(gaps.unassessed.length > 0);
+    const before = (await request('/teacher/students')).map(student => [student._id, student.stats.totalStars]);
+    const draft = await request('/teacher/classroom-sessions', { classroomId: roomId, lessonId: String(f.lessons[1]._id), isGapReview: true, gapWords: 'cat', attendanceRecords: records }, f.teacher, 201);
+    assert.equal(draft.isGapReview, true);
+    assert.deepEqual(draft.lesson.vocabularyItems.map(word => word.english), ['cat']);
+    assert.deepEqual(draft.lessonPlan.reviewFocus.map(word => word.english), ['cat']);
+    const route = '/teacher/classroom-sessions/' + draft._id;
+    // Legacy drafts may store review mode only inside their prepared plan.
+    await M.ClassroomSession.updateOne({ _id: draft._id }, { $unset: { isGapReview: 1 } });
+    assert.equal((await request(route)).isGapReview, true);
+    await request(route + '/start', {});
+    await request(route + '/score-student', { studentId: childId, stars: 1, operationId: randomUUID() }, f.teacher, 400);
+    await request(route + '/score-bulk', { studentIds: [childId, String(f.children[1]._id)], stars: 3, operationId: randomUUID() }, f.teacher, 400);
+    await request(route + '/score-student', { studentId: childId, correctDelta: 1, operationId: randomUUID() });
+    const ended = await request(route + '/end', { coverage: 'COMPLETE', goalsCovered: ['LISTEN_POINT', 'EXPRESS', 'PARTICIPATE'] });
+    assert.equal(ended.teachingOutcome.coverage, 'REVIEW');
+    assert.equal(ended.summary.totalStars, 0);
+    assert.equal((await M.ClassRoom.findById(roomId)).completedLessons.length, 1);
+    assert.equal((await M.ClassRoom.findById(roomId)).currentLesson.toString(), f.lessons[1]._id.toString());
+    assert.deepEqual((await request('/teacher/students')).map(student => [student._id, student.stats.totalStars]), before);
+    assert.ok(!(await require('../src/services/homeworkProposal').studiedLessonIds(await M.ClassRoom.findById(roomId))).includes(String(f.lessons[1]._id)));
+  });
+  await check('Admin teaching totals agree with class counts beyond the recent-history limit and exclude self-study', async () => {
+    const admin = await M.User.create({ name: 'QA Admin', role: 'ADMIN', status: 'ACTIVE' });
+    await M.ClassroomSession.insertMany(Array.from({ length: 23 }, () => ({ classroom: f.room._id, teacher: f.teacher._id, lesson: f.lessons[0]._id, status: 'COMPLETED', startedAt: new Date(Date.now() - 60000), endedAt: new Date() })));
+    const before = (await request('/admin/dashboard', undefined, admin)).metrics.completedSessions;
+    await M.LearningSession.create({ child: f.children[1]._id, lesson: f.lessons[1]._id, status: 'COMPLETED' });
+    const dashboard = await request('/admin/dashboard', undefined, admin);
+    const detail = await request('/admin/classrooms/' + roomId + '/curriculum-progress', undefined, admin);
+    assert.equal(detail.recentSessions.length, 20);
+    assert.equal(detail.sessionCounts.COMPLETED, 25);
+    assert.equal(dashboard.metrics.completedSessions, detail.sessionCounts.COMPLETED);
+    assert.equal(dashboard.metrics.completedSessions, before);
+    assert.equal(dashboard.metrics.totalSessions, await M.ClassroomSession.countDocuments());
   });
   if (cloud) {
     await check('Audio endpoint safely handles a synthetic silent WAV without inventing speech', async () => {

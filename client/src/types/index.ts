@@ -315,6 +315,9 @@ export interface RewardSummary {
   earnedStars: number;
   bonusStars: number;
   classroomStars: number;
+  homePracticeStars?: number;
+  homeStars?: number;
+  classStars?: number;
   completedUnits: number;
   completedLessons: number;
   perfectLessons: number;

@@ -658,7 +658,10 @@ function applyReviewFocus(plan, reviewFocus = []) {
   updatedPlan.homeConnectPrompt = 'Hôm nay lớp đã cùng cô ôn lại và củng cố các từ: ' + weakWordsStr + '. Ba mẹ hãy cùng bé gọi tên và làm cử chỉ TPR tại nhà nhé! ❤️';
 
   updatedPlan.teacherPrepTips.unshift('Buổi ôn lỗ hổng không cộng sao cho bất kỳ học sinh nào.');
-  updatedPlan.phases = updatedPlan.phases.map(phase => ['presentation', 'practice'].includes(phase.phaseId) ? { ...phase, activities: phase.activities.map((activity, index) => index ? activity : {
+  updatedPlan.phases = updatedPlan.phases.map(phase => phase.phaseId === 'wrapup' ? { ...phase, activities: phase.activities.map(activity => ({
+    ...activity, name: 'Củng cố và động viên', teacherTalk: 'Good effort! Let us try again together.',
+    description: `Nhắc lại ${weakWordsStr}, ghi nhận từ trẻ còn cần hỗ trợ và động viên bằng lời. Buổi ôn không cộng sao.`
+  })) } : ['presentation', 'practice'].includes(phase.phaseId) ? { ...phase, activities: phase.activities.map((activity, index) => index ? activity : {
     ...activity, name: `Ôn có hỗ trợ: ${weakWordsStr}`, teacherTalk: weakWords.map(word => `Point to ${word}.`).join(' '),
     description: `Lần lượt ôn từng từ ${weakWordsStr} bằng nghe–chọn tranh, đổi vị trí và cho bé thử lại với gợi ý. Chỉ ghi nhận đúng/chưa đúng, không cộng sao.`
   }) } : phase);

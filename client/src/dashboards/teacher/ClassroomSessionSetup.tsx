@@ -48,6 +48,7 @@ export const ClassroomSessionSetup: React.FC = () => {
   const navigate = useNavigate();
   const locationState = useLocation().state;
   const preparedPlan = locationState?.lessonPlan;
+  const isGapReview = searchParams.get('reviewMode') === 'true' || preparedPlan?.isGapReview === true || preparedPlan?.meta?.isReviewPlan === true;
   const selectedRowRef = useRef<HTMLTableRowElement>(null);
   const scheduleTableRef = useRef<HTMLDivElement>(null);
 
@@ -147,7 +148,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         setSchedules(schedList);
 
         // Auto pre-select attached lesson from timetable slot or Admin-designated current lesson if not provided in URL
-        if (!selectedLessonId) {
+        if (!selectedLessonId || searchParams.get('reviewMode') !== 'true') {
           const activeClassScheds = schedList.filter((s: any) => {
             const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
             return String(cId) === String(activeClassId) && scheduleEffectiveAt(s);
@@ -185,7 +186,7 @@ export const ClassroomSessionSetup: React.FC = () => {
 
           if (slotLessonId) {
             setSelectedLessonId(String(slotLessonId));
-          } else {
+          } else if (!selectedLessonId) {
             const cId = classData?.currentLesson
               ? (typeof classData.currentLesson === 'object' ? classData.currentLesson._id : classData.currentLesson)
               : null;
@@ -196,7 +197,7 @@ export const ClassroomSessionSetup: React.FC = () => {
             if (cId && !completed.has(String(cId))) {
               setSelectedLessonId(String(cId));
             } else {
-              const nextUntaught = (content?.lessons || []).find((l: any) => !completed.has(String(l._id)));
+              const nextUntaught = (cnt.data?.lessons || []).find((l: any) => !completed.has(String(l._id)) && l.ageGroupCode === classData.ageGroupCode);
               if (nextUntaught) setSelectedLessonId(String(nextUntaught._id));
             }
           }
@@ -328,12 +329,12 @@ export const ClassroomSessionSetup: React.FC = () => {
       setTitle(`Buổi ${sessionNumber}: ${lesson.title} - ${lesson.vietnameseTitle || ''}`);
     }
 
-    const acts = content.activities.filter(
+    const acts = isGapReview ? [] : content.activities.filter(
       (a: any) => String(a.lesson?._id || a.lesson) === selectedLessonId
     );
     setLessonActivities(acts);
     setSelectedActivityIds(acts.map((a: any) => String(a._id)));
-  }, [selectedLessonId, content, sessionNumber]);
+  }, [selectedLessonId, content, sessionNumber, isGapReview]);
 
   const toggleActivity = (id: string) => {
     setSelectedActivityIds((prev) =>
@@ -385,7 +386,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         sessionNumber: Number(sessionNumber) || 1,
         includeWarmup: includeWarmup,
         lessonPlan: preparedPlan,
-        isGapReview: searchParams.get('reviewMode') === 'true' || preparedPlan?.isGapReview === true || preparedPlan?.meta?.isReviewPlan === true,
+        isGapReview,
         gapWords: searchParams.get('gapWords') || undefined,
         attendanceRecords,
         attendanceDate,
@@ -576,6 +577,10 @@ export const ClassroomSessionSetup: React.FC = () => {
   return (
     <div className="staff-workspace min-h-screen py-8 bg-[#f8fafc] text-slate-900">
       <div className="mx-auto w-full max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 space-y-6">
+        {isGapReview && <div role="status" className="rounded-2xl border border-teal-300 bg-teal-50 p-4 text-teal-950">
+          <strong>Buổi ôn lỗ hổng · Không cộng sao · Không hoàn thành bài mới</strong>
+          <p className="mt-1">Từ cần ôn: {searchParams.get('gapWords') || preparedPlan?.reviewFocus?.map((word: any) => word.english).join(', ')}. Phiên dạy sẽ dùng đúng nhóm từ này.</p>
+        </div>}
         {/* Back button */}
         <button
           onClick={() => navigate(activeClassId ? `/teacher/classes/${activeClassId}` : '/teacher/classes')}
@@ -1079,7 +1084,7 @@ export const ClassroomSessionSetup: React.FC = () => {
 
               {lessonActivities.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 font-medium">
-                  Bài học này chưa cấu hình trò chơi tương tác riêng. Buổi học vẫn diễn ra đầy đủ với phần thẻ từ vựng trực quan, dạy phát âm và ôn cũ học mới.
+                  {isGapReview ? 'Buổi ôn dùng thẻ từ và trò chơi nghe–chọn theo đúng nhóm từ đã chọn, không nạp trò chơi của bài mới.' : 'Bài học này chưa cấu hình trò chơi tương tác riêng. Buổi học vẫn diễn ra đầy đủ với phần thẻ từ vựng trực quan, dạy phát âm và ôn cũ học mới.'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3  pr-1">

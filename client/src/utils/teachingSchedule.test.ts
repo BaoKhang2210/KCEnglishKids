@@ -4,6 +4,14 @@ const schedule = { _id: 's', isActive: true, effectiveFrom: '2026-10-01T00:00:00
   { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, { dayOfWeek: 3, startTime: '09:00', endTime: '09:45' }
 ] };
 describe('teaching timetable', () => {
+  it('uses the assigned People at School lesson ahead of the recurring forecast', () => {
+    const lessons = [{ _id: 'l1', title: 'Things at School' }, { _id: 'l2', title: 'People at School' }, { _id: 'l3', title: 'Colors' }];
+    const slot = { dayOfWeek: 2, startTime: '08:30', endTime: '09:15', lesson: 'l2', lessonNumber: 2 };
+    const result = getSequentialLessonForSlot({ ...schedule, weeklySlots: [slot] }, slot, '2026-11-03', lessons);
+    expect(result.lesson?._id).toBe('l2');
+    expect(result.title).toBe('People at School');
+    expect(result.lessonNumber).toBe(2);
+  });
   it('does not advance curriculum when an ended lesson needs continuation or was only a review', () => {
     expect(countsTowardCurriculum({status:'COMPLETED',teachingOutcome:{coverage:'CONTINUE'}})).toBe(false);
     expect(countsTowardCurriculum({status:'COMPLETED',teachingOutcome:{coverage:'REVIEW'}})).toBe(false);

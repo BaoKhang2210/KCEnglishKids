@@ -828,7 +828,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                           {/* Attached Lesson Badge (Bài mấy) */}
                           {(() => {
                             const seq = getSequentialLessonForSlot(sch, slot, localCalendarDate(currentVnTime), bookRoadmap.lessons);
-                            const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                            const displayName = (seq.title ? `${seq.title}${seq.vietnameseTitle ? ` (${seq.vietnameseTitle})` : ""}` : "") || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
                             return displayName ? (
                               <div className="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-indigo-900 border border-indigo-200/80 font-black text-[11px] flex items-center gap-1">
                                 <span className="text-indigo-800 font-black">
@@ -936,7 +936,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
                         const cName = typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp';
                         const seqLesson = getSequentialLessonForSlot(schedule, slot, day.dateString, bookRoadmap.lessons);
-                        const lessonDisplayTitle = seqLesson.vietnameseTitle || seqLesson.title || 'Buổi học tiếng Anh';
+                        const lessonDisplayTitle = (seqLesson.title ? `${seqLesson.title}${seqLesson.vietnameseTitle ? ` (${seqLesson.vietnameseTitle})` : ""}` : "") || 'Buổi học tiếng Anh';
                         return (
                           <div
                             key={fIdx}

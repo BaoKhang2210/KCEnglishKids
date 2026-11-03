@@ -182,7 +182,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         </div>
         {rewards && (
           <details className="-mt-2 mb-4 text-[11px] font-bold text-slate-500 relative z-10"><summary className="cursor-pointer">Dành cho gia đình: cách tính sao</summary><p className="mt-2">
-            Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}. Sao Lesson lấy điểm tốt nhất ở mọi trò chơi; mốc 50/70/90% lần lượt là 1/2/3 sao. Mỗi Unit cộng 5 sao một lần.
+            Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}{rewards.homePracticeStars ? ` + ôn tập 5 phút ${rewards.homePracticeStars}` : ''}. Sao Lesson lấy điểm tốt nhất ở mọi trò chơi; mốc 50/70/90% lần lượt là 1/2/3 sao. Mỗi Unit cộng 5 sao một lần.
           </p></details>
         )}
 

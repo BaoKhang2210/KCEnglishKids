@@ -87,7 +87,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
     if (!targetVocab || state.status !== 'playing' || currentRound.current !== state.targetIndex || completedTargetRef.current === state.targetIndex) return;
     completedTargetRef.current = state.targetIndex;
     playPraiseAudio();
-    if (config.childId) {
+    if (config.childId && !config.preview) {
       vocabStatsService.recordAttempt(config.childId, targetVocab._id, {
         type: 'FS',
         ok: true,
@@ -97,12 +97,12 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
       });
     }
     dispatch({ type: 'TARGET_COMPLETED', wordId: targetVocab._id });
-  }, [targetVocab, state.status, state.targetIndex, attempts, isAssisted, config.childId, dispatch]);
+  }, [targetVocab, state.status, state.targetIndex, attempts, isAssisted, config.childId, config.preview, dispatch]);
 
   const handleWrong = useCallback((chosenVocabId?: string) => {
     if (!targetVocab || state.status !== 'playing' || currentRound.current !== state.targetIndex || completedTargetRef.current === state.targetIndex) return;
     dispatch({ type: 'RECORD_ATTEMPT', wordId: targetVocab._id, wrongVocabId: chosenVocabId });
-    if (config.childId) {
+    if (config.childId && !config.preview) {
       vocabStatsService.recordAttempt(config.childId, targetVocab._id, {
         type: 'FS',
         ok: false,
@@ -115,7 +115,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
     if (attempts + 1 >= 2) dispatch({ type: 'SET_ASSISTED', wordId: targetVocab._id });
     playEncouragementAudio();
 
-  }, [targetVocab, state.status, state.targetIndex, config.childId, attempts, dispatch]);
+  }, [targetVocab, state.status, state.targetIndex, config.childId, config.preview, attempts, dispatch]);
 
   const handleReplay = useCallback(() => {
     if (targetVocab) {

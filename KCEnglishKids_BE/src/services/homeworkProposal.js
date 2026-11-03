@@ -3,7 +3,7 @@ const { idOf, present } = require('./teacherRules');
 const { lessonGuide } = require('./earlyLearning');
 
 async function studiedLessonIds(room, child) {
-  const sessions = await M.ClassroomSession.find({ classroom: room._id, status: 'COMPLETED' }).select('lesson studentScores').lean();
+  const sessions = await M.ClassroomSession.find({ classroom: room._id, status: 'COMPLETED', isGapReview: { $ne: true }, 'lessonPlan.isGapReview': { $ne: true }, 'lessonPlan.meta.isReviewPlan': { $ne: true } }).select('lesson studentScores').lean();
   const taught = sessions.filter(session => !child || (session.studentScores || []).some(row => idOf(row.student) === idOf(child) && present(row))).map(session => idOf(session.lesson));
   if (!child) return [...new Set([...taught, ...(room.completedLessons || []).map(idOf)].filter(Boolean))];
   const [progress, observations] = await Promise.all([

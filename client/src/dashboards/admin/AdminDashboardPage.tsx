@@ -101,13 +101,13 @@ export const AdminDashboardPage: React.FC = () => {
       sub: 'Phát âm & minh họa trực quan'
     },
     {
-      label: 'Phiên học đã hoàn thành',
+      label: 'Buổi dạy đã kết thúc',
       value: metrics.completedSessions || 0,
       icon: CheckCircle2,
       bgColor: 'bg-rose-50 dark:bg-rose-50',
       iconColor: 'text-rose-800 dark:text-rose-800',
       borderColor: 'border-rose-100 dark:border-rose-900/50',
-      sub: `Tổng số: ${metrics.totalSessions || 0} phiên`
+      sub: `Toàn trường · ${metrics.completedSessions || 0}/${metrics.totalSessions || 0} buổi đã tạo`
     }
   ];
 

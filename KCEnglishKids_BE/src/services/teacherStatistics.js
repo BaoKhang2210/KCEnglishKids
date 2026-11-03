@@ -1,4 +1,4 @@
-const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, Assignment, LearningEvent } = require('../models');
+const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, Assignment, LearningEvent, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 function combineAssessment(sources) {
   const correctAnswers = sources.reduce((n, row) => n + Math.max(0, Number(row?.correctAnswers) || 0), 0);
@@ -8,7 +8,7 @@ function combineAssessment(sources) {
 }
 const statsFor = async ids => {
   if (!ids.length) return [];
-  const [resultStats, progressStats, classroomStats, unitStats, completedProgress, eventStats] = await Promise.all([
+  const [resultStats, progressStats, classroomStats, unitStats, completedProgress, eventStats, homePracticeStats] = await Promise.all([
     ActivityResult.aggregate([
       { $match: { child: { $in: ids }, completed: true } },
       { $group: {
@@ -59,10 +59,18 @@ const statsFor = async ids => {
         learningTime: { $sum: '$durationSeconds' },
         timedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 1, 0] } },
         untimedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 0, 1] } },
-        correctAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$$answer.isCorrect', true] } } } } },
-        incorrectAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$$answer.isCorrect', false] } } } } }
+        correctAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$answer.isCorrect', true] } } } } },
+        incorrectAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$answer.isCorrect', false] } } } } }
       } }
-    ])
+    ]),
+    HomePracticeCompletion ? HomePracticeCompletion.aggregate([
+      { $match: { child: { $in: ids } } },
+      { $group: {
+          _id: '$child',
+          homePracticeStars: { $sum: '$stars' },
+          homePracticeCount: { $sum: 1 }
+      } }
+    ]) : Promise.resolve([])
   ]);
 
   const lessonIds = [...new Set(completedProgress.map((item) => item.lesson ? String(item.lesson) : null).filter(Boolean))];
@@ -112,6 +120,7 @@ const statsFor = async ids => {
   }
 
   const eventMap = new Map(eventStats.map(row => [String(row._id), row]));
+  const homePracticeMap = new Map((homePracticeStats || []).map(row => [String(row._id), row]));
   return ids.map(id => {
     const sid = String(id);
     const r = resultMap.get(sid);
@@ -121,11 +130,15 @@ const statsFor = async ids => {
     const event = eventMap.get(sid);
 
     // ActivityResult.stars are per-game feedback, not banked Lesson stars.
+    const hp = homePracticeMap.get(sid);
+    const homePracticeStars = hp ? (hp.homePracticeStars || 0) : 0;
+    const homePracticeCount = hp ? (hp.homePracticeCount || 0) : 0;
     const earnedStars = earnedStarsByChild.get(sid) ?? 0;
     const classroomStars = c ? (c.classroomStars || 0) : 0;
     const bonusStars = u ? (u.bonusStars || 0) : 0;
     const teacherStars = teacherStarsByChild.get(sid) || 0;
-    const totalStars = earnedStars + classroomStars + bonusStars + teacherStars;
+    const homeStars = earnedStars + bonusStars + teacherStars + homePracticeStars;
+    const totalStars = earnedStars + classroomStars + bonusStars + teacherStars + homePracticeStars;
 
     const overall = combineAssessment([r, c, event]);
     const practice = combineAssessment([r, event]);
@@ -156,8 +169,12 @@ const statsFor = async ids => {
       totalStars,
       earnedStars,
       classroomStars,
+      classStars: classroomStars,
       bonusStars,
       teacherStars,
+      homePracticeStars,
+      homeStars,
+      homePracticeCount,
       completedLessons,
       attempts,
       learningTime,

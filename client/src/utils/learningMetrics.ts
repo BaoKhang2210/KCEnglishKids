@@ -10,3 +10,8 @@ export function practiceMetrics(stats: any) {
   const correct = Math.min(answered, Math.max(0, Number(stats?.practiceCorrectAnswers) || 0));
   return { answered, correct, assessed: answered > 0, accuracy: answered ? Math.round(100 * correct / answered) : null };
 }
+
+export function needsObservation(stats: any) {
+  const practice = practiceMetrics(stats);
+  return !practice.assessed || practice.accuracy! < 60;
+}

@@ -732,7 +732,7 @@ export const ChildHomePage: React.FC = () => {
                       </p>
                       {rewards && (
                         <p className="mt-1 text-xs font-bold text-slate-500">
-                          Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}.
+                          Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}{rewards.homePracticeStars ? ` + ôn tập 5 phút ${rewards.homePracticeStars}` : ''}.
                           Sao Lesson tính trên tổng điểm tốt nhất của từng trò chơi trong Lesson: dưới 50% = 0, từ 50% = 1, từ 70% = 2, từ 90% = 3 sao. Mỗi Unit hoàn thành cộng 5 sao một lần.
                         </p>
                       )}

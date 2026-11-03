@@ -170,7 +170,7 @@ exports.getAdminAnalytics = handler(async (req, res) => {
   for (let offset = 0; offset < students.length; offset += 20) {
     ranked.push(...await Promise.all(students.slice(offset, offset + 20).map(async student => {
       const reward = await computeRewards(student._id);
-      return { ...student, className: student.assignedClass?.name || 'Chưa vào lớp', homeStars: reward.earnedStars + reward.bonusStars + (reward.teacherStars || 0), classStars: reward.classroomStars, totalStars: reward.totalStars };
+      return { ...student, className: student.assignedClass?.name || 'Chưa vào lớp', homeStars: reward.homeStars, classStars: reward.classStars, totalStars: reward.totalStars };
     })));
   }
   const rooms = await ClassRoom.find({ deletionPending: { $ne: true } }).populate('teacher', 'name').lean();

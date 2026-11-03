@@ -37,7 +37,7 @@ exports.getDashboard = async (req, res, next) => { try {
   res.json({ success: true, data: { metrics: { classes: classes.length, students: ids.length,
     activeAssignments: allAssignments.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length,
     completedAssignments: allAssignments.filter(a => a.status === 'COMPLETED').length,
-    needingAttention: assessed.filter(s => s.averageScore < 60).length, unassessedStudents: ids.length - assessed.length,
+    needingAttention: resultStats.filter(s => !s.hasAssessment || s.averageScore < 60).length, unassessedStudents: ids.length - assessed.length,
     activeLearners: assessed.length, averageScore: assessed.length ? Math.round(100 * assessed.reduce((n,s) => n+s.correctAnswers, 0) / assessed.reduce((n,s) => n+s.answeredCount, 0)) : null,
     stars: resultStats.reduce((n,s) => n+s.stars, 0) }, recentAssignments, recentSessions, parentFeedback } });
 } catch(e) { next(e); } };

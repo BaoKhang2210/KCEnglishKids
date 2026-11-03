@@ -214,7 +214,9 @@ const computeRewards = async (childId) => {
   const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
     .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
   const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
-  const totalStars = earnedStars + bonusStars + classroomStars + teacherStars + homePracticeStars;
+  const homeStars = earnedStars + bonusStars + (teacherStars || 0) + (homePracticeStars || 0);
+  const classStars = classroomStars;
+  const totalStars = homeStars + classStars;
 
   let explorerLevel = {
     level: 1,
@@ -264,6 +266,8 @@ const computeRewards = async (childId) => {
   return {
     totalStars,
     homePracticeStars,
+    homeStars,
+    classStars,
     teacherStars,
     earnedStars,
     bonusStars,

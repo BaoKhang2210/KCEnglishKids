@@ -244,7 +244,7 @@ export const LiveSessionPage: React.FC = () => {
   }, [classroomGameMode, gameQuestionIdx, mysteryVocabIndex, animalGameIndex]);
 
   const showToast = (msg: string) => {
-    setToastMessage(msg);
+    setToastMessage(session?.isGapReview && /sao|⭐|🌟/i.test(msg) ? 'Buổi ôn chỉ ghi nhận câu trả lời, không cộng sao.' : msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
@@ -308,19 +308,28 @@ export const LiveSessionPage: React.FC = () => {
       setPageError('');
       if (s.status === 'COMPLETED') { navigate(`/teacher/classroom-sessions/${sessionId}/summary`, { replace: true }); return; }
       setSession(s);
+      if (s.isGapReview) setCoverage('REVIEW');
 
       // Auto-activate warm-up tab on initial start if configured
       if (!hasSetInitialTabRef.current) {
         hasSetInitialTabRef.current = true;
-        if (s.includeWarmup !== false) {
+        if (s.isGapReview) {
+          setActiveTab('presentation');
+          setGamesCategory('interactive');
+        } else if (s.includeWarmup !== false) {
           setActiveTab('warmup');
         }
       }
 
       const lessonId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
-      void loadSentencePatterns(lessonId, s.ageGroup || s.classroom?.ageGroupCode);
+      if (!s.isGapReview) void loadSentencePatterns(lessonId, s.ageGroup || s.classroom?.ageGroupCode);
 
       setLessonPlan(s.lessonPlan || null);
+
+      if (s.isGapReview) {
+        setPreviousLesson(s.lesson);
+        setWarmupVocabList(s.lesson?.vocabularyItems || []);
+      } else {
 
       // Fetch the immediately preceding lesson (bài học ngay trước đó) for Warm-up
       try {
@@ -411,6 +420,7 @@ export const LiveSessionPage: React.FC = () => {
         }
       } catch (err) {
         console.warn('Could not load warmup previous lesson data:', err);
+      }
       }
 
       // Initialise answer map for this question
@@ -598,6 +608,10 @@ export const LiveSessionPage: React.FC = () => {
     actionType?: 'applause' | 'loud_clear' | 'excellent_pronunciation' | 'correct' | 'custom',
     customMessage?: string
   ) => {
+    if (session?.isGapReview) {
+      opts = { correctDelta: opts.correctDelta, incorrectDelta: opts.incorrectDelta };
+      if (!opts.correctDelta && !opts.incorrectDelta) { showToast('Buổi ôn không cộng sao. Hãy ghi nhận câu trả lời của bé.'); return; }
+    }
     if (scoringRef.current) return;
     scoringRef.current = true;
     try {
@@ -609,6 +623,7 @@ export const LiveSessionPage: React.FC = () => {
       setScoringStudent(prev => prev && matches(prev) ? update(prev) : prev);
       const row = session?.studentScores.find(matches);
       const name = row && typeof row.student === 'object' ? row.student.name : 'bé';
+      if (session?.isGapReview) { showToast(`Đã ghi nhận câu trả lời của ${name}. Buổi ôn không cộng sao.`); return; }
       if (actionType === 'applause') sfx.playApplause(); else sfx.playStarFanfare();
       setCelebrationEffect({ show: true, type: 'stars', message: customMessage || 'Hoan hô ' + name + '! Cùng tiếp tục cố gắng nhé.', studentName: name, count: opts.stars || 0 });
       setTimeout(() => setCelebrationEffect(null), 2800);
@@ -620,12 +635,16 @@ export const LiveSessionPage: React.FC = () => {
     opts: { stars?: number; correctDelta?: number; incorrectDelta?: number },
     successMsg?: string
   ) => {
+    if (session?.isGapReview) {
+      opts = { correctDelta: opts.correctDelta, incorrectDelta: opts.incorrectDelta };
+      if (!opts.correctDelta && !opts.incorrectDelta) { showToast('Buổi ôn không cộng sao. Hãy ghi nhận câu trả lời của bé.'); return; }
+    }
     if (!studentIds.length || scoringRef.current) return;
     scoringRef.current = true;
     try {
       await classroomSessionApi.scoreBulk(sessionId, { studentIds, ...opts });
-      sfx.playStarFanfare();
-      showToast(successMsg || 'Đã lưu sao động viên cho học sinh.');
+      if (!session?.isGapReview) sfx.playStarFanfare();
+      showToast(session?.isGapReview ? 'Đã lưu câu trả lời; buổi ôn không cộng sao.' : successMsg || 'Đã lưu sao động viên cho học sinh.');
       await load();
     } catch (e: any) { showToast(e.message || 'Chưa lưu được sao. Vui lòng kiểm tra lại.'); await load(); }
     finally { scoringRef.current = false; }
@@ -825,7 +844,7 @@ export const LiveSessionPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setActiveTab('sentences')}
+            disabled={session.isGapReview} onClick={() => setActiveTab('sentences')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
               activeTab === 'sentences'
                 ? 'bg-teal-400 text-teal-950 scale-105'
@@ -1326,7 +1345,7 @@ export const LiveSessionPage: React.FC = () => {
                       </button>
                     ) : (
                       <div className="flex flex-wrap items-center gap-3">
-                        <button
+                        <button disabled={session.isGapReview}
                           type="button"
                           onClick={() => {
                             handleAwardWholeClass(1);
@@ -1381,7 +1400,7 @@ export const LiveSessionPage: React.FC = () => {
                 </h3>
 
                 <div className="space-y-2.5">
-                  <button
+                  <button disabled={session.isGapReview}
                     onClick={() => handleAwardWholeClass(1)}
                     className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-sm py-3 px-4 rounded-2xl active:scale-95 transition-all cursor-pointer"
                   >
@@ -1424,7 +1443,7 @@ export const LiveSessionPage: React.FC = () => {
                         ⭐ {spotlightStudent.stars} sao
                       </p>
                     </div>
-                    <button
+                    <button disabled={session.isGapReview}
                       onClick={() => {
                         const sid = typeof spotlightStudent.student === 'string' ? spotlightStudent.student : (spotlightStudent.student as User)._id;
                         if (sid) {
@@ -1665,14 +1684,14 @@ export const LiveSessionPage: React.FC = () => {
 
               {/* Master whole-class award buttons */}
               <div className="grid grid-cols-2 gap-2 mb-4">
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardWholeClass(1)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <Star size={14} className="fill-amber-400" />
                   <span>Cả lớp +1 ⭐</span>
                 </button>
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardWholeClass(0)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-300 hover:bg-sky-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
@@ -1717,7 +1736,7 @@ export const LiveSessionPage: React.FC = () => {
                       </div>
 
                       <div className="flex shrink-0 items-center gap-2">
-                        <button
+                        <button disabled={session.isGapReview}
                           onClick={() => {
                             void applyScore(sid, { stars: 1 });
                             showToast(`⭐ +1 Sao cho ${sName}!`);
@@ -2028,14 +2047,14 @@ export const LiveSessionPage: React.FC = () => {
 
               {/* Master whole-class award buttons */}
               <div className="grid grid-cols-2 gap-2 mb-4">
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardWholeClass(1)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
                   <Star size={14} className="fill-amber-400" />
                   <span>Cả lớp +1 ⭐</span>
                 </button>
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardWholeClass(0)}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-300 hover:bg-teal-500/30 text-xs font-black cursor-pointer active:scale-95 transition-all"
                 >
@@ -2074,7 +2093,7 @@ export const LiveSessionPage: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1">
-                        <button
+                        <button disabled={session.isGapReview}
                           onClick={() => {
                             void applyScore(sid, { stars: 1 });
                             showToast(`⭐ +1 Sao cho ${sName}!`);
@@ -2110,7 +2129,7 @@ export const LiveSessionPage: React.FC = () => {
               <div className="flex items-center gap-2 bg-slate-800/90 p-1.5 rounded-2xl border border-white/10">
                 <button
                   type="button"
-                  onClick={() => setGamesCategory('curriculum')}
+                  disabled={session.isGapReview} onClick={() => setGamesCategory('curriculum')}
                   className={`px-4 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer transition-all ${
                     gamesCategory === 'curriculum'
                       ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -2182,7 +2201,7 @@ export const LiveSessionPage: React.FC = () => {
                   👍 Đúng hay Sai
                 </button>
                 <button
-                  onClick={() => setClassroomGameMode('animal-sound')}
+                  disabled={session.isGapReview} onClick={() => setClassroomGameMode('animal-sound')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
                     classroomGameMode === 'animal-sound' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
                   }`}
@@ -2315,7 +2334,7 @@ export const LiveSessionPage: React.FC = () => {
                       {/* Action buttons */}
                       <div className="flex flex-wrap items-center justify-center gap-3">
                         {mysteryPickedStudent && (
-                          <button
+                          <button disabled={session.isGapReview}
                             type="button"
                             onClick={() => {
                               sfx.playSuccess();
@@ -2333,7 +2352,7 @@ export const LiveSessionPage: React.FC = () => {
                             <span>Thưởng bé {(mysteryPickedStudent.student as User)?.name} (+1 ⭐)</span>
                           </button>
                         )}
-                        <button
+                        <button disabled={session.isGapReview}
                           type="button"
                           onClick={() => {
                             sfx.playSuccess();
@@ -2445,7 +2464,7 @@ export const LiveSessionPage: React.FC = () => {
                         <span>Chính xác! Đó là &ldquo;{currentVocab.english}&rdquo; ({currentVocab.vietnamese})! 🎉</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
+                        <button disabled={session.isGapReview}
                           type="button"
                           onClick={() => {
                             sfx.playStarFanfare();
@@ -2581,7 +2600,7 @@ export const LiveSessionPage: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button
+                          <button disabled={session.isGapReview}
                             type="button"
                             onClick={() => {
                               sfx.playStarFanfare();
@@ -2720,7 +2739,7 @@ export const LiveSessionPage: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button
+                          <button disabled={session.isGapReview}
                             type="button"
                             onClick={() => {
                               sfx.playStarFanfare();
@@ -2840,7 +2859,7 @@ export const LiveSessionPage: React.FC = () => {
 
               {/* Master Bulk Award Button for Game */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardAllCorrect(1)}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm sm:text-base active:scale-95 cursor-pointer"
                 >
@@ -3011,7 +3030,7 @@ export const LiveSessionPage: React.FC = () => {
                   </button>
 
                   {/* Award all correct button */}
-                  <button
+                  <button disabled={session.isGapReview}
                     onClick={() => handleAwardAllCorrect(1)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm active:scale-95 cursor-pointer"
                   >
@@ -3020,7 +3039,7 @@ export const LiveSessionPage: React.FC = () => {
                   </button>
 
                   {/* Award whole class */}
-                  <button
+                  <button disabled={session.isGapReview}
                     onClick={() => handleAwardWholeClass(1)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-black text-xs sm:text-sm cursor-pointer active:scale-95"
                   >
@@ -3120,7 +3139,7 @@ export const LiveSessionPage: React.FC = () => {
                   Đã chọn {selectedStudentIds.length} bé
                 </span>
 
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardSelected({ stars: 1 }, '+1 Sao')}
                   className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-black text-xs sm:text-sm flex items-center gap-1 cursor-pointer active:scale-95"
                 >
@@ -3128,7 +3147,7 @@ export const LiveSessionPage: React.FC = () => {
                   +1 ⭐
                 </button>
 
-                <button
+                <button disabled={session.isGapReview}
                   onClick={() => handleAwardSelected({ stars: 3 }, '+3 Sao')}
                   className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-xs sm:text-sm flex items-center gap-1 cursor-pointer active:scale-95"
                 >
@@ -3164,6 +3183,7 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Spotlight / Mời phát biểu Modal ─────────────────────────────────── */}
       {spotlightStudent && (
         <SpotlightModal
+          reviewMode={session.isGapReview}
           score={
             session?.studentScores?.find((s) => {
               const sid = typeof s.student === 'string' ? s.student : (s.student as User)?._id;
@@ -3187,6 +3207,7 @@ export const LiveSessionPage: React.FC = () => {
       {/* ── Individual Scoring modal ─────────────────────────────────────────── */}
       {scoringStudent && (
         <ScoringModal
+          reviewMode={session.isGapReview}
           score={
             session?.studentScores?.find((s) => {
               const sid = typeof s.student === 'string' ? s.student : (s.student as User)?._id;
@@ -3290,7 +3311,7 @@ export const LiveSessionPage: React.FC = () => {
 
             {/* Options */}
             <div className="space-y-3">
-              <SessionClosureForm guide={session.teachingGuide} coverage={coverage} onCoverage={setCoverage} covered={goalsCovered} onCovered={setGoalsCovered} reflection={reflection} onReflection={setReflection}/>
+              <SessionClosureForm reviewOnly={session.isGapReview} guide={session.teachingGuide} coverage={coverage} onCoverage={setCoverage} covered={goalsCovered} onCovered={setGoalsCovered} reflection={reflection} onReflection={setReflection}/>
               {/* Option 1: Complete and view summary */}
               <button
                 type="button"
@@ -3495,13 +3516,31 @@ const StudentCard = ({
   );
 };
 
+const ReviewAssessmentModal = ({ name, onClose, onApply }: {
+  name: string;
+  onClose: () => void;
+  onApply: (opts: { correctDelta?: number; incorrectDelta?: number }) => void;
+}) => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+  <div role="dialog" aria-label="Ghi nhận ôn tập" className="w-full max-w-sm rounded-3xl bg-slate-900 border border-teal-500 p-6 space-y-4">
+    <h2 className="text-xl font-bold">{name} · Ôn tập</h2>
+    <p>Ghi nhận câu trả lời để theo dõi. Buổi ôn không cộng sao.</p>
+    <div className="flex gap-3">
+      <button className="rounded-xl bg-teal-700 px-4 py-3" onClick={() => onApply({ correctDelta: 1 })}>Đúng +1 lượt</button>
+      <button className="rounded-xl bg-slate-700 px-4 py-3" onClick={() => onApply({ incorrectDelta: 1 })}>Cần hỗ trợ +1 lượt</button>
+    </div>
+    <button className="rounded-xl border px-4 py-3" onClick={onClose}>Đóng</button>
+  </div>
+</div>;
+
 const SpotlightModal = ({
+  reviewMode,
   score,
   vocabPrompt,
   onClose,
   onPickAnother,
   onApply
 }: {
+  reviewMode?: boolean;
   score: StudentSessionScore;
   vocabPrompt?: string;
   onClose: () => void;
@@ -3527,6 +3566,8 @@ const SpotlightModal = ({
     setAwardKey((k) => k + 1);
     onApply(opts, actionType, celebrationText);
   };
+
+  if (reviewMode) return <ReviewAssessmentModal name={name} onClose={onClose} onApply={onApply} />;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md">
@@ -3678,10 +3719,12 @@ const SpotlightModal = ({
 };
 
 const ScoringModal = ({
+  reviewMode,
   score,
   onClose,
   onApply
 }: {
+  reviewMode?: boolean;
   score: StudentSessionScore;
   onClose: () => void;
   onApply: (
@@ -3707,6 +3750,8 @@ const ScoringModal = ({
     }
     onApply(opts, actionType, customMessage);
   };
+
+  if (reviewMode) return <ReviewAssessmentModal name={name} onClose={onClose} onApply={onApply} />;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">

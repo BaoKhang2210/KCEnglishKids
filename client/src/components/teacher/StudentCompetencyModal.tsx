@@ -136,9 +136,12 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-amber-800 font-black flex items-center gap-1">
+              <div className="px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-amber-800 font-black flex items-center gap-1.5">
                 <Star size={14} className="fill-amber-400 text-amber-800" />
                 <span>{totalStars} Sao</span>
+                <span className="text-[10px] font-bold text-slate-500">
+                  (Lớp: {stats?.classroomStars ?? stats?.classStars ?? 0} · Nhà: {stats?.homeStars ?? ((stats?.earnedStars || 0) + (stats?.bonusStars || 0) + (stats?.homePracticeStars || 0))})
+                </span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
                 <CheckCircle2 size={13} className="text-emerald-800" />

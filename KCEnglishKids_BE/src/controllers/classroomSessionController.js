@@ -5,6 +5,7 @@ const { activeScheduleFilter } = require('../services/scheduleRules');
 const ai = require('../services/aiService');
 const { lessonGuide, closureDecision } = require('../services/earlyLearning');
 const { idOf, validId, fail } = rules;
+const reviewSession = session => session.isGapReview === true || session.lessonPlan?.isGapReview === true || session.lessonPlan?.meta?.isReviewPlan === true;
 const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
 const wrap = handler => async (req, res, next) => { try { await handler(req, res); } catch (error) { next(error); } };
 async function sessionFor(req, writing = false, active = true) {
@@ -62,6 +63,7 @@ async function populateSession(item, summary = false) {
     await item.populate('summary.topPerformers', 'name avatar avatarUrl');
   }
   const data = item.toObject ? item.toObject() : item;
+  data.isGapReview = reviewSession(data);
   if (data.isGapReview && data.lesson && data.lessonPlan?.reviewFocus?.length) data.lesson.vocabularyItems = await require('../models').Vocabulary.find({ _id: { $in: data.lessonPlan.reviewFocus.map(word => word.vocabularyId).filter(Boolean) }, status: 'ACTIVE' }).lean();
   data.teachingGuide = data.teachingGuideSnapshot || lessonGuide(data.lesson, data.ageGroup);
   if (data.teachingGoals?.length) data.teachingGuide.goals = data.teachingGoals;
@@ -120,10 +122,10 @@ exports.createSession = wrap(async (req, res) => {
   if (isGapReview) {
     const rawWords = body.gapWords || plan?.reviewFocus?.map(word => word.english) || plan?.meta?.gapRemediationFocus || [];
     const names = (Array.isArray(rawWords) ? rawWords : String(rawWords).split(',')).map(word => String(word).trim().toLowerCase()).filter(Boolean);
-    if (!lesson || !names.length || names.length > 12 || new Set(names).size !== names.length) fail('Choose a lesson and 1-12 distinct review words.');
+    if (!lesson || !names.length || names.length > 12 || new Set(names).size !== names.length) fail('Chọn bài học và từ 1 đến 12 từ ôn khác nhau.');
     const report = await require('../services/classLearningGaps').buildReport(require('../models'), room);
     const focus = report.gaps.filter(word => names.includes(word.english.toLowerCase()));
-    if (names.some(name => !focus.some(word => word.english.toLowerCase() === name))) fail('Review evidence changed. Refresh class analysis.', 409);
+    if (names.some(name => !focus.some(word => word.english.toLowerCase() === name))) fail('Dữ liệu ôn tập đã thay đổi. Vui lòng tải lại phần phân tích của lớp.', 409);
     reviewVocabulary = await require('../models').Vocabulary.find({ _id: { $in: focus.map(word => word.vocabularyId) }, status: 'ACTIVE' }).lean();
     plan = ai.applyReviewFocus(ai.generateLessonPlan({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, durationMinutes: duration, vocabularyList: reviewVocabulary, sentencePatterns: [], teachingStyle: 'active_tpr' }), focus);
   } else if (!plan && lesson) plan = await ai.generateLessonPlanWithAI({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
@@ -132,7 +134,7 @@ exports.createSession = wrap(async (req, res) => {
     title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
     status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,
     isGapReview,
-    activities: activityIds, lessonPlan: plan, teachingGoals: lessonGuide(guideLesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(guideLesson,room.ageGroupCode),
+    activities: isGapReview ? [] : activityIds, lessonPlan: plan, teachingGoals: lessonGuide(guideLesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(guideLesson,room.ageGroupCode),
     studentScores: roster.map(student => ({ student, attendance: map.get(idOf(student)) || 'PRESENT' }))
   });
   if (records) {
@@ -148,7 +150,7 @@ exports.startSession = wrap(async (req, res) => {
     if (session.status === 'LIVE') return false;
     if (session.status !== 'SCHEDULED') fail('Buổi học đã kết thúc.', 409);
     const scheduledSlot = await checkTiming(req, session.classroom);
-    if (!session.isGapReview && scheduledSlot?.lesson && idOf(scheduledSlot.lesson) !== idOf(session.lesson)) fail('Bài dạy không khớp bài đã được phân trên thời khóa biểu. Vui lòng mở đúng bài theo lịch.', 409);
+    if (!reviewSession(session) && scheduledSlot?.lesson && idOf(scheduledSlot.lesson) !== idOf(session.lesson)) fail('Bài dạy không khớp bài đã được phân trên thời khóa biểu. Vui lòng mở đúng bài theo lịch.', 409);
     const room = await access.classroom(req, session.classroom, true);
     const attendance = await Attendance.findOne({ classroom: room._id, date: rules.vnDate() });
     if (!attendance) fail('Vui lòng hoàn tất điểm danh hôm nay ở phần chuẩn bị buổi dạy trước khi mở lớp.');
@@ -211,7 +213,7 @@ exports.endSession = wrap(async (req, res) => {
     const lesson = session.lesson ? await Lesson.findById(session.lesson).populate('vocabularyItems') : null;
     const guide = session.teachingGuideSnapshot || lessonGuide(lesson,session.ageGroup);
     if(session.teachingGoals?.length)guide.goals=session.teachingGoals;
-    session.teachingOutcome = closureDecision(session.isGapReview ? { ...(req.body || {}), coverage: 'REVIEW' } : req.body||{},guide,session.studentScores);
+    session.teachingOutcome = closureDecision(reviewSession(session) ? { ...(req.body || {}), coverage: 'REVIEW' } : req.body||{},guide,session.studentScores);
     session.status = 'COMPLETED'; session.endedAt = new Date(); rules.summarize(session);
   }, true);
   // Idempotent progress update and automatic advance to the next untaught curriculum lesson

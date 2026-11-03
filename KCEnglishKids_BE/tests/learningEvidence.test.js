@@ -6,8 +6,8 @@ const rules = require('../src/services/teacherRules');
 const ai = require('../src/services/aiService');
 const id = n => String(n).padStart(24, '0');
 const query = value => ({ select() { return this; }, sort() { return this; }, lean: async () => value });
-function statistics(t, { quiz = [], classroom = [], stages = [] } = {}) {
-  for (const [Model, rows] of [[M.ActivityResult, quiz], [M.Progress, []], [M.ClassroomSession, classroom], [M.UnitCompletion, []], [M.LearningEvent, stages]]) t.mock.method(Model, 'aggregate', async () => rows);
+function statistics(t, { quiz = [], classroom = [], stages = [], homePractice = [] } = {}) {
+  for (const [Model, rows] of [[M.ActivityResult, quiz], [M.Progress, []], [M.ClassroomSession, classroom], [M.UnitCompletion, []], [M.LearningEvent, stages], [M.HomePracticeCompletion, homePractice]]) if (Model) t.mock.method(Model, 'aggregate', async () => rows);
   t.mock.method(M.Progress, 'find', () => query([])); t.mock.method(M.Assignment, 'find', () => query([]));
 }
 test('a child with classroom answers but no independent practice has no practice percentage', async t => {
@@ -42,4 +42,17 @@ test('gap review rejects all star mutations including bulk while still recording
 test('unpracticed words and outsiders are not treated as measured weaknesses', () => {
   const result = ai.detectClassGaps({ students: [id(1), id(2)], vocabularies: [{ _id: id(3), english: 'teacher' }], masteryRows: [{ student: id(99), vocabulary: id(3), correctCount: 0, attemptCount: 100, masteryLevel: 1 }] });
   assert.equal(result.gaps.length, 0); assert.equal(result.unassessed.length, 1); assert.equal(result.unassessed[0].accuracyPercent, null);
+});
+test('review teaching content names every selected word without changing phase durations', () => {
+  const plan = ai.generateLessonPlan({ ageGroup: '3-4', lessonTitle: 'People at School', durationMinutes: 25, vocabularyList: [{ english: 'teacher' }, { english: 'friend' }] });
+  const focus = [{ vocabularyId: id(3), english: 'teacher' }, { vocabularyId: id(4), english: 'friend' }];
+  const reviewed = ai.applyReviewFocus(plan, focus);
+  assert.equal(reviewed.isGapReview, true);
+  assert.deepEqual(reviewed.reviewFocus, focus);
+  assert.deepEqual(reviewed.phases.map(phase => phase.durationMinutes), plan.phases.map(phase => phase.durationMinutes));
+  for (const phase of reviewed.phases.filter(phase => ['presentation', 'practice'].includes(phase.phaseId))) {
+    assert.match(phase.activities[0].teacherTalk, /teacher/);
+    assert.match(phase.activities[0].teacherTalk, /friend/);
+  }
+  assert.equal(plan.isGapReview, undefined);
 });

@@ -9,7 +9,6 @@ const {
   Activity,
   CurriculumBook,
   CurriculumUnit,
-  LearningSession,
   ActivityResult,
   Vocabulary,
   AgeGroup,
@@ -45,8 +44,8 @@ const getDashboardStats = async (req, res, next) => {
       Lesson.countDocuments({ status: 'ACTIVE' }),
       Activity.countDocuments({ status: 'ACTIVE' }),
       Vocabulary.countDocuments({ status: 'ACTIVE' }),
-      LearningSession.countDocuments(),
-      LearningSession.countDocuments({ status: 'COMPLETED' }),
+      ClassroomSession.countDocuments(),
+      ClassroomSession.countDocuments({ status: 'COMPLETED' }),
       CurriculumUnit.countDocuments({ status: 'ACTIVE' })
     ]);
 
@@ -2838,7 +2837,7 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
     }
 
     // Active schedule, recent teaching sessions, and attendance history for this class
-    const [activeSchedule, rawRecentSessions, attendanceHistory, classroomDoc, liveSessionDoc] = await Promise.all([
+    const [activeSchedule, rawRecentSessions, attendanceHistory, classroomDoc, liveSessionDoc, sessionCounts] = await Promise.all([
       Schedule.findOne({ classroom: classroom._id, isActive: true })
         .populate('weeklySlots.lesson', 'title vietnameseTitle')
         .lean(),
@@ -2866,7 +2865,11 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
         .populate('lesson', 'title vietnameseTitle')
         .populate('activities', 'title activityType questionCount')
         .populate('studentScores.student', 'name avatar')
-        .lean()
+        .lean(),
+      ClassroomSession.aggregate([
+        { $match: { classroom: classroom._id } },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ])
     ]);
 
     const enrolledStudents = classroomDoc?.students || [];
@@ -3100,6 +3103,7 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
         schedule: activeSchedule,
         todayStatus,
         recentSessions,
+        sessionCounts: { SCHEDULED: 0, LIVE: 0, COMPLETED: 0, ...Object.fromEntries(sessionCounts.map(row => [row._id, row.count])) },
         attendanceHistory,
         studentAttendanceSummary
       }

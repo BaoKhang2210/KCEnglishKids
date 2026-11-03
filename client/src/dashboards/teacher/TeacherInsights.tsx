@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { UnitObservationPanel } from '../../components/teacher/UnitObservationPanel';
 import { ArrowUpRight, BookOpen, CheckCircle2, Search, Users } from 'lucide-react';
 import { teacherApi } from '../../services/api';
+import { needsObservation } from '../../utils/learningMetrics';
 import { sortByNameVi } from '../../utils/sortStudents';
 export const TeacherAnalytics = () => {
   const [data, setData] = useState<any>(null);
@@ -24,8 +25,8 @@ export const TeacherAnalytics = () => {
   const selectedClassId = data.classes.some((room: any) => String(room._id) === classId) ? classId : (data.classes.length > 0 ? String(data.classes[0]._id) : '');
   const members = data.students.filter((s: any) => (!selectedClassId || String(s.assignedClass?._id || s.assignedClass) === selectedClassId) && data.classes.some((room: any) => String(room._id) === String(s.assignedClass?._id || s.assignedClass)));
   const assessed = members.filter((s: any) => s.stats?.hasAssessment);
-  const support = members.filter((s: any) => !s.stats?.hasAssessment || s.stats.averageScore < 60);
-  const students = sortByNameVi(members).filter((s: any) => s.name.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')) && (filter === 'ALL' || (filter === 'UNASSESSED' ? !s.stats?.hasAssessment : !s.stats?.hasAssessment || s.stats.averageScore < 60)));
+  const support = members.filter((s: any) => needsObservation(s.stats));
+  const students = sortByNameVi(members).filter((s: any) => s.name.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')) && (filter === 'ALL' || (filter === 'UNASSESSED' ? !s.stats?.hasAssessment : needsObservation(s.stats))));
   const totalAnswers = assessed.reduce((n: number, student: any) => n + (student.stats.answeredCount || 0), 0);
   const avg = totalAnswers ? Math.round(100 * assessed.reduce((n: number, student: any) => n + (student.stats.correctAnswers || 0), 0) / totalAnswers) : null;
   return <><header className="staff-page-header"><div><p className="teacher-eyebrow">QUAN SÁT ĐỂ ĐỒNG HÀNH</p><h1>Theo dõi tiến bộ</h1><p>Đọc kết quả cùng với ghi chú quan sát để chọn hoạt động phù hợp cho từng bé.</p></div><Link className="teacher-button" to="/teacher/assignments">Mở bài tập & nhận xét <ArrowUpRight size={17} /></Link></header>

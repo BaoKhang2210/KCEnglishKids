@@ -2434,7 +2434,7 @@ export const AdminClassroomsPage: React.FC = () => {
 
                   const sessionsList = curriculumData?.recentSessions || [];
                   const totalClassRoster = curriculumData?.enrolledStudents?.length || studentsList.length || 0;
-                  const totalSessionsConducted = sessionsList.length;
+                  const totalSessionsConducted = curriculumData?.sessionCounts?.COMPLETED ?? sessionsList.filter((session: any) => session.status === 'COMPLETED').length;
 
                   let totalPresentCount = 0;
                   let totalExcusedCount = 0;
@@ -2482,9 +2482,9 @@ export const AdminClassroomsPage: React.FC = () => {
                         </div>
 
                         <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 shadow-2xs">
-                          <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">Số Buổi Đã Học</p>
+                          <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">Buổi dạy đã kết thúc</p>
                           <p className="text-2xl font-black text-sky-950 mt-1">{totalSessionsConducted} buổi</p>
-                          <p className="text-[11px] font-semibold text-sky-800 mt-0.5">Đã tổ chức điểm danh</p>
+                          <p className="text-[11px] font-semibold text-sky-800 mt-0.5">Tổng của lớp, gồm cả buổi ôn tập</p>
                         </div>
 
                         <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 shadow-2xs">
