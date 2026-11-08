@@ -41,7 +41,7 @@ export const LINE_MATCH_REVEAL_ATTEMPTS: Record<LineMatchAgeGroup, number> = {
 };
 
 /** One line color per left item index (index = position of the left card). NEVER red. */
-export const LINE_COLORS = ['#FBBF24', '#38BDF8', '#34D399', '#F472B6'] as const;
+export const LINE_COLORS = ['#a00d6fff', '#38f858ff'] as const;
 
 /** Line stroke width in px (main line; a +4px halo is drawn underneath). */
 export function lineWidthForAge(ageGroup: LineMatchAgeGroup): number {

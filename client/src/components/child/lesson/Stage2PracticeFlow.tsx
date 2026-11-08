@@ -1436,9 +1436,9 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     : `${currentWordDisplayNumber}/${roundQuestions.length} words`;
 
   const turnLabel =
-    currentQ.turn === 1 ? 'Vòng 1: Nhận biết'
-    : currentQ.turn === 2 ? 'Vòng 2: Kết nối'
-    : currentQ.turn === 3 ? 'Vòng 3: Ứng dụng'
+    currentQ.turn === 1 ? 'Stage 1'
+    : currentQ.turn === 2 ? 'Stage 2'
+    : currentQ.turn === 3 ? 'Stage 3'
     : 'Ôn tập';
 
   const activityInstruction =
