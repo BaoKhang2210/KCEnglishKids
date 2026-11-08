@@ -126,13 +126,25 @@ async function completeStage(childId, lessonId, body) {
   if (stage !== 2) return { ...progress.toObject(), completedStage: stage, starsEarned: stageStarsEarned, stageStars, totalStars: Math.min(3, Number(progress.stars) || 0) };
 
   const reportService = require('../config/stage2Report');
+  const vocabReview = require('./vocabReview');
   const stage2Report = reportService.buildStage2Report(event.answers || graded.answers, words, progress, stageStarsEarned);
   if (!event.stage2Report) {
     await Event.updateOne({ _id: event._id }, { $set: { stage2Report } });
   }
-  const confirmedReport = event.stage2Report
-    ? { ...event.stage2Report, starsBest: Math.min(3, Number(progress.stars) || 0), stageStars }
-    : stage2Report;
+  // Stage 2 is one of the two writers of the Leitner schedule; quick review is
+  // the other. Both go through vocabReview so the notebook reads one source.
+  const storedReport = event.stage2Report || stage2Report;
+  const reviewSnapshots = await vocabReview.applyStage2Report({
+    childId,
+    report: storedReport,
+    ageGroup: lesson.ageGroupCode,
+    submissionId: body.submissionId
+  });
+  const confirmedReport = {
+    ...vocabReview.attachReview(storedReport, reviewSnapshots),
+    starsBest: Math.min(3, Number(progress.stars) || 0),
+    stageStars
+  };
   return {
     ...progress.toObject(),
     completedStage: stage,

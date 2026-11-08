@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Star, Volume2, X } from 'lucide-react';
 import summaryConfig from '../../../../../shared/stage2SummaryConfig.json';
 import roundsConfig from '../../../../../shared/stage2Rounds.json';
+import reviewConfig from '../../../../../shared/vocabReviewConfig.json';
 import type { AgeGroupCode, Vocabulary } from '../../../types';
 import { playWordAudio, stopWordAudio } from '../../../utils/audio';
 import { wordArt } from '../../../utils/learningArt';
 import { KokoMascot } from '../KokoMascot';
 import type { Stage2ReportRating, Stage2ReportWord, Stage2ServerReport } from './stage2ReportTypes';
-import { Stage2WordFace } from './Stage2WordFace';
-import { getStage2RoundVisualState, getStage2WordState, stage2WordStates } from './stage2WordStatusConfig';
+import { RoundMark, Stage2RoundMarks } from './Stage2RoundMarks';
+import { getStage2WordState, stage2WordStates } from './stage2WordStatusConfig';
 
 interface Props {
   vocabulary: Vocabulary[];
@@ -63,9 +64,26 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
   const weak = confirmed ? words.filter((word) => word.rating === 'PRACTICE' || word.rating === 'REVIEW').length : 0;
   const unrated = confirmed ? words.length - strong - weak : 0;
   const allStrong = confirmed && words.length > 0 && strong === words.length;
-  const showEnglish = summaryConfig[ageGroup]?.showEnglish ?? true;
+  // 3–4 year olds read pictures and shapes only; names appear from 4–5 up.
+  const showEnglish = ageGroup !== '3-4' && (summaryConfig[ageGroup]?.showEnglish ?? true);
   const showVietnamese = summaryConfig[ageGroup]?.showVietnamese ?? ageGroup === '5-6';
   const isYoungest = ageGroup === '3-4';
+  // Server owns the due date; the client only turns that day key into a short
+  // relative label using the same UTC+7 calendar the server uses.
+  const daysUntil = (dueOn?: string | null) => {
+    if (!dueOn || !/^\d{4}-\d{2}-\d{2}$/.test(dueOn)) return null;
+    const toUtc = (day: string) => Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)));
+    const offset = (reviewConfig.timezoneOffsetMinutes ?? 0) * 60000;
+    const today = new Date(Date.now() + offset).toISOString().slice(0, 10);
+    return Math.round((toUtc(dueOn) - toUtc(today)) / 86400000);
+  };
+  const dueLabel = (dueOn?: string | null) => {
+    const days = daysUntil(dueOn);
+    if (days === null) return '';
+    if (days <= 0) return 'hôm nay';
+    if (days === 1) return 'ngày mai';
+    return `${days} ngày nữa`;
+  };
 
   useEffect(() => {
     const updateColumns = () => {
@@ -107,11 +125,13 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
 
   const stateFor = (rating: Stage2ReportRating | null) => getStage2WordState(rating);
   const roundName = (round: Stage2ReportWord['rounds'][number]) => round.name || roundsConfig.find((item) => item.code === round.code)?.name || '';
+  // Older reports stored only an aggregate rating; never invent round marks.
+  const hasRoundDetail = (word: Stage2ReportWord) => word.rounds.some((round) => round.code != null);
   const description = (word: Stage2ReportWord) => {
     if (!confirmed) return `Từ ${word.english}, kết quả đang chờ xác nhận.`;
     const state = stage2WordStates[stateFor(word.rating)];
     const rounds = word.rounds.filter((round) => round.code != null)
-      .map((round) => `${roundName(round)}: ${stage2WordStates[getStage2RoundVisualState(round.rating)].label}`);
+      .map((round) => `${roundName(round)}: ${round.rating === 'SECURE' ? 'đúng ngay' : 'cần luyện thêm'}`);
     return `Từ ${word.english}, ${state.label}${rounds.length ? `. ${rounds.join('. ')}` : ''}. Mở kết quả các vòng.`;
   };
   const speakWord = (word: string, audioUrl?: string) => {
@@ -139,10 +159,8 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
     speakWord(next.english, vocab?.audioUrl);
   };
 
-  // One result grid keeps every word visible; only the latest status border changes per card.
-  // A fixed card contract keeps art inside its own bounded box and prevents content-driven sizing.
-  // Keep 72px rows on regular screens and compact rows only in short landscape viewports.
-  // The result grid is capped to five card widths and has no paging or group wrappers.
+  // One result grid keeps every word visible. The picture is the primary
+  // channel; the small mark row reports each round with a check or an X.
   const renderCard = (word: Stage2ReportWord, index: number) => {
     const state = confirmed ? stateFor(word.rating) : null;
     const art = wordArt(word.english);
@@ -158,21 +176,25 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
       type="button"
       aria-label={description(word)}
       onClick={(event) => openWord(word, event.currentTarget)}
-      className={`stage2-result-card relative grid h-full min-h-[72px] min-w-0 w-full max-h-64 justify-self-center place-items-center rounded-2xl border bg-slate-800/80 p-2 shadow-md transition-transform motion-reduce:transform-none active:scale-[0.98] focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-300 ${state ? stage2WordStates[state].cardClass : 'border-white/20 border-2'}`}
+      className={`stage2-result-card relative flex h-full min-h-[104px] min-w-0 w-full max-h-64 flex-col items-center justify-center gap-1 justify-self-center rounded-2xl border bg-slate-800/80 p-1.5 shadow-md transition-transform motion-reduce:transform-none active:scale-[0.98] focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-300 ${state ? stage2WordStates[state].cardClass : 'border-white/20 border-2'}`}
       style={{ gridColumn }}
     >
-      {state && <span className="absolute right-1 top-1 z-10 rounded-full border-2 border-slate-950/70 shadow-md ring-2 ring-white/70" title={stage2WordStates[state].label}>
-        <Stage2WordFace state={state} size="sm" />
-      </span>}
-      <span aria-hidden="true" className="absolute bottom-[32%] left-[12%] right-[24%] top-[28%] flex min-h-0 items-center justify-center overflow-hidden rounded-xl">
+      <span aria-hidden="true" className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-xl">
         {image && !badImages.has(word.wordId)
           ? <img src={image} alt="" draggable={false} onError={() => setBadImages((prev) => new Set(prev).add(word.wordId))} className={`h-full max-h-full w-full max-w-full object-contain ${state ? stage2WordStates[state].imageClass : ''}`} />
           : <Sparkles className="h-8 w-8 text-amber-300" />}
       </span>
-      {showEnglish && <span className="absolute bottom-1 left-2 max-w-[70%] truncate rounded-lg bg-slate-950/85 px-2 py-1 text-base font-black capitalize text-white drop-shadow">{word.english}</span>}
+      {showEnglish && <span className="block max-w-full truncate px-1 text-[13px] font-black capitalize leading-tight text-white drop-shadow sm:text-sm">{word.english}</span>}
+      {confirmed && hasRoundDetail(word) && (
+        <Stage2RoundMarks rounds={word.rounds} ageGroup={ageGroup} size="sm" />
+      )}
     </button>;
   };
 
+  const duePhrase = (dueOn?: string | null) => {
+    const label = dueLabel(dueOn);
+    return label ? (label === 'hôm nay' ? 'Ôn lại hôm nay' : `Ôn lại vào ${label}`) : '';
+  };
   const praise = resultSaved && !confirmed
     ? 'Kết quả đang được xác nhận.'
     : !confirmed
@@ -193,10 +215,10 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
       {confirmed && <p className="text-sm font-black text-amber-200 sm:text-base">Bé nhận 1 sao khi hoàn thành Chặng 2!</p>}
       <p className={`mx-auto max-w-3xl truncate text-base font-bold sm:text-lg ${isYoungest ? 'sr-only' : ''}`} aria-live="polite">{praise}</p>
       {confirmed && <div className="flex items-center justify-center gap-3 py-0.5">
-        <div className="flex items-center gap-2 rounded-full border border-white/15 bg-slate-800/80 px-3 py-1 text-xs font-black sm:text-sm">
-          <Stage2WordFace state="SECURE" size="sm" /><span>Nhớ rồi</span>
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-white/20" />
-          <Stage2WordFace state="REVIEW" size="sm" /><span>Luyện thêm</span>
+        <div className="flex items-center gap-3 rounded-full border border-white/15 bg-slate-800/80 px-3 py-1 text-xs font-black sm:text-sm">
+          <span className="flex items-center gap-1.5"><RoundMark round={{ rating: 'SECURE' }} ageGroup={ageGroup} size="sm" decorative /><span>Đúng ngay</span></span>
+          <span aria-hidden="true" className="h-5 w-px bg-white/20" />
+          <span className="flex items-center gap-1.5"><RoundMark round={{ rating: 'PRACTICE' }} ageGroup={ageGroup} size="sm" decorative /><span>Cần luyện thêm</span></span>
         </div>
       </div>}
       {!confirmed && resultSaved && <div className="text-sm font-bold text-amber-100" role="status">Đang chờ xác nhận · Chưa cập nhật sao</div>}
@@ -235,20 +257,31 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
           </div>
         </header>
 
-        {confirmed && <ol className="flex min-h-0 flex-1 flex-col justify-center gap-1" aria-label={`Kết quả từng vòng của từ ${selected.english}`}>
-          {selected.rounds.filter((round) => round.code != null).map((round, index) => {
-            const resultState = getStage2RoundVisualState(round.rating);
-            const name = roundName(round);
-            const accessibleResult = round.rating === 'SECURE' ? 'con làm đúng ngay' : round.rating ? 'cần luyện thêm' : 'chưa luyện';
-            return <li key={`${selected.wordId}-round-${round.code ?? index}`} aria-label={`Vòng ${round.code ?? index + 1}: ${name}, ${accessibleResult}`} className="flex min-h-16 items-center gap-3 rounded-2xl bg-slate-800/80 px-3 py-1.5">
-              <Stage2WordFace state={resultState} size="lg" label={`${name}, ${accessibleResult}`} />
-              <span className="min-w-0 flex-1">
-                <span className="block text-base font-black text-amber-200 sm:text-lg">Vòng {round.code ?? index + 1}</span>
-                <span className="block truncate text-lg font-black text-white sm:text-xl">{name}</span>
-              </span>
-            </li>;
-          })}
-        </ol>}
+        {confirmed && (hasRoundDetail(selected) ? (
+          <ol className="flex min-h-0 flex-1 flex-col justify-center gap-1" aria-label={`Kết quả từng vòng của từ ${selected.english}`}>
+            {roundsConfig.map((config) => {
+              const round = selected.rounds.find((item) => Number(item.code) === Number(config.code));
+              const name = round?.name || config.name;
+              const accessibleResult = round?.rating === 'SECURE' ? 'con làm đúng ngay' : round?.rating ? 'cần luyện thêm' : 'chưa luyện';
+              return <li key={`${selected.wordId}-round-${config.code}`} aria-label={`Vòng ${config.code}: ${name}, ${accessibleResult}`} className="flex min-h-12 items-center gap-2 rounded-2xl bg-slate-800/80 px-2 py-1 sm:min-h-16 sm:gap-3 sm:px-3 sm:py-1.5">
+                <RoundMark round={round} ageGroup={ageGroup} size="lg" decorative />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-amber-200 sm:text-base">Vòng {config.code}</span>
+                  <span className="block truncate text-lg font-black text-white sm:text-xl">{name}</span>
+                </span>
+              </li>;
+            })}
+          </ol>
+        ) : (
+          <p className="shrink-0 rounded-2xl bg-slate-800/80 px-3 py-2 text-center text-base font-bold text-slate-200">Bài cũ chỉ lưu kết quả tổng hợp.</p>
+        ))}
+
+        {confirmed && !isYoungest && selected.review?.dueOn && (
+          <p className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-sky-900/60 px-3 py-1 text-sm font-bold text-sky-100">
+            <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-sky-300" />
+            <span>{duePhrase(selected.review.dueOn)}</span>
+          </p>
+        )}
 
         <nav className="flex shrink-0 justify-between gap-3" aria-label="Chuyển từ">
           <button type="button" onClick={() => moveSelected(-1)} aria-label="Từ trước" disabled={words.findIndex((word) => word.wordId === selected.wordId) <= 0} className="grid min-h-12 min-w-12 place-items-center rounded-full bg-slate-700 disabled:opacity-40"><ChevronLeft className="h-7 w-7" /></button>

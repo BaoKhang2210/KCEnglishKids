@@ -83,6 +83,22 @@ const vocabularyMasterySchema = new mongoose.Schema(
       comment: '0=Not Started, 1=Learning, 2=Practicing, 3=Mastered'
     },
     masteryAlgorithmVersion: { type: Number, default: 1 },
+    // ─── Leitner review schedule (owned by services/vocabReview.js) ──────────
+    reviewAlgorithmVersion: { type: Number, default: 0 },
+    reviewLevel: { type: Number, default: 0, min: 0 },
+    reviewMaxLevel: { type: Number, default: 0, min: 0 },
+    reviewDueOn: { type: String, default: null },
+    reviewStatus: {
+      type: String,
+      enum: ['LEARNING', 'PRACTICE', 'REVIEW', 'MASTERED'],
+      default: 'LEARNING'
+    },
+    lastReviewOutcome: { type: String, enum: ['SECURE', 'PRACTICE', 'REVIEW', null], default: null },
+    lastReviewSubmissionId: { type: String, default: null },
+    lastRoundMarks: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    demotionCount: { type: Number, default: 0, min: 0 },
+    lastPromotionOn: { type: String, default: null },
+    lastPracticedOn: { type: String, default: null },
     lastReviewedAt: {
       type: Date,
       default: Date.now
@@ -93,10 +109,12 @@ const vocabularyMasterySchema = new mongoose.Schema(
 
 // Unique compound index — one record per student+vocabulary
 vocabularyMasterySchema.index({ student: 1, vocabulary: 1 }, { unique: true });
+vocabularyMasterySchema.index({ student: 1, reviewDueOn: 1 });
 
-// Auto-recalculate masteryLevel before saving
+// Auto-recalculate masteryLevel before saving.
+// Records managed by the Leitner module carry an explicit level.
 vocabularyMasterySchema.pre('save', function () {
-  this.masteryLevel = calculateMasteryLevel(this);
+  if (!this.reviewAlgorithmVersion) this.masteryLevel = calculateMasteryLevel(this);
   this.lastReviewedAt = new Date();
 });
 

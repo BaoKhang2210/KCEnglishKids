@@ -10,6 +10,18 @@ export interface Stage2ReportRound {
   usedHint: boolean | null;
 }
 
+export interface Stage2WordReview {
+  level: number;
+  maxLevel: number;
+  dueOn: string | null;
+  dueAt: string | null;
+  status: 'LEARNING' | 'PRACTICE' | 'REVIEW' | 'MASTERED';
+  mastered: boolean;
+  lastOutcome: Stage2ReportRating | null;
+  lastPromotionOn?: string | null;
+  demotionCount?: number;
+}
+
 export interface Stage2ReportWord {
   wordId: string;
   english: string;
@@ -18,6 +30,8 @@ export interface Stage2ReportWord {
   audioUrl?: string;
   rating: Stage2ReportRating | null;
   rounds: Stage2ReportRound[];
+  /** Server-owned Leitner snapshot attached to confirmed reports. */
+  review?: Stage2WordReview | null;
 }
 
 export interface Stage2ServerReport {

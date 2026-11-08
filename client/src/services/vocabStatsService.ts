@@ -17,6 +17,7 @@ export interface RecentAttempt {
   ok: boolean;
   independent?: boolean;
   wrongAttempts?: number;
+  submissionId?: string;
   sessionId?: string;
   type: ActivityType;
   activityId?: ActivityId;
@@ -226,7 +227,7 @@ export const vocabStatsService = {
           ok: payload.ok,
           independent: payload.isFirstTry && !payload.usedHint,
           wrongAttempts: payload.wrongAttemptCount ?? (payload.ok ? 0 : 1),
-        submissionId: payload.submissionId,
+          submissionId: payload.submissionId,
           sessionId: payload.sessionId,
           type: payload.type,
           activityId: payload.activityId,

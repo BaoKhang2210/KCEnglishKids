@@ -465,8 +465,8 @@ export function buildPracticeQuestions(
   vocabStats: Record<string, WordStats> = {},
   seenWordIds?: Set<string>,
   roundsCount: number = PRACTICE_ROUNDS_PER_LESSON,
-  unitNumber = 1,
-  lessonNumber = 1,
+  _unitNumber = 1,
+  _lessonNumber = 1,
   savedVariantByWordId: Record<string, RoundOneVariant> = {},
 ): PracticePlanConfig {
   const uniqueWords = [...new Map(vocabulary.map((word) => [

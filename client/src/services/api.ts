@@ -14,7 +14,10 @@ import type {
   VideoEpisodeProgress,
   VideoEpisodeSummary,
   VideoCue,
-  VideoProgressEvent
+  VideoProgressEvent,
+  VocabNotebook,
+  VocabDueList,
+  VocabReviewSnapshot
 } from '../types';
 
 const BASE_URL = '/api';
@@ -794,6 +797,20 @@ export const vocabMasteryApi = {
     }),
   getStudentMastery: (studentId: string) =>
     api.get(`/teacher/students/${studentId}/vocabulary-mastery`)
+};
+
+// Vocabulary review schedule (single server module for Stage 2 + quick review)
+export const vocabReviewApi = {
+  getNotebook: (childId: string) =>
+    api.get(`/children/${childId}/vocabulary-notebook`) as Promise<{ success: boolean; data: VocabNotebook }>,
+  getDue: (childId: string, limit?: number) =>
+    api.get(`/children/${childId}/vocabulary-review/due${limit ? `?limit=${limit}` : ''}`) as Promise<{ success: boolean; data: VocabDueList }>,
+  record: (
+    childId: string,
+    vocabId: string,
+    body: { isCorrect: boolean; wrongAttempts?: number; independent?: boolean; submissionId: string; activityType?: string }
+  ) =>
+    api.post(`/children/${childId}/vocabulary-review/${vocabId}`, body) as Promise<{ success: boolean; data: VocabReviewSnapshot }>
 };
 
 // Rewards API (§1.2 — server is the single source of truth)
