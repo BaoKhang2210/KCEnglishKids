@@ -12,8 +12,7 @@ function resolveLessonStars(progress, activityRating) {
   const source = progress.completionSnapshot?.source;
   const stageBased = source === 'STAGES' || progress.stage1Completed || progress.stage2Completed || progress.stage3Completed || (progress.stage3Games || []).length > 0;
   if (stageBased) {
-    // Keep historical totals visible; stage completion is the sole source for new stars.
-    return Math.min(3, Math.max(numeric(progress.stars), completedStageCount(progress)));
+    return Math.min(3, completedStageCount(progress));
   }
   const stars = source === 'CURRENT_ACTIVITIES' || source === 'LEGACY_PROGRESS'
     ? Math.max(numeric(progress.stars), activityRating?.completed ? numeric(activityRating.stars) : 0)
@@ -121,15 +120,18 @@ async function computeStarLedger(childId) {
       const stage2Completed = !!progress?.stage2Completed;
       const completedGames = [...new Set(progress?.stage3Games || [])];
       const stage3Completed = !!progress?.stage3Completed || completedGames.length >= REQUIRED_STAGE3_GAMES;
-      const completed = !!progress?.completed || (stage1Completed && stage2Completed && stage3Completed);
       const source = progress?.completionSnapshot?.source;
+      const stageBased = source === 'STAGES' || stage1Completed || stage2Completed || stage3Completed || completedGames.length > 0;
+      const completed = stageBased
+        ? (stage1Completed && stage2Completed && stage3Completed)
+        : !!progress?.completed;
       // Old activity lessons are rated once from best scores; they never stack
       // with a stage score for the same lesson.
       const rating = calculateLessonStars(activitiesByLesson.get(String(lesson._id)) || [], resultsByLesson.get(String(lesson._id)) || []);
       const stars = resolveLessonStars(progress, rating);
-      // A previously completed lesson stays available for review even if an
+      // A previously completed or already-started lesson stays available for review even if an
       // earlier lesson is incomplete (for example, after curriculum reordering).
-      const lessonUnlocked = previousUnitCompleted && (previousLessonCompleted || completed);
+      const lessonUnlocked = previousUnitCompleted && (previousLessonCompleted || completed || stageBased);
       const row = {
         id: String(lesson._id),
         lessonNumber: lessonIndex + 1,

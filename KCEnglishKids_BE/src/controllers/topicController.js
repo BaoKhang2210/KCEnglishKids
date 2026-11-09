@@ -102,10 +102,23 @@ const getLessonsByTopic = async (req, res, next) => {
     // Attach child progress if childId is provided
     let enrichedLessons = lessons;
     if (childId) {
+      const { completedStageCount } = require('../services/stageStarPolicy');
       const progressList = await Progress.find({ child: childId, topic: topic._id });
       const progressMap = {};
       progressList.forEach(p => {
-        progressMap[p.lesson.toString()] = p;
+        const raw = typeof p.toObject === 'function' ? p.toObject() : { ...p };
+        const stageBased = raw.completionSnapshot?.source === 'STAGES'
+          || raw.stage1Completed
+          || raw.stage2Completed
+          || raw.stage3Completed
+          || (raw.stage3Games || []).length > 0;
+        if (stageBased) {
+          const stage3Done = Boolean(raw.stage3Completed || new Set(raw.stage3Games || []).size >= 2);
+          raw.stage3Completed = stage3Done;
+          raw.completed = Boolean(raw.stage1Completed && raw.stage2Completed && stage3Done);
+          raw.stars = Math.min(3, completedStageCount(raw));
+        }
+        progressMap[p.lesson.toString()] = raw;
       });
 
       enrichedLessons = lessons.map(lesson => ({

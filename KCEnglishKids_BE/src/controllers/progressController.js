@@ -1,4 +1,22 @@
 const { Progress, User, ActivityResult, Lesson, Vocabulary } = require('../models');
+const { completedStageCount } = require('../services/stageStarPolicy');
+
+function normalizeStageProgress(doc) {
+  if (!doc) return doc;
+  const raw = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  const stageBased = raw.completionSnapshot?.source === 'STAGES'
+    || raw.stage1Completed
+    || raw.stage2Completed
+    || raw.stage3Completed
+    || (raw.stage3Games || []).length > 0;
+  if (stageBased) {
+    const stage3Done = Boolean(raw.stage3Completed || new Set(raw.stage3Games || []).size >= 2);
+    raw.stage3Completed = stage3Done;
+    raw.completed = Boolean(raw.stage1Completed && raw.stage2Completed && stage3Done);
+    raw.stars = Math.min(3, completedStageCount(raw));
+  }
+  return raw;
+}
 
 // @desc    Get child learning progress summary and weak words
 // @route   GET /api/children/:childId/progress
@@ -13,12 +31,13 @@ const getChildProgress = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Child not found.' });
     }
 
-    const [progressList, starLedger] = await Promise.all([Progress.find({ child: id })
+    const [rawProgressList, starLedger] = await Promise.all([Progress.find({ child: id })
       .populate('topic', 'englishName vietnameseName icon colorCode')
       .populate('lesson', 'title vietnameseTitle difficulty')
       .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl')
       .sort({ lastActivityAt: -1, updatedAt: -1 }),
     require('../services/starLedgerService').computeStarLedger(id)]);
+    const progressList = rawProgressList.map(normalizeStageProgress);
 
     // Aggregate statistics
     const weakWordsMap = {};
@@ -71,10 +90,11 @@ const getChildProgress = async (req, res, next) => {
 const getLessonProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
-    const progress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
-      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage3Completed stage3Stars stage3Games'
+    const rawProgress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
+      'completed completionSnapshot stars highestScore attempts stage1Completed stage2Completed stage2Score stage3Completed stage3Stars stage3Games'
     );
-    if (!progress) return res.status(200).json({ success: true, data: progress });
+    if (!rawProgress) return res.status(200).json({ success: true, data: rawProgress });
+    const progress = normalizeStageProgress(rawProgress);
     let stage2Report = null;
     let lesson = null;
     if (progress.stage2Completed) {
@@ -107,7 +127,7 @@ const getLessonProgress = async (req, res, next) => {
         stage2Report = vocabReview.attachReview(stage2Report, snapshots);
       }
     }
-    res.status(200).json({ success: true, data: { ...progress.toObject(), stage2Report } });
+    res.status(200).json({ success: true, data: { ...progress, stage2Report } });
   } catch (error) {
     next(error);
   }

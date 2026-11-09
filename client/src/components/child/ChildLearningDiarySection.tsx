@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpenCheck,
@@ -76,9 +76,27 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
   const [subTab, setSubTab] = useState<DiarySubTab>('lessons');
   const [lessonFilter, setLessonFilter] = useState<LessonFilter>('all');
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
+  const [unitMenuOpen, setUnitMenuOpen] = useState(false);
+  const unitMenuRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<any>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!unitMenuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!unitMenuRef.current?.contains(event.target as Node)) setUnitMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setUnitMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [unitMenuOpen]);
 
   useEffect(() => {
     let active = true;
@@ -160,31 +178,35 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
         const localCache = readLocalStageCache(childId, lessonId);
 
         const stage1Completed = Boolean(
-          serverProg?.stage1Completed || localCache.s1 || lesson.completed
+          lesson.stages?.stage1?.completed ?? (serverProg?.stage1Completed || localCache.s1)
         );
         const stage2Completed = Boolean(
-          serverProg?.stage2Completed || localCache.s2 || lesson.completed
+          lesson.stages?.stage2?.completed ?? (serverProg?.stage2Completed || localCache.s2)
         );
         const stage3Games = Array.from(
           new Set([...(serverProg?.stage3Games || []), ...localCache.games])
         );
         const stage3Completed = Boolean(
-          serverProg?.stage3Completed ||
-            localCache.s3 ||
-            stage3Games.length >= 2 ||
-            lesson.completed
+          lesson.stages?.stage3?.completed ??
+            (serverProg?.stage3Completed || localCache.s3 || stage3Games.length >= 2)
         );
-        const completed = Boolean(
-          lesson.completed ||
-            serverProg?.completed ||
-            (stage1Completed && stage2Completed && stage3Completed)
+        const hasStageData = Boolean(
+          lesson.stages ||
+            serverProg?.stage1Completed ||
+            serverProg?.stage2Completed ||
+            serverProg?.stage3Completed ||
+            stage3Games.length > 0 ||
+            localCache.s1 ||
+            localCache.s2 ||
+            localCache.s3
         );
+        const completed = hasStageData
+          ? Boolean(stage1Completed && stage2Completed && stage3Completed)
+          : Boolean(lesson.completed || serverProg?.completed);
 
-        const computedStars = Math.max(
-          Number(lesson.stars) || 0,
-          Number(serverProg?.stars) || 0,
-          (stage1Completed ? 1 : 0) + (stage2Completed ? 1 : 0) + (stage3Completed ? 1 : 0)
-        );
+        const computedStars = hasStageData
+          ? (stage1Completed ? 1 : 0) + (stage2Completed ? 1 : 0) + (stage3Completed ? 1 : 0)
+          : Math.min(3, Math.max(Number(lesson.stars) || 0, Number(serverProg?.stars) || 0));
 
         const isLessonUnlocked =
           isUnitUnlocked &&
@@ -478,8 +500,86 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
       )}
 
       {/* ── 3 SUB-TABS SWITCHER ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 rounded-2xl border-2 border-amber-200/80 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-start gap-2 bg-white p-2 rounded-2xl border-2 border-amber-200/80 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2">
+          {subTab === 'lessons' && (
+            <div ref={unitMenuRef} className="relative z-30">
+              <button
+                type="button"
+                aria-label="Lọc kết quả theo Unit"
+                aria-haspopup="listbox"
+                aria-expanded={unitMenuOpen}
+                onClick={() => {
+                  sfx.playPop();
+                  setUnitMenuOpen((open) => !open);
+                }}
+                className={`inline-flex min-h-11 max-w-[min(82vw,320px)] items-center gap-2 rounded-xl border-2 px-3 text-left shadow-xs transition-colors ${unitMenuOpen ? 'border-amber-500 bg-amber-100' : 'border-amber-300 bg-amber-50 hover:bg-amber-100'}`}
+              >
+                <BookOpenCheck className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                <span className="shrink-0 text-xs font-black text-amber-900">Chọn Unit</span>
+                <span className="min-w-0 truncate text-xs font-bold text-slate-800">
+                  {selectedUnitFilter === 'all'
+                    ? `Tất cả ${units.length} Unit`
+                    : (() => {
+                        const index = units.findIndex((unit) => String(unit._id) === selectedUnitFilter);
+                        const unit = units[index];
+                        return unit
+                          ? `Unit ${unit.unitNumber || index + 1}: ${unit.topicName || unit.storyTitle}`
+                          : `Tất cả ${units.length} Unit`;
+                      })()}
+                </span>
+                <span className={`ml-1 text-amber-800 transition-transform ${unitMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
+              </button>
+
+              {unitMenuOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Chọn Unit để xem kết quả"
+                  className="absolute left-0 top-full mt-2 max-h-72 w-[min(88vw,320px)] overflow-y-auto rounded-2xl border-2 border-amber-200 bg-white p-2 shadow-xl"
+                >
+                  <p className="px-2 pb-1 pt-1 text-[10px] font-black uppercase tracking-wider text-amber-700">Hành trình học của bé</p>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedUnitFilter === 'all'}
+                    onClick={() => {
+                      setSelectedUnitFilter('all');
+                      setUnitMenuOpen(false);
+                      sfx.playPop();
+                    }}
+                    className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-black transition-colors ${selectedUnitFilter === 'all' ? 'bg-amber-100 text-amber-950' : 'text-slate-700 hover:bg-amber-50'}`}
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-200 text-amber-800">✦</span>
+                    <span className="min-w-0 flex-1">Tất cả Unit <span className="text-xs font-bold text-slate-500">({units.length})</span></span>
+                    {selectedUnitFilter === 'all' && <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />}
+                  </button>
+                  {units.map((unit, index) => {
+                    const unitId = String(unit._id);
+                    const selected = selectedUnitFilter === unitId;
+                    return (
+                      <button
+                        key={unitId || index}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => {
+                          setSelectedUnitFilter(unitId);
+                          setUnitMenuOpen(false);
+                          sfx.playPop();
+                        }}
+                        className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-bold transition-colors ${selected ? 'bg-amber-100 text-amber-950' : 'text-slate-700 hover:bg-amber-50'}`}
+                      >
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-black ${selected ? 'bg-amber-300 text-amber-950' : 'bg-sky-100 text-sky-700'}`}>{unit.unitNumber || index + 1}</span>
+                        <span className="min-w-0 flex-1 truncate">{unit.topicName || unit.storyTitle || `Unit ${index + 1}`}</span>
+                        {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -534,23 +634,6 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
           </button>
         </div>
 
-        {/* Unit Filter Dropdown when viewing Lessons */}
-        {subTab === 'lessons' && (
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedUnitFilter}
-              onChange={(e) => setSelectedUnitFilter(e.target.value)}
-              className="rounded-xl border-2 border-amber-200 bg-amber-50/60 px-3 py-2 text-xs sm:text-sm font-black text-slate-800 outline-none"
-            >
-              <option value="all">Tất cả {units.length} Unit</option>
-              {units.map((u, idx) => (
-                <option key={u._id || idx} value={String(u._id)}>
-                  Unit {u.unitNumber || idx + 1}: {u.topicName || u.storyTitle}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {/* ── SUB-TAB 1: KẾT QUẢ TỪNG BÀI HỌC (LESSON PROGRESS & RESULTS) ── */}

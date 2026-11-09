@@ -95,13 +95,13 @@ async function completeStage(childId, lessonId, body) {
         stage3Completed: Boolean(current?.stage3Completed || stage === 3 && nextGames.size >= 2),
         stage3Games: [...nextGames],
       };
-      const nextStars = Math.max(Number(current?.stars) || 0, completedStageCount(nextState));
-      const set = { topic: lesson.topic, stars: Math.min(3, nextStars), lastActivityAt: event.createdAt };
+      const nextStars = completedStageCount(nextState);
+      const fullyComplete = Boolean(nextState.stage1Completed && nextState.stage2Completed && nextState.stage3Completed);
+      const set = { topic: lesson.topic, stars: Math.min(3, nextStars), completed: fullyComplete, lastActivityAt: event.createdAt };
       if (stage === 1) set.stage1Completed = true;
       if (stage === 2) { set.stage2Completed = true; set.stage2Score = Math.max(Number(current?.stage2Score) || 0, graded.score); }
       if (stage === 3) { set.stage3Games = [...nextGames]; if (nextState.stage3Completed) set.stage3Completed = true; }
-      const fullyComplete = nextState.stage1Completed && nextState.stage2Completed && nextState.stage3Completed;
-      if (fullyComplete) { set.completed = true; set.completionSnapshot = { source: 'STAGES', recordedAt: new Date(), activityIds: [] }; }
+      if (fullyComplete) { set.completionSnapshot = { source: 'STAGES', recordedAt: new Date(), activityIds: [] }; }
       progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId }, {
         $set: set,
         $setOnInsert: { child: childId, lesson: lessonId },

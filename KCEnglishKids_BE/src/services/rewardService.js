@@ -1,6 +1,6 @@
 const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment } = require('../models');
 const { calculateLessonStars } = require('./starService');
-const { computeStarLedger } = require('./starLedgerService');
+const { computeStarLedger, resolveLessonStars } = require('./starLedgerService');
 
 /**
  * §1.2 — Server-side reward engine.
@@ -133,7 +133,7 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
  */
 const computeRewards = async (childId) => {
   const [progressDocs, completions, classroomSessions, starLedger] = await Promise.all([
-    Progress.find({ child: childId }).select('stars completed lesson completionSnapshot'),
+    Progress.find({ child: childId }).select('stars completed lesson completionSnapshot stage1Completed stage2Completed stage3Completed stage3Games'),
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
@@ -170,16 +170,14 @@ const computeRewards = async (childId) => {
   // displayed star total now comes only from the active curriculum ledger.
   const legacyLessonStarsById = new Map();
   const legacyEarnedStars = progressDocs.reduce((sum, progress) => {
-    if (!progress.completed || !progress.lesson) return sum;
+    if (!progress.lesson) return sum;
     const key = String(progress.lesson);
     const rating = calculateLessonStars(activitiesByLesson.get(key) || [], resultsByLesson.get(key) || []);
-    const stars = progress.completionSnapshot?.source === 'STAGES' ? progress.stars : rating.completed ? rating.stars : (progress.stars || 0);
+    const stars = resolveLessonStars(progress, rating);
     legacyLessonStarsById.set(key, stars);
     return sum + stars;
   }, 0);
-  // Keep the badge counters' historical behavior; the active-curriculum
-  // completion counts live under starLedger for the journey UI.
-  const completedLessons = progressDocs.filter(progress => progress.completed).length;
+  const completedLessons = starLedger.completedLessons;
 
   let classroomStars = 0;
   for (const cs of classroomSessions) {
