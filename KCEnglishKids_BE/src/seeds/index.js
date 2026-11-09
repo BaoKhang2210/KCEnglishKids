@@ -1410,31 +1410,8 @@ async function seedDatabase() {
       content: 'Leo rất hào hứng với các hình ảnh động vật cưng, giơ tay nhiệt tình và động viên các bạn cùng bàn.'
     });
 
-    // 9.16 Class Recognition Trophy
-    await ClassRecognition.create({
-      classroom: class1._id,
-      className: class1.name,
-      kind: 'WEEK',
-      periodStart: new Date(Date.now() - 7 * 86400000),
-      periodEnd: new Date(),
-      publishedBy: teacher1._id,
-      reward: {
-        title: 'Ngôi sao chăm chỉ tuần này',
-        symbol: '⭐',
-        description: 'Bé tích cực học tập và tham gia đầy đủ buổi học',
-        suggestion: 'Dành tặng bé 1 cái ôm và lời khen từ ba mẹ!'
-      },
-      winners: [
-        {
-          child: childLeo._id,
-          name: 'Leo',
-          stars: 15
-        }
-      ],
-      ranking: [
-        { rank: 1, name: 'Leo', stars: 15 }
-      ]
-    });
+    // 9.16 Class Recognition Trophy (Published dynamically by teacher in dashboard)
+    // ClassRecognition will be generated when teachers publish awards.
 
     // =========================================================================
     // FINAL VERIFICATION REPORT (Section 20 of prompt)
