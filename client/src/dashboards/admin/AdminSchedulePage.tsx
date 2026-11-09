@@ -23,6 +23,7 @@ import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
 import { getSequentialLessonForSlot, cleanReason } from '../../utils/teachingSchedule';
 
 
+
 interface ClassroomOption {
   _id: string;
   name: string;

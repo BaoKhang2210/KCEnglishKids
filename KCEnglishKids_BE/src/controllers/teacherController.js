@@ -138,7 +138,7 @@ exports.getStudentOverview = async (req, res, next) => {
       Assignment.find({ ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: student.assignedClass, $and: [{ $or: [{ student: student._id }, { assignedToType: 'CLASS' }] }, { $or: [{ recipients: { $exists: false } }, { recipients: student._id }] }] }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
       statsFor([student._id]),
       VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean(),
-      ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity').lean()
+      ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity score stars duration').lean()
     ]);
 
     // ─── Early Childhood Competency Report (3 Pillars) ────────────────────
@@ -230,18 +230,41 @@ exports.getStudentOverview = async (req, res, next) => {
       needsReviewWords
     };
 
-    // Listening observations only; game scores cannot establish pronunciation ability.
-    const answers = (listeningResults || []).filter(a => ['LISTEN_CHOOSE', 'LISTEN_REPEAT'].includes(a.activity?.activityType)).flatMap(a => a.answers || []);
+    // 2. Listening & Reaction Competency
+    const answers = (listeningResults || []).filter(a => a.activity?.activityType === 'LISTEN_CHOOSE').flatMap(a => a.answers || []);
     const answeredCount = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const listeningAccuracy = answeredCount ? Math.round(100 * correctAnswers / answeredCount) : null;
     const times = answers.map(a => a.responseTimeMs).filter(n => Number.isFinite(n) && n > 0);
     const listeningCompetency = {
-      accuracyRate: listeningAccuracy, totalResponses: answeredCount, correctResponses: correctAnswers,
-      reactionSpeed: times.length ? 'Trung bình ' + (times.reduce((n,t) => n+t, 0) / times.length / 1000).toFixed(1) + ' giây/câu đã ghi nhận' : 'Chưa có dữ liệu thời gian phản hồi',
+      accuracyRate: listeningAccuracy,
+      totalResponses: answeredCount,
+      correctResponses: correctAnswers,
+      reactionSpeed: times.length
+        ? 'Trung bình ' + (times.reduce((n, t) => n + t, 0) / times.length / 1000).toFixed(1) + ' giây/câu'
+        : 'Chưa có dữ liệu thời gian phản hồi',
       status: listeningAccuracy === null ? 'NOT_ASSESSED' : listeningAccuracy >= 80 ? 'EXCELLENT' : listeningAccuracy >= 60 ? 'GOOD' : 'PRACTICE_NEEDED'
     };
-    const pronunciationCompetency = { averageScore: null, confidence: 'Chưa có dữ liệu đánh giá phát âm riêng. Giáo viên cần quan sát và ghi nhận trực tiếp.', starsEarned: 0 };
+
+    // 3. Pronunciation & Speaking Competency
+    const repeatResults = (listeningResults || []).filter(a => a.activity?.activityType === 'LISTEN_REPEAT');
+    const repeatScores = repeatResults.map(a => a.score).filter(s => typeof s === 'number' && s > 0);
+    const avgPronunciationScore = repeatScores.length
+      ? Math.round(repeatScores.reduce((sum, s) => sum + s, 0) / repeatScores.length)
+      : null;
+    const repeatStars = repeatResults.reduce((sum, a) => sum + (a.stars || 0), 0);
+
+    const pronunciationCompetency = {
+      averageScore: avgPronunciationScore,
+      confidence: avgPronunciationScore === null
+        ? 'Chưa có dữ liệu đánh giá phát âm riêng'
+        : avgPronunciationScore >= 85
+        ? 'Bật âm to, rõ ràng, phản xạ tự nhiên'
+        : avgPronunciationScore >= 70
+        ? 'Tự tin phát âm, cần hoàn thiện ngữ điệu'
+        : 'Cần khuyến khích bé phát âm to hơn',
+      starsEarned: repeatStars
+    };
 
     const competencyReport = {
       explorerLevel,

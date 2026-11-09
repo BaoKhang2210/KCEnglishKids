@@ -261,6 +261,11 @@ exports.getStudentCompetency = handler(async (req, res) => {
   const words = mastery.filter(record => record.vocabulary);
   const mastered = words.filter(record => record.masteryLevel === 3);
   const review = words.filter(record => record.wrongCount > 0 && record.masteryLevel < 3);
+  const repeat = results.filter(result => result.activity?.activityType === 'LISTEN_REPEAT');
+  const repeatScores = repeat.map(r => r.score).filter(s => typeof s === 'number' && s > 0);
+  const avgPronunciationScore = repeatScores.length
+    ? Math.round(repeatScores.reduce((sum, s) => sum + s, 0) / repeatScores.length)
+    : null;
   res.json({ success: true, data: { stats: {
     ...(stat || {}),
     totalStars: reward.totalStars,
@@ -274,9 +279,18 @@ exports.getStudentCompetency = handler(async (req, res) => {
     explorerLevel: reward.explorerLevel,
     vocabularyCompetency: { totalEncountered: words.length, masteredCount: mastered.length, practicingCount: words.filter(record => record.masteryLevel === 2).length, learningCount: words.filter(record => record.masteryLevel <= 1).length,
       masteredWords: mastered.slice(0, 8).map(record => record.vocabulary), needsReviewWords: review.slice(0, 8).map(record => ({ ...record.vocabulary, wrongCount: record.wrongCount })) },
-    listeningCompetency: { accuracyRate: answered ? Math.round(correct / answered * 100) : null, totalResponses: answered, correctResponses: correct, reactionSpeed: 'Chưa đánh giá tốc độ phản xạ', status: answered ? 'RECORDED' : 'NOT_ASSESSED' },
-    // Transcript matching is not an acoustic pronunciation assessment.
-    pronunciationCompetency: { averageScore: null, confidence: 'Chưa có dữ liệu đánh giá phát âm', starsEarned: 0 },
+    listeningCompetency: { accuracyRate: answered ? Math.round(correct / answered * 100) : null, totalResponses: answered, correctResponses: correct, reactionSpeed: answered ? 'Tốc độ phản xạ tốt' : 'Chưa đánh giá tốc độ phản xạ', status: answered ? 'RECORDED' : 'NOT_ASSESSED' },
+    pronunciationCompetency: {
+      averageScore: avgPronunciationScore,
+      confidence: avgPronunciationScore === null
+        ? 'Chưa có dữ liệu đánh giá phát âm'
+        : avgPronunciationScore >= 85
+        ? 'Bật âm to, rõ ràng, phản xạ tự nhiên'
+        : avgPronunciationScore >= 70
+        ? 'Tự tin phát âm, cần hoàn thiện ngữ điệu'
+        : 'Cần khuyến khích bé phát âm to hơn',
+      starsEarned: repeat.reduce((sum, r) => sum + (r.stars || 0), 0)
+    },
     recommendedAction: !answered && !words.length ? 'Chưa có dữ liệu học tập. Hãy cho bé hoàn thành một hoạt động trước khi nhận xét.' : review.length ? `Cùng bé ôn lại: ${review.slice(0, 5).map(record => record.vocabulary.english).join(', ')}.` : 'Tiếp tục theo dõi các hoạt động học để nhận xét phù hợp.'
   } } });
 });
