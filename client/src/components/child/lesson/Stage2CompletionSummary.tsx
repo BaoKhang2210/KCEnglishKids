@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Star, Volume2, X } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Star, Volume2, X } from 'lucide-react';
 import summaryConfig from '../../../../../shared/stage2SummaryConfig.json';
 import roundsConfig from '../../../../../shared/stage2Rounds.json';
 import reviewConfig from '../../../../../shared/vocabReviewConfig.json';
@@ -8,7 +8,7 @@ import { playWordAudio, stopWordAudio } from '../../../utils/audio';
 import { wordArt } from '../../../utils/learningArt';
 import { KokoMascot } from '../KokoMascot';
 import type { Stage2ReportRating, Stage2ReportWord, Stage2ServerReport } from './stage2ReportTypes';
-import { RoundMark, Stage2RoundMarks } from './Stage2RoundMarks';
+import { RoundMark } from './Stage2RoundMarks';
 import { getStage2WordState, stage2WordStates } from './stage2WordStatusConfig';
 
 interface Props {
@@ -23,21 +23,10 @@ interface Props {
   onPractice: () => void;
 }
 
-const STAGE2_CARD_MAX_WIDTH = 256;
-const STAGE2_GRID_GAP = 8;
-const STAGE2_MAX_GRID_WIDTH = 5 * STAGE2_CARD_MAX_WIDTH + 4 * STAGE2_GRID_GAP;
-const getStage2GridColumnCount = () => {
-  if (typeof window === 'undefined') return 3;
-  if (window.innerWidth < 320) return 2;
-  if (window.innerWidth < 600) return 3;
-  return 5;
-};
-
 export const Stage2CompletionSummary: React.FC<Props> = ({
   vocabulary, ageGroup, report, resultSaved, isSaving, errorMessage, onSync, onContinue, onPractice,
 }) => {
   const confirmed = Boolean(report?.confirmed);
-  const [gridColumns, setGridColumns] = useState(getStage2GridColumnCount);
   const [selected, setSelected] = useState<Stage2ReportWord | null>(null);
   const [badImages, setBadImages] = useState<Set<string>>(() => new Set());
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -64,8 +53,6 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
   const weak = confirmed ? words.filter((word) => word.rating === 'PRACTICE' || word.rating === 'REVIEW').length : 0;
   const unrated = confirmed ? words.length - strong - weak : 0;
   const allStrong = confirmed && words.length > 0 && strong === words.length;
-  // 3–4 year olds read pictures and shapes only; names appear from 4–5 up.
-  const showEnglish = ageGroup !== '3-4' && (summaryConfig[ageGroup]?.showEnglish ?? true);
   const showVietnamese = summaryConfig[ageGroup]?.showVietnamese ?? ageGroup === '5-6';
   const isYoungest = ageGroup === '3-4';
   // Server owns the due date; the client only turns that day key into a short
@@ -84,19 +71,6 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
     if (days === 1) return 'ngày mai';
     return `${days} ngày nữa`;
   };
-
-  useEffect(() => {
-    const updateColumns = () => {
-      const nextColumns = getStage2GridColumnCount();
-      setGridColumns((current) => current === nextColumns ? current : nextColumns);
-    };
-    window.addEventListener('resize', updateColumns);
-    window.addEventListener('orientationchange', updateColumns);
-    return () => {
-      window.removeEventListener('resize', updateColumns);
-      window.removeEventListener('orientationchange', updateColumns);
-    };
-  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -159,36 +133,42 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
     speakWord(next.english, vocab?.audioUrl);
   };
 
-  // One result grid keeps every word visible. The picture is the primary
-  // channel; the small mark row reports each round with a check or an X.
-  const renderCard = (word: Stage2ReportWord, index: number) => {
+  // One result list keeps every word visible: picture + name on the left,
+  // a green tick count for rounds done right and a red cross count for rounds needing practice.
+  const renderRow = (word: Stage2ReportWord) => {
     const state = confirmed ? stateFor(word.rating) : null;
     const art = wordArt(word.english);
     const image = word.imageUrl || art?.url || '';
-    const lastRowCount = words.length % gridColumns;
-    const lastRowStart = words.length - lastRowCount;
-    const gridColumn = lastRowCount > 0 && index >= lastRowStart
-      ? Math.floor((gridColumns - lastRowCount) / 2) + (index - lastRowStart) + 1
-      : undefined;
-    return <button
-      key={word.wordId}
-      ref={(element) => { if (element && selected?.wordId === word.wordId) triggerRef.current = element; }}
-      type="button"
-      aria-label={description(word)}
-      onClick={(event) => openWord(word, event.currentTarget)}
-      className={`stage2-result-card relative flex h-full min-h-[104px] min-w-0 w-full max-h-64 flex-col items-center justify-center gap-1 justify-self-center rounded-2xl border bg-slate-800/80 p-1.5 shadow-md transition-transform motion-reduce:transform-none active:scale-[0.98] focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-300 ${state ? stage2WordStates[state].cardClass : 'border-white/20 border-2'}`}
-      style={{ gridColumn }}
-    >
-      <span aria-hidden="true" className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-xl">
-        {image && !badImages.has(word.wordId)
-          ? <img src={image} alt="" draggable={false} onError={() => setBadImages((prev) => new Set(prev).add(word.wordId))} className={`h-full max-h-full w-full max-w-full object-contain ${state ? stage2WordStates[state].imageClass : ''}`} />
-          : <Sparkles className="h-8 w-8 text-amber-300" />}
-      </span>
-      {showEnglish && <span className="block max-w-full truncate px-1 text-[13px] font-black capitalize leading-tight text-white drop-shadow sm:text-sm">{word.english}</span>}
-      {confirmed && hasRoundDetail(word) && (
-        <Stage2RoundMarks rounds={word.rounds} ageGroup={ageGroup} size="sm" />
-      )}
-    </button>;
+    const playedRounds = word.rounds.filter((round) => round.code != null);
+    const secureCount = playedRounds.filter((round) => round.rating === 'SECURE').length;
+    const wrongCount = playedRounds.length - secureCount;
+    return <li key={word.wordId} className="w-full">
+      <button
+        ref={(element) => { if (element && selected?.wordId === word.wordId) triggerRef.current = element; }}
+        type="button"
+        aria-label={description(word)}
+        onClick={(event) => openWord(word, event.currentTarget)}
+        className={`flex w-full min-h-[68px] items-center gap-3 rounded-3xl border bg-slate-800/80 px-3 py-1.5 text-left shadow-md transition-transform motion-reduce:transform-none active:scale-[0.99] focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-300 ${state ? stage2WordStates[state].cardClass : 'border-white/20 border-2'}`}
+      >
+        <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl sm:h-16 sm:w-16">
+          {image && !badImages.has(word.wordId)
+            ? <img src={image} alt="" draggable={false} onError={() => setBadImages((prev) => new Set(prev).add(word.wordId))} className={`max-h-full max-w-full object-contain ${state ? stage2WordStates[state].imageClass : ''}`} />
+            : <Sparkles className="h-7 w-7 text-amber-300" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-lg font-black capitalize leading-tight text-white sm:text-xl">{word.english}</span>
+          {showVietnamese && word.vietnamese ? <span className="block truncate text-xs font-bold text-slate-300 sm:text-sm">{word.vietnamese}</span> : null}
+        </span>
+        {confirmed && (hasRoundDetail(word) ? (
+          <span aria-label={`${secureCount} vòng đúng ngay, ${wrongCount} vòng cần luyện thêm`} className="flex shrink-0 items-center gap-1.5">
+            <span aria-hidden="true" className="flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-sm font-black text-white"><Check className="h-3.5 w-3.5" strokeWidth={3} />{secureCount}</span>
+            {wrongCount > 0 && <span aria-hidden="true" className="flex items-center gap-1 rounded-full bg-rose-400 px-2 py-0.5 text-sm font-black text-white"><X className="h-3.5 w-3.5" strokeWidth={3} />{wrongCount}</span>}
+          </span>
+        ) : (
+          <span className="shrink-0 rounded-full border border-white/15 bg-slate-700/60 px-2.5 py-1 text-xs font-black text-slate-200">{stage2WordStates[stateFor(word.rating)].label}</span>
+        ))}
+      </button>
+    </li>;
   };
 
   const duePhrase = (dueOn?: string | null) => {
@@ -226,8 +206,11 @@ export const Stage2CompletionSummary: React.FC<Props> = ({
 
     <main className="flex min-h-0 flex-1 flex-col gap-1 px-2 pb-1 sm:px-4" aria-label="Từ trong bài học">
       {errorMessage && !confirmed && <p data-stage2-error role="status" className="shrink-0 truncate text-center text-sm font-bold text-amber-100">{errorMessage}</p>}
-      <div className="stage2-result-grid grid min-h-0 flex-1 content-center justify-items-center gap-2 self-center" style={{ width: '100%', maxWidth: STAGE2_MAX_GRID_WIDTH, gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }}>
-        {words.map(renderCard)}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* min-h-full keeps rows centered when they fit and scrollable from the top when they don't. */}
+        <ul className="mx-auto grid min-h-full w-full max-w-6xl content-center grid-cols-2 gap-2 px-1 sm:gap-3 sm:px-2">
+          {words.map(renderRow)}
+        </ul>
       </div>
     </main>
 

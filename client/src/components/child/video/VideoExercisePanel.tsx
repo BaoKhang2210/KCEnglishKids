@@ -12,29 +12,48 @@ import {
 } from 'lucide-react';
 import type { VideoCue } from '../../../types';
 import { playWordAudio, sfx, stopWordAudio } from '../../../utils/audio';
-import { buildLessonExercises, comprehensionPrompt, type VideoChoiceExercise } from './videoLibraryUtils';
+import {
+  buildLessonExercises,
+  buildSegmentExercises,
+  comprehensionPrompt,
+  type VideoChoiceExercise,
+  type VideoSegmentExercise
+} from './videoLibraryUtils';
 
 interface VideoExercisePanelProps {
   title: string;
   cues: VideoCue[];
-  /** YouTube captions stay inside the embed, so quizzes cannot be generated. */
+  /**
+   * YouTube captions stay inside the embed, so text quizzes cannot be
+   * generated; the panel then falls back to segment-listening questions that
+   * play a numbered slot from the embedded video.
+   */
   captionsInVideo?: boolean;
+  /** Numbered sentence slots used for segment-listening questions. */
+  segmentCues?: VideoCue[];
+  /** Plays one sentence slot through the embedded video. */
+  onPlaySegment?: (cue: VideoCue) => void;
 }
 
+type QuizQuestion = VideoChoiceExercise | VideoSegmentExercise;
 type AnswerPhase = 'idle' | 'retry' | 'correct' | 'revealed';
 
 export const VideoExercisePanel: React.FC<VideoExercisePanelProps> = ({
   title,
   cues,
-  captionsInVideo = false
+  captionsInVideo = false,
+  segmentCues = [],
+  onPlaySegment
 }) => {
-  const questions = useMemo(
-    () =>
-      buildLessonExercises(title, cues).filter(
-        (exercise): exercise is VideoChoiceExercise => exercise.kind === 'choice'
-      ),
-    [title, cues]
-  );
+  const questions = useMemo<QuizQuestion[]>(() => {
+    const choices = buildLessonExercises(title, cues).filter(
+      (exercise): exercise is VideoChoiceExercise => exercise.kind === 'choice'
+    );
+    if (choices.length > 0) return choices;
+    if (captionsInVideo) return buildSegmentExercises(segmentCues);
+    return [];
+  }, [title, cues, captionsInVideo, segmentCues]);
+  const segmentMode = questions.length > 0 && questions[0].kind === 'segment';
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [attempts, setAttempts] = useState(0);
@@ -59,11 +78,12 @@ export const VideoExercisePanel: React.FC<VideoExercisePanelProps> = ({
     if (!question) return;
     setPlaying(true);
     try {
-      await playWordAudio(question.cue.text);
+      if (segmentMode) onPlaySegment?.(question.cue);
+      else await playWordAudio(question.cue.text);
     } finally {
       setPlaying(false);
     }
-  }, [question]);
+  }, [onPlaySegment, question, segmentMode]);
 
   // Read the sentence out loud as soon as each question opens.
   useEffect(() => {
@@ -145,11 +165,11 @@ export const VideoExercisePanel: React.FC<VideoExercisePanelProps> = ({
         <div className="max-w-md">
           <Headphones className="mx-auto h-10 w-10 text-slate-300" aria-hidden="true" />
           <h2 id="video-exercise-heading" className="mt-2 text-[17px] font-black text-slate-800">
-            {captionsInVideo ? 'Video này chơi trực tiếp cùng phụ đề' : 'Bài này chưa có câu hỏi trắc nghiệm'}
+            {captionsInVideo ? 'Bài này chưa đủ câu để chơi' : 'Bài này chưa có câu hỏi trắc nghiệm'}
           </h2>
           <p className="mt-1 text-[13px] font-bold leading-relaxed text-slate-500">
             {captionsInVideo
-              ? 'Phụ đề YouTube hiển thị ngay trong khung phát nên chưa tạo được câu hỏi trắc nghiệm. Bé luyện đọc từng câu ở tab Nghe video nhé!'
+              ? 'Video này có ít hơn 3 câu nên chưa tạo được câu hỏi nghe. Bé luyện đọc từng câu ở tab Nghe video nhé!'
               : 'Bé cần ít nhất 3 câu phụ đề để chơi. Bé xem video thêm rồi quay lại nhé!'}
           </p>
           <p className="mt-3 rounded-xl bg-sky-50 px-3 py-2 text-[12px] font-bold leading-relaxed text-sky-800">
@@ -245,10 +265,12 @@ export const VideoExercisePanel: React.FC<VideoExercisePanelProps> = ({
       <div className="custom-scrollbar mt-3 min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center py-2">
           <p className="text-center text-[15px] font-black leading-relaxed text-slate-700 sm:text-[17px]">
-            Bé hãy nghe và chọn đúng câu vừa nghe:
+            {segmentMode ? 'Bé hãy nghe đoạn video rồi chọn đúng câu vừa nghe:' : 'Bé hãy nghe và chọn đúng câu vừa nghe:'}
           </p>
           <p className="mt-1 text-center text-[12px] font-bold text-slate-400">
-            Bấm nút xanh ở trên để nghe lại câu hỏi bất cứ lúc nào.
+            {segmentMode
+              ? 'Bấm nút xanh để nghe lại đoạn đó trên video bất cứ lúc nào.'
+              : 'Bấm nút xanh ở trên để nghe lại câu hỏi bất cứ lúc nào.'}
           </p>
 
           <div className="mt-4 grid gap-2">

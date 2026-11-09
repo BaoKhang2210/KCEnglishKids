@@ -41,6 +41,7 @@ import type {
 import {
   activitySummary,
   buildLessonExercises,
+  buildSegmentExercises,
   estimateSentenceCues,
   formatCueTimestamp
 } from '../../components/child/video/videoLibraryUtils';
@@ -164,13 +165,6 @@ export const VideoWatchPage: React.FC = () => {
     const summary = activitySummary(item.progress);
     return summary.total > 0 ? summary.done >= summary.total : item.progress.completed;
   }).length;
-  const exerciseTotal = useMemo(
-    () =>
-      episode
-        ? buildLessonExercises(episode.title, cues).filter((item) => item.kind === 'choice').length
-        : 0,
-    [episode, cues]
-  );
   const dubbingAvailable = Boolean(episode?.canDubbing && episode?.dubbingVideoUrl);
   /**
    * YouTube lessons keep their caption text inside the embed, so the sentence
@@ -186,6 +180,11 @@ export const VideoWatchPage: React.FC = () => {
     return estimateSentenceCues(count, start, end);
   }, [cues, episode]);
   const cueCount = sentenceCues.length > 0 ? sentenceCues.length : Number(episode?.captionCueCount) || 0;
+  const exerciseTotal = useMemo(() => {
+    if (!episode) return 0;
+    if (episode.source === 'youtube') return buildSegmentExercises(sentenceCues).length;
+    return buildLessonExercises(episode.title, cues).filter((item) => item.kind === 'choice').length;
+  }, [episode, cues, sentenceCues]);
 
   const applyProgress = useCallback((data: VideoEpisodeProgress) => {
     setProgress(data);
@@ -552,10 +551,17 @@ export const VideoWatchPage: React.FC = () => {
    * YouTube keeps the player on stage while reading or speaking so every
    * sentence marker can seek the embed. Other lessons hide it in focus modes.
    */
-  const focusMode = (readMode && !isYouTubeEpisode) || (speakMode && !isYouTubeEpisode) || exerciseMode;
+  /**
+   * YouTube lessons keep the player mounted in every tab: the sentence grid
+   * seeks the embed while reading, the speaking studio samples from it, and
+   * the segment quiz plays numbered slots through it. Licensed lessons hide
+   * the player in the three focus tabs because their panels carry text.
+   */
+  const focusMode = !isYouTubeEpisode && (readMode || speakMode || exerciseMode);
   const showSentencePanel = activeTab === 'listen' || (isYouTubeEpisode && readMode);
   const showSpeakPanel = isYouTubeEpisode && speakMode;
-  const sidePanelOpen = showSentencePanel || showSpeakPanel;
+  const showExercisePanel = isYouTubeEpisode && exerciseMode;
+  const sidePanelOpen = showSentencePanel || showSpeakPanel || showExercisePanel;
 
   return (
     <ScreenShell activeTab="videos" onTabChange={goTab} hideBottomNav>
@@ -918,9 +924,14 @@ export const VideoWatchPage: React.FC = () => {
                           : 'Chưa có câu phụ đề'}
                       </span>
                       {focusCue && !focusCue.text && (
-                        <span className="mt-1 block text-[11px] font-black tabular-nums text-slate-500">
-                          {formatCueTimestamp(focusCue.start)} – {formatCueTimestamp(focusCue.end)}
-                        </span>
+                        <>
+                          <span className="mt-1 block text-[11px] font-black tabular-nums text-slate-500">
+                            {formatCueTimestamp(focusCue.start)} – {formatCueTimestamp(focusCue.end)}
+                          </span>
+                          <span className="mt-1 block text-[11px] font-bold text-sky-700">
+                            Lời câu này hiện ngay trên video — phụ đề đã được bật sẵn.
+                          </span>
+                        </>
                       )}
                     </button>
                   </div>
@@ -935,6 +946,19 @@ export const VideoWatchPage: React.FC = () => {
                       doneIdx={currentProgress?.speakIdx || []}
                       onSpeakCue={markSpoken}
                       onPlaySample={playCue}
+                    />
+                  </div>
+                )}
+
+                {showExercisePanel && (
+                  <div className="min-w-0">
+                    <VideoExercisePanel
+                      key={`${episode._id}-exercise`}
+                      title={episode.title}
+                      cues={cues}
+                      captionsInVideo={isYouTubeEpisode}
+                      segmentCues={sentenceCues}
+                      onPlaySegment={playCue}
                     />
                   </div>
                 )}
