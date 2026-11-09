@@ -848,207 +848,209 @@ export const AdminSchedulePage: React.FC = () => {
           </div>
         </div>
       ) : viewMode === 'grid' ? (
-        /* ── WEEKLY GRID VIEW ────────────────────────────────────────────── */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
-          {currentWeekDays.map((day) => {
-            const daySlots = timetableByDay[day.dayNum] || [];
-            const isToday = day.isToday;
+        /* ── WEEKLY GRID VIEW (HORIZONTALLY SCROLLABLE TO PRESERVE READABILITY) ── */
+        <div className="overflow-x-auto pb-4 -mx-1 px-1">
+          <div className="grid grid-cols-7 gap-3.5 min-w-[1380px]">
+            {currentWeekDays.map((day) => {
+              const daySlots = timetableByDay[day.dayNum] || [];
+              const isToday = day.isToday;
 
-            return (
-              <div
-                key={day.dayNum}
-                className={`rounded-3xl border transition-all flex flex-col min-h-[380px] overflow-hidden ${
-                  isToday
-                    ? 'bg-indigo-700 border-indigo-700 ring-4 ring-indigo-500/25 shadow-lg'
-                    : 'bg-white border-slate-200/90'
-                }`}
-              >
-                {/* Day Header */}
+              return (
                 <div
-                  className={`p-4 border-b flex items-center justify-between ${
-                    isToday ? 'bg-indigo-700 border-indigo-600/60 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
+                  key={day.dayNum}
+                  className={`rounded-3xl border transition-all flex flex-col min-h-[400px] overflow-hidden ${
+                    isToday
+                      ? 'bg-indigo-700 border-indigo-700 ring-4 ring-indigo-500/25 shadow-lg'
+                      : 'bg-white border-slate-200/90'
                   }`}
                 >
-                  <div className="flex flex-col">
-                    <span className="font-black text-base">{day.dayName}</span>
-                    <span className={`text-[11px] font-bold ${isToday ? 'text-indigo-200' : 'text-slate-500'}`}>
-                      {day.shortDate}
-                    </span>
-                  </div>
-                  {(() => {
-                    const dayCancelledCount = daySlots.filter(({ schedule }) => {
-                      const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
-                      return sessions.some((sess: any) => {
-                        const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
-                        if (sessCId !== cId || sess.status !== 'CANCELLED') return false;
-                        const sDate = sess.startedAt ? sess.startedAt.slice(0, 10) : (sess.createdAt ? sess.createdAt.slice(0, 10) : '');
-                        return sDate === day.dateString;
-                      });
-                    }).length;
-
-                    return (
-                      <div className="flex flex-col items-end gap-1">
-                        {isToday ? (
-                          <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-2.5 py-0.5 rounded-full border border-white/20">
-                            Hôm nay
-                          </span>
-                        ) : (
-                          <span className="text-xs font-bold text-slate-500">
-                            {daySlots.length} ca
-                          </span>
-                        )}
-                        {dayCancelledCount > 0 && (
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
-                              isToday ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-900 border border-amber-300'
-                            }`}
-                            title={`Có ${dayCancelledCount} ca báo nghỉ`}
-                          >
-                            🚫 {dayCancelledCount} nghỉ
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Day Slots Body */}
-                <div className={`p-3 flex-1 overflow-y-auto space-y-2.5 ${isToday ? 'bg-indigo-700' : ''}`}>
-                  {daySlots.length === 0 ? (
-                    <div className="h-full flex items-center justify-center p-4 text-center">
-                      <span className={`text-xs font-semibold italic ${isToday ? 'text-indigo-200' : 'text-slate-600'}`}>
-                        Không có ca học
+                  {/* Day Header */}
+                  <div
+                    className={`p-4 border-b flex items-center justify-between ${
+                      isToday ? 'bg-indigo-700 border-indigo-600/60 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-black text-base">{day.dayName}</span>
+                      <span className={`text-[11px] font-bold ${isToday ? 'text-indigo-200' : 'text-slate-500'}`}>
+                        {day.shortDate}
                       </span>
                     </div>
-                  ) : (
-                    daySlots.map(({ schedule, slot }, sIdx) => {
-                      const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
-                      const cName =
-                        typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp học';
-                      const tName =
-                        typeof schedule.teacher === 'object' ? schedule.teacher?.name : 'Chưa phân công';
-                      const isLive = isSlotLiveNow(day.dayNum, slot.startTime, slot.endTime, isToday);
+                    {(() => {
+                      const dayCancelledCount = daySlots.filter(({ schedule }) => {
+                        const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
+                        return sessions.some((sess: any) => {
+                          const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
+                          if (sessCId !== cId || sess.status !== 'CANCELLED') return false;
+                          const sDate = sess.startedAt ? sess.startedAt.slice(0, 10) : (sess.createdAt ? sess.createdAt.slice(0, 10) : '');
+                          return sDate === day.dateString;
+                        });
+                      }).length;
 
                       return (
-                        <div
-                          key={`${schedule._id}-${sIdx}`}
-                          className={`p-3.5 rounded-2xl border transition-all group relative ${
-                            isToday
-                              ? 'bg-white border-white/90 shadow-md text-slate-900'
-                              : `${theme.bg} ${theme.border}`
-                          }`}
-                        >
-                          {/* Live Now glowing badge */}
-                          {isLive && (
-                            <div className="flex items-center gap-1.5 mb-1.5 px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
-                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                              <span>ĐANG TRONG GIỜ DẠY</span>
-                            </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {isToday ? (
+                            <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-2.5 py-0.5 rounded-full border border-white/20">
+                              Hôm nay
+                            </span>
+                          ) : (
+                            <span className="text-xs font-bold text-slate-500">
+                              {daySlots.length} ca
+                            </span>
                           )}
-
-                          <div className="flex items-start justify-between gap-1.5 mb-1.5">
-                            <span className="text-xs font-black text-slate-900 break-words leading-tight flex-1" title={cName}>
-                              {cName}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditModal(schedule)}
-                              className="text-slate-400 hover:text-indigo-800 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100 shrink-0"
-                              title="Sửa lịch"
+                          {dayCancelledCount > 0 && (
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                                isToday ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                              }`}
+                              title={`Có ${dayCancelledCount} ca báo nghỉ`}
                             >
-                              <Edit2 size={13} />
-                            </button>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-black text-indigo-800 mb-1">
-                            <span className="flex items-center gap-1">
-                              <Clock size={13} className="shrink-0" />
-                              <span>
-                                {slot.startTime} – {slot.endTime}
-                              </span>
+                              🚫 {dayCancelledCount} nghỉ
                             </span>
-                            {slot.room && (
-                              <span className="text-[10px] text-slate-600 font-bold bg-black/5 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                <MapPin size={10} />
-                                <span>{slot.room}</span>
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-xs text-slate-700 font-semibold break-words leading-tight mb-1" title={tName}>
-                            GV: <strong className="font-black text-slate-900">{tName}</strong>
-                          </p>
-
-                          {/* Attached Lesson Badge or Cancelled Status */}
-                          {(() => {
-                            const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
-                            const matchedCancelled = sessions.find((sess: any) => {
-                              const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
-                              if (sessCId !== cId) return false;
-                              if (sess.status !== 'CANCELLED') return false;
-                              const sDate = sess.startedAt ? sess.startedAt.slice(0, 10) : (sess.createdAt ? sess.createdAt.slice(0, 10) : '');
-                              return sDate === day.dateString;
-                            });
-
-                            if (matchedCancelled) {
-                              return (
-                                <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 border border-amber-300 whitespace-nowrap">
-                                      🚫 Đã báo nghỉ
-                                    </span>
-                                  </div>
-                                  <p className="text-[11px] font-bold text-amber-950 leading-tight">
-                                    Lý do: <span className="underline font-black">{matchedCancelled.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
-                                  </p>
-                                  {matchedCancelled.cancellationNote && (
-                                    <p className="text-[10px] text-amber-800 italic leading-snug">"{matchedCancelled.cancellationNote}"</p>
-                                  )}
-                                  <p className="text-[10px] text-amber-800/90 font-medium">
-                                    ⭐ Bài học được bảo lưu
-                                  </p>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      if (!window.confirm(`Khôi phục ca học cho lớp ${cName}? Lớp sẽ được mở lại lịch dạy bình thường.`)) return;
-                                      try {
-                                        await classroomSessionApi.restoreCancelledSession(matchedCancelled._id);
-                                        showAlert('success', 'Đã hủy báo nghỉ và mở lại lịch học bình thường');
-                                        await fetchData();
-                                      } catch (err: any) {
-                                        showAlert('error', err?.message || 'Không thể khôi phục');
-                                      }
-                                    }}
-                                    className="mt-1 w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 px-1.5 text-[11px] font-black transition-colors cursor-pointer flex items-center justify-center gap-1 active:scale-95"
-                                    title="Hủy báo nghỉ và mở lại lịch dạy ca này"
-                                  >
-                                    <span>↩</span>
-                                    <span>Hủy báo nghỉ</span>
-                                  </button>
-                                </div>
-                              );
-                            }
-
-                            const classLessons = classSyllabusMap[cId] || [];
-                            const seq = getSequentialLessonForSlot(schedule, slot, day.dateString, classLessons, 'sequential');
-                            const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
-                            return displayName ? (
-                              <div className="mt-2 p-2 rounded-xl bg-indigo-50/90 text-indigo-950 border border-indigo-200/90 flex items-start gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0 mt-1" />
-                                <div className="text-[11px] font-black break-words leading-snug">
-                                  <span className="text-indigo-700">Bài {seq.lessonNumber}:</span> {displayName}
-                                </div>
-                              </div>
-                            ) : null;
-                          })()}
+                          )}
                         </div>
                       );
-                    })
-                  )}
+                    })()}
+                  </div>
+
+                  {/* Day Slots Body */}
+                  <div className={`p-3 flex-1 overflow-y-auto space-y-2.5 ${isToday ? 'bg-indigo-700' : ''}`}>
+                    {daySlots.length === 0 ? (
+                      <div className="h-full flex items-center justify-center p-4 text-center">
+                        <span className={`text-xs font-semibold italic ${isToday ? 'text-indigo-200' : 'text-slate-600'}`}>
+                          Không có ca học
+                        </span>
+                      </div>
+                    ) : (
+                      daySlots.map(({ schedule, slot }, sIdx) => {
+                        const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
+                        const cName =
+                          typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp học';
+                        const tName =
+                          typeof schedule.teacher === 'object' ? schedule.teacher?.name : 'Chưa phân công';
+                        const isLive = isSlotLiveNow(day.dayNum, slot.startTime, slot.endTime, isToday);
+
+                        return (
+                          <div
+                            key={`${schedule._id}-${sIdx}`}
+                            className={`p-3.5 rounded-2xl border transition-all group relative space-y-2 ${
+                              isToday
+                                ? 'bg-white border-white/90 shadow-md text-slate-900'
+                                : `${theme.bg} ${theme.border}`
+                            }`}
+                          >
+                            {/* Live Now glowing badge */}
+                            {isLive && (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider animate-pulse">
+                                <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                <span>ĐANG TRONG GIỜ DẠY</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-start justify-between gap-1.5">
+                              <span className="text-xs sm:text-sm font-black text-slate-900 leading-snug break-words flex-1" title={cName}>
+                                {cName}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(schedule)}
+                                className="text-slate-400 hover:text-indigo-800 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100 shrink-0"
+                                title="Sửa lịch"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs font-black text-indigo-900">
+                              <span className="flex items-center gap-1 bg-indigo-50/80 px-2 py-0.5 rounded-md border border-indigo-100/70">
+                                <Clock size={12} className="shrink-0 text-indigo-700" />
+                                <span>
+                                  {slot.startTime} – {slot.endTime}
+                                </span>
+                              </span>
+                              {slot.room && (
+                                <span className="text-[10px] text-slate-600 font-bold bg-black/5 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                  <MapPin size={10} />
+                                  <span>{slot.room}</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs text-slate-700 font-semibold leading-tight" title={tName}>
+                              GV: <strong className="font-black text-slate-900">{tName}</strong>
+                            </p>
+
+                            {/* Attached Lesson Badge or Cancelled Status */}
+                            {(() => {
+                              const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
+                              const matchedCancelled = sessions.find((sess: any) => {
+                                const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
+                                if (sessCId !== cId) return false;
+                                if (sess.status !== 'CANCELLED') return false;
+                                const sDate = sess.startedAt ? sess.startedAt.slice(0, 10) : (sess.createdAt ? sess.createdAt.slice(0, 10) : '');
+                                return sDate === day.dateString;
+                              });
+
+                              if (matchedCancelled) {
+                                return (
+                                  <div className="mt-2 p-2.5 rounded-xl bg-amber-50/95 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
+                                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                                      <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 border border-amber-300 whitespace-nowrap">
+                                        🚫 Đã báo nghỉ
+                                      </span>
+                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 whitespace-nowrap">
+                                        Bảo lưu bài
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] font-bold text-amber-950 leading-snug break-words">
+                                      Lý do: <span className="underline font-black">{matchedCancelled.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
+                                    </p>
+                                    {matchedCancelled.cancellationNote && (
+                                      <p className="text-[10px] text-amber-800 italic leading-snug break-words">"{matchedCancelled.cancellationNote}"</p>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!window.confirm(`Khôi phục ca học cho lớp ${cName}? Lớp sẽ được mở lại lịch dạy bình thường.`)) return;
+                                        try {
+                                          await classroomSessionApi.restoreCancelledSession(matchedCancelled._id);
+                                          showAlert('success', 'Đã hủy báo nghỉ và mở lại lịch học bình thường');
+                                          await fetchData();
+                                        } catch (err: any) {
+                                          showAlert('error', err?.message || 'Không thể khôi phục');
+                                        }
+                                      }}
+                                      className="mt-1 w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1.5 px-2 text-[11px] font-black transition-colors cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-2xs whitespace-nowrap"
+                                      title="Hủy báo nghỉ và mở lại lịch dạy ca này"
+                                    >
+                                      <span>↩</span>
+                                      <span>Hủy báo nghỉ</span>
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              const classLessons = classSyllabusMap[cId] || [];
+                              const seq = getSequentialLessonForSlot(schedule, slot, day.dateString, classLessons, 'sequential');
+                              const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                              return displayName ? (
+                                <div className="mt-2 p-2.5 rounded-xl bg-indigo-50/90 text-indigo-950 border border-indigo-200/90 flex items-start gap-1.5 shadow-2xs">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0 mt-1" />
+                                  <div className="text-[11px] font-bold break-words leading-snug flex-1">
+                                    <span className="text-indigo-700 font-black">Bài {seq.lessonNumber}:</span> {displayName}
+                                  </div>
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* ── LIST VIEW ───────────────────────────────────────────────────── */

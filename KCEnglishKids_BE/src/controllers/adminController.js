@@ -103,6 +103,10 @@ const getDashboardStats = async (req, res, next) => {
       if (hasLive) {
         status = 'LIVE';
         note = slotsToday.length > 0 ? `Đang trong giờ dạy (${slotsToday.map(s => `${s.startTime}-${s.endTime}`).join(', ')})` : '🔴 Đang mở buổi dạy trực tiếp';
+      } else if (cancelledSession) {
+        const times = slotsToday.map(s => `${s.startTime}-${s.endTime}`).join(', ');
+        status = 'CANCELLED';
+        note = `Báo nghỉ: ${cancelledSession.cancellationReason || 'Nghỉ theo kế hoạch'} (${times || 'theo ca'})`;
       } else if (slotsToday.length > 0) {
         const times = slotsToday.map(s => `${s.startTime}-${s.endTime}`).join(', ');
         const earliest = Math.min(...slotsToday.map(s => {
@@ -110,7 +114,6 @@ const getDashboardStats = async (req, res, next) => {
           return sh * 60 + sm;
         }));
         if (hasCompleted) { status = 'TAUGHT'; note = `Đã hoàn thành buổi dạy (${times})`; }
-        else if (cancelledSession) { status = 'CANCELLED'; note = `Báo nghỉ: ${cancelledSession.cancellationReason || 'Nghỉ theo kế hoạch'} (${times})`; }
         else if (currentMinutes >= earliest) { status = 'MISSED'; note = `⚠️ Có lịch (${times}) nhưng giáo viên chưa dạy!`; }
         else { status = 'UPCOMING'; note = `Sắp tới giờ học (${times})`; }
       }
@@ -134,6 +137,24 @@ const getDashboardStats = async (req, res, next) => {
     const upcomingItems = monitorItems.filter(m => m.status === 'UPCOMING');
     const cancelledItems = monitorItems.filter(m => m.status === 'CANCELLED');
     const scheduledTodayItems = monitorItems.filter(m => m.hasSchedule);
+    const cancelledTodaySessions = todayClassSessions.filter(s => s.status === 'CANCELLED');
+
+    const cancelledSessionsList = cancelledTodaySessions.map(cs => {
+      const room = activeRooms.find(r => String(r._id) === String(cs.classroom));
+      const sch = room ? activeSchedules.find(s => String(s.classroom) === String(room._id)) : null;
+      const slots = (sch?.weeklySlots || []).filter(s => s.dayOfWeek === vnDayOfWeek);
+      return {
+        sessionId: cs._id,
+        classroomId: cs.classroom,
+        classroomName: room?.name || 'Lớp học',
+        teacherName: room?.teacher?.name || 'Giáo viên',
+        teacherEmail: room?.teacher?.email,
+        cancellationReason: cs.cancellationReason || 'Nghỉ theo kế hoạch',
+        cancellationNote: cs.cancellationNote || '',
+        note: `Báo nghỉ: ${cs.cancellationReason || 'Nghỉ theo kế hoạch'}`,
+        slots
+      };
+    });
 
     const teachingMonitor = {
       items: monitorItems,
@@ -141,17 +162,10 @@ const getDashboardStats = async (req, res, next) => {
       scheduledTodayCount: scheduledTodayItems.length,
       taughtCount: taughtItems.length,
       missedCount: missedItems.length,
-      cancelledCount: cancelledItems.length,
+      cancelledCount: Math.max(cancelledItems.length, cancelledTodaySessions.length),
       liveCount: liveItems.length,
       upcomingCount: upcomingItems.length,
-      cancelledSessions: cancelledItems.map(c => ({
-        classroomId: c.classId,
-        classroomName: c.className,
-        teacherName: c.teacherName,
-        teacherEmail: c.teacherEmail,
-        note: c.note,
-        slots: c.slotsToday
-      })),
+      cancelledSessions: cancelledSessionsList,
       liveSessions: activeLiveSessions.map(ls => ({
         sessionId: ls._id,
         classroomId: ls.classroom?._id || ls.classroom,
@@ -531,12 +545,12 @@ const getClassrooms = async (req, res, next) => {
 
         const cancelledSession = sessions.find(s => s.status === 'CANCELLED');
 
-        if (hasCompleted) {
-          todayTeachingStatus = 'TAUGHT';
-          todayTeachingNote = `Đã hoàn thành buổi dạy (${times})`;
-        } else if (cancelledSession) {
+        if (cancelledSession) {
           todayTeachingStatus = 'CANCELLED';
           todayTeachingNote = `🚫 Đã báo nghỉ (${times}): ${cancelledSession.cancellationReason || 'Nghỉ theo kế hoạch'}`;
+        } else if (hasCompleted) {
+          todayTeachingStatus = 'TAUGHT';
+          todayTeachingNote = `Đã hoàn thành buổi dạy (${times})`;
         } else if (currentMinutes >= earliest) {
           todayTeachingStatus = 'MISSED';
           todayTeachingNote = `⚠️ Có lịch (${times}) nhưng giáo viên chưa dạy!`;
@@ -3229,15 +3243,15 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
         return sh * 60 + sm;
       }));
 
-      if (hasCompletedToday) {
-        todayStatus.status = 'TAUGHT';
-        todayStatus.note = `Buổi dạy hôm nay đã hoàn thành bài ${lessonNameStr} (${times}).`;
-        todayStatus.warning = false;
-      } else if (cancelledToday) {
+      if (cancelledToday) {
         todayStatus.status = 'CANCELLED';
         todayStatus.note = `Lớp đã báo nghỉ buổi này (${times}). Lý do: ${cancelledToday.cancellationReason || 'Nghỉ theo kế hoạch'}. Tiến độ giáo trình được bảo lưu cho buổi học tiếp theo.`;
         todayStatus.warning = false;
         todayStatus.cancelledSession = cancelledToday;
+      } else if (hasCompletedToday) {
+        todayStatus.status = 'TAUGHT';
+        todayStatus.note = `Buổi dạy hôm nay đã hoàn thành bài ${lessonNameStr} (${times}).`;
+        todayStatus.warning = false;
       } else if (currentMinutes >= earliest) {
         todayStatus.status = 'MISSED';
         todayStatus.note = `⚠️ Cảnh báo: Hôm nay có lịch dạy bài ${lessonNameStr} (${times}) nhưng giáo viên chưa vào lớp giảng dạy!`;

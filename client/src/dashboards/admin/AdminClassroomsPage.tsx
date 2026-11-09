@@ -921,7 +921,7 @@ export const AdminClassroomsPage: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredClassrooms.map((c) => {
             const studentCount = c.students?.length || c.studentCount || 0;
             const teacherName = c.teacher?.name || 'Chưa phân công';
@@ -956,11 +956,11 @@ export const AdminClassroomsPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Class Name & Academic Year (Full width, single line, no wrapping) */}
+                  {/* Class Name & Academic Year (Strictly single-line, no wrapping) */}
                   <div className="min-w-0">
                     <h3
                       onClick={() => handleOpenCurriculumProgress(c, 'progress')}
-                      className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug cursor-pointer hover:text-indigo-700 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
+                      className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-normal cursor-pointer hover:text-indigo-700 transition-colors whitespace-nowrap overflow-hidden text-ellipsis block"
                       title={c.name}
                     >
                       {c.name}
