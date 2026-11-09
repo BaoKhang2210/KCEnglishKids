@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, PlayCircle } from 'lucide-react';
+import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, PlayCircle, BookOpenCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
@@ -9,7 +9,7 @@ import { ChildProfileModal, getChildAvatarEmoji } from './ChildProfileModal';
 import { ParentNotebookModal } from './ParentNotebookModal';
 import { DailyStreakBadge } from './DailyStreakBadge';
 import { DailyStreakModal } from './DailyStreakModal';
-import { streakApi } from '../../services/api';
+import { streakApi, parentNotificationApi } from '../../services/api';
 import type { ChildStreakData } from '../../types';
 
 interface ChildHeaderProps {
@@ -37,6 +37,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const [showParentModal, setShowParentModal] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [localStreakData, setLocalStreakData] = useState<ChildStreakData | null>(propStreakData || null);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   useEffect(() => {
     if (propStreakData) {
@@ -53,6 +54,16 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
         })
         .catch((err) => {
           console.error('Failed to load streak in header:', err);
+        });
+
+      parentNotificationApi.getChildNotificationsForParent(childId)
+        .then((res) => {
+          const list = res.data || [];
+          const unread = list.filter((n: any) => !n.readAt).length;
+          setUnreadNotifCount(unread);
+        })
+        .catch(() => {
+          setUnreadNotifCount(0);
         });
     }
   }, [propStreakData, user]);
@@ -81,6 +92,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const isVideosActive = currentTab === 'videos' || location.pathname.startsWith('/videos');
   const isVocabActive = currentTab === 'vocab';
   const isGamesActive = currentTab === 'games' || currentTab === 'arcade';
+  const isDiaryActive = currentTab === 'diary' || currentTab === 'history';
   const isBadgesActive = currentTab === 'badges';
 
   const ageOptions: { code: string; book: string; ageLabel: string; color: string }[] = [
@@ -176,7 +188,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
               <button
                 onClick={() => handleNav('games')}
-                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isGamesActive
                     ? 'bg-sky-500 text-white shadow-[inset_0_-3px_0_#0369a1]'
                     : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900 border-2 border-transparent hover:border-sky-200 shadow-2xs'
@@ -184,12 +196,25 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Gamepad2 className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isGamesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Trò chơi</span>
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Trò chơi</span>
+              </button>
+
+              <button
+                onClick={() => handleNav('diary')}
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  isDiaryActive
+                    ? 'bg-orange-500 text-white shadow-[inset_0_-3px_0_#c2410c]'
+                    : 'text-slate-600 hover:bg-orange-50 hover:text-orange-900 border-2 border-transparent hover:border-orange-200 shadow-2xs'
+                }`}
+                style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+              >
+                <BookOpenCheck className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isDiaryActive ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Nhật ký</span>
               </button>
 
               <button
                 onClick={() => handleNav('badges')}
-                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isBadgesActive
                     ? 'bg-purple-500 text-white shadow-[inset_0_-3px_0_#6d28d9]'
                     : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900 border-2 border-transparent hover:border-purple-200 shadow-2xs'
@@ -197,7 +222,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Award className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isBadgesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Bộ sưu tập</span>
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Bộ sưu tập</span>
               </button>
             </div>
           </div>
@@ -267,6 +292,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 onClick={() => {
                   sfx.playPop();
                   setShowParentModal(true);
+                  setUnreadNotifCount(0);
                 }}
                 title="Mở Sổ liên lạc của bé & Lời nhắn từ cô giáo"
                 aria-label="Sổ liên lạc của bé"
@@ -281,7 +307,9 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 >
                   Sổ liên lạc
                 </span>
-                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
+                )}
               </button>
 
               {/* Switch Player / Logout */}
@@ -316,7 +344,10 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
         <ParentNotebookModal
           childId={user.id || (user as any)._id}
           childName={user.name}
-          onClose={() => setShowParentModal(false)}
+          onClose={() => {
+            setShowParentModal(false);
+            setUnreadNotifCount(0);
+          }}
         />
       )}
 

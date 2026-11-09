@@ -1,0 +1,124 @@
+/* Shared reading and reflow rules for staff routes, including login and dialogs. */
+.staff-surface.staff-surface {
+  --staff-body: 1.35rem;
+  --staff-small: 1.2rem;
+  --staff-badge: 1.08rem;
+}
+
+.staff-surface :is(button, select, input, textarea) {
+  max-inline-size: 100%;
+}
+
+.staff-surface .competency-pillar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: center;
+  min-height: 10rem;
+}
+.staff-surface .competency-pillar > :last-child {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+.staff-surface .competency-pillar .min-w-\[210px\] {
+  min-width: 0;
+}
+.staff-surface .competency-pillar .justify-between {
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+/* A card can be a button too: its descriptive text must remain readable. */
+.staff-surface button:is(.text-left, .admin-book-tab, .admin-unit-card) {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.staff-surface :is(.overflow-x-auto, .overflow-auto) {
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  scrollbar-width: thin;
+}
+
+.staff-surface :is(.overflow-x-auto, .overflow-auto) > table {
+  min-inline-size: 44rem;
+}
+
+.staff-surface table :is(th, td) {
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.staff-surface :is(td, th) :is(button, time),
+.staff-surface :is(.teacher-status, .admin-nav-link, .teacher-nav-link) {
+  white-space: nowrap;
+}
+
+.staff-surface :is(.admin-content, .teacher-body, .admin-main, .teacher-main) {
+  min-inline-size: 0;
+}
+
+.staff-surface :is(.admin-main, .teacher-main) {
+  container-type: inline-size;
+}
+
+/* Cards follow available content width, not the viewport behind the sidebar. */
+@container (max-width: 720px) {
+  .admin-book-tabs, .teacher-home-columns, .teacher-inbox-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .teacher-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .staff-surface .competency-pillar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .staff-surface :is(.admin-main, .teacher-main) {
+    padding-inline: .75rem;
+  }
+  .staff-surface :is(.staff-page-header, .teacher-panel, .recognition-panel) {
+    padding: 1rem;
+  }
+  .staff-surface :is(.admin-main, .teacher-main) h1 {
+    font-size: 2rem;
+    line-height: 1.35;
+  }
+  .staff-surface .staff-page-header > :first-child {
+    flex-basis: 100%;
+  }
+  .staff-surface :is(.staff-page-header-actions, .teacher-panel-header) {
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+  .staff-surface .fixed.inset-0 {
+    padding: .5rem;
+  }
+  .staff-surface .fixed.inset-0 > :is([class*="max-w-"], [role="dialog"]) {
+    max-inline-size: 100%;
+    max-block-size: calc(100dvh - 1rem);
+  }
+  .staff-surface .admin-breadcrumb {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .staff-surface .admin-breadcrumb > a,
+  .staff-surface .admin-breadcrumb > svg {
+    display: none;
+  }
+  .staff-surface .admin-school {
+    display: none;
+  }
+  .staff-surface .teacher-topbar {
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .staff-surface .teacher-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

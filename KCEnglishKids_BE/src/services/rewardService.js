@@ -1,4 +1,4 @@
-const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment } = require('../models');
+const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 const { computeStarLedger } = require('./starLedgerService');
 
@@ -132,12 +132,13 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
  *   reveals the already-granted sticker.
  */
 const computeRewards = async (childId) => {
-  const [progressDocs, completions, classroomSessions, starLedger] = await Promise.all([
+  const [progressDocs, completions, classroomSessions, homePracticeCompletions, starLedger] = await Promise.all([
     Progress.find({ child: childId }).select('stars completed lesson completionSnapshot'),
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
     ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores'),
+    HomePracticeCompletion.find({ child: childId }).select('stars'),
     computeStarLedger(childId)
   ]);
 
@@ -218,14 +219,17 @@ const computeRewards = async (childId) => {
   const reviewedAssignments = await Assignment.find({ 'reviews.child': childId }).select('reviews');
   const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
     .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
+  const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
   const legacyBonusStars = completions.reduce((sum, completion) => {
     const reward = (completion.rewards || []).find(item => item.type === 'STAR');
     return sum + (reward ? reward.amount || 0 : 0);
   }, 0);
-  const badgeProgressStars = legacyEarnedStars + legacyBonusStars + classroomStars + teacherStars;
-  const totalStars = starLedger.totalStars;
-  const earnedStars = starLedger.units.reduce((sum, unit) => sum + unit.lessonStars, 0);
-  bonusStars = starLedger.units.reduce((sum, unit) => sum + unit.bonusStars, 0);
+  const badgeProgressStars = legacyEarnedStars + legacyBonusStars + classroomStars + teacherStars + homePracticeStars;
+  const totalStars = (starLedger?.totalStars || 0) + homePracticeStars;
+  const earnedStars = starLedger?.units?.reduce((sum, unit) => sum + unit.lessonStars, 0) || legacyEarnedStars;
+  bonusStars = (starLedger?.units?.reduce((sum, unit) => sum + unit.bonusStars, 0) || 0) + legacyBonusStars;
+  const homeStars = earnedStars + bonusStars + (teacherStars || 0) + (homePracticeStars || 0);
+  const classStars = classroomStars;
 
   let explorerLevel = {
     level: 1,
@@ -274,9 +278,12 @@ const computeRewards = async (childId) => {
 
   return {
     totalStars,
-    maxStars: starLedger.maxStars,
+    maxStars: starLedger?.maxStars || 150,
     starLedger,
     badgeProgressStars,
+    homePracticeStars,
+    homeStars,
+    classStars,
     teacherStars,
     earnedStars,
     bonusStars,

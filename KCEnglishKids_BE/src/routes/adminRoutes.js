@@ -17,6 +17,7 @@ const {
   toggleTopicStatus,
   getClassrooms,
   getClassroomById,
+  getClassroomFullDetail,
   createClassroom,
   updateClassroom,
   deleteClassroom,
@@ -28,6 +29,7 @@ const {
   exportClassroomExcel,
   getClassroomCurriculumProgress,
   updateClassroomCurriculumProgress,
+  getClassroomSessions,
   exportSystemBackup,
   getUnassignedStudents,
   getDeepCurriculum,
@@ -53,6 +55,8 @@ const {
   updateSchedule,
   deleteSchedule,
   getTeacherSchedule,
+  autoAssignCurriculumSchedules,
+  clearScheduleLessons,
   // Activities & Games
   getAdminActivities,
   getAdminActivityById,
@@ -86,9 +90,161 @@ router.put('/curriculum/lessons/:id/pedagogy',protect,authorize('ADMIN'),require
 router.get('/curriculum', protect, authorize('ADMIN'), getCurriculum);
 router.get('/curriculum/deep', protect, authorize('ADMIN'), getDeepCurriculum);
 router.get('/curriculum/lessons/:id/readiness', protect, authorize('ADMIN'), async(req,res,next)=>{try{const lesson=await require('../models').Lesson.findById(req.params.id);if(!lesson)return res.status(404).json({success:false,message:'Lesson not found.'});res.json({success:true,data:await require('../services/contentReadiness').lessonReadiness(lesson)});}catch(error){next(error);}});
+router.post('/curriculum/ai-generate', protect, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const { topic, ageGroup } = req.body || {};
+    if (!topic || !String(topic).trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập chủ đề bài học.' });
+    }
+    const draft = await require('../services/aiService').generateCurriculumDraftWithAI({
+      topic: String(topic).trim(),
+      ageGroup: ageGroup || '3-4'
+    });
+    res.json({ success: true, data: draft });
+  } catch (error) {
+    next(error);
+  }
+});
+router.post('/curriculum/ai-apply', protect, authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const {
+      lessonId,
+      unitId,
+      ageGroupCode = '3-4',
+      suggestedLessonTitle,
+      suggestedVietnameseTitle,
+      category = 'General',
+      vocabularies = [],
+      sentencePairs = []
+    } = req.body || {};
+
+    const { Lesson, CurriculumUnit, AgeGroup, Topic, Vocabulary, LanguageContent } = require('../models');
+    const readiness = require('../services/contentReadiness');
+    const vocabularyMedia = require('../services/vocabularyMedia');
+
+    let targetLesson = lessonId ? await Lesson.findById(lessonId) : null;
+    if (!targetLesson) {
+      if (!unitId) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn bài học hoặc Unit để lưu nội dung AI.' });
+      }
+      const unitDoc = await CurriculumUnit.findById(unitId);
+      if (!unitDoc) {
+        return res.status(404).json({ success: false, message: 'Unit không tồn tại.' });
+      }
+      const finalAge = unitDoc.ageGroupCode || ageGroupCode || '3-4';
+      const ageGroupDoc = await AgeGroup.findOne({ code: finalAge });
+      const firstTopic = await Topic.findOne({ status: 'ACTIVE' });
+      const countInUnit = await Lesson.countDocuments({ curriculumUnits: unitDoc._id });
+
+      targetLesson = await Lesson.create({
+        title: (suggestedLessonTitle || 'AI Generated Lesson').trim(),
+        vietnameseTitle: (suggestedVietnameseTitle || '').trim(),
+        description: `Bài học tự động khởi tạo bằng AI (${finalAge} tuổi)`,
+        topic: firstTopic ? firstTopic._id : undefined,
+        ageGroup: ageGroupDoc ? ageGroupDoc._id : undefined,
+        ageGroupCode: finalAge,
+        curriculumUnits: [unitDoc._id],
+        displayOrder: countInUnit + 1,
+        difficulty: 1,
+        status: 'DRAFT'
+      });
+    }
+
+    const finalAgeGroup = targetLesson.ageGroupCode || ageGroupCode || '3-4';
+    const unitIds = Array.isArray(targetLesson.curriculumUnits) && targetLesson.curriculumUnits.length > 0
+      ? targetLesson.curriculumUnits
+      : (unitId ? [unitId] : []);
+
+    const createdVocabIds = [];
+    for (const item of vocabularies) {
+      if (!item?.english || !item?.vietnamese) continue;
+      const safeImageUrl = readiness.safeMedia(item.imageUrl) ? item.imageUrl : '/images/vocabulary/book-v1.svg';
+      const vocab = new Vocabulary({
+        english: String(item.english).trim(),
+        vietnamese: String(item.vietnamese).trim(),
+        pronunciation: item.pronunciation ? String(item.pronunciation).trim() : '',
+        category: item.category || category || 'General',
+        wordType: ['noun', 'verb', 'number', 'color', 'adjective'].includes(item.wordType) ? item.wordType : 'noun',
+        visualType: 'concrete',
+        isTransparent: true,
+        imageUrl: safeImageUrl,
+        mediaSource: item.imagePrompt ? `AI Flashcard Prompt: ${String(item.imagePrompt).slice(0, 420)}` : 'AI Curriculum Creator',
+        mediaLicense: 'KCEnglishKids AI Generated',
+        ageGroupCodes: [finalAgeGroup],
+        sourceUnits: unitIds,
+        lesson: targetLesson._id,
+        status: 'ACTIVE'
+      });
+      await vocab.validate();
+      await vocabularyMedia(vocab);
+      await vocab.save();
+      createdVocabIds.push(vocab._id);
+    }
+
+    const createdSentenceIds = [];
+    const primaryUnitId = unitIds[0] || undefined;
+    for (const pair of sentencePairs) {
+      if (!pair?.questionEnglish) continue;
+      const pairId = `pair_ai_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const qDoc = await LanguageContent.create({
+        contentType: 'QUESTION',
+        english: String(pair.questionEnglish).trim(),
+        vietnamese: pair.questionVietnamese ? String(pair.questionVietnamese).trim() : '',
+        pronunciation: pair.questionPronunciation ? String(pair.questionPronunciation).trim() : '',
+        ageGroupCode: finalAgeGroup,
+        sourceUnit: primaryUnitId,
+        lesson: targetLesson._id,
+        difficulty: 1,
+        pairId,
+        status: 'ACTIVE',
+        sourceType: 'GENERATED_CONTENT'
+      });
+      createdSentenceIds.push(qDoc._id);
+
+      if (pair.answerEnglish && String(pair.answerEnglish).trim()) {
+        const aDoc = await LanguageContent.create({
+          contentType: 'ANSWER',
+          english: String(pair.answerEnglish).trim(),
+          vietnamese: pair.answerVietnamese ? String(pair.answerVietnamese).trim() : '',
+          pronunciation: pair.answerPronunciation ? String(pair.answerPronunciation).trim() : '',
+          ageGroupCode: finalAgeGroup,
+          sourceUnit: primaryUnitId,
+          lesson: targetLesson._id,
+          difficulty: 1,
+          pairId,
+          relatedQuestion: qDoc._id,
+          status: 'ACTIVE',
+          sourceType: 'GENERATED_CONTENT'
+        });
+        createdSentenceIds.push(aDoc._id);
+      }
+    }
+
+    await Lesson.findByIdAndUpdate(targetLesson._id, {
+      $addToSet: {
+        vocabularyItems: { $each: createdVocabIds },
+        languageContents: { $each: createdSentenceIds }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Đã áp dụng ${createdVocabIds.length} từ vựng và ${sentencePairs.length} cặp mẫu câu Hỏi–Đáp vào bài "${targetLesson.title}"!`,
+      data: {
+        lessonId: targetLesson._id,
+        lessonTitle: targetLesson.title,
+        vocabularyCount: createdVocabIds.length,
+        sentenceCount: createdSentenceIds.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Activity & Games Management (Kho Trò chơi & Hoạt động)
 router.get('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').get);
+router.get('/game-catalog/preview', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').preview);
 router.put('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').update);
 router.get('/activities', protect, authorize('ADMIN'), getAdminActivities);
 router.get('/activities/:id', protect, authorize('ADMIN'), getAdminActivityById);
@@ -119,12 +275,14 @@ router.get('/system/backup', protect, authorize('ADMIN'), exportSystemBackup);
 
 // Classroom Management (Phân chia lớp & gán giáo viên & quản lý học sinh theo lớp)
 router.get('/classrooms', protect, authorize('ADMIN'), getClassrooms);
+router.get('/classrooms/:id/full-detail', protect, authorize('ADMIN'), getClassroomFullDetail);
 router.get('/classrooms/:id', protect, authorize('ADMIN'), getClassroomById);
 router.post('/classrooms', protect, authorize('ADMIN'), createClassroom);
 router.put('/classrooms/:id', protect, authorize('ADMIN'), updateClassroom);
 router.delete('/classrooms/:id', protect, authorize('ADMIN'), deleteClassroom);
 router.get('/classrooms/:id/curriculum-progress', protect, authorize('ADMIN'), getClassroomCurriculumProgress);
 router.put('/classrooms/:id/curriculum-progress', protect, authorize('ADMIN'), updateClassroomCurriculumProgress);
+router.get('/classrooms/:id/sessions', protect, authorize('ADMIN'), getClassroomSessions);
 router.post('/classrooms/:id/assign-students', protect, authorize('ADMIN'), assignStudentsToClassroom);
 router.post('/classrooms/:id/students', protect, authorize('ADMIN'), addStudentToClassroom);
 router.post('/classrooms/:id/import-students-excel', protect, authorize('ADMIN'), importStudentsFromExcel);
@@ -136,6 +294,8 @@ router.get('/students/unassigned', protect, authorize('ADMIN'), getUnassignedStu
 // Schedule Management (Thời Khóa Biểu)
 router.get('/schedules', protect, authorize('ADMIN'), getSchedules);
 router.post('/schedules', protect, authorize('ADMIN'), createSchedule);
+router.post('/schedules/auto-assign-curriculum', protect, authorize('ADMIN'), autoAssignCurriculumSchedules);
+router.post('/schedules/clear-lessons', protect, authorize('ADMIN'), clearScheduleLessons);
 router.put('/schedules/:id', protect, authorize('ADMIN'), updateSchedule);
 router.delete('/schedules/:id', protect, authorize('ADMIN'), deleteSchedule);
 router.get('/schedules/by-teacher/:teacherId', protect, authorize('ADMIN', 'TEACHER'), getTeacherSchedule);

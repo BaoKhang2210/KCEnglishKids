@@ -7,11 +7,6 @@ const router = express.Router();
 
 router.use(protect, authorize('TEACHER', 'ADMIN'));
 const early = require('../controllers/earlyLearningController');
-const practice = require('../controllers/homePracticeController');
-router.get('/students/:studentId/home-practice/proposal',practice.proposal);
-router.get('/students/:studentId/home-practice',practice.history);
-router.post('/students/:studentId/home-practice/approve',practice.approve);
-router.post('/students/:studentId/home-practice/revoke',practice.revoke);
 router.get('/classroom-sessions/:id/family-report-draft',pn.reportDraft);
 router.post('/classroom-sessions/:id/family-report-preview',pn.reportPreview);
 router.get('/pedagogy/lessons/:id/guide', early.guide);
@@ -36,6 +31,7 @@ router.get('/curriculum-options', c.getCurriculumOptions);
 router.get('/lessons/:id', c.getLesson);
 router.get('/activities/:id', c.getActivity);
 
+router.get('/assignments/proposal', require('../controllers/teacherAssignmentController').proposal);
 router.get('/assignments', c.getAssignments);
 router.get('/tasks', async(req,res,next)=>{try{res.json({success:true,data:await require('../services/learningInsights').teacherTasks(req)});}catch(error){next(error);}});
 router.post('/assignments', c.createAssignment);
@@ -63,7 +59,7 @@ router.get('/parent-notifications', pn.getNotifications);
 router.post('/parent-notifications', pn.sendNotification);
 router.post('/parent-notifications/bulk', pn.sendBulkNotifications);
 router.get('/parent-notifications/child/:childId', pn.getChildNotifications);
-router.post('/parent-notifications/:id/reply', pn.replyAsTeacher);
+router.get('/parent-feedback', pn.getParentFeedback);
 
 // Teacher Schedule (Thời Khóa Biểu cá nhân do Admin sắp lịch)
 router.get('/my-schedule', c.getMySchedule);

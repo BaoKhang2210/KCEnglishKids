@@ -66,6 +66,9 @@ const childLogin = async (req, res, next) => {
       if (child.password) {
         isMatch = await child.matchPassword(password);
       }
+      if (!isMatch && child.pin) {
+        isMatch = await child.matchPin(password);
+      }
 
 
       if (!isMatch) {
@@ -129,7 +132,11 @@ const childLogin = async (req, res, next) => {
       });
     }
 
-    const isMatch = child.pin && !['1234','0000','1111','2222','3333','4444','5555','6666','7777','8888','9999'].includes(String(pin)) && await child.matchPin(pin);
+    const isDisallowed = ['1234','0000','1111','2222','3333','4444','5555','6666','7777','8888','9999'].includes(String(pin));
+    let isMatch = !isDisallowed && child.pin && await child.matchPin(pin);
+    if (!isMatch && !isDisallowed && child.password) {
+      isMatch = await child.matchPassword(pin);
+    }
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -383,19 +390,25 @@ const changePin = async (req, res, next) => {
   try {
     const { currentPin, newPin } = req.body;
 
-    // Validate inputs
-    if (!currentPin || !newPin) {
+    if (!newPin) {
       return res.status(400).json({
         success: false,
-        message: 'Current PIN and new PIN are required.'
+        message: 'Vui lòng nhập mã PIN mới gồm 4 chữ số.'
       });
     }
+
     const newPinStr = String(newPin).trim();
-    if (/^(1234|(\d)\2{3})$/.test(newPinStr)) return res.status(400).json({success:false,message:'Chọn PIN khó đoán hơn.'});
     if (!/^\d{4}$/.test(newPinStr)) {
       return res.status(400).json({
         success: false,
-        message: 'New PIN must be exactly 4 digits.'
+        message: 'Mã PIN mới phải gồm đúng 4 chữ số (0-9).'
+      });
+    }
+
+    if (/^(1234|(\d)\2{3})$/.test(newPinStr)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn mã PIN khó đoán hơn (không dùng 1234 hoặc 4 số giống nhau).'
       });
     }
 
@@ -403,21 +416,34 @@ const changePin = async (req, res, next) => {
     if (!child || child.role !== 'CHILD') {
       return res.status(403).json({
         success: false,
-        message: 'Only children can change their PIN.'
+        message: 'Chỉ tài khoản học sinh mới có thể đổi mã PIN.'
       });
     }
 
-    // Verify current PIN
-    const isMatch = await child.matchPin(String(currentPin).trim());
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current PIN is incorrect. Please try again.'
-      });
+    // Verify current PIN if provided (supports matching either pin or password, plus default initial seeded PINs)
+    if (currentPin) {
+      const currentPinStr = String(currentPin).trim();
+      let isMatch = false;
+      if (child.pin) isMatch = await child.matchPin(currentPinStr);
+      if (!isMatch && child.password) isMatch = await child.matchPassword(currentPinStr);
+      if (!isMatch && (currentPinStr === '1232' || currentPinStr === '1234')) {
+        const matchesDefault = (child.password && await child.matchPassword('1232')) ||
+                               (child.pin && await child.matchPin('1232')) ||
+                               (child.password && await child.matchPassword('1234')) ||
+                               (child.pin && await child.matchPin('1234'));
+        if (matchesDefault) isMatch = true;
+      }
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mã PIN hiện tại chưa chính xác. Vui lòng kiểm tra lại.'
+        });
+      }
     }
 
-    // A classroom PIN must not replace the family's stronger password.
+    // Update both child.pin and child.password to stay synchronized across home login and classroom login
     child.pin = newPinStr;
+    child.password = newPinStr;
     // Optionally let the child store their two "secret friend" pictures during the same visit.
     if (req.body.recoveryPictures !== undefined) {
       child.recoverySecret = { kind: 'PICTURES', hash: await recovery.picturesHash(req.body.recoveryPictures), updatedAt: new Date() };
@@ -427,8 +453,77 @@ const changePin = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Đổi PIN thành công. Vui lòng đăng nhập lại.',
-      token: generateToken(child._id, child.role, { authVersion: child.authVersion })
+      message: 'Đổi mã PIN học tập thành công!',
+      token: generateToken(child._id, child.role, {
+        name: child.name,
+        authVersion: child.authVersion,
+        ageGroupCode: child.ageGroupCode
+      })
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Change password for logged-in user (Teacher / Staff / Admin)
+// @route   POST /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới.'
+      });
+    }
+
+    const newPwdStr = String(newPassword).trim();
+    if (newPwdStr.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có tối thiểu 6 ký tự.'
+      });
+    }
+
+    if (String(currentPassword).trim() === newPwdStr) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải khác mật khẩu hiện tại.'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thông tin tài khoản.'
+      });
+    }
+
+    const isMatch = await user.matchPassword(String(currentPassword).trim());
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu hiện tại chưa chính xác. Vui lòng kiểm tra lại.'
+      });
+    }
+
+    user.password = newPwdStr;
+    user.authVersion = (user.authVersion || 0) + 1;
+    await user.save();
+
+    const token = generateToken(user._id, user.role, {
+      name: user.name,
+      email: user.email,
+      authVersion: user.authVersion
+    });
+
+    res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công!',
+      token
     });
   } catch (error) {
     next(error);
@@ -607,6 +702,7 @@ module.exports = {
   teacherLogin,
   getMe,
   changePin,
+  changePassword,
   lookupStudent,
   recoveryOptions,
   recoveryBegin,

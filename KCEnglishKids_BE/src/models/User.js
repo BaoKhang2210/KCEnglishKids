@@ -82,6 +82,12 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ClassRoom'
     },
+    assignedClasses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ClassRoom'
+      }
+    ],
     // For CHILD: parent's contact (email or phone) used for notifications
     parentContact: {
       type: String,
@@ -114,8 +120,28 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Pre-save hook to hash password and pin if modified
+const ANIMAL_AVATAR_SYMBOLS = {
+  lion: '/images/symbols/1f981.svg',
+  tiger: '/images/symbols/1f42f.svg',
+  panda: '/images/symbols/1f43c.svg',
+  rabbit: '/images/symbols/1f430.svg',
+  bear: '/images/symbols/1f43b.svg',
+  fox: '/images/symbols/1f98a.svg',
+  koala: '/images/symbols/1f43b.svg',
+  monkey: '/images/symbols/1f412.svg',
+  cat: '/images/symbols/1f431.svg',
+  dog: '/images/rewards/fluent-3d/dog_face_3d.png',
+  elephant: '/images/symbols/1f418.svg'
+};
+
+// Pre-save hook to hash password and pin if modified, and ensure avatarUrl
 userSchema.pre('save', async function () {
+  if (this.role === 'CHILD') {
+    if (!this.avatar) this.avatar = 'lion';
+    if (!this.avatarUrl) {
+      this.avatarUrl = ANIMAL_AVATAR_SYMBOLS[this.avatar] || '/images/symbols/1f981.svg';
+    }
+  }
   if (this.isModified('password') && this.password) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);

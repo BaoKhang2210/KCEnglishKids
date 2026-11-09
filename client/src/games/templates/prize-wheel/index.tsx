@@ -1,19 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { GameComponentProps } from '../../core/types';
-import { RotateCw } from 'lucide-react';
-import { sfx, playWordAudio, stopWordAudio } from '../../../utils/audio';
 import { VocabImage } from '../../shared/VocabImage';
 import { GamePrompt } from '../../shared/GamePrompt';
-import type { Vocabulary } from '../../../types';
+import { GameSpeedControl } from '../../shared/GameSpeedControl';
 import { useManagedTimeout } from '../../shared/useManagedTimeout';
+import { speakText } from '../../core/audioPhrases';
+import { sfx } from '../../../utils/audio';
+import type { Vocabulary } from '../../../types';
 
-const WHEEL_COLORS = ['#ff8fab', '#ffc857', '#8ce99a', '#6ec8ff', '#c8a2ff', '#ffa46e'];
+const BUBBLE_RING_COLORS = [
+  'from-sky-400/85 to-blue-600/85 border-sky-200',
+  'from-rose-400/85 to-pink-600/85 border-rose-200',
+  'from-amber-400/85 to-orange-600/85 border-amber-200',
+  'from-emerald-400/85 to-teal-600/85 border-emerald-200',
+];
 
-/**
- * Prize Wheel chuẩn kidscards.vercel.app:
- * Vòng quay conic-gradient nhiều múi màu sắc với kim chỉ ở đỉnh,
- * các thẻ từ giữ thẳng đứng khi bánh xe quay, nút tâm "Spin!" tương tác.
- */
 export const PrizeWheelGame: React.FC<GameComponentProps> = ({
   targetVocab,
   options,
@@ -21,157 +22,157 @@ export const PrizeWheelGame: React.FC<GameComponentProps> = ({
   isAssisted,
   onCorrect,
   onWrong,
+  onReplayAudio,
 }) => {
   const scheduleTimeout = useManagedTimeout();
-  const [wheelDeg, setWheelDeg] = useState(0);
-  const [spinning, setSpinning] = useState(false);
-  const [hasSpun, setHasSpun] = useState(false);
-  const [wobbleId, setWobbleId] = useState<string | null>(null);
-  const [locked, setLocked] = useState(false);
-
-  const slices = useMemo(() => {
-    const others = options.filter((v) => v._id !== targetVocab._id);
-    const list = [targetVocab, ...others].slice(0, Math.min(6, Math.max(3, options.length)));
-    return list;
-  }, [options, targetVocab]);
-
-  const sliceAngle = 360 / slices.length;
-  const targetIdx = Math.max(0, slices.findIndex((s) => s._id === targetVocab._id));
-
-  const spinWheel = () => {
-    if (spinning || locked) return;
-    sfx.playPop();
-    setSpinning(true);
-    // Quay ít nhất 2 vòng và dừng gần vị trí của từ mục tiêu ở đỉnh
-    const targetStopAngle = -(targetIdx * sliceAngle);
-    const nextDeg = wheelDeg - 720 + ((targetStopAngle - (wheelDeg % 360)) % 360);
-    setWheelDeg(nextDeg);
-    scheduleTimeout(() => {
-      setSpinning(false);
-      setHasSpun(true);
-      void playWordAudio(targetVocab.english, targetVocab.audioUrl);
-    }, 1150);
-  };
+  const [speed, setSpeed] = useState<number>(1);
+  const [splashedId, setSplashedId] = useState<string | null>(null);
+  const [wrongId, setWrongId] = useState<string | null>(null);
+  const [cannonAngle, setCannonAngle] = useState<number>(0);
+  const [shooting, setShooting] = useState(false);
 
   useEffect(() => {
-    setLocked(false);
-    setWobbleId(null);
-    setHasSpun(false);
-    setSpinning(true);
-    const stopAngle = -(targetIdx * sliceAngle) - 360;
-    setWheelDeg(stopAngle);
-    const t = scheduleTimeout(() => {
-      setSpinning(false);
-      setHasSpun(true);
-    }, 1100);
-    return () => window.clearTimeout(t);
-  }, [targetVocab._id, targetIdx, sliceAngle]);
+    setSplashedId(null);
+    setWrongId(null);
+    setCannonAngle(0);
+    setShooting(false);
+  }, [targetVocab._id]);
 
-  const handlePick = (vocab: Vocabulary) => {
-    if (spinning || locked) return;
+  const count = Math.max(options.length, 1);
+  const spinDurationSec = Math.round(14 / speed);
+
+  const handleSplashTarget = (vocab: Vocabulary, idx: number) => {
+    if (splashedId) return;
+    // Aim cannon subtly toward tapped target
+    const angleOffset = (idx - (count - 1) / 2) * 18;
+    setCannonAngle(angleOffset);
+    setShooting(true);
+    scheduleTimeout(() => setShooting(false), 320);
+
+    sfx.playPop();
+    void speakText(vocab.english, vocab.audioUrl);
+
     if (vocab._id === targetVocab._id) {
+      setSplashedId(vocab._id);
       sfx.playSuccess();
-      stopWordAudio();
-      void playWordAudio(targetVocab.english, targetVocab.audioUrl);
-      setLocked(true);
-      scheduleTimeout(onCorrect, 420);
-      return;
+      scheduleTimeout(onCorrect, 750);
+    } else {
+      setWrongId(vocab._id);
+      scheduleTimeout(() => setWrongId(null), 480);
+      onWrong(vocab._id);
     }
-    stopWordAudio();
-    void playWordAudio(vocab.english, vocab.audioUrl);
-    setWobbleId(vocab._id);
-    scheduleTimeout(() => setWobbleId(null), 450);
-    onWrong(vocab._id);
   };
 
-  const gradientStops = slices
-    .map((_, idx) => {
-      const color = WHEEL_COLORS[idx % WHEEL_COLORS.length];
-      return `${color} ${idx * sliceAngle}deg ${(idx + 1) * sliceAngle}deg`;
-    })
-    .join(', ');
-
   return (
-    <div className="w-full h-full relative flex flex-col items-center justify-center gap-3 select-none pt-8">
+    <div className="w-full h-full relative flex flex-col items-center justify-between py-1 select-none overflow-hidden">
+      <style>{`
+        @keyframes kc-wheel-orbit {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes kc-wheel-counter-orbit {
+          from { transform: translate(-50%, -50%) rotate(0deg); }
+          to { transform: translate(-50%, -50%) rotate(-360deg); }
+        }
+      `}</style>
+
       <GamePrompt
-        onSpeak={() => void playWordAudio(targetVocab.english, targetVocab.audioUrl)}
         text={
           <>
-            Spin &amp; tap the <span className="text-amber-300 capitalize">{targetVocab.english}</span>! 🎡
+            Splash the <span className="text-amber-300 font-black capitalize">{targetVocab.english}</span> on the Water Wheel! 💦
           </>
         }
-        subtext={
-          spinning
-            ? 'Vòng quay đang xoay…'
-            : hasSpun
-              ? `Chạm vào thẻ "${targetVocab.vietnamese || targetVocab.english}" trên vòng quay!`
-              : 'Bấm Spin để xoay vòng quay!'
-        }
+        subtext={`Chạm trực tiếp vào "${targetVocab.english}" (${targetVocab.vietnamese || 'mục tiêu'}) đang quay để bắn pháo nước!`}
+        onSpeak={onReplayAudio}
+        rightSlot={<GameSpeedControl speed={speed} onChange={setSpeed} />}
       />
 
-      <div className="relative w-[min(68vmin,350px)] h-[min(68vmin,350px)] flex items-center justify-center">
-        {/* Kim chỉ đỉnh vòng quay chuẩn kidscards */}
-        <div
-          aria-hidden="true"
-          className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-amber-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.45)]"
-        />
+      {/* Rotating Carnival Water Wheel */}
+      <div className="relative flex-1 flex items-center justify-center w-full min-h-0">
+        <div className="relative w-[min(64vmin,320px)] h-[min(64vmin,320px)] flex items-center justify-center">
+          {/* Outer Water Wheel Rim & Spokes */}
+          <div
+            className="relative w-full h-full rounded-full border-8 border-cyan-300/70 bg-gradient-to-br from-sky-500/20 via-indigo-900/40 to-cyan-500/20 shadow-[0_0_40px_rgba(56,189,248,0.35)]"
+            style={{
+              animation: `kc-wheel-orbit ${spinDurationSec}s linear infinite`,
+              animationPlayState: splashedId ? 'paused' : 'running',
+            }}
+          >
+            {/* Wheel Spokes */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="w-full h-1.5 bg-cyan-300/40" />
+              <div className="h-full w-1.5 bg-cyan-300/40" />
+            </div>
 
-        {/* Đĩa vòng quay conic-gradient */}
-        <div
-          style={{
-            transform: `rotate(${wheelDeg}deg)`,
-            transition: spinning ? 'transform 1.1s cubic-bezier(0.18, 0.82, 0.22, 1)' : 'none',
-            background: `conic-gradient(from -${sliceAngle / 2}deg, ${gradientStops})`,
-          }}
-          className="relative w-full h-full rounded-full border-8 border-white/90 shadow-[0_16px_40px_rgba(15,23,42,0.55)]"
-        >
-          {slices.map((vocab, idx) => {
-            const angle = idx * sliceAngle;
-            const glow = !spinning && (attemptCount >= 2 || isAssisted) && vocab._id === targetVocab._id;
-            return (
-              <div
-                key={vocab._id}
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-102px)`,
-                }}
-              >
+            {/* Orbiting Bubble Targets */}
+            {options.map((vocab, idx) => {
+              const angleRad = ((idx * (360 / count) - 90) * Math.PI) / 180;
+              const radiusPct = 38;
+              const x = 50 + Math.cos(angleRad) * radiusPct;
+              const y = 50 + Math.sin(angleRad) * radiusPct;
+              const isTarget = vocab._id === targetVocab._id;
+              const isSplashed = splashedId === vocab._id;
+              const isWrong = wrongId === vocab._id;
+              const showHint = (attemptCount >= 2 || isAssisted) && isTarget;
+              const colorCls = BUBBLE_RING_COLORS[idx % BUBBLE_RING_COLORS.length];
+
+              return (
                 <button
+                  key={vocab._id}
                   type="button"
-                  disabled={spinning}
-                  aria-label={`Ô ${vocab.english}`}
-                  onClick={() => handlePick(vocab)}
+                  onClick={() => handleSplashTarget(vocab, idx)}
                   style={{
-                    transform: `rotate(${-(wheelDeg + angle)}deg)`,
-                    transition: spinning ? 'transform 1.1s cubic-bezier(0.18, 0.82, 0.22, 1)' : 'transform 0.2s',
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    animation: `kc-wheel-counter-orbit ${spinDurationSec}s linear infinite`,
+                    animationPlayState: splashedId ? 'paused' : 'running',
                   }}
-                  className={`w-[82px] h-[82px] sm:w-[92px] sm:h-[92px] rounded-2xl bg-white/95 border-3 flex flex-col items-center justify-center p-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95 ${
-                    wobbleId === vocab._id ? 'animate-gentle-wobble border-rose-500 ring-4 ring-rose-300' : 'border-white'
-                  } ${glow ? 'ring-6 ring-amber-300 border-amber-400 scale-110' : ''}`}
+                  className={`absolute w-[clamp(86px,18vmin,118px)] h-[clamp(86px,18vmin,118px)] rounded-full border-4 bg-gradient-to-br ${colorCls} flex flex-col items-center justify-center p-2 shadow-2xl cursor-pointer transition-transform ${isSplashed
+                    ? 'scale-125 ring-8 ring-cyan-200 border-white z-30'
+                    : showHint
+                      ? 'ring-8 ring-amber-300 border-amber-200 scale-110'
+                      : isWrong
+                        ? 'border-rose-400 bg-rose-600/80'
+                        : 'hover:scale-110 active:scale-95'
+                    }`}
                 >
-                  <VocabImage vocab={vocab} className="w-11 h-11 sm:w-12 sm:h-12 object-contain" />
-                  <span className="text-[11px] font-black text-slate-800 capitalize truncate max-w-[92%]">
+                  <span className="pointer-events-none absolute top-1.5 left-3 w-6 h-2.5 rounded-full bg-white/60 -rotate-12" />
+                  <VocabImage vocab={vocab} className="w-12 h-12 sm:w-14 sm:h-14 pointer-events-none" />
+                  <span className="mt-0.5 px-2 py-0.5 rounded-full bg-slate-950/75 text-[10px] sm:text-xs font-black text-white capitalize truncate max-w-[92%]">
                     {vocab.english}
                   </span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
 
-        {/* Nút tâm Spin! */}
-        <button
-          type="button"
-          disabled={spinning}
-          onClick={spinWheel}
-          aria-label="Xoay vòng quay"
-          className="absolute z-20 w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-4 border-white shadow-xl flex flex-col items-center justify-center text-slate-950 font-black cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-70"
+                  {/* Water Splash Burst on Hit */}
+                  {isSplashed && (
+                    <div className="pointer-events-none absolute -inset-4 flex items-center justify-center text-3xl animate-ping">
+                      💦
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Center Hub Emblem */}
+          <div className="pointer-events-none absolute w-20 h-20 rounded-full border-4 border-amber-200 bg-gradient-to-b from-amber-300 to-orange-500 shadow-xl flex flex-col items-center justify-center text-slate-950 font-black text-xs">
+            <span className="text-xl leading-none">🎡</span>
+            <span>SPLASH!</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Water Cannon Turret */}
+      <div className="relative z-20 flex flex-col items-center pb-1">
+        {shooting && (
+          <div className="pointer-events-none -mb-2 text-2xl animate-bounce">🫧💦🫧</div>
+        )}
+        <div
+          style={{ transform: `rotate(${cannonAngle}deg)` }}
+          className="w-16 h-12 rounded-t-3xl border-4 border-cyan-200 bg-gradient-to-b from-cyan-400 to-blue-600 shadow-lg flex flex-col items-center justify-center transition-transform duration-200"
         >
-          <RotateCw className={`w-5 h-5 ${spinning ? 'animate-spin' : ''}`} />
-          <span className="text-xs uppercase tracking-wider">Spin!</span>
-        </button>
+          <span className="text-lg leading-none">🔫</span>
+          <span className="text-[9px] font-black text-white uppercase">Pháo Nước</span>
+        </div>
       </div>
     </div>
   );

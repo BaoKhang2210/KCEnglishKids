@@ -1,0 +1,137 @@
+{
+  "checkedAt": "2026-11-02T18:59:14.242Z",
+  "method": "Live configured Gemini through authenticated application HTTP with synthetic data in a disposable database",
+  "model": "gemini-2.5-flash",
+  "checks": [
+    {
+      "name": "Teacher login accepts the demo credentials and rejects the wrong password",
+      "passed": true
+    },
+    {
+      "name": "Schedule and content contain only the assigned class",
+      "passed": true
+    },
+    {
+      "name": "Lesson preview has real local pictures; sentence screen falls back to the Unit",
+      "passed": true
+    },
+    {
+      "name": "Homework is unavailable before there is any evidence of learning",
+      "passed": true
+    },
+    {
+      "name": "Planner creates a 25 minute plan with explicit source and fallback status",
+      "passed": true
+    },
+    {
+      "name": "Prepare attendance, retain duration and plan, then start one live classroom",
+      "passed": true
+    },
+    {
+      "name": "Live scoring rejects absence and deduplicates repeated clicks",
+      "passed": true
+    },
+    {
+      "name": "Observation saved from the session also appears in the Unit overview",
+      "passed": true
+    },
+    {
+      "name": "Closing validates objectives, advances class curriculum once and freezes live scoring",
+      "passed": true
+    },
+    {
+      "name": "Teacher assigns one homework activity and the child receives that same assignment",
+      "passed": true
+    },
+    {
+      "name": "Child submits the real activity; teacher reviews it and family reads the feedback",
+      "passed": true
+    },
+    {
+      "name": "Family report uses evidence and assigned homework; retries do not duplicate delivery",
+      "passed": true
+    },
+    {
+      "name": "All remaining teacher destinations load their real data and absent/no-data children stay distinct",
+      "passed": true
+    },
+    {
+      "name": "Private notes can be created, edited and removed without sending a family message",
+      "passed": true
+    },
+    {
+      "name": "Cancelling homework removes it from current work while keeping submission history",
+      "passed": true
+    },
+    {
+      "name": "Audio endpoint safely handles a synthetic silent WAV without inventing speech",
+      "passed": true
+    }
+  ],
+  "cloudResults": [
+    {
+      "feature": "lessonPlan",
+      "source": "gemini",
+      "generative": true,
+      "fallback": false,
+      "durationMs": 16374
+    },
+    {
+      "feature": "parentNote",
+      "source": "gemini",
+      "generative": true,
+      "fallback": false,
+      "durationMs": 10981
+    },
+    {
+      "feature": "audioSilence",
+      "status": 200,
+      "generative": true,
+      "evaluated": false,
+      "durationMs": 3824
+    }
+  ],
+  "upstream": [
+    {
+      "status": 200,
+      "durationMs": 16273,
+      "finishReason": "STOP"
+    },
+    {
+      "status": 200,
+      "durationMs": 10725,
+      "finishReason": "STOP",
+      "options": [
+        {
+          "type": "praise",
+          "suggestedStars": 3,
+          "textIssues": []
+        },
+        {
+          "type": "encouragement",
+          "suggestedStars": 2,
+          "textIssues": []
+        },
+        {
+          "type": "practice_hint",
+          "suggestedStars": 1,
+          "textIssues": []
+        }
+      ]
+    },
+    {
+      "status": 200,
+      "durationMs": 3663,
+      "finishReason": "STOP"
+    }
+  ],
+  "passed": true,
+  "regression": {
+    "backendTests": 183,
+    "passed": 183,
+    "failed": 0,
+    "aiFocusedTests": 28
+  },
+  "configurationUnchanged": true,
+  "audioScope": "Synthetic silent WAV; no real child recording was used"
+}

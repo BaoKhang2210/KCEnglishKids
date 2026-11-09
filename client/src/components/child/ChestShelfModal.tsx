@@ -4,6 +4,7 @@ import { X, Lock, Star, Sparkles } from 'lucide-react';
 import { sfx } from '../../utils/audio';
 import type { RewardSummary, RewardChest } from '../../types';
 import { ALL_STICKERS } from '../../data/stickers';
+import { RewardArtwork } from './RewardArtwork';
 
 /**
  * Màn 1 (§1.2.13) — Kệ rương: every unit is a chest with 3 visual states:
@@ -157,11 +158,7 @@ export const ChestShelfModal: React.FC<ChestShelfModalProps> = ({
                     <div className="my-1 flex flex-col items-center">
                       <div className="text-4xl sm:text-5xl mb-1">🎁</div>
                       {sticker && (
-                        <div
-                          className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${sticker.bgGradient} border-2 border-white shadow-md flex items-center justify-center text-2xl`}
-                        >
-                          {sticker.icon}
-                        </div>
+                        <RewardArtwork symbol={sticker.icon} label={sticker.name} className="h-16 w-16 object-contain" />
                       )}
                     </div>
                   ) : (

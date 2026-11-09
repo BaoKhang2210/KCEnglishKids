@@ -1,0 +1,145 @@
+{
+  "tool": "built-in imagegen",
+  "assets": [
+    {
+      "id": "b_first_step",
+      "name": "first-step",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a tiny cheerful duckling taking its first step beside two golden footprints and a small sprout. Complete medal construction: bronze scalloped medallion, peach ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-2aed9e24-81d7-467d-9016-f4a42df9fb64.png"
+    },
+    {
+      "id": "b_unit_1",
+      "name": "school-bag",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a smiling mint school backpack with a tiny pencil, apple and star peeking out. Complete medal construction: bronze rounded-square enamel badge, teal ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-e760c2f5-f1f3-443d-a293-fe1214f1c7ef.png"
+    },
+    {
+      "id": "b_food",
+      "name": "little-explorer",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a little orange fox wearing an explorer hat and looking through a golden telescope at a tiny star. Complete medal construction: silver hexagonal enamel badge, sky blue ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-619d1690-7bf0-4e47-a0fc-c5e2f9ff9b75.png"
+    },
+    {
+      "id": "b_toys",
+      "name": "daily-reader",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a little cream rabbit with round glasses writing in a notebook beside a little desk lamp. Complete medal construction: silver rounded arch enamel badge, lavender ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-3a2fb8c1-8894-4710-a94a-57ba2aa382f6.png"
+    },
+    {
+      "id": "b_nature",
+      "name": "steady-turtle",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a friendly mint turtle climbing three small stepping stones with a leafy flag at the top. Complete medal construction: gold shield-shaped enamel badge, green ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-29890ddc-cbc4-4c63-a2e7-9c5413c22238.png"
+    },
+    {
+      "id": "b_home",
+      "name": "book-friend",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a wise but adorable round owl cuddling an open storybook with a tiny bookmark. Complete medal construction: gold scalloped circular enamel badge, teal ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-0a1d9999-3892-4166-b3a6-a10d8b4e9ea2.png"
+    },
+    {
+      "id": "b_unit_5",
+      "name": "discovery-ambassador",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a colorful butterfly spreading its wings above a tiny globe with a miniature compass. Complete medal construction: gold flower-shaped enamel badge, mint ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-e645982b-baa8-47aa-b490-3f2714538c72.png"
+    },
+    {
+      "id": "b_unit_all",
+      "name": "conqueror-king",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a cheerful little lion king wearing a pastel gem crown on a small mountain summit, tiny pennants beside him. Complete medal construction: iridescent lilac and gold royal shield medal, purple ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-4d412f8e-b6cd-4a35-aa7f-c75a8f364d8c.png"
+    },
+    {
+      "id": "b_star_5",
+      "name": "bright-star",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a single smiling golden star holding a little seedling with two tiny sparkles. Complete medal construction: bronze round enamel medallion, yellow ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-01723f42-6d93-4a8a-9fcc-14745923a8ad.png"
+    },
+    {
+      "id": "b_star_12",
+      "name": "little-superstar",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a cheerful star astronaut wearing a tiny glass space helmet and waving beside a small peach planet. Complete medal construction: silver five-point star-shaped enamel badge, sky blue ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-93bf479a-ccc7-4ddc-b4da-1e8076925607.png"
+    },
+    {
+      "id": "b_star_40",
+      "name": "radiant-sun",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a cheerful round sunrise character with golden sun rays and fluffy little clouds beneath it. Complete medal construction: iridescent gold sun-shaped medal, coral ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-6ce158d4-33d3-4e3f-b22b-39bc02218fdc.png"
+    },
+    {
+      "id": "b_streak",
+      "name": "star-bee",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a fluffy smiling honeybee carrying a little honey pot filled with tiny golden stars. Complete medal construction: bronze honeycomb hexagon enamel badge, amber ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-44e24004-c807-4cc3-98f4-18de36bf439d.png"
+    },
+    {
+      "id": "b_flame_7",
+      "name": "happy-week",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a cheerful bear holding a small calendar of seven colorful empty tiles each with a tiny checkmark, no letters or numbers. Complete medal construction: gold rounded-square enamel badge, teal ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-c122c7a0-a3a4-4b5b-8d20-06dab7ec7878.png"
+    },
+    {
+      "id": "b_flame_30",
+      "name": "friendly-volcano",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a friendly little volcano with a smiling face releasing a gentle plume of pastel star confetti, no destruction. Complete medal construction: iridescent coral and gold shield medal, orange ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-eaec9b4a-e1b2-468e-9a5b-50795ff72b74.png"
+    },
+    {
+      "id": "b_quiz_master",
+      "name": "little-bullseye",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a cheerful kitten holding a little flag beside a colorful round bullseye target with a golden star exactly in its center, no weapons. Complete medal construction: silver circular enamel badge, turquoise ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-3412ddd7-d616-4ce0-85b8-e5e95218d717.png"
+    },
+    {
+      "id": "b_memory",
+      "name": "persistent-friend",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a determined friendly squirrel fitting the final colorful puzzle piece into a little heart-shaped puzzle. Complete medal construction: silver heart-shaped enamel medal, lilac ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-0dfe23a7-7cd8-4e39-9ef6-721040ed6d3f.png"
+    },
+    {
+      "id": "b_pronounce",
+      "name": "six-lesson-summit",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a happy penguin explorer reaching a small mountain summit and planting a little golden book-shaped flag, soft rounded icy peaks. Complete medal construction: gold hexagonal enamel badge, blue ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-0f2751a6-5219-4759-8162-d9eedfae60fb.png"
+    },
+    {
+      "id": "b_chest",
+      "name": "golden-hands",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: two friendly soft golden mitten hands cradling a large ornate golden key and a small turquoise gem. Complete medal construction: gold scalloped enamel badge, pink ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-17c47016-9111-43f4-9ee1-10c94c6b7941.png"
+    },
+    {
+      "id": "b_master",
+      "name": "english-ambassador",
+      "prompt": "Use case: stylized-concept. One original preschool achievement medal illustration. Center subject: a cheerful little globe character wearing a tiny graduation cap, holding two blank pastel speech bubbles and a golden laurel sprig. Complete medal construction: iridescent teal and gold globe-shaped medal, lilac ribbon tails. Premium sculpted clay-toy 3D artwork, rounded plush-like forms, expressive friendly faces, tactile detail and polished enamel accents, soft warm studio light. Harmonious amber, cream, sage, teal, peach and lavender palette. Visually distinct central story and outer silhouette, readable at small icon size. Full medal and ribbon tails fully inside a square with 8% empty margins. Genuinely transparent background. No text, no letters, no digits, no logo, no rectangular presentation card.",
+      "originalPath": "C:\\Users\\Admin\\.codex\\generated_images\\01a19ae1-f858-7023-a9e3-afa12cf78188\\exec-4a3e12c9-be89-4556-8040-374b1b97d7ff.png"
+    }
+  ],
+  "retained": [
+    {
+      "id": "b_animals",
+      "path": "/images/rewards/koko-friends-v1/badge-lesson.png"
+    },
+    {
+      "id": "b_unit_3",
+      "path": "/images/rewards/koko-friends-v1/badge-unit.png"
+    },
+    {
+      "id": "b_star_25",
+      "path": "/images/rewards/koko-friends-v1/badge-star.png"
+    },
+    {
+      "id": "b_flame_3",
+      "path": "/images/rewards/koko-friends-v1/badge-streak.png"
+    },
+    {
+      "id": "b_perfect_5",
+      "path": "/images/rewards/koko-friends-v1/badge-perfect.png"
+    },
+    {
+      "id": "b_chest_collector",
+      "path": "/images/rewards/koko-friends-v1/badge-chest.png"
+    }
+  ]
+}

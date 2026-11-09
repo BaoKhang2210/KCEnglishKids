@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { X, Star, Sparkles, Award, Gift } from 'lucide-react';
 import { sfx } from '../../utils/audio';
 import { useAuth } from '../../context/AuthContext';
@@ -34,6 +34,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   // §1.2.17 — RewardContext is the single source of truth; props still win
   // when explicitly provided (backwards compatible).
   const { rewards } = useRewards();
+  const reducedMotion = useReducedMotion();
   const effectiveTotalStars = rewards?.totalStars ?? totalStars;
   const effectiveCompletedLessons = rewards?.completedLessons ?? completedCount;
   const effectiveCompletedUnits = completedUnits ?? rewards?.completedUnits ?? 0;
@@ -88,7 +89,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white rounded-3xl border-4 border-amber-300 shadow-2xl max-w-lg w-full p-6 sm:p-7 relative overflow-hidden animate-pop-in max-h-[90vh] flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label="Bộ sưu tập của bé" className="reward-album max-w-2xl w-full p-6 sm:p-7 relative overflow-hidden animate-pop-in max-h-[92dvh] flex flex-col">
         {/* Soft Background Blob */}
         <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-100/60 rounded-full blur-3xl pointer-events-none" />
 
@@ -105,7 +106,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         </button>
 
         {/* Header with Koko Mini */}
-        <div className="flex items-center gap-4 mb-4 relative z-10">
+        <div className="reward-album__hero flex items-center gap-4 mb-4 relative z-10">
           <div className="w-16 h-16 rounded-2xl bg-amber-100 border-2 border-amber-300 p-1 flex items-center justify-center flex-shrink-0 shadow-inner">
             <KokoMascot state="happy" size="sm" interactive={false} />
           </div>
@@ -159,13 +160,13 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         </div>
 
         {/* Stars Metric Banner */}
-        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 rounded-2xl p-3 sm:p-4 text-white flex items-center justify-between mb-4 shadow-sm relative z-10 flex-shrink-0">
+        <div className="reward-album__stats rounded-2xl p-3 sm:p-4 flex items-center justify-between mb-4 shadow-sm relative z-10 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-yellow-100">
               <Star className="w-6 h-6 sm:w-7 sm:h-7 fill-yellow-200" />
             </div>
             <div>
-              <span className="text-[10px] sm:text-xs font-black text-amber-100 block uppercase">
+              <span className="text-[10px] sm:text-xs font-black text-emerald-800 block uppercase">
                 Tổng số sao vàng
               </span>
               <span className="text-xl sm:text-2xl font-black">
@@ -175,14 +176,14 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] sm:text-xs font-black text-amber-100 block">Lesson hoàn thành</span>
+            <span className="text-[10px] sm:text-xs font-black text-emerald-800 block">Lesson hoàn thành</span>
             <span className="text-lg sm:text-xl font-black">{effectiveCompletedLessons} Lesson</span>
           </div>
         </div>
         {rewards && (
-          <p className="-mt-2 mb-4 text-[11px] font-bold text-slate-500 relative z-10">
-            Tổng sao hành trình = tổng sao các Unit. Sao lớp và các khoản thưởng khác được theo dõi riêng; hoàn thành Unit nhận 5 sao một lần.
-          </p>
+          <details className="-mt-2 mb-4 text-[11px] font-bold text-slate-500 relative z-10"><summary className="cursor-pointer">Dành cho gia đình: cách tính sao</summary><p className="mt-2">
+            Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}{rewards.homePracticeStars ? ` + ôn tập 5 phút ${rewards.homePracticeStars}` : ''}. Sao Lesson lấy điểm tốt nhất ở mọi trò chơi; mốc 50/70/90% lần lượt là 1/2/3 sao. Mỗi Unit cộng 5 sao một lần.
+          </p></details>
         )}
 
         {/* BADGES TAB */}
@@ -214,32 +215,30 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
             </div>
 
             {/* Badges Grid (Scrollable) */}
-            <div className="overflow-y-auto pr-1 flex-1 space-y-3 relative z-10">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="reward-album__grid overflow-y-auto pr-1 flex-1 min-h-0 space-y-3 relative z-10">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {filteredBadges.map((badge, badgeIdx) => {
                   const currentVal = getBadgeProgress(badge, badgeProgress);
                   const percent = Math.min(100, Math.round((currentVal / badge.requirement) * 100));
 
                   return (
-                    <motion.div
+                    <motion.button
+                      type="button"
+                      data-locked={!badge.unlocked}
                       key={badge.id}
-                      initial={{ opacity: 0, y: 18, scale: 0.9 }}
+                      initial={reducedMotion ? false : { opacity: 0, y: 12, scale: .95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 260, damping: 20, delay: badgeIdx * 0.045 }}
-                      whileHover={{ y: -5, scale: 1.03 }}
-                      whileTap={{ scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 260, damping: 20, delay: Math.min(badgeIdx, 6) * 0.035 }}
+                      whileHover={reducedMotion ? undefined : { y: -3 }}
+                      whileTap={reducedMotion ? undefined : { scale: .97 }}
                       onClick={() => {
                         sfx.playPop();
                         setShowcaseBadge(badge);
                       }}
-                      className={`p-3 rounded-[26px] border-3 flex flex-col items-center text-center transition-all cursor-pointer relative group badge-shimmer-effect ${
-                        badge.unlocked
-                          ? 'bg-gradient-to-b from-amber-50/90 via-white to-orange-50/50 border-amber-300 shadow-sm hover:shadow-xl hover:-translate-y-1.5 active:scale-95'
-                          : 'bg-white/80 border-slate-200 hover:border-amber-200 hover:-translate-y-0.5'
-                      }`}
+                      className="reward-album__badge p-3 rounded-[24px] flex flex-col items-center text-center cursor-pointer relative group"
                     >
                       {/* Rosette Medal with ribbons */}
-                      <div className="my-1.5 pb-2">
+                      <div className="mt-3 mb-6">
                         <CuteRosetteMedal
                           badge={badge}
                           unlocked={badge.unlocked}
@@ -274,7 +273,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
                           </span>
                         </div>
                       )}
-                    </motion.div>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -285,7 +284,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
         {/* STICKERS TAB */}
         {activeTab === 'stickers' && (
           <div className="overflow-y-auto pr-1 flex-1 space-y-3 relative z-10">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {ALL_STICKERS.map(st => {
                 const isUnlocked = unlockedStickerIds.includes(st.id);
                 return (

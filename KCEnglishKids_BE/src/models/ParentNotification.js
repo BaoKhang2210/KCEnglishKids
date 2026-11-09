@@ -83,6 +83,11 @@ const parentNotificationSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    parentFeedback: {
+      message: { type: String, trim: true, default: '' },
+      senderName: { type: String, trim: true, default: '' },
+      createdAt: { type: Date, default: null }
+    },
     // Two-way exchange between Teacher and Parent
     replies: [
       {

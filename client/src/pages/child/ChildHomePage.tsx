@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { topicsApi, lessonsApi, vocabularyApi, streakApi, vocabReviewApi } from '../../services/api';
+import { api, topicsApi, lessonsApi, vocabularyApi, streakApi, vocabReviewApi } from '../../services/api';
 import type { Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildRecognitions } from '../../components/child/ChildRecognitions';
@@ -23,6 +23,7 @@ import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
 import { ChildVideoLibrarySection } from '../../components/child/video/ChildVideoLibrarySection';
+import { ChildLearningDiarySection } from '../../components/child/ChildLearningDiarySection';
 import { StarCollectionSection } from '../../components/child/StarCollectionSection';
 import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
@@ -162,6 +163,13 @@ export const ChildHomePage: React.FC = () => {
   const [streakData, setStreakData] = useState<ChildStreakData | null>(null);
   const [showStreakModal, setShowStreakModal] = useState(false);
 
+  // 5-minute daily home review summary
+  const [homeReviewSummary, setHomeReviewSummary] = useState<{
+    lessonTitle?: string;
+    lessonVietnameseTitle?: string;
+    completedToday?: boolean;
+  } | null>(null);
+
   // Friendly Sequential Gatekeeper Toast State
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -229,6 +237,20 @@ export const ChildHomePage: React.FC = () => {
           } catch (stErr) {
             console.warn('Could not fetch daily streak:', stErr);
           }
+          // Fetch 5-minute home review status
+          api.get(`/children/${childId}/home-practice`)
+            .then((res: any) => {
+              const rev = res.data?.homeReview;
+              if (rev) {
+                setHomeReviewSummary({
+                  lessonTitle: rev.lessonTitle,
+                  lessonVietnameseTitle: rev.lessonVietnameseTitle,
+                  completedToday: rev.completedToday
+                });
+              }
+            })
+            .catch(() => {});
+
           try {
             const dueRes = await vocabReviewApi.getDue(childId, 1);
             setDueWordCount(Number(dueRes.data?.total) || 0);
@@ -317,14 +339,71 @@ export const ChildHomePage: React.FC = () => {
 
       <main className={`flex-1 min-h-0 ${activeTab === 'vocab' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
         <div className={activeTab === 'vocab' ? 'flex h-full min-h-0 w-full flex-col px-4 py-3 sm:px-8 lg:px-12' : 'w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12'}>
-        {activeTab !== 'videos' && activeTab !== 'vocab' && (
+        {activeTab !== 'videos' && activeTab !== 'vocab' && activeTab !== 'diary' && activeTab !== 'history' && (
           <>
-            <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
+            {/* 5-MINUTE DAILY HOME PRACTICE HERO BANNER */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                sfx.playPop();
+                navigate('/my-learning');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  sfx.playPop();
+                  navigate('/my-learning');
+                }
+              }}
+              className="relative mb-4 cursor-pointer overflow-hidden rounded-3xl border-3 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-4 sm:p-5 text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] group"
+            >
+              {/* Playful background decorative shapes */}
+              <div className="absolute -right-6 -bottom-6 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
+              <div className="absolute top-2 right-16 w-20 h-20 rounded-full bg-yellow-200/20 blur-md pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-white/30 flex-shrink-0 animate-bounce">
+                    ⚡
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider bg-white/25 backdrop-blur-md border border-white/30 text-amber-50">
+                        🌱 5 Phút Ôn Tập Ở Nhà Cùng Ba Mẹ
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-yellow-300 text-amber-950 flex items-center gap-1 shadow-sm">
+                        ⭐ Thưởng +3 Sao
+                      </span>
+                    </div>
+                    <h2 className="text-base sm:text-lg lg:text-xl font-black text-white drop-shadow-sm">
+                      {homeReviewSummary?.lessonVietnameseTitle 
+                        ? `Bài vừa học ở lớp: ${homeReviewSummary.lessonVietnameseTitle} (${homeReviewSummary.lessonTitle})`
+                        : 'Cùng Ba Mẹ ôn lại kiến thức buổi học gần nhất!'}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-amber-100 font-bold">
+                      Bé ôn từ vựng với trò chơi mini & cùng ba mẹ luyện mẫu câu đàm thoại 👨‍👩‍👧
+                    </p>
+                  </div>
+                </div>
+
+                <div className="self-end sm:self-center flex-shrink-0">
+                  {homeReviewSummary?.completedToday ? (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md border border-emerald-300">
+                      <Check className="w-4 h-4 stroke-[3]" /> Đã nhận 3⭐ (Bấm ôn lại)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-orange-600 font-black text-xs sm:text-sm shadow-md hover:bg-yellow-50 group-hover:scale-105 transition-transform">
+                      Bắt đầu ngay <ArrowRight className="w-4 h-4" />
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
             <ChildRecognitions />
           </>
         )}
         {/* COMPACT BANNER */}
-        {activeTab !== 'vocab' && activeTab !== 'videos' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
+        {activeTab !== 'vocab' && activeTab !== 'videos' && activeTab !== 'diary' && activeTab !== 'history' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
           <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_62%]" />
           <div className="absolute inset-0 bg-gradient-to-r from-teal-950/85 via-teal-950/55 to-teal-950/15" />
           <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
@@ -642,6 +721,18 @@ export const ChildHomePage: React.FC = () => {
               </section>
             )}
 
+            {/* ==================== TAB: NHẬT KÝ & TIẾN ĐỘ HỌC TẬP CỦA BÉ ==================== */}
+            {(activeTab === 'diary' || activeTab === 'history') && (
+              <ChildLearningDiarySection
+                units={displayUnits}
+                ageGroupCode={ageCode}
+                totalStars={totalStars}
+                completedLessons={completedLessons}
+                streakDays={streakData?.streak || 1}
+                onNavigateTab={goTab}
+              />
+            )}
+
             {/* ==================== TAB 4: HUY HIỆU CỦA BÉ ==================== */}
             {activeTab === 'badges' && (() => {
               const badgeProgress = {
@@ -664,7 +755,26 @@ export const ChildHomePage: React.FC = () => {
                 <section className="space-y-6">
                   <div className="flex items-end justify-between flex-wrap gap-3">
                     <div>
-                      <h2 className="text-2xl sm:text-3xl font-black text-slate-800">Góc phần thưởng của bé</h2>
+                      <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-purple-700 bg-purple-100 px-3 py-1 rounded-full mb-1">
+                        <Trophy className="w-3.5 h-3.5" />
+                        Góc phần thưởng của bé
+                      </div>
+                      <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
+                        {rewardTab === 'badges'
+                          ? `Huy hiệu của bé (${unlockedCount}/${evaluatedBadges.length} đã mở)`
+                          : `Bộ sưu tập Sticker (${unlockedStickers.length}/${ALL_STICKERS.length} đã mở)`}
+                      </h2>
+                      <p className="text-sm font-bold text-slate-500">
+                        {rewardTab === 'badges'
+                          ? 'Mỗi huy hiệu có một mốc rõ ràng: sao, Lesson hoàn thành, Lesson 3 sao hoặc rương đã mở.'
+                          : 'Hoàn thành mọi Lesson trong Unit để nhận rương và sticker. Sao thưởng được cộng ngay khi Unit hoàn tất.'}
+                      </p>
+                      {rewards && (
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          Sao = Lesson {rewards.earnedStars} + thưởng Unit {rewards.bonusStars} + thưởng trên lớp {rewards.classroomStars}{rewards.homePracticeStars ? ` + ôn tập 5 phút ${rewards.homePracticeStars}` : ''}.
+                          Sao Lesson tính trên tổng điểm tốt nhất của từng trò chơi trong Lesson: dưới 50% = 0, từ 50% = 1, từ 70% = 2, từ 90% = 3 sao. Mỗi Unit hoàn thành cộng 5 sao một lần.
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button

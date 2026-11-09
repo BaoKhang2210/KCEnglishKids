@@ -1,4 +1,4 @@
-const { ParentNotification, ClassroomSession, ClassRoom, VocabularyMastery } = require('../models');
+const { ParentNotification, ClassroomSession, ClassRoom, VocabularyMastery, User } = require('../models');
 const access = require('../services/teacherAccess');
 const rules = require('../services/teacherRules');
 const inbox = require('../services/parentInbox');
@@ -38,7 +38,7 @@ async function prepare(req, body) {
   let learningSnapshot;
   if(session&&body.basisToken){
     const report=require('../services/familyLearningReport');
-    await session.populate('lesson','title vietnameseTitle');
+    await session.populate({path:'lesson',select:'title vietnameseTitle curriculumUnits',populate:{path:'curriculumUnits',select:'bookNumber unitNumber bigQuestion'}});
     learningSnapshot=report.snapshot(await report.row(session,child,row),body);
     lines.push(...report.lines(learningSnapshot));
   }
@@ -57,7 +57,7 @@ async function deliver(values) {
 }
 exports.reportDraft=wrap(async(req,res)=>{
   if(!validId(req.params.id))fail('Mã buổi học không hợp lệ.');
-  const session=await ClassroomSession.findOne({_id:req.params.id,...scope(req),status:'COMPLETED'}).populate('lesson','title vietnameseTitle').populate('studentScores.student','name');
+  const session=await ClassroomSession.findOne({_id:req.params.id,...scope(req),status:'COMPLETED'}).populate({path:'lesson',select:'title vietnameseTitle curriculumUnits',populate:{path:'curriculumUnits',select:'bookNumber unitNumber bigQuestion'}}).populate('studentScores.student','name');
   if(!session)fail('Không tìm thấy buổi dạy đã kết thúc được phân công.',403);
   await access.classroom(req,session.classroom);
   const report=require('../services/familyLearningReport');
@@ -100,17 +100,6 @@ exports.getChildNotifications = wrap(async (req, res) => {
   const data = await ParentNotification.find({ child: req.params.childId, ...scope(req) }).populate('teacher', 'name avatar').populate('session', 'title startedAt').sort({ createdAt: -1 });
   res.json({ success: true, count: data.length, data });
 });
-exports.replyAsTeacher = wrap(async (req, res) => {
-  if (!validId(req.params.id)) fail('Mã trao đổi không hợp lệ.');
-  const message = rules.text(req.body.message);
-  if (!message) fail('Vui lòng nhập lời nhắn.');
-  const thread = await ParentNotification.findOne({ _id: req.params.id, ...scope(req) });
-  if (!thread) fail('Không tìm thấy trao đổi được phân công.', 403);
-  await access.child(req, thread.child);
-  const data = await ParentNotification.findOneAndUpdate({ _id: thread._id, ...scope(req) }, { $push: { replies: { senderRole: 'TEACHER', senderName: req.user.name, message, createdAt: new Date() } } }, { returnDocument: 'after', runValidators: true });
-  res.json({ success: true, data });
-});
-
 exports.getChildNotificationsForParent = async (req, res, next) => {
   try {
     const { childId } = req.params;
@@ -122,32 +111,6 @@ exports.getChildNotificationsForParent = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     res.json({ success: true, count: data.length, data });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/children/:childId/parent-notifications/:id/reply
-// Parent sends a reply / message to the teacher
-// ─────────────────────────────────────────────────────────────────────────────
-exports.replyAsParent = async (req, res, next) => {
-  try {
-    const { childId, id } = req.params;
-    if (req.user.role !== 'CHILD' || idOf(req.user._id) !== childId) return res.status(403).json({ success: false, message: 'Chỉ tài khoản gia đình của học sinh mới được phản hồi với vai trò phụ huynh.' });
-    const { message } = req.body;
-    if (!validId(childId) || !validId(id)) return bad(res, 'Invalid IDs.');
-    const cleanMessage = rules.text(message);
-    if (!cleanMessage) return bad(res, 'Message is required.');
-    const notif = await ParentNotification.findOneAndUpdate({ _id: id, child: childId, status: 'SENT' }, { $push: { replies: {
-      senderRole: 'FAMILY',
-      senderName: 'Gia đình ' + (req.user.name || ''),
-      message: cleanMessage,
-      createdAt: new Date()
-    } } }, { returnDocument: 'after', runValidators: true });
-    if (!notif) return bad(res, 'Notification not found.');
-
-    res.json({ success: true, data: notif });
   } catch (e) {
     next(e);
   }
@@ -175,5 +138,79 @@ exports.markAsReadByParent = async (req, res, next) => {
     next(e);
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/children/:childId/parent-notifications/:id/feedback
+// Parent sends note/request/feedback on a notification
+// ─────────────────────────────────────────────────────────────────────────────
+exports.sendParentFeedback = async (req, res, next) => {
+  try {
+    const { childId, id } = req.params;
+    const { message, senderName } = req.body;
+    if (req.user.role !== 'CHILD' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Chỉ tài khoản gia đình mới có thể gửi phản hồi.' });
+    }
+    if (req.user.role === 'CHILD' && idOf(req.user._id) !== childId) {
+      return res.status(403).json({ success: false, message: 'Không thể gửi phản hồi cho học sinh khác.' });
+    }
+    if (!validId(childId) || !validId(id)) return bad(res, 'Mã không hợp lệ.');
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return bad(res, 'Vui lòng nhập nội dung phản hồi hoặc lời nhắn.');
+    }
+    if (message.trim().length > 500) {
+      return bad(res, 'Lời nhắn tối đa 500 ký tự.');
+    }
+
+    const notif = await ParentNotification.findOne({ _id: id, child: childId });
+    if (!notif) return bad(res, 'Không tìm thấy phiếu nhận xét.');
+
+    const child = await User.findById(childId).select('name');
+    const author = senderName?.trim() || ('Phụ huynh bé ' + (child?.name || ''));
+    const entry = {
+      senderRole: 'PARENT',
+      senderName: author,
+      message: message.trim(),
+      createdAt: new Date()
+    };
+
+    notif.replies = notif.replies || [];
+    notif.replies.push(entry);
+    notif.parentFeedback = {
+      message: message.trim(),
+      senderName: author,
+      createdAt: new Date()
+    };
+    notif.readAt = notif.readAt || new Date();
+    await notif.save();
+
+    res.status(201).json({ success: true, data: notif, feedback: entry });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/teacher/parent-feedback
+// Teacher gets all parent feedback/notes across assigned classrooms
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getParentFeedback = wrap(async (req, res) => {
+  const ids = await access.studentIds(req);
+  const q = {
+    ...scope(req),
+    child: { $in: ids },
+    $or: [
+      { 'replies.0': { $exists: true } },
+      { 'parentFeedback.message': { $exists: true, $ne: '' } }
+    ]
+  };
+  const data = await ParentNotification.find(q)
+    .populate('child', 'name avatar avatarUrl contact phone parentContact assignedClass')
+    .populate('session', 'title startedAt')
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .limit(30)
+    .lean();
+
+  res.json({ success: true, count: data.length, data });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────

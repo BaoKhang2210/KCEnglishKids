@@ -131,7 +131,7 @@ export const api = {
 
 async function assistantPost<T>(
   endpoint: string,
-  body: ParentNoteRequest | SpeakingRequest | LessonPlanRequest,
+  body: ParentNoteRequest | SpeakingRequest | LessonPlanRequest | { targetWord: string; ageGroup?: string; audioBase64: string; mimeType: string },
   signal?: AbortSignal
 ): Promise<{ success: true; data: T }> {
   const controller = new AbortController();
@@ -148,6 +148,9 @@ async function assistantPost<T>(
 }
 
 export const aiApi = {
+  capabilities: (signal?: AbortSignal) => api.get('/ai/capabilities', signal),
+  evaluateAudio: (body: { targetWord: string; ageGroup?: string; audioBase64: string; mimeType: string }, signal?: AbortSignal) =>
+    assistantPost<SpeakingFeedback>('/ai/evaluate-audio', body, signal),
   generateParentNote: (body: ParentNoteRequest, signal?: AbortSignal) =>
     assistantPost<ParentNoteSuggestions>('/ai/generate-parent-note', body, signal),
   evaluatePronunciation: (body: SpeakingRequest, signal?: AbortSignal) =>
@@ -186,8 +189,10 @@ export const authApi = {
   teacherLogin: (payload: { email: string; password: string }) =>
     api.post('/auth/teacher-login', payload),
   getMe: () => api.get('/auth/me'),
-  changePin: (payload: { currentPin: string; newPin: string; recoveryPictures?: string[] }) =>
+  changePin: (payload: { currentPin?: string; newPin: string; recoveryPictures?: string[] }) =>
     api.post('/auth/change-pin', payload),
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    api.post('/auth/change-password', payload),
   lookupStudent: (phone: string) =>
     api.post('/auth/lookup-student', { phone }),
   // Self-service account recovery (no email/SMS gateway needed).
@@ -407,6 +412,33 @@ export const adminApi = {
     api.patch(`/admin/lessons/${id}/status`),
 
   getLessonReadiness: (id: string) => api.get(`/admin/curriculum/lessons/${id}/readiness`),
+  generateAiCurriculum: (data: { topic: string; ageGroup: string }) =>
+    api.post('/admin/curriculum/ai-generate', data),
+  applyAiCurriculum: (data: {
+    lessonId?: string;
+    unitId?: string;
+    ageGroupCode?: string;
+    suggestedLessonTitle?: string;
+    suggestedVietnameseTitle?: string;
+    category?: string;
+    vocabularies: Array<{
+      english: string;
+      vietnamese: string;
+      pronunciation?: string;
+      wordType?: string;
+      category?: string;
+      imageUrl?: string;
+      imagePrompt?: string;
+    }>;
+    sentencePairs: Array<{
+      questionEnglish: string;
+      questionVietnamese?: string;
+      questionPronunciation?: string;
+      answerEnglish: string;
+      answerVietnamese?: string;
+      answerPronunciation?: string;
+    }>;
+  }) => api.post('/admin/curriculum/ai-apply', data),
   createVocabulary: (data: { imageUrl?: string; audioUrl?: string; wordType?: string; status?: string; english: string; vietnamese: string; pronunciation?: string; category?: string; ageGroupCodes?: string[]; sourceUnits?: string[]; lessonId?: string }) =>
     api.post('/admin/curriculum/vocabularies', data),
   updateVocabulary: (id: string, data: any) =>
@@ -450,6 +482,8 @@ export const adminApi = {
     api.get('/admin/classrooms'),
   getClassroomById: (id: string) =>
     api.get(`/admin/classrooms/${id}`),
+  getClassroomFullDetail: (id: string) =>
+    api.get(`/admin/classrooms/${id}/full-detail`),
   createClassroom: (data: {
     name: string;
     ageGroupCode: string;
@@ -486,6 +520,8 @@ export const adminApi = {
     api.put(`/admin/classrooms/${id}/teacher`, { teacherId }),
   getClassroomCurriculumProgress: (id: string) =>
     api.get(`/admin/classrooms/${id}/curriculum-progress`),
+  getClassroomSessions: (id: string) =>
+    api.get(`/admin/classrooms/${id}/sessions`),
   updateClassroomCurriculumProgress: (id: string, data: any) =>
     api.put(`/admin/classrooms/${id}/curriculum-progress`, data),
   exportSystemBackup: () =>
@@ -614,6 +650,10 @@ export const adminApi = {
     api.get(`/admin/schedules/by-teacher/${teacherId}`),
   deleteSchedule: (id: string) =>
     api.delete(`/admin/schedules/${id}`),
+  autoAssignCurriculumSchedules: () =>
+    api.post('/admin/schedules/auto-assign-curriculum', {}),
+  clearScheduleLessons: (classroomId?: string) =>
+    api.post('/admin/schedules/clear-lessons', { classroomId }),
 
   // Activities & Games Management (Kho Trò chơi & Hoạt động)
   getActivities: (params?: {
@@ -727,6 +767,8 @@ export const classroomSessionApi = {
   },
   createSession: (data: {
     classroomId: string;
+    isGapReview?: boolean;
+    gapWords?: string;
     lessonId?: string;
     title?: string;
     activityIds?: string[];
@@ -774,8 +816,16 @@ export const classroomSessionApi = {
   ) => api.post(`/teacher/classroom-sessions/${id}/question-result`, data),
   updateActivityIndex: (id: string, index: number) =>
     api.patch(`/teacher/classroom-sessions/${id}/activity-index`, { index }),
+  updateStudentAttendance: (id: string, studentId: string, attendance: 'PRESENT' | 'LATE' | 'EXCUSED' | 'ABSENT' = 'LATE') =>
+    api.patch(`/teacher/classroom-sessions/${id}/students/${studentId}/attendance`, { attendance }),
   getSessionSummary: (id: string) =>
-    api.get(`/teacher/classroom-sessions/${id}/summary`)
+    api.get(`/teacher/classroom-sessions/${id}/summary`),
+  reportOff: (data: { classroomId: string; date?: string; reason: string; note?: string; timeSlot?: { startTime: string; endTime: string } }) =>
+    api.post('/teacher/classroom-sessions/report-off', data),
+  cancelSession: (id: string, data: { reason: string; note?: string }) =>
+    api.post(`/teacher/classroom-sessions/${id}/cancel`, data),
+  restoreCancelledSession: (id: string) =>
+    api.post(`/teacher/classroom-sessions/${id}/restore`, {})
 };
 
 // Vocabulary Mastery API (Phase 5)
@@ -882,14 +932,14 @@ export const parentNotificationApi = {
   },
   getChildNotifications: (childId: string) =>
     api.get(`/teacher/parent-notifications/child/${childId}`),
-  replyAsTeacher: (id: string, message: string) =>
-    api.post(`/teacher/parent-notifications/${id}/reply`, { message }),
   getChildNotificationsForParent: (childId: string) =>
     api.get(`/children/${childId}/parent-notifications`),
-  replyAsParent: (childId: string, id: string, message: string, parentName?: string) =>
-    api.post(`/children/${childId}/parent-notifications/${id}/reply`, { message, parentName }),
   markAsReadByParent: (childId: string, id: string) =>
     api.patch(`/children/${childId}/parent-notifications/${id}/read`, {}),
+  sendParentFeedback: (childId: string, id: string, data: { message: string; senderName?: string }) =>
+    api.post(`/children/${childId}/parent-notifications/${id}/feedback`, data),
+  getParentFeedback: () =>
+    api.get('/teacher/parent-feedback'),
   getChildAssignments: (childId: string) =>
     api.get(`/children/${childId}/assignments`),
   getChildSchedule: (childId: string) =>

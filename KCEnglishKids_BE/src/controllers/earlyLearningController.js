@@ -7,17 +7,24 @@ const wrap = fn => async (req,res,next) => { try { await fn(req,res); } catch(er
 const levels = ['INDEPENDENT', 'SUPPORTED', 'EMERGING'];
 function readMedia(input) {
   if (!input) return undefined;
+  let mimeType = input.mimeType;
+  if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+  if (mimeType === 'audio/x-wav') mimeType = 'audio/wav';
   const allowed = ['image/jpeg','image/png','image/webp','audio/webm','audio/ogg','audio/wav'];
-  if (!allowed.includes(input.mimeType) || typeof input.base64 !== 'string' || input.base64.length > 2800000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(input.base64)) fail('Minh chứng hỗ trợ ảnh PNG/JPEG/WebP hoặc audio WebM/OGG/WAV, tối đa 2 MB.');
-  const data = Buffer.from(input.base64, 'base64');
-  if (!data.length || data.length > 2 * 1024 * 1024) fail('Tệp minh chứng vượt giới hạn.');
-  const valid = input.mimeType === 'image/jpeg' ? data[0] === 255 && data[1] === 216 && data[2] === 255
-    : input.mimeType === 'image/png' ? data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
-    : input.mimeType.endsWith('webm') ? data.subarray(0,4).equals(Buffer.from([26,69,223,163]))
-    : input.mimeType.endsWith('ogg') ? data.subarray(0,4).toString() === 'OggS'
-    : data.subarray(0,4).toString() === 'RIFF' && data.subarray(8,12).toString() === (input.mimeType.endsWith('webp') ? 'WEBP' : 'WAVE');
+  const cleanBase64 = String(input.base64 || '').replace(/\s+/g, '');
+  if (!allowed.includes(mimeType) || !cleanBase64 || cleanBase64.length > 3500000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+    fail('Minh chứng hỗ trợ ảnh PNG/JPEG/WebP hoặc audio WebM/OGG/WAV, tối đa 2 MB.');
+  }
+  const data = Buffer.from(cleanBase64, 'base64');
+  if (!data.length || data.length > 2.5 * 1024 * 1024) fail('Tệp minh chứng vượt giới hạn.');
+  const valid = mimeType === 'image/jpeg' ? data[0] === 255 && data[1] === 216 && data[2] === 255
+    : mimeType === 'image/png' ? data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+    : mimeType.endsWith('webm') ? data.subarray(0,4).equals(Buffer.from([26,69,223,163]))
+    : mimeType.endsWith('ogg') ? data.subarray(0,4).toString() === 'OggS'
+    : mimeType.endsWith('webp') ? data.subarray(0,4).toString() === 'RIFF' && data.subarray(8,12).toString() === 'WEBP'
+    : data.subarray(0,4).toString() === 'RIFF';
   if (!valid) fail('Nội dung tệp không khớp định dạng.');
-  return { mimeType: input.mimeType, bytes: data.length, data };
+  return { mimeType, bytes: data.length, data };
 }
 exports.guide = wrap(async (req,res) => {
   if (!validId(req.params.id)) fail('Mã bài học không hợp lệ.');
@@ -56,6 +63,12 @@ exports.create = wrap(async (req,res) => {
     const unit=await M.CurriculumUnit.findById(body.unitId).lean();
     if(!unit)fail('Không tìm thấy Unit.');
     payload.unitKey=String(unit._id);payload.unitLabel=`Sách ${unit.bookNumber} · Unit ${unit.unitNumber}`;
+  } else if (lesson.curriculumUnits && lesson.curriculumUnits.length > 0) {
+    const unit = await M.CurriculumUnit.findById(lesson.curriculumUnits[0]).lean();
+    if (unit) {
+      payload.unitKey = String(unit._id);
+      payload.unitLabel = `Sách ${unit.bookNumber} · Unit ${unit.unitNumber}`;
+    }
   }
   const payloadHash=crypto.createHash('sha256').update(JSON.stringify({...payload,media:media?{mimeType:media.mimeType,hash:crypto.createHash('sha256').update(media.data).digest('hex')}:null})).digest('hex');
   let item;
@@ -92,12 +105,21 @@ exports.familyList = wrap(async(req,res)=>{
 exports.unitReview = wrap(async(req,res)=>{
   const room=await access.classroom(req,req.params.id);
   if(!validId(req.query.unitId))fail('Chọn Unit để quan sát.');
-  const unit=await M.CurriculumUnit.findOne({_id:req.query.unitId,ageGroupCode:room.ageGroupCode,status:'ACTIVE'}).lean();
+  const unit=await M.CurriculumUnit.findOne({_id:req.query.unitId,ageGroupCode:room.ageGroupCode,status:'ACTIVE',...(room.curriculumBook?{book:room.curriculumBook}:{})}).lean();
   if(!unit)fail('Unit không phù hợp lớp.',404);
-  const [children,lessons,observations]=await Promise.all([
+  const lessons=await M.Lesson.find({curriculumUnits:unit._id,status:'ACTIVE'}).select('title vietnameseTitle displayOrder').sort({displayOrder:1}).lean();
+  const unitCode = `B${unit.bookNumber || 1}_U${unit.unitNumber}`;
+  const [children,observations]=await Promise.all([
     M.User.find({_id:{$in:room.students},role:'CHILD',status:'ACTIVE'}).select('name avatarUrl').sort({name:1}).lean(),
-    M.Lesson.find({curriculumUnits:unit._id,status:'ACTIVE'}).select('title vietnameseTitle displayOrder').sort({displayOrder:1}).lean(),
-    M.LearningObservation.find({classroom:room._id,unitKey:String(unit._id),child:{$in:room.students},voidedAt:null}).sort({observedAt:-1}).lean()
+    M.LearningObservation.find({
+      child: { $in: room.students },
+      voidedAt: null,
+      $or: [
+        { unitKey: String(unit._id) },
+        { unitKey: unitCode },
+        { lesson: { $in: lessons.map(lesson => lesson._id) } }
+      ]
+    }).sort({observedAt:-1,_id:-1}).lean()
   ]);
   const roster=children.map(child=>{const own=observations.filter(row=>idOf(row.child)===idOf(child));const latest={};for(const row of own)if(!latest[row.skill])latest[row.skill]={level:row.level,evidence:row.evidence,observedAt:row.observedAt};return{child,latest};});
   res.json({success:true,data:{classroom:{_id:room._id,name:room.name},unit,lessons,roster,basis:'Quan sát của giáo viên trong chơi và tình huống quen thuộc; không tự chuyển sao thành năng lực.'}});

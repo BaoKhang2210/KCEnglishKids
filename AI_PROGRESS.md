@@ -1,5 +1,7 @@
 # 🚀 TIẾN ĐỘ TRIỂN KHAI HỆ THỐNG AI — KCENGLISHKIDS
 
+> **Đối chiếu ngày 01/11/2026:** Phần dưới là nhật ký triển khai cũ; các mốc “100%” không có nghĩa đã kết nối Gemini. Hiện đã bổ sung adapter Gemini cho giáo án, nhận xét và luyện nói từ bản ghi WAV; giữ chế độ mẫu/quy tắc khi chưa cấu hình hoặc có lỗi. Chưa có khóa/model trong môi trường kiểm tra nên chưa xác minh cuộc gọi cloud thật. Cách kích hoạt và phạm vi kiểm chứng hiện hành xem [TOAN_CANH_HE_THONG.md](TOAN_CANH_HE_THONG.md#-7-ai-đã-triển-khai-và-cách-kích-hoạt-01112026).
+
 > **Dự án:** KCEnglishKids — Nền tảng học tiếng Anh tương tác cho trẻ mầm non (3–6 tuổi)  
 > **Cập nhật lần cuối:** 17/10/2026  
 > **Trạng thái tổng thể:** Phase 1 & Phase 2 Đã hoàn tất 100% | Sẵn sàng demo & bảo vệ KLTN  

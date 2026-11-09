@@ -26,6 +26,8 @@ function createRateLimit(limit, { now = Date.now, maxUsers = 10000 } = {}) {
 function createAiRouter(handlers = controller) {
   const router = express.Router();
   router.use(protect);
+  router.get('/capabilities', authorize('CHILD', 'TEACHER', 'ADMIN'), controller.capabilities);
+  router.post('/evaluate-audio', authorize('CHILD', 'TEACHER', 'ADMIN'), createRateLimit(6), controller.evaluateAudio);
   router.post('/generate-parent-note', authorize('TEACHER', 'ADMIN'), createRateLimit(10), handlers.generateParentNote);
   router.post('/evaluate-pronunciation', authorize('CHILD', 'TEACHER', 'ADMIN'), createRateLimit(30), handlers.evaluatePronunciation);
   router.post('/generate-lesson-plan', authorize('TEACHER', 'ADMIN'), createRateLimit(15), handlers.generateLessonPlan);

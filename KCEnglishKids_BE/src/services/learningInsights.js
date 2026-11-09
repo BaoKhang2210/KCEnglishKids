@@ -44,19 +44,16 @@ async function teacherTasks(req){
     for(const row of data)if(row.hasSubmitted&&!assignment.reviews?.some(review=>idOf(review.child)===idOf(row.student)))tasks.push({kind:'REVIEW',label:'Nhận xét bài của '+row.student.name,to:'/teacher/assignments/'+assignment._id});
   }
   const models=require('../models');
-  const [statistics,observations,plans]=await Promise.all([
+  const [statistics,observations]=await Promise.all([
     require('./teacherStatistics').statsFor(students.map(student=>student._id)),
-    models.LearningObservation.find({child:{$in:students.map(student=>student._id)},classroom:{$in:rooms.map(room=>room._id)},voidedAt:null}).select('child lesson level updatedAt').sort({observedAt:-1,_id:-1}).lean(),
-    models.HomePracticePlan.aggregate([{$match:{child:{$in:students.map(student=>student._id)}}},{$sort:{revision:-1}},{$group:{_id:'$child',plan:{$first:'$$ROOT'}}}])
+    models.LearningObservation.find({child:{$in:students.map(student=>student._id)},classroom:{$in:rooms.map(room=>room._id)},voidedAt:null}).select('child lesson level updatedAt').sort({observedAt:-1,_id:-1}).lean()
   ]);
   const evidence = new Map(statistics.map(row=>[idOf(row._id),row]));
   for (const student of students) {
     const stats = evidence.get(idOf(student));
     const observation=observations.find(row=>idOf(row.child)===idOf(student));
-    const plan=plans.find(row=>idOf(row._id)===idOf(student))?.plan;
     if(!observation)tasks.push({kind:'OBSERVE',label:student.name+': chưa có ghi nhận quan sát của cô',to:'/teacher/students/'+student._id});
-    if(stats?.hasAssessment&&stats.averageScore<60)tasks.push({kind:'SUPPORT',label:student.name+': còn nhầm trong các câu đã ghi nhận',to:'/teacher/students/'+student._id});
-    if(!plan||observation&&new Date(observation.updatedAt)>new Date(plan.createdAt))tasks.push({kind:'PLAN',label:student.name+(plan?': có quan sát mới để xem lại bài ôn':': chuẩn bị bài ôn để cô duyệt'),to:'/teacher/home-practice?studentId='+student._id+(observation?'&lessonId='+observation.lesson:'')});
+    if(stats?.hasAssessment&&stats.averageScore<60)tasks.push({kind:'HOMEWORK',label:student.name+': xem gợi ý ôn bài đã học',to:'/teacher/assignments?studentId='+student._id});
   }
   return tasks;
 }

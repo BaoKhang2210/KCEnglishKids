@@ -21,8 +21,8 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(express.json({ limit: '3mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/images', express.static(path.resolve(__dirname, '../../client/public/images'), { maxAge: '30d', immutable: true }));
 
 // Health check

@@ -152,13 +152,12 @@ export const PeekABooGame: React.FC<GameComponentProps> = ({
                   type="button"
                   aria-label={pop.vocab.english}
                   onClick={() => handleTapHole(holeIdx)}
-                  className={`relative z-10 mb-5 w-[clamp(96px,19vmin,136px)] h-[clamp(96px,19vmin,136px)] rounded-3xl bg-white/95 border-4 flex flex-col items-center justify-center p-2 shadow-xl cursor-pointer transition-all duration-300 ${
-                    pop.caught
-                      ? 'scale-125 bg-amber-100 border-amber-400 ring-8 ring-amber-300 -translate-y-3'
-                      : pop.leaving
-                        ? 'translate-y-16 opacity-0 scale-75'
-                        : 'translate-y-0 opacity-100 hover:scale-105 active:scale-95 border-emerald-300'
-                  } ${glow ? 'ring-8 ring-amber-300 border-amber-300' : ''}`}
+                  className={`relative z-10 mb-5 w-[clamp(96px,19vmin,136px)] h-[clamp(96px,19vmin,136px)] rounded-3xl bg-white/95 border-4 flex flex-col items-center justify-center p-2 shadow-xl cursor-pointer transition-all duration-300 ${pop.caught
+                    ? 'scale-125 bg-amber-100 border-amber-400 ring-8 ring-amber-300 -translate-y-3'
+                    : pop.leaving
+                      ? 'translate-y-16 opacity-0 scale-75'
+                      : 'translate-y-0 opacity-100 hover:scale-105 active:scale-95 border-emerald-300'
+                    } ${glow ? 'ring-8 ring-amber-300 border-amber-300' : ''}`}
                 >
                   <VocabImage vocab={pop.vocab} className="w-[72%] h-[72%] object-contain" />
                   <span className="text-[11px] font-black text-slate-800 capitalize truncate max-w-full">

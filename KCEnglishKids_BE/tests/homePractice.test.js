@@ -9,7 +9,7 @@ const { lessonGuide } = require('../src/services/earlyLearning');
 const id = n => String(n).padStart(24, '0');
 const clone = value => JSON.parse(JSON.stringify(value));
 // A chainable stand-in for a mongoose query: sort/select/limit/populate are no-ops and lean() resolves the fixture.
-const chain = resolve => ({ sort() { return this; }, select() { return this; }, limit() { return this; }, populate() { return this; }, lean: async () => resolve() });
+const chain = resolve => ({ sort() { return this; }, select() { return this; }, limit() { return this; }, populate() { return this; }, lean: async () => resolve(), then(r, j) { return Promise.resolve(resolve()).then(r, j); } });
 
 const CHILD_ID = id(1);
 const ROOM_ID = id(4);
@@ -41,6 +41,7 @@ function mastery() {
 
 // Install in-memory fakes for the models homePractice touches; returns the live plan store.
 function install(t, fixture = {}) {
+  t.mock.method(M.Assignment, 'findOne', () => chain(() => fixture.assignment || null));
   const plans = [];
   let seq = 1;
   const obs = fixture.observations || observations();
@@ -222,10 +223,76 @@ test('the family report refuses a stale basis token or an observation from anoth
   assert.throws(() => report.snapshot(row, { basisToken: row.basisToken, observationIds: [id(999)] }), /không thuộc/);
 });
 
+test('the family report includes the canonical homework and invalidates preview when its instructions change', async t => {
+  const assignment = { _id: id(300), instructions: 'Cùng nghe và chỉ tranh mèo.', dueDate: new Date('2026-11-10T00:00:00Z') };
+  install(t, { assignment });
+  t.mock.method(M.Assignment, 'findOne', filter => {
+    assert.equal(filter.teacher, TEACHER_ID);
+    assert.equal(filter.classRoom, ROOM_ID);
+    assert.equal(filter.lesson, LESSON_ID);
+    assert.ok(filter.$and[0].$or.some(row => row.recipients === CHILD_ID));
+    assert.ok(!filter.status.$in.includes('CANCELLED'));
+    return chain(() => assignment);
+  });
+  const currentSession = { ...session(), teacher: TEACHER_ID };
+  const draft = await report.row(currentSession, child(), currentSession.studentScores[0]);
+  assert.equal(draft.assignment._id, assignment._id);
+  const selected = report.snapshot(draft, { basisToken: draft.basisToken, observationIds: [], includeAssignment: true });
+  assert.match(report.lines(selected).join('\n'), /Cùng nghe và chỉ tranh mèo/);
+  const omitted = report.snapshot(draft, { basisToken: draft.basisToken, observationIds: [], includeAssignment: false });
+  assert.equal(omitted.assignment, null);
+  assignment.instructions = 'Chọn tranh chó.';
+  const updated = await report.row(currentSession, child(), currentSession.studentScores[0]);
+  assert.throws(() => report.snapshot(updated, { basisToken: draft.basisToken, observationIds: [] }), /đổi/);
+});
+
 test('choosing review words keeps reasons ordered and never invents a word outside the lesson', () => {
   const guide = lessonGuide(lesson(), '3-4');
   const items = chooseWords(words(), mastery(), observations(), guide, true, new Date('2026-11-05T00:00:00Z'));
   assert.deepEqual(items.map(item => item.vocabulary.english), ['cat', 'dog', 'bird']);
   const withHidden = chooseWords([...words(), { _id: id(99), english: 'x', status: 'HIDDEN', imageUrl: '/x.png' }], [], [], guide, true);
   assert.equal(withHidden.length, 3, 'hidden or image-less words are excluded');
+});
+
+
+test('getHomeReview and completeHomeReview support the 5-minute home review flow and grant 3 stars idempotently', async t => {
+  install(t);
+  for (const name of ['Progress', 'UnitCompletion', 'Assignment']) {
+    t.mock.method(M[name], 'find', () => chain(() => []));
+  }
+  t.mock.method(M.Lesson, 'findById', () => chain(() => clone(lesson())));
+  t.mock.method(M.ClassroomSession, 'findOne', () => chain(() => clone(session())));
+  t.mock.method(M.LanguageContent, 'find', () => chain(() => [
+    { _id: id(70), english: 'What can you see?', vietnamese: 'Bé thấy gì nào?', contentType: 'QUESTION' },
+    { _id: id(71), english: 'I see a cat.', vietnamese: 'Bé thấy con mèo.', contentType: 'ANSWER' }
+  ]));
+  const completions = [];
+  t.mock.method(M.HomePracticeCompletion, 'find', () => chain(() => clone(completions)));
+  t.mock.method(M.HomePracticeCompletion, 'findOne', filter => chain(() => {
+    const found = completions.find(c => String(c.child) === String(filter.child) && c.date === filter.date);
+    return found ? clone(found) : null;
+  }));
+  t.mock.method(M.HomePracticeCompletion, 'create', async values => {
+    const doc = { _id: id(88), ...values };
+    completions.push(doc);
+    return doc;
+  });
+
+  const review = await practice.getHomeReview(child());
+  assert.ok(review);
+  assert.equal(review.lessonTitle, 'Animals');
+  assert.equal(review.words.length, 3);
+  assert.equal(review.sentencePatterns.length, 2);
+  assert.equal(review.completedToday, false);
+  assert.equal(review.parentGuidance.steps.length, 3);
+
+  const firstComplete = await practice.completeHomeReview(child(), LESSON_ID);
+  assert.equal(firstComplete.completedToday, true);
+  assert.equal(firstComplete.newlyCompleted, true);
+  assert.equal(firstComplete.starsAwarded, 3);
+
+  const secondComplete = await practice.completeHomeReview(child(), LESSON_ID);
+  assert.equal(secondComplete.completedToday, true);
+  assert.equal(secondComplete.newlyCompleted, false);
+  assert.equal(secondComplete.starsAwarded, 0);
 });

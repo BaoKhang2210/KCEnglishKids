@@ -1,14 +1,378 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Send, CheckCircle2, AlertCircle, RefreshCw, X } from 'lucide-react';
 import { api } from '../../services/api';
 import type { ClassroomSession } from '../../types';
-type Choice={observationIds:string[];includePlan:boolean;teacherNote:string};
-export function FamilyReportModal({session,onClose}:{session:ClassroomSession;onClose:()=>void}){
-  const [rows,setRows]=useState<any[]>([]),[choices,setChoices]=useState<Record<string,Choice>>({}),[selected,setSelected]=useState<string[]>([]),[preview,setPreview]=useState<any[]|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[sent,setSent]=useState(false),[loading,setLoading]=useState(true),[reload,setReload]=useState(0);
-  useEffect(()=>{const abort=new AbortController();setLoading(true);setPreview(null);api.get(`/teacher/classroom-sessions/${session._id}/family-report-draft`,abort.signal).then(r=>{const items=r.data.rows;setRows(items);setSelected(items.filter((item:any)=>!item.sentContent).map((item:any)=>item.childId));setChoices(Object.fromEntries(items.map((item:any)=>[item.childId,{observationIds:item.observations.map((observation:any)=>observation._id),includePlan:Boolean(item.plan),teacherNote:''}])));setError('');}).catch(e=>{if(!abort.signal.aborted)setError(e.message);}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});return()=>abort.abort();},[session._id,reload]);
-  const reports=()=>rows.filter(row=>selected.includes(row.childId)&&!row.sentContent).map(row=>({childId:row.childId,basisToken:row.basisToken,...choices[row.childId]}));
-  const update=(id:string,value:Partial<Choice>)=>{setPreview(null);setChoices(current=>({...current,[id]:{...current[id],...value}}));};
-  const prepare=async()=>{setBusy(true);setError('');try{const response=await api.post(`/teacher/classroom-sessions/${session._id}/family-report-preview`,{childReports:reports()});setPreview(response.data);}catch(e){setError(e instanceof Error?e.message:'Chưa chuẩn bị được báo cáo.');}finally{setBusy(false);}};
-  const send=async()=>{if(!preview)return;setBusy(true);setError('');try{await api.post('/teacher/parent-notifications/bulk',{sessionId:session._id,templateType:'SESSION_REPORT',childReports:reports()});setSent(true);}catch(e){setError(e instanceof Error?e.message:'Chưa gửi được báo cáo.');}finally{setBusy(false);}};
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-3"><section role="dialog" aria-modal="true" aria-labelledby="family-report-title" className="bg-white text-slate-800 rounded-3xl w-full max-w-3xl max-h-[92dvh] flex flex-col"><header className="flex items-center justify-between gap-3 p-5 border-b"><div><h2 id="family-report-title" className="text-xl font-bold">Xem & Gửi báo cáo gia đình</h2><p className="text-sm mt-1">Nội dung đã dạy, quan sát thực tế và bài ôn cô đã duyệt.</p></div><button disabled={busy} className="teacher-button" onClick={onClose}>Đóng</button></header><div className="overflow-y-auto p-5 space-y-4">{error&&<div className="teacher-error" role="alert">{error}<button onClick={()=>setReload(value=>value+1)}>Tải lại căn cứ</button></div>}{loading?<p role="status">Đang đối chiếu buổi dạy và bài ôn…</p>:sent?<p role="status" className="portfolio-card text-teal-800 font-bold">Đã gửi vào sổ liên lạc trong ứng dụng. Nội dung đã gửi được giữ nguyên khi gửi lại yêu cầu.</p>:preview?<><p className="font-bold">Nội dung gia đình sẽ nhận</p>{preview.map(item=><article key={item.childId} className="portfolio-card"><h3 className="font-bold mb-3">{rows.find(row=>row.childId===item.childId)?.childName}</h3><p className="whitespace-pre-wrap leading-relaxed">{item.content}</p></article>)}</>:rows.map(row=><article key={row.childId} className="portfolio-card"><label className="!flex items-center gap-2 font-bold"><input type="checkbox" disabled={Boolean(row.sentContent)} checked={selected.includes(row.childId)} onChange={()=>{setPreview(null);setSelected(current=>current.includes(row.childId)?current.filter(id=>id!==row.childId):[...current,row.childId]);}}/>{row.childName} {row.sentContent&&<span className="text-sm text-teal-800">· Đã gửi</span>}</label>{row.sentContent?<details className="mt-3"><summary>Xem bản đã gửi</summary><p className="whitespace-pre-wrap mt-3">{row.sentContent}</p></details>:selected.includes(row.childId)&&<div className="grid gap-3 mt-4"><p>{row.attended?'Có mặt/đến trễ':'Vắng mặt: không kết luận bé đã thực hiện mục tiêu trong buổi.'}</p><p className="text-sm">{row.observations.length?'Chọn ghi nhận đưa vào báo cáo:':'Chưa có quan sát gắn buổi này.'}</p>{row.observations.map((item:any)=><label key={item._id} className="!flex gap-2 items-start"><input type="checkbox" checked={choices[row.childId]?.observationIds.includes(item._id)} onChange={()=>update(row.childId,{observationIds:choices[row.childId].observationIds.includes(item._id)?choices[row.childId].observationIds.filter(id=>id!==item._id):[...choices[row.childId].observationIds,item._id]})}/><span>{item.evidence}</span></label>)}<div className="flex flex-wrap gap-2"><Link className="teacher-button" to={`/teacher/students/${row.childId}?lessonId=${typeof session.lesson==='string'?session.lesson:session.lesson?._id||''}&sessionId=${session._id}`}>Bổ sung quan sát</Link><Link className="teacher-button" to={`/teacher/home-practice?studentId=${row.childId}&lessonId=${typeof session.lesson==='string'?session.lesson:session.lesson?._id||''}&sessionId=${session._id}`}>Chuẩn bị/duyệt bài ôn</Link></div>{row.plan?<label className="!flex items-start gap-2"><input type="checkbox" checked={choices[row.childId]?.includePlan} onChange={event=>update(row.childId,{includePlan:event.target.checked})}/><span>Kèm hướng dẫn ôn đã duyệt: {row.plan.words.map((word:any)=>word.english).join(', ')}</span></label>:<p className="text-sm text-slate-600">Chưa có bài ôn đã duyệt cho bài này.</p>}<label>Lời nhận xét riêng<textarea rows={2} maxLength={1000} value={choices[row.childId]?.teacherNote||''} onChange={event=>update(row.childId,{teacherNote:event.target.value})} placeholder="Ghi điều đã quan sát; không tự kết luận phát âm khi chưa có căn cứ."/></label></div>}</article>)}</div><footer className="flex flex-wrap justify-end gap-2 border-t p-4">{!sent&&!loading&&(preview?<><button disabled={busy} className="teacher-button" onClick={()=>setPreview(null)}>Quay lại chỉnh</button><button disabled={busy} className="teacher-button primary" onClick={()=>void send()}>{busy?'Đang gửi…':'Gửi bản đã xem cho gia đình'}</button></>:<button disabled={busy||!selected.length} className="teacher-button primary" onClick={()=>void prepare()}>{busy?'Đang chuẩn bị…':`Xem trước ${selected.length} báo cáo`}</button>)}</footer></section></div>;
+
+interface DraftRow {
+  childId: string;
+  childName: string;
+  attended: boolean;
+  lessonTitle?: string;
+  unitTitle?: string;
+  basisToken?: string;
+  sentContent?: string | null;
+  observations: any[];
+  assignment?: any;
+  plan?: any;
+}
+
+const getDefaultNote = (childName: string, attended: boolean, lessonName?: string, unitName?: string) => {
+  if (attended) {
+    return `Dạ kính gửi Phụ huynh bé ${childName}, hôm nay bé tham gia buổi học rất tích cực và hào hứng. Bé đã ghi nhớ tốt các từ vựng bài học và tham gia sôi nổi các trò chơi trên lớp. Ba mẹ ở nhà hãy khen ngợi và cùng bé mở thẻ bài để ôn lại nhé! ❤️`;
+  }
+  const lessonDesc = lessonName
+    ? (unitName ? `Bài "${lessonName}" (thuộc Unit: ${unitName})` : `Bài "${lessonName}"`)
+    : 'buổi học hôm nay';
+  return `Dạ kính gửi Phụ huynh bé ${childName}, hôm nay bé vắng mặt ở buổi học trên lớp: ${lessonDesc}. Ba mẹ mở phần luyện tập 5 phút hoặc mở ứng dụng ở nhà cho bé ôn bài này giúp bé nắm vững kiến thức và theo kịp bài học cùng các bạn nhé! ❤️`;
+};
+
+const TEMPLATES = [
+  {
+    id: 'praise',
+    label: '🌟 Khen ngợi tích cực',
+    getText: (name: string) =>
+      `Dạ kính gửi Phụ huynh bé ${name}, hôm nay bé học rất chăm chỉ, phát âm to rõ và tham gia trò chơi rất sôi nổi. Bố mẹ khen ngợi bé giúp cô nhé! ⭐`
+  },
+  {
+    id: 'practice',
+    label: '💡 Cần luyện thêm',
+    getText: (name: string) =>
+      `Dạ kính gửi Phụ huynh bé ${name}, bé đã làm quen tốt với các từ mới. Ở nhà bố mẹ cùng bé nghe lại phát âm trên ứng dụng và động viên bé nói nhiều hơn nhé! 💪`
+  },
+  {
+    id: 'encourage',
+    label: '❤️ Động viên nỗ lực',
+    getText: (name: string) =>
+      `Dạ kính gửi Phụ huynh bé ${name}, hôm nay bé rất cố gắng hoàn thành bài học và đạt được nhiều sao thưởng. Cô gửi lời khen ngợi đến bé! 🎉`
+  }
+];
+
+export function FamilyReportModal({
+  session,
+  onClose,
+  onSuccess
+}: {
+  session: ClassroomSession;
+  onClose: () => void;
+  onSuccess?: (msg: string) => void;
+}) {
+  const [rows, setRows] = useState<DraftRow[]>([]);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string[]>([]);
+  const [sentMap, setSentMap] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const loadDraft = () => {
+    setLoading(true);
+    setError('');
+    api
+      .get(`/teacher/classroom-sessions/${session._id}/family-report-draft`)
+      .then((res) => {
+        const items: DraftRow[] = res.data?.rows || [];
+        setRows(items);
+
+        const initialNotes: Record<string, string> = {};
+        const initialSent: Record<string, boolean> = {};
+        const toSelect: string[] = [];
+
+        items.forEach((item) => {
+          const lTitle = item.lessonTitle || (session.lesson as any)?.vietnameseTitle || (session.lesson as any)?.title || session.title;
+          const uTitle = item.unitTitle || (session.lesson as any)?.topic?.vietnameseTitle || (session.lesson as any)?.topic?.name || (session.lesson as any)?.topic?.title;
+          initialNotes[item.childId] = item.sentContent || getDefaultNote(item.childName, item.attended, lTitle, uTitle);
+          if (item.sentContent) {
+            initialSent[item.childId] = true;
+          } else {
+            toSelect.push(item.childId);
+          }
+        });
+
+        setNotes(initialNotes);
+        setSentMap(initialSent);
+        // Default select all who haven't received it yet, or select all if all already sent
+        setSelected(toSelect.length > 0 ? toSelect : items.map((i) => i.childId));
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Không tải được danh sách học sinh.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadDraft();
+  }, [session._id]);
+
+  const handleSend = async () => {
+    if (selected.length === 0) {
+      setError('Vui lòng chọn ít nhất một bé để gửi nhận xét.');
+      return;
+    }
+
+    setSending(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const childReports = rows
+        .filter((r) => selected.includes(r.childId))
+        .map((r) => {
+          const lTitle = r.lessonTitle || (session.lesson as any)?.vietnameseTitle || (session.lesson as any)?.title || session.title;
+          const uTitle = r.unitTitle || (session.lesson as any)?.topic?.vietnameseTitle || (session.lesson as any)?.topic?.name || (session.lesson as any)?.topic?.title;
+          return {
+            childId: r.childId,
+            teacherNote: notes[r.childId] || getDefaultNote(r.childName, r.attended, lTitle, uTitle),
+            basisToken: r.basisToken,
+            observationIds: (r.observations || []).map((o: any) => o._id),
+            includeAssignment: Boolean(r.assignment),
+            includePlan: Boolean(r.plan)
+          };
+        });
+
+      await api.post('/teacher/parent-notifications/bulk', {
+        sessionId: session._id,
+        templateType: 'SESSION_REPORT',
+        childReports
+      });
+
+      const updatedSent = { ...sentMap };
+      selected.forEach((id) => {
+        updatedSent[id] = true;
+      });
+      setSentMap(updatedSent);
+      const msg = `Đã gửi nhận xét thành công đến Sổ liên lạc của ${selected.length} bé! 🎉`;
+      setSuccessMessage(msg);
+      if (onSuccess) {
+        onSuccess(msg);
+      }
+      setTimeout(() => {
+        onClose();
+      }, 700);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Chưa gửi được nhận xét. Vui lòng thử lại.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const applyTemplate = (childId: string, childName: string, templateId: string) => {
+    const tpl = TEMPLATES.find((t) => t.id === templateId);
+    if (!tpl) return;
+    setNotes((prev) => ({
+      ...prev,
+      [childId]: tpl.getText(childName)
+    }));
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.length === rows.length) {
+      setSelected([]);
+    } else {
+      setSelected(rows.map((r) => r.childId));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm animate-fade-in">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="family-report-title"
+        className="bg-white text-slate-800 rounded-4xl w-full max-w-4xl max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200"
+      >
+        {/* Header */}
+        <header className="flex items-center justify-between gap-3 p-5 sm:p-6 border-b border-slate-100 bg-gradient-to-r from-teal-50 to-indigo-50">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-teal-500 text-white flex items-center justify-center text-xl shadow-md">
+              💌
+            </div>
+            <div>
+              <h2 id="family-report-title" className="text-xl font-black text-slate-900">
+                Gửi Nhận Xét Buổi Học Cho Bé
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                Buổi dạy: <strong>{session.title || 'Buổi học'}</strong> &bull; Nhận xét sẽ hiển thị ngay trong Sổ liên lạc trên máy bé!
+              </p>
+            </div>
+          </div>
+          <button
+            disabled={sending}
+            className="w-9 h-9 rounded-full bg-slate-200/70 hover:bg-slate-300 text-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        {/* Status Alerts */}
+        {error && (
+          <div className="mx-6 mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-bold flex items-center gap-2">
+            <AlertCircle size={18} className="shrink-0" />
+            <span>{error}</span>
+            <button
+              onClick={loadDraft}
+              className="ml-auto underline flex items-center gap-1 hover:text-rose-900 cursor-pointer"
+            >
+              <RefreshCw size={14} /> Thử lại
+            </button>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mx-6 mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+        )}
+
+        {/* Content Body: Student comment list */}
+        <div className="overflow-y-auto p-5 sm:p-6 space-y-5 flex-1">
+          {loading ? (
+            <div className="py-16 text-center text-slate-500 flex flex-col items-center">
+              <div className="w-10 h-10 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mb-3" />
+              <p className="font-bold text-sm">Đang tải danh sách học sinh và lời nhận xét gắn sẵn…</p>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 font-bold">
+              Không có học sinh trong buổi dạy này.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-xs sm:text-sm text-slate-600 font-bold px-1">
+                <span>Danh sách {rows.length} bé trong buổi dạy:</span>
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className="text-teal-700 hover:text-teal-800 underline cursor-pointer"
+                >
+                  {selected.length === rows.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả các bé'}
+                </button>
+              </div>
+
+              {rows.map((row) => {
+                const isSelected = selected.includes(row.childId);
+                const isSent = Boolean(sentMap[row.childId]);
+
+                return (
+                  <article
+                    key={row.childId}
+                    className={`rounded-3xl border-2 p-5 transition-all ${
+                      isSelected
+                        ? 'border-teal-400 bg-teal-50/20 shadow-md'
+                        : 'border-slate-200 bg-white opacity-60'
+                    }`}
+                  >
+                    {/* Header Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelected((current) =>
+                              current.includes(row.childId)
+                                ? current.filter((id) => id !== row.childId)
+                                : [...current, row.childId]
+                            );
+                          }}
+                          className="w-5 h-5 rounded-lg text-teal-600 accent-teal-600 cursor-pointer"
+                        />
+                        <span className="font-black text-slate-900 text-base">{row.childName}</span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            row.attended
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {row.attended ? '✓ Có mặt' : 'Vắng mặt'}
+                        </span>
+                      </label>
+
+                      {isSent && (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-teal-100 text-teal-800 flex items-center gap-1">
+                          <CheckCircle2 size={13} /> Đã gửi vào Sổ liên lạc
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quick Template Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="text-xs font-bold text-slate-500">Mẫu nhanh:</span>
+                      {TEMPLATES.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => applyTemplate(row.childId, row.childName, tpl.id)}
+                          className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-800 border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-colors active:scale-95"
+                        >
+                          {tpl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Editable Note Textarea (Đoạn text gắn sẵn) */}
+                    <div>
+                      <textarea
+                        rows={3}
+                        value={notes[row.childId] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNotes((prev) => ({ ...prev, [row.childId]: val }));
+                        }}
+                        placeholder="Nhập lời nhận xét gửi phụ huynh…"
+                        className="w-full rounded-2xl border border-slate-300 p-3.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 leading-relaxed font-medium bg-white"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Cô có thể gửi trực tiếp lời nhận xét gắn sẵn này hoặc chỉnh sửa theo ý muốn.
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-4 sm:p-5 bg-slate-50">
+          <div className="text-xs text-slate-500 font-bold">
+            Đã chọn: <strong className="text-slate-900">{selected.length}</strong> / {rows.length} bé
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={sending}
+              className="px-5 py-2.5 rounded-2xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm cursor-pointer"
+              onClick={onClose}
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              disabled={sending || selected.length === 0 || loading}
+              onClick={() => void handleSend()}
+              className="px-7 py-2.5 rounded-2xl bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-black text-sm flex items-center gap-2 cursor-pointer shadow-lg shadow-teal-500/25 active:scale-95 disabled:opacity-50"
+            >
+              {sending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang gửi nhận xét…</span>
+                </>
+              ) : (
+                <>
+                  <Send size={16} />
+                  <span>Gửi nhận xét ({selected.length} bé)</span>
+                </>
+              )}
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
 }

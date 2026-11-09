@@ -15,18 +15,11 @@ import {
   Clock,
   MapPin,
   UserCheck,
-  BookOpen
+  Send
 } from 'lucide-react';
 import { parentNotificationApi } from '../../services/api';
-import { type Stage2PracticeSession } from '../../services/vocabStatsService';
+// Removed unused Stage2PracticeSession import
 import { sfx } from '../../utils/audio';
-
-interface ReplyItem {
-  senderRole: 'TEACHER' | 'PARENT' | 'FAMILY';
-  senderName: string;
-  message: string;
-  createdAt: string;
-}
 
 interface ParentNotificationItem {
   _id: string;
@@ -43,7 +36,18 @@ interface ParentNotificationItem {
     name: string;
     email?: string;
   };
-  replies?: ReplyItem[];
+  parentFeedback?: {
+    message: string;
+    senderName?: string;
+    createdAt?: string;
+  };
+  replies?: Array<{
+    _id?: string;
+    senderRole: string;
+    senderName: string;
+    message: string;
+    createdAt?: string;
+  }>;
 }
 
 interface WeeklySlot {
@@ -115,13 +119,51 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
   onClose
 }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'NOTIFICATIONS' | 'ASSIGNMENTS' | 'SCHEDULE' | 'PRACTICE'>('NOTIFICATIONS');
+  const [activeTab, setActiveTab] = useState<'NOTIFICATIONS' | 'ASSIGNMENTS' | 'SCHEDULE'>('NOTIFICATIONS');
   const [items, setItems] = useState<ParentNotificationItem[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
+  const [submittingFeedback, setSubmittingFeedback] = useState<Record<string, boolean>>({});
+  const [feedbackSuccess, setFeedbackSuccess] = useState<Record<string, boolean>>({});
+
+  const handleSendFeedback = async (notifId: string) => {
+    const text = feedbackText[notifId]?.trim();
+    if (!text) return;
+
+    setSubmittingFeedback(prev => ({ ...prev, [notifId]: true }));
+    try {
+      const res = await parentNotificationApi.sendParentFeedback(childId, notifId, {
+        message: text,
+        senderName: 'Phụ huynh bé ' + childName
+      });
+      sfx.playCorrect();
+      setFeedbackSuccess(prev => ({ ...prev, [notifId]: true }));
+      setFeedbackText(prev => ({ ...prev, [notifId]: '' }));
+
+      setItems(prev => prev.map(it => {
+        if (it._id !== notifId) return it;
+        const newReplies = [...(it.replies || []), res.data.feedback || {
+          senderRole: 'PARENT',
+          senderName: 'Phụ huynh bé ' + childName,
+          message: text,
+          createdAt: new Date().toISOString()
+        }];
+        return { ...it, replies: newReplies, parentFeedback: res.data.feedback };
+      }));
+
+      setTimeout(() => {
+        setFeedbackSuccess(prev => ({ ...prev, [notifId]: false }));
+      }, 4000);
+    } catch (e) {
+      console.error('Failed to send parent feedback:', e);
+    } finally {
+      setSubmittingFeedback(prev => ({ ...prev, [notifId]: false }));
+    }
+  };
 
   const loadNotifications = async () => {
     try {
@@ -203,7 +245,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                   Sổ Liên Lạc Điện Tử <Heart size={16} className="text-rose-500 fill-rose-500 inline" />
                 </h2>
                 <p className="text-xs font-bold text-amber-800">
-                  Trao đổi & Theo dõi việc học của bé <span className="underline">{childName}</span>
+                  Nhận xét & Theo dõi việc học của bé <span className="underline">{childName}</span>
                 </p>
               </div>
             </div>
@@ -220,8 +262,8 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             </button>
           </div>
 
-          {/* Navigation Tabs (4 tabs: Lời nhắn, Bài tập, Luyện tập, Thời khóa biểu) */}
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+          {/* Navigation Tabs (3 tabs: Lời nhắn, Bài tập, Thời khóa biểu) */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
             <button
               onClick={() => {
                 sfx.playPop();
@@ -250,21 +292,6 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             >
               <ClipboardList size={15} />
               <span className="truncate">Bài tập ({assignments.length})</span>
-            </button>
-
-            <button
-              onClick={() => {
-                sfx.playPop();
-                setActiveTab('PRACTICE');
-              }}
-              className={`py-2 px-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'PRACTICE'
-                  ? 'bg-white text-rose-900 shadow-md scale-102 font-black'
-                  : 'bg-amber-500/40 text-amber-950 hover:bg-amber-500/60'
-              }`}
-            >
-              <BookOpen size={15} />
-              <span className="truncate">Luyện tập</span>
             </button>
 
             <button
@@ -300,7 +327,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                 </div>
                 <p className="text-base font-black text-slate-700">Chưa có nhận xét mới từ cô giáo</p>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                  Khi cô giáo gửi nhận xét về kết quả học hoặc dặn dò cho bé, phụ huynh có thể đọc và nhắn tin trao đổi lại ngay tại đây!
+                  Khi cô giáo gửi nhận xét về kết quả học hoặc dặn dò cho bé, gia đình có thể đọc báo cáo ngay tại đây.
                 </p>
               </div>
             ) : (
@@ -342,7 +369,67 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                     )}
 
                     <div className="p-3 bg-slate-50 rounded-xl text-sm text-slate-700 leading-relaxed font-medium border border-slate-100">
-                      {item.teacherNote || item.content || 'Cô giáo gửi lời nhắn tới bé và gia đình.'}
+                      {item.content || item.teacherNote || 'Cô giáo gửi lời nhắn tới bé và gia đình.'}
+                    </div>
+
+                    {/* Danh sách phản hồi / lời nhắn của gia đình (nếu đã có) */}
+                    {item.replies && item.replies.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <p className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                          <MessageCircle size={13} className="text-amber-600" />
+                          <span>Lời nhắn / phản hồi của gia đình:</span>
+                        </p>
+                        {item.replies.map((rep, rIdx) => (
+                          <div key={rep._id || rIdx} className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-900 mb-1">
+                              <span>💬 {rep.senderName}</span>
+                              <span className="text-slate-400 font-normal">
+                                {rep.createdAt ? new Date(rep.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(rep.createdAt).toLocaleDateString('vi-VN') : ''}
+                              </span>
+                            </div>
+                            <p className="text-slate-800 font-medium whitespace-pre-wrap">{rep.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Khối gửi phản hồi / lời nhắn hoặc nhờ vả về cho cô giáo */}
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="font-bold text-slate-700 flex items-center gap-1">
+                          <Mail size={13} className="text-teal-700" />
+                          <span>Gửi phản hồi / dặn dò cô giáo:</span>
+                        </label>
+                        {feedbackSuccess[item._id] && (
+                          <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px] animate-in fade-in">
+                            <CheckCircle2 size={13} /> Đã gửi lời nhắn cho cô!
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2 items-end">
+                        <textarea
+                          rows={2}
+                          value={feedbackText[item._id] || ''}
+                          onChange={(e) => setFeedbackText(prev => ({ ...prev, [item._id]: e.target.value }))}
+                          placeholder="Ví dụ: Hôm nay bé hơi mệt, nhờ cô để ý cho bé uống nước giúp gia đình..."
+                          className="flex-1 p-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white resize-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleSendFeedback(item._id)}
+                          disabled={submittingFeedback[item._id] || !(feedbackText[item._id] || '').trim()}
+                          className="px-3 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                          title="Gửi phản hồi cho cô giáo"
+                        >
+                          {submittingFeedback[item._id] ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Send size={14} />
+                          )}
+                          <span>Gửi cô</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -641,115 +728,6 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
                 </div>
               </div>
             )
-          )}
-
-          {/* TAB 4: PRACTICE SESSION HISTORY */}
-          {activeTab === 'PRACTICE' && (
-            (() => {
-              // Gather all session keys from localStorage for this child
-              const prefix = `kc_stage2_sessions_${childId}_`;
-              const allSessions: Stage2PracticeSession[] = [];
-              try {
-                for (let i = 0; i < localStorage.length; i++) {
-                  const key = localStorage.key(i);
-                  if (key && key.startsWith(prefix)) {
-                    const raw = localStorage.getItem(key);
-                    if (raw) {
-                      const list = JSON.parse(raw);
-                      if (Array.isArray(list)) allSessions.push(...list);
-                    }
-                  }
-                }
-              } catch {}
-
-              // Sort by newest completedAt
-              allSessions.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
-
-              if (allSessions.length === 0) {
-                return (
-                  <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8">
-                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-3xl">
-                      📖
-                    </div>
-                    <p className="text-base font-black text-slate-700">Chưa có buổi luyện tập nào</p>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                      Khi bé hoàn thành các buổi học Chặng 2 Luyện tập, danh sách chi tiết các buổi và kết quả từng từ sẽ được ghi nhận tại đây!
-                    </p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-black text-slate-600 uppercase tracking-wide">
-                      Tổng số: {allSessions.length} buổi luyện tập
-                    </span>
-                    <span className="text-xs text-slate-400 font-bold">Mới nhất trước</span>
-                  </div>
-
-                  {allSessions.map((sess, idx) => {
-                    const dt = new Date(sess.completedAt || sess.startedAt);
-                    const timeStr = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                    const dateStr = dt.toLocaleDateString('vi-VN');
-                    return (
-                      <div
-                        key={sess.sessionId || idx}
-                        className="rounded-2xl border-2 border-slate-200 bg-white shadow-xs p-4 space-y-2.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">🎯</span>
-                            <span className="font-black text-sm text-slate-800">
-                              Buổi {allSessions.length - idx}: {timeStr} · {dateStr}
-                            </span>
-                          </div>
-                          <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
-                            Đúng ngay: {sess.firstTryCorrectTotal} / {sess.words.length} từ
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                          <p>
-                            Số từ đã luyện: <b className="text-slate-800">{sess.words.length} từ</b>
-                          </p>
-                          <p>
-                            Lượt thử lại: <b className="text-amber-700">{sess.totalWrongAttempts} lần</b>
-                          </p>
-                        </div>
-
-                        {/* Words breakdown */}
-                        <div className="pt-1 border-t border-slate-100">
-                          <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-1.5">
-                            Chi tiết từng từ trong buổi:
-                          </p>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                            {sess.words.map((w) => (
-                              <div
-                                key={w.wordId}
-                                className={`flex items-center gap-1.5 p-1.5 rounded-xl border text-xs ${
-                                  w.wrongCount > 0
-                                    ? 'bg-amber-50/80 border-amber-200 text-amber-950'
-                                    : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
-                                }`}
-                              >
-                                <span className="text-base shrink-0">{w.emoji || '🌟'}</span>
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-black truncate">{w.english}</p>
-                                  <p className="text-[10px] text-slate-500 truncate">
-                                    {w.wrongCount > 0 ? `Ôn ${w.wrongCount} lần` : 'Đúng ngay'}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()
           )}
         </div>
 

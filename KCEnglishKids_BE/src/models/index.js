@@ -33,6 +33,7 @@ const VideoReport = require('./VideoReport');
 
 module.exports = {
   HomePracticePlan: require('./HomePracticePlan'),
+  HomePracticeCompletion: require('./HomePracticeCompletion'),
   LearningObservation: require('./LearningObservation'),
   GameCatalogSetting: require('./GameCatalogSetting'),
   SchoolRecognition: require('./SchoolRecognition'),
@@ -69,4 +70,5 @@ module.exports = {
   VideoFavorite,
   VideoReport
 };
+
 

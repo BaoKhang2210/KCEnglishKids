@@ -1,4 +1,4 @@
-const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, Assignment, LearningEvent } = require('../models');
+const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, Assignment, LearningEvent, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 const { resolveLessonStars } = require('./starLedgerService');
 function combineAssessment(sources) {
@@ -9,7 +9,7 @@ function combineAssessment(sources) {
 }
 const statsFor = async ids => {
   if (!ids.length) return [];
-  const [resultStats, progressStats, classroomStats, unitStats, completedProgress, eventStats] = await Promise.all([
+  const [resultStats, progressStats, classroomStats, unitStats, completedProgress, eventStats, homePracticeStats] = await Promise.all([
     ActivityResult.aggregate([
       { $match: { child: { $in: ids }, completed: true } },
       { $group: {
@@ -18,6 +18,7 @@ const statsFor = async ids => {
           incorrectAnswers: { $sum: '$incorrectCount' },
           resultCount: { $sum: 1 },
           learningTime: { $sum: '$duration' },
+          timedResults: { $sum: { $cond: [{ $isNumber: '$duration' }, 1, 0] } },
           lastActivity: { $max: '$createdAt' }
       } }
     ]),
@@ -39,6 +40,8 @@ const statsFor = async ids => {
           classroomSessions: { $sum: 1 },
           correctAnswers: { $sum: '$studentScores.correctCount' },
           incorrectAnswers: { $sum: '$studentScores.incorrectCount' }
+          ,learningTime: { $sum: { $cond: [{ $and: [{ $ne: ['$startedAt', null] }, { $gt: ['$endedAt', '$startedAt'] }] }, { $divide: [{ $subtract: ['$endedAt', '$startedAt'] }, 1000] }, 0] } }
+          ,timedSessions: { $sum: { $cond: [{ $and: [{ $ne: ['$startedAt', null] }, { $gt: ['$endedAt', '$startedAt'] }] }, 1, 0] } }
       } }
     ]),
     UnitCompletion.aggregate([
@@ -52,12 +55,23 @@ const statsFor = async ids => {
     ]),
     Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars completionSnapshot stage1Completed stage2Completed stage3Completed stage3Games').lean(),
     LearningEvent.aggregate([
-      { $match: { child: { $in: ids }, stage: { $in: [2, 3] } } },
-      { $group: { _id: '$child', attempts: { $sum: 1 }, lastActivity: { $max: '$createdAt' },
-        correctAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$$answer.isCorrect', true] } } } } },
-        incorrectAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$$answer.isCorrect', false] } } } } }
+      { $match: { child: { $in: ids } } },
+      { $group: { _id: '$child', attempts: { $sum: { $cond: [{ $in: ['$stage', [2, 3]] }, 1, 0] } }, lastActivity: { $max: '$createdAt' },
+        learningTime: { $sum: '$durationSeconds' },
+        timedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 1, 0] } },
+        untimedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 0, 1] } },
+        correctAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$answer.isCorrect', true] } } } } },
+        incorrectAnswers: { $sum: { $size: { $filter: { input: { $ifNull: ['$answers', []] }, as: 'answer', cond: { $eq: ['$answer.isCorrect', false] } } } } }
       } }
-    ])
+    ]),
+    HomePracticeCompletion ? HomePracticeCompletion.aggregate([
+      { $match: { child: { $in: ids } } },
+      { $group: {
+          _id: '$child',
+          homePracticeStars: { $sum: '$stars' },
+          homePracticeCount: { $sum: 1 }
+      } }
+    ]) : Promise.resolve([])
   ]);
 
   const lessonIds = [...new Set(completedProgress.map((item) => item.lesson ? String(item.lesson) : null).filter(Boolean))];
@@ -107,6 +121,7 @@ const statsFor = async ids => {
   }
 
   const eventMap = new Map(eventStats.map(row => [String(row._id), row]));
+  const homePracticeMap = new Map((homePracticeStats || []).map(row => [String(row._id), row]));
   return ids.map(id => {
     const sid = String(id);
     const r = resultMap.get(sid);
@@ -116,16 +131,25 @@ const statsFor = async ids => {
     const event = eventMap.get(sid);
 
     // ActivityResult.stars are per-game feedback, not banked Lesson stars.
+    const hp = homePracticeMap.get(sid);
+    const homePracticeStars = hp ? (hp.homePracticeStars || 0) : 0;
+    const homePracticeCount = hp ? (hp.homePracticeCount || 0) : 0;
     const earnedStars = earnedStarsByChild.get(sid) ?? 0;
     const classroomStars = c ? (c.classroomStars || 0) : 0;
     const bonusStars = u ? (u.bonusStars || 0) : 0;
     const teacherStars = teacherStarsByChild.get(sid) || 0;
-    const totalStars = earnedStars + classroomStars + bonusStars + teacherStars;
+    const homeStars = earnedStars + bonusStars + teacherStars + homePracticeStars;
+    const totalStars = earnedStars + classroomStars + bonusStars + teacherStars + homePracticeStars;
 
-    const { correctAnswers, answeredCount, averageScore } = combineAssessment([r, c, event]);
+    const overall = combineAssessment([r, c, event]);
+    const practice = combineAssessment([r, event]);
+    const classroom = combineAssessment([c]);
+    const { correctAnswers, answeredCount, averageScore } = practice;
     const completedLessons = p?.completedLessons || 0;
     const attempts = (r?.resultCount || 0) + (event?.attempts || 0);
-    const learningTime = r?.learningTime || 0;
+    const practiceLearningTime = (r?.learningTime || 0) + (event?.learningTime || 0);
+    const classroomLearningTime = c?.learningTime || 0;
+    const learningTime = practiceLearningTime + classroomLearningTime;
 
     let lastActivity = r?.lastActivity || p?.lastProgressDate || null;
     if (r?.lastActivity && p?.lastProgressDate) {
@@ -137,15 +161,27 @@ const statsFor = async ids => {
       _id: id,
       averageScore, correctAnswers, answeredCount,
       hasAssessment: answeredCount > 0,
+      overallAccuracy: overall.averageScore, overallAnsweredCount: overall.answeredCount,
+      practiceAccuracy: practice.averageScore, practiceAnsweredCount: practice.answeredCount, practiceCorrectAnswers: practice.correctAnswers,
+      hasPracticeAssessment: practice.answeredCount > 0,
+      classroomAccuracy: classroom.averageScore, classroomAnsweredCount: classroom.answeredCount, classroomCorrectAnswers: classroom.correctAnswers,
+      hasClassroomAssessment: classroom.answeredCount > 0,
       stars: totalStars,
       totalStars,
       earnedStars,
       classroomStars,
+      classStars: classroomStars,
       bonusStars,
       teacherStars,
+      homePracticeStars,
+      homeStars,
+      homePracticeCount,
       completedLessons,
       attempts,
       learningTime,
+      practiceLearningTime, classroomLearningTime,
+      hasLearningTime: (r?.timedResults || 0) + (event?.timedEvents || 0) + (c?.timedSessions || 0) > 0,
+      hasUnmeasuredLearning: (event?.untimedEvents || 0) > 0 || (r?.resultCount || 0) > (r?.timedResults || 0) || (c?.classroomSessions || 0) > (c?.timedSessions || 0),
       lastActivity
     };
   });

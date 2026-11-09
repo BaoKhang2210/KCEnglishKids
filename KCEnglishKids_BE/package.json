@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "test:teacher-journey": "node audits/teacher-journey.acceptance.js",
+    "demo:teacher": "node audits/teacher-journey.acceptance.js --serve",
     "test:ai": "node --test tests/ai.test.js",
     "test:recognitions": "node --test tests/recognitionRules.test.js tests/recognitionApi.test.js",
     "start": "node src/server.js",
@@ -26,7 +28,8 @@
     "audit:vocabulary": "node scripts/audit_vocabulary_images.js",
     "verify:teaching": "node scripts/verify_teaching_revision.js",
     "migrate:early-learning": "node scripts/migrate_early_learning.js",
-    "verify:early-learning": "node scripts/verify_early_learning.js"
+    "verify:early-learning": "node scripts/verify_early_learning.js",
+    "test:learning-system": "node audits/teacher-journey.acceptance.js"
   },
   "keywords": [],
   "author": "",

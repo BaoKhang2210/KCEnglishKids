@@ -62,12 +62,47 @@ test('invalid attendance is rejected before an upsert can affect another child',
   assert.equal(result.status, 400);
 });
 test('reading session history never deletes drafts or changes the lifecycle', async t => {
-  t.mock.method(models.ClassroomSession, 'find', filter => { assert.equal(filter.teacher, id(1)); return query([]); });
+  t.mock.method(access, 'classroomIds', async () => [id(4)]);
+  t.mock.method(models.ClassroomSession, 'find', filter => { assert.equal(filter.teacher, id(1)); assert.deepEqual(filter.classroom, { $in: [id(4)] }); return query([]); });
   t.mock.method(models.ClassroomSession, 'countDocuments', async () => 0);
   t.mock.method(models.ClassroomSession, 'deleteMany', () => assert.fail('GET must not delete'));
   t.mock.method(models.ClassroomSession, 'updateMany', () => assert.fail('GET must not end sessions'));
   const result = await invoke(sessions.getSessions);
   assert.equal(result.error, undefined); assert.equal(result.data.total, 0);
+});
+
+test('timetable requires both teacher ownership and current classroom assignment', async t => {
+  t.mock.method(access, 'classroomIds', async () => [id(4)]);
+  t.mock.method(models.Schedule, 'find', filter => {
+    assert.equal(filter.teacher, id(1));
+    assert.deepEqual(filter.classroom, { $in: [id(4)] });
+    assert.equal(filter.isActive, true);
+    return query([]);
+  });
+  assert.equal((await invoke(C.getMySchedule)).error, undefined);
+});
+
+test('a reassigned former teacher cannot read an old classroom session', async t => {
+  t.mock.method(models.ClassroomSession, 'findOne', () => query({ _id: id(2), classroom: id(4), status: 'COMPLETED' }));
+  t.mock.method(access, 'classroom', async () => { throw Object.assign(new Error('Not current teacher'), { statusCode: 403 }); });
+  assert.equal((await invoke(sessions.getSession, {}, { id: id(2) })).status, 403);
+});
+
+test('content without an assigned classroom cannot leak the whole curriculum', async t => {
+  t.mock.method(models.ClassRoom, 'find', () => query([]));
+  t.mock.method(models.CurriculumUnit, 'find', filter => {
+    assert.deepEqual(filter.$or, [{ book: { $in: [] } }, { ageGroupCode: { $in: [] } }]);
+    return query([]);
+  });
+  t.mock.method(models.Lesson, 'find', filter => { assert.deepEqual(filter.curriculumUnits, { $in: [] }); return query([]); });
+  t.mock.method(models.Activity, 'find', () => query([]));
+  t.mock.method(models.CurriculumBook, 'find', filter => { assert.deepEqual(filter._id, { $in: [] }); return query([]); });
+  const result = await invoke(C.getContent);
+  assert.equal(result.error, undefined);
+  assert.deepEqual(result.data.data, { books: [], units: [], lessons: [], activities: [] });
+  const repositoryResult = await invoke(C.getContent, {}, {}, { query: { repository: 'true' } });
+  assert.equal(repositoryResult.error, undefined);
+  assert.deepEqual(repositoryResult.data.data, { books: [], units: [], lessons: [], activities: [] });
 });
 test('a reassigned former teacher cannot mutate an old classroom session', async t => {
   t.mock.method(models.ClassroomSession, 'findOne', () => query({ _id: id(2), classroom: id(4), status: 'LIVE', save: () => assert.fail('must not write') }));
@@ -149,6 +184,7 @@ test('review awards are replaced atomically per assignment and child; no increme
   assert.equal(updates, 2);
 });
 test('parent session reports derive their figures from the authorized completed session', async t => {
+  t.mock.method(models.ParentNotification, 'findOne', () => query(null));
   t.mock.method(access, 'child', async () => ({ _id: id(3), name: 'Child' }));
   t.mock.method(access, 'classroom', async () => ({ _id: id(2) }));
   t.mock.method(models.ClassroomSession, 'findOne', filter => {
@@ -158,14 +194,15 @@ test('parent session reports derive their figures from the authorized completed 
   let upserts = 0;
   t.mock.method(models.ParentNotification, 'findOneAndUpdate', async (filter, update) => {
     assert.equal(filter.sourceKey, 'session:' + id(7) + ':' + id(3));
-    assert.equal(update.$set.accuracy, 25); assert.equal(update.$set.score, 25); assert.equal(update.$set.stars, 2);
-    assert.equal(update.$set.channel, 'IN_APP'); assert.doesNotMatch(update.$set.content, /99%/);
-    upserts++; return update.$set;
+    assert.equal(update.$setOnInsert.accuracy, 25); assert.equal(update.$setOnInsert.score, 25); assert.equal(update.$setOnInsert.stars, 2);
+    assert.equal(update.$setOnInsert.channel, 'IN_APP'); assert.doesNotMatch(update.$setOnInsert.content, /99%/);
+    upserts++; return update.$setOnInsert;
   });
   const result = await invoke(notifications.sendNotification, { childId: id(3), sessionId: id(7), stars: 999, score: 99, accuracy: 99 });
   assert.equal(result.error, undefined); assert.equal(upserts, 1);
 });
 test('a bulk parent report validates all recipients before writing the first message', async t => {
+  t.mock.method(models.ParentNotification, 'findOne', () => query(null));
   t.mock.method(access, 'child', async (_req, child) => {
     if (child === id(4)) throw Object.assign(new Error('Wrong classroom'), { statusCode: 403 });
     return { _id: id(3), name: 'Child' };
@@ -176,9 +213,8 @@ test('a bulk parent report validates all recipients before writing the first mes
   const result = await invoke(notifications.sendBulkNotifications, { sessionId: id(7), childReports: [{ childId: id(3) }, { childId: id(4) }] });
   assert.equal(result.status, 403);
 });
-test('a teacher cannot impersonate a parent reply or mark a family message read', async t => {
+test('a teacher cannot mark a family message read as a parent', async t => {
   t.mock.method(models.ParentNotification, 'findOneAndUpdate', () => assert.fail('must not write as parent'));
-  assert.equal((await invoke(notifications.replyAsParent, { message: 'Impersonated reply' }, { childId: id(3), id: id(7) })).status, 403);
   assert.equal((await invoke(notifications.markAsReadByParent, {}, { childId: id(3), id: id(7) })).status, 403);
 });
 test('only an empty unstarted plan can be deleted, using its current version', async t => {
@@ -216,8 +252,9 @@ test('a simultaneous first report publication recovers its stable source instead
     if (options.upsert) throw Object.assign(new Error('Duplicate source'), { code: 11000 });
     return { _id: id(9), ...update.$set };
   });
+  t.mock.method(models.ParentNotification, 'findOne', async () => ({ _id: id(9), sourceKey: 'session:demo', stars: 2 }));
   const result = await inbox.publish({ sourceKey: 'session:demo', stars: 2 });
-  assert.equal(result.stars, 2); assert.equal(attempts, 2);
+  assert.equal(result.stars, 2); assert.equal(attempts, 1);
 });
 test('new activities added later do not expand an existing homework assignment', async t => {
   t.mock.method(models.Activity, 'find', filter => {

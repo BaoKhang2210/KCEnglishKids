@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
   stage: { type: Number, required: true, enum: [1, 2, 3] },
   gameId: String,
   score: Number,
+  durationSeconds: { type: Number, min: 0, max: 7200 },
   answers: [mongoose.Schema.Types.Mixed],
   stage2Report: mongoose.Schema.Types.Mixed,
   payloadHash: String,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, School, BookOpen, MessageSquare, Users, ClipboardList, LogOut, Menu, X, ShieldCheck, ChevronRight, ExternalLink, BarChart3, CalendarDays, Gamepad2, Award } from 'lucide-react';
+import { LayoutDashboard, School, BookOpen,  Users, ClipboardList, LogOut, Menu, X, ShieldCheck, ChevronRight, BarChart3, CalendarDays, Gamepad2, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../services/api';
 import '../../styles/admin.css';
@@ -13,10 +13,8 @@ const navigation = [
     { label: 'Tài khoản', path: '/admin/users', icon: Users }
   ] },
   { title: 'Nội dung học tập', items: [
-    { label: 'Giáo trình & bài học', path: '/admin/curriculum', icon: BookOpen },
-    { label: 'Thư viện mẫu câu', path: '/admin/sentences', icon: MessageSquare },
+    { label: 'Giáo trình', path: '/admin/curriculum', icon: BookOpen },
     { label: 'Kho trò chơi', path: '/admin/games', icon: Gamepad2 },
-    { label: 'Xưởng học liệu', path: '/admin/learning-studio', icon: BookOpen },
     { label: 'Vinh danh của trường', path: '/admin/recognitions', icon: Award }
   ] },
   { title: 'Quản trị hệ thống', items: [
@@ -52,7 +50,6 @@ export function AdminLayout() {
       </div>)}</nav>
       <div className="admin-sidebar-footer">
         <div className="admin-profile"><span className="admin-avatar">{user?.name?.[0] || 'A'}</span><div><strong>{user?.name || 'Quản trị viên'}</strong><small>{user?.email}</small></div><button type="button" title="Đăng xuất" aria-label="Đăng xuất" onClick={() => { logout(); navigate('/admin/login'); }}><LogOut size={18} /></button></div>
-        <Link className="admin-portal-link" to="/teacher/login" target="_blank" rel="noreferrer">Mở cổng đăng nhập giáo viên<ExternalLink size={14} /></Link>
       </div>
     </aside>
     <div className="admin-content">

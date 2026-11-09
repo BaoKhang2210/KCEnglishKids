@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-01T10:14:02.055Z",
+  "database": "isolated disposable database; removed after verification",
+  "checks": [
+    "HTTP approval saves a real Mongoose plan",
+    "retry is idempotent",
+    "family receives latest revision only",
+    "another teacher is denied",
+    "one-word replacement works",
+    "revocation hides plan",
+    "history is append-only",
+    "review does not advance curriculum",
+    "new child arcade contains no demo words"
+  ],
+  "passed": true
+}

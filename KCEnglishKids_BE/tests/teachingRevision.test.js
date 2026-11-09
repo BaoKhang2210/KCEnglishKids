@@ -11,7 +11,7 @@ const id = n => String(n).padStart(24, '0');
 const query = value => ({ select() { return this; }, lean: async () => value });
 
 test('stage grading accepts a synonymous answer and game targets do not repeat synonyms', () => {
-  const words = ['Dad', 'father', 'dog'].map((english, index) => ({ _id: id(index + 1), english, visualType: 'abstract', wordType: 'noun' }));
+  const words = ['Dad', 'father', 'dog'].map((english, index) => ({ _id: id(index + 1), english, imageUrl: '/word-'+index+'.png', visualType: 'abstract', wordType: 'noun' }));
   const answers = words.map(word => ({ wordId: word._id, selectedId: word.english === 'Dad' ? id(2) : word._id, round: 3 }));
   const result = require('../src/services/stageLearning').gradeStage(2, { answers }, words, null, '3-4');
   assert.equal(result.score, 100);

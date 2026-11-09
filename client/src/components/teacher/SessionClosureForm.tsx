@@ -1,5 +1,59 @@
 import type { TeachingGuide } from './TeachingGuidePanel';
-export type Coverage = 'COMPLETE'|'CONTINUE'|'REVIEW';
-export function SessionClosureForm({guide,coverage,onCoverage,covered,onCovered,reflection,onReflection}:{guide?:TeachingGuide;coverage:Coverage;onCoverage:(value:Coverage)=>void;covered:string[];onCovered:(value:string[])=>void;reflection:string;onReflection:(value:string)=>void}){
- return <section className="rounded-2xl border border-teal-400/40 bg-slate-800 p-4 space-y-4"><h3 className="font-bold text-teal-200">Cô đã tổ chức bài học đến đâu?</h3><p className="text-sm text-slate-300">Mục tiêu đã dạy của lớp được ghi riêng với mức tự làm của từng bé. Chỉ “Đã dạy đủ” mới tăng tiến độ bài.</p><div className="grid gap-2">{[['CONTINUE','Cần dạy tiếp ở buổi sau'],['COMPLETE','Đã tổ chức đủ mục tiêu bài'],['REVIEW','Buổi ôn tập, giữ tiến độ hiện tại']].map(([key,label])=><label key={key} className="flex gap-2 items-start text-sm"><input type="radio" name="teaching-coverage" value={key} checked={coverage===key} onChange={()=>onCoverage(key as Coverage)}/>{label}</label>)}</div><fieldset><legend className="text-sm font-bold mb-2">Các mục tiêu đã tổ chức</legend><div className="grid gap-2">{guide?.goals.map(goal=><label key={goal.key} className="flex items-start gap-2 text-sm text-slate-200"><input type="checkbox" checked={covered.includes(goal.key)} onChange={()=>onCovered(covered.includes(goal.key)?covered.filter(key=>key!==goal.key):[...covered,goal.key])}/>{goal.label}</label>)}</div></fieldset><label className="block text-sm">Lưu ý cho buổi sau<textarea className="mt-2 w-full rounded-xl border border-white/20 bg-slate-900 p-3 text-white" rows={2} maxLength={1000} value={reflection} onChange={e=>onReflection(e.target.value)} placeholder="Nhóm từ cần nhắc lại, hoạt động bé hứng thú…"/></label></section>;
+export type Coverage = 'COMPLETE' | 'CONTINUE' | 'REVIEW';
+
+export function SessionClosureForm({
+  reviewOnly,
+  coverage,
+  onCoverage,
+}: {
+  reviewOnly?: boolean;
+  guide?: TeachingGuide;
+  coverage: Coverage;
+  onCoverage: (value: Coverage) => void;
+  covered?: string[];
+  onCovered?: (value: string[]) => void;
+  reflection?: string;
+  onReflection?: (value: string) => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-teal-400/30 bg-slate-800/80 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-teal-300">Tiến độ bài học:</span>
+        <span className="text-[11px] text-slate-400">Chọn mức độ hoàn thành bài để ghi nhận</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {[
+          ['CONTINUE', 'Dạy tiếp buổi sau', '⏳'],
+          ['COMPLETE', 'Đã dạy đủ mục tiêu', '✅'],
+          ['REVIEW', 'Buổi ôn tập', '🔄'],
+        ]
+          .filter(([key]) => !reviewOnly || key === 'REVIEW')
+          .map(([key, label, icon]) => {
+            const isSelected = coverage === key;
+            return (
+              <label
+                key={key}
+                onClick={() => onCoverage(key as Coverage)}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border ${
+                  isSelected
+                    ? 'bg-teal-500/25 border-teal-400 text-teal-200 shadow-sm'
+                    : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="teaching-coverage"
+                  value={key}
+                  checked={isSelected}
+                  onChange={() => onCoverage(key as Coverage)}
+                  className="sr-only"
+                />
+                <span>{icon}</span>
+                <span>{label}</span>
+              </label>
+            );
+          })}
+      </div>
+    </section>
+  );
 }
