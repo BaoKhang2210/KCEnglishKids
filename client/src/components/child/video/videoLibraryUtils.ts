@@ -461,7 +461,15 @@ export function buildLessonExercises(
   maxChoices = 6
 ): VideoExercise[] {
   const open: VideoOpenExercise = { kind: 'open', id: 'open', prompt: comprehensionPrompt(title) };
-  const usable = cues.filter((cue) => Boolean(cue.text?.trim())).sort((a, b) => a.start - b.start);
+  const isSpokenCue = (cue: VideoCue) => {
+    const t = String(cue.text || '').trim();
+    return Boolean(t) && !/^(\([^)]+\)|\[[^\]]+\])$/.test(t);
+  };
+  const spoken = cues.filter(isSpokenCue).sort((a, b) => a.start - b.start);
+  const usable =
+    spoken.length >= 3
+      ? spoken
+      : cues.filter((cue) => Boolean(cue.text?.trim())).sort((a, b) => a.start - b.start);
   if (usable.length < 3) return [open];
 
   const count = Math.min(maxChoices, usable.length);

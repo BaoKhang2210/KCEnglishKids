@@ -46,11 +46,12 @@ export const VideoExercisePanel: React.FC<VideoExercisePanelProps> = ({
   onPlaySegment
 }) => {
   const questions = useMemo<QuizQuestion[]>(() => {
-    const choices = buildLessonExercises(title, cues).filter(
+    const maxQuestions = captionsInVideo ? 10 : 6;
+    const choices = buildLessonExercises(title, cues, maxQuestions).filter(
       (exercise): exercise is VideoChoiceExercise => exercise.kind === 'choice'
     );
     if (choices.length > 0) return choices;
-    if (captionsInVideo) return buildSegmentExercises(segmentCues);
+    if (captionsInVideo) return buildSegmentExercises(segmentCues, maxQuestions);
     return [];
   }, [title, cues, captionsInVideo, segmentCues]);
   const segmentMode = questions.length > 0 && questions[0].kind === 'segment';
@@ -236,19 +237,31 @@ export const VideoExercisePanel: React.FC<VideoExercisePanelProps> = ({
         <span className="rounded-full bg-sky-50 px-3 py-1 text-[12px] font-black text-sky-700 sm:text-[13px]">
           Câu hỏi {index + 1} / {questions.length}
         </span>
-        <button
-          type="button"
-          onClick={() => void playQuestion()}
-          disabled={playing}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 text-[12px] font-black text-white shadow-sm transition-colors hover:bg-sky-700 disabled:opacity-75 cursor-pointer sm:text-[13px]"
-        >
-          {playing ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Headphones className="h-4 w-4" aria-hidden="true" />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {!segmentMode && onPlaySegment && question && (
+            <button
+              type="button"
+              onClick={() => onPlaySegment(question.cue)}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border-2 border-sky-200 bg-sky-50 px-3 text-[12px] font-black text-sky-800 transition-colors hover:bg-sky-100 cursor-pointer sm:text-[13px]"
+            >
+              <Headphones className="h-4 w-4" aria-hidden="true" />
+              Nghe đoạn video
+            </button>
           )}
-          {playing ? 'Đang đọc câu hỏi…' : 'Bấm để nghe câu hỏi'}
-        </button>
+          <button
+            type="button"
+            onClick={() => void playQuestion()}
+            disabled={playing}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 text-[12px] font-black text-white shadow-sm transition-colors hover:bg-sky-700 disabled:opacity-75 cursor-pointer sm:text-[13px]"
+          >
+            {playing ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Headphones className="h-4 w-4" aria-hidden="true" />
+            )}
+            {playing ? 'Đang đọc câu hỏi…' : 'Bấm để nghe câu hỏi'}
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 flex items-center gap-1" aria-hidden="true">

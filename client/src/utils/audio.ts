@@ -862,7 +862,12 @@ const fallbackSpeech = (text: string, onEnd: () => void) => {
       // Delay slightly to prevent Chromium speech synthesis cancel/speak collision
       setTimeout(() => {
         try {
-          const utterance = new SpeechSynthesisUtterance(text);
+          const cleanText = String(text || '').replace(/[♪♫]/g, ' ').replace(/\s+/g, ' ').trim();
+          if (!cleanText) {
+            safeEnd();
+            return;
+          }
+          const utterance = new SpeechSynthesisUtterance(cleanText);
           utterance.lang = 'en-US';
           utterance.rate = 0.95; // Clear natural speed
           utterance.pitch = 1.05; // Friendly tone

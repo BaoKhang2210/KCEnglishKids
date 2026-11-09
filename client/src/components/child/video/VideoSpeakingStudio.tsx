@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Mic, Play, Square, Volume2 } from 'lucide-react';
 import type { VideoCue } from '../../../types';
 import { playWordAudio, sfx, stopWordAudio } from '../../../utils/audio';
-import { formatCueTimestamp } from './videoLibraryUtils';
+import { formatCueTimestamp, splitCueWords } from './videoLibraryUtils';
 
 interface VideoSpeakingStudioProps {
   cues: VideoCue[];
@@ -188,9 +188,30 @@ export const VideoSpeakingStudio: React.FC<VideoSpeakingStudioProps> = ({
                 }`}
               >
                 {activeCue.text ? (
-                  <p className="text-[24px] font-black leading-snug text-slate-900 sm:text-[30px]">
-                    “{activeCue.text}”
-                  </p>
+                  <div>
+                    <p className="text-[22px] font-black leading-snug text-slate-900 sm:text-[28px]">
+                      “
+                      {splitCueWords(activeCue.text).map((token, tokenIdx) =>
+                        token.word ? (
+                          <button
+                            key={`${activeCue.idx}-${tokenIdx}`}
+                            type="button"
+                            onClick={() => void playWordAudio(token.text)}
+                            aria-label={`Nghe từ ${token.text}`}
+                            className="rounded px-0.5 text-inherit underline-offset-2 hover:bg-sky-100 hover:text-sky-900 cursor-pointer"
+                          >
+                            {token.text}
+                          </button>
+                        ) : (
+                          <span key={`${activeCue.idx}-${tokenIdx}`}>{token.text}</span>
+                        )
+                      )}
+                      ”
+                    </p>
+                    <p className="mt-1 text-[12px] font-black tabular-nums text-slate-400">
+                      {formatCueTimestamp(activeCue.start)} – {formatCueTimestamp(activeCue.end)}
+                    </p>
+                  </div>
                 ) : (
                   <div>
                     <p className="text-[24px] font-black leading-snug text-slate-900 sm:text-[30px]">
@@ -212,18 +233,32 @@ export const VideoSpeakingStudio: React.FC<VideoSpeakingStudioProps> = ({
               </div>
 
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (activeCue.text) void playWordAudio(activeCue.text);
-                    else onPlaySample?.(activeCue);
-                  }}
-                  disabled={isRecording || (!activeCue.text && !onPlaySample)}
-                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-sky-600 px-4 text-[13px] font-black text-white shadow-sm transition-colors hover:bg-sky-700 disabled:opacity-50 cursor-pointer sm:text-sm"
-                >
-                  <Volume2 className="h-[18px] w-[18px]" aria-hidden="true" />
-                  Nghe mẫu
-                </button>
+                {onPlaySample && (
+                  <button
+                    type="button"
+                    onClick={() => onPlaySample(activeCue)}
+                    disabled={isRecording}
+                    className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-sky-600 px-4 text-[13px] font-black text-white shadow-sm transition-colors hover:bg-sky-700 disabled:opacity-50 cursor-pointer sm:text-sm"
+                  >
+                    <Play className="h-[18px] w-[18px] fill-white" aria-hidden="true" />
+                    Phát đoạn video
+                  </button>
+                )}
+                {activeCue.text && (
+                  <button
+                    type="button"
+                    onClick={() => void playWordAudio(activeCue.text)}
+                    disabled={isRecording}
+                    className={`inline-flex min-h-12 items-center gap-2 rounded-xl px-4 text-[13px] font-black shadow-sm transition-colors disabled:opacity-50 cursor-pointer sm:text-sm ${
+                      onPlaySample
+                        ? 'border-2 border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100'
+                        : 'bg-sky-600 text-white hover:bg-sky-700'
+                    }`}
+                  >
+                    <Volume2 className="h-[18px] w-[18px]" aria-hidden="true" />
+                    {onPlaySample ? 'Đọc mẫu' : 'Nghe mẫu'}
+                  </button>
+                )}
                 {isRecording ? (
                   <button
                     type="button"

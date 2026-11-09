@@ -1,10 +1,99 @@
-const ALLOWED_CUE_HOSTS = new Set(['media.tienganhvui.com']);
+const ALLOWED_CUE_HOSTS = new Set([
+  'media.tienganhvui.com',
+  'tienganhvui.com',
+  'www.tienganhvui.com'
+]);
 const MAX_CUES = 500;
 const MAX_BYTES = 512 * 1024;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_LIMIT = 120;
 
 const cache = new Map();
+
+function decodeHtmlEntities(input) {
+  return String(input || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'");
+}
+
+function parseVttTimestamp(raw) {
+  const token = String(raw || '').trim();
+  const match = token.match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.,](\d{1,3}))?$/);
+  if (!match) return NaN;
+  const hours = match[1] ? Number(match[1]) : 0;
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  const millis = match[4] ? Number(match[4].padEnd(3, '0')) : 0;
+  return hours * 3600 + minutes * 60 + seconds + millis / 1000;
+}
+
+function parseWebVttCues(vttText) {
+  const lines = String(vttText || '')
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/);
+  const parsed = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trim();
+    if (!line.includes('-->')) {
+      index += 1;
+      continue;
+    }
+    const [leftRaw, rightRaw] = line.split('-->');
+    const start = parseVttTimestamp(leftRaw);
+    const endToken = String(rightRaw || '')
+      .trim()
+      .split(/\s+/)[0];
+    const end = parseVttTimestamp(endToken);
+    index += 1;
+
+    const textLines = [];
+    while (index < lines.length) {
+      const current = lines[index];
+      if (!current.trim()) {
+        index += 1;
+        break;
+      }
+      if (current.includes('-->')) break;
+      // If the next line has '-->' and this line is just a cue number/id, stop before it
+      if (index + 1 < lines.length && lines[index + 1].includes('-->') && /^\d+$/.test(current.trim())) {
+        break;
+      }
+      textLines.push(current.trim());
+      index += 1;
+    }
+
+    const text = decodeHtmlEntities(textLines.join(' '))
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (
+      Number.isFinite(start) &&
+      Number.isFinite(end) &&
+      end > start &&
+      start >= 0 &&
+      text.length > 0
+    ) {
+      parsed.push({ start, end, text });
+    }
+  }
+
+  return parsed
+    .sort((a, b) => a.start - b.start)
+    .slice(0, MAX_CUES)
+    .map((cue, idx) => ({
+      idx: idx + 1,
+      start: cue.start,
+      end: cue.end,
+      text: cue.text
+    }));
+}
 
 function isAllowedCueUrl(value) {
   try {
@@ -84,15 +173,20 @@ async function fetchSourceCues(cueUrl) {
     error.statusCode = 502;
     throw error;
   }
-  let payload;
-  try {
-    payload = JSON.parse(body);
-  } catch {
-    const error = new Error('Cue source is not valid JSON.');
-    error.statusCode = 502;
-    throw error;
+  let cues;
+  if (body.trimStart().startsWith('WEBVTT') || String(cueUrl).toLowerCase().endsWith('.vtt')) {
+    cues = parseWebVttCues(body);
+  } else {
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      const error = new Error('Cue source is not valid JSON.');
+      error.statusCode = 502;
+      throw error;
+    }
+    cues = normalizeSourceCues(payload);
   }
-  const cues = normalizeSourceCues(payload);
   if (cache.size >= CACHE_LIMIT) {
     const oldest = cache.keys().next().value;
     if (oldest) cache.delete(oldest);
@@ -198,6 +292,32 @@ async function fetchYouTubeWatchHtml(videoId) {
   throw lastError || new Error('YouTube watch page is unreachable.');
 }
 
+async function fetchCuratedYouTubeVtt(videoId) {
+  const vttUrls = [
+    `https://tienganhvui.com/media/video-learning/subtitles/${encodeURIComponent(videoId)}.vtt`,
+    `https://media.tienganhvui.com/video-learning/subtitles/${encodeURIComponent(videoId)}.vtt`
+  ];
+  for (const url of vttUrls) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(8000),
+        headers: {
+          ...YT_BROWSER_HEADERS,
+          Accept: 'text/vtt,text/plain;q=0.9,*/*;q=0.8'
+        }
+      });
+      if (!response.ok) continue;
+      const body = await response.text();
+      if (!body || body.length > MAX_BYTES) continue;
+      const cues = parseWebVttCues(body);
+      if (cues.length > 0) return cues;
+    } catch {
+      // Try next URL or fall back to YouTube watch page.
+    }
+  }
+  return null;
+}
+
 async function fetchYouTubeCues(youtubeId) {
   const id = String(youtubeId || '').trim();
   if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) {
@@ -208,6 +328,16 @@ async function fetchYouTubeCues(youtubeId) {
   const cacheKey = `yt:${id}`;
   const cached = cache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.cues;
+
+  const curatedCues = await fetchCuratedYouTubeVtt(id);
+  if (curatedCues && curatedCues.length > 0) {
+    if (cache.size >= CACHE_LIMIT) {
+      const oldest = cache.keys().next().value;
+      if (oldest) cache.delete(oldest);
+    }
+    cache.set(cacheKey, { cues: curatedCues, expiresAt: Date.now() + CACHE_TTL_MS });
+    return curatedCues;
+  }
 
   const watchBody = await fetchYouTubeWatchHtml(id);
   const tracks = extractJsonArray(watchBody, '"captionTracks"') || [];
@@ -252,6 +382,7 @@ module.exports = {
   ALLOWED_CUE_HOSTS,
   isAllowedCueUrl,
   normalizeSourceCues,
+  parseWebVttCues,
   fetchSourceCues,
   fetchYouTubeCues
 };

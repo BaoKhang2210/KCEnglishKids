@@ -665,25 +665,8 @@ export const ChildHomePage: React.FC = () => {
                   <div className="flex items-end justify-between flex-wrap gap-3">
                     <div>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-800">Góc phần thưởng của bé</h2>
-                      <p className="text-sm font-bold text-slate-500">
-                        {rewardTab === 'badges' ? 'Mỗi huy hiệu có một mốc rõ ràng: sao, Lesson hoàn thành, Lesson 3 sao hoặc rương đã mở.'
-                          : rewardTab === 'stickers' ? 'Hoàn thành mọi Lesson trong Unit để nhận rương và sticker. Sao thưởng được cộng ngay khi Unit hoàn tất.' : 'Theo dõi sao của từng bài và từng Unit.'}
-                      </p>
-                      {rewards && (
-                        <p className="mt-1 text-xs font-bold text-slate-500">
-                          Tổng sao hành trình = tổng sao các Unit = sao Lesson + thưởng Unit. Thưởng lớp và huy hiệu được tính riêng.
-                        </p>
-                      )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="bg-purple-100 border-2 border-purple-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
-                        <Trophy className="w-5 h-5 text-purple-600" />
-                        <span className="text-base font-black text-purple-900">{unlockedCount} Huy hiệu</span>
-                      </div>
-                      <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
-                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                        <span className="text-base font-black text-amber-900">{ledger ? `${totalStars} Sao vàng` : rewardsLoading ? 'Đang tải sao…' : 'Chưa tải được sao'}</span>
-                      </div>
                       <button
                         type="button"
                         onClick={() => {
@@ -713,7 +696,7 @@ export const ChildHomePage: React.FC = () => {
                       }`}
                     >
                       <Trophy className="w-4 h-4 text-purple-600" />
-                      <span>Huy hiệu danh giá</span>
+                      <span>Huy hiệu ({unlockedCount}/{evaluatedBadges.length})</span>
                     </button>
                     <button
                       type="button"
@@ -728,12 +711,16 @@ export const ChildHomePage: React.FC = () => {
                       }`}
                     >
                       <Gift className="w-4 h-4 text-rose-500" />
-                      <span>Bộ sưu tập Sticker</span>
+                      <span>Sticker ({unlockedStickers.length}/{ALL_STICKERS.length})</span>
                     </button>
                     <button type="button" onClick={() => { sfx.playPop(); setRewardTab('stars'); }} aria-pressed={rewardTab === 'stars'} className={`min-h-12 rounded-xl px-3 py-2.5 font-black text-xs sm:text-sm flex items-center justify-center gap-2 ${rewardTab === 'stars' ? 'bg-white text-amber-900 shadow-sm ring-2 ring-amber-300' : 'text-slate-500 hover:text-slate-800'}`}>
-                      <Star className="h-4 w-4 text-amber-500" />Sổ sao
+                      <Star className="h-4 w-4 text-amber-500" />Sao ({ledger ? totalStars : rewardsLoading ? '…' : '!'})
                     </button>
                   </div>
+
+                  {rewardTab === 'badges' && <p className="text-sm font-bold text-slate-500">Mỗi huy hiệu có một mốc rõ ràng: sao, bài học hoàn thành hoặc rương đã mở.</p>}
+                  {rewardTab === 'stickers' && <p className="text-sm font-bold text-slate-500">Hoàn thành mọi bài học trong Unit để nhận rương và sticker.</p>}
+                  {rewardTab === 'stars' && rewards && <p className="text-sm font-bold text-slate-500">Tổng sao hành trình gồm sao bài học và thưởng Unit. Thưởng lớp và huy hiệu được tính riêng.</p>}
 
                   {rewardTab === 'stars' ? (
                     <StarCollectionSection ledger={ledger} loading={rewardsLoading} error={rewardsError} onRetry={refreshRewards} />

@@ -30,6 +30,7 @@ interface VideoPlayerProps {
   onTimeChange?: (time: number) => void;
   onRangeEnd?: () => void;
   seekRequest?: { time: number; token: number; end?: number; autoplay?: boolean } | null;
+  mutedOverride?: boolean;
 }
 
 type YTPlayer = {
@@ -94,7 +95,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onPlayingChange,
   onTimeChange,
   onRangeEnd,
-  seekRequest
+  seekRequest,
+  mutedOverride
 }) => {
   const isYouTube = episode.source === 'youtube';
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -399,9 +401,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           host: 'https://www.youtube-nocookie.com',
           playerVars: {
             autoplay: 0,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
+            controls: 1,
+            disablekb: 0,
+            fs: 1,
             modestbranding: 1,
             rel: 0,
             iv_load_policy: 3,
@@ -452,20 +454,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 const active = ytPlayerRef.current;
                 if (!active) return;
                 const state = active.getPlayerState();
+                const nowTime = active.getCurrentTime();
                 if (state === YT_PLAYING) {
                   setPlaying(true);
-                  handleTick(active.getCurrentTime());
+                  handleTick(nowTime);
                 } else if (state === YT_PAUSED) {
                   setPlaying(false);
+                  if (Number.isFinite(nowTime) && Math.abs(nowTime - currentRef.current) > 0.2) {
+                    currentRef.current = nowTime;
+                    setCurrentTime(nowTime);
+                    callbacksRef.current.onTimeChange?.(nowTime);
+                  }
                 } else if (state === YT_ENDED) {
                   setPlaying(false);
                   markEnded();
                 }
-              }, 250);
+              }, 200);
             },
             onStateChange: (event: { data: number }) => {
               if (cancelled) return;
-              if (event.data === YT_PLAYING) setPlaying(true);
+              if (event.data === YT_PLAYING) {
+                setHasStarted(true);
+                startedRef.current = true;
+                endedRef.current = false;
+                setPlaying(true);
+                const active = ytPlayerRef.current;
+                if (active) handleTick(active.getCurrentTime());
+              }
               if (event.data === YT_PAUSED) {
                 setPlaying(false);
                 if (startedRef.current) emitHeartbeat(false);
@@ -526,19 +541,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     if (!ready) return;
+    const effectiveMuted = Boolean(mutedOverride || muted);
     if (isYouTube) {
       try {
         ytPlayerRef.current?.setVolume(Math.round(volume * 100));
-        if (muted) ytPlayerRef.current?.mute();
+        if (effectiveMuted) ytPlayerRef.current?.mute();
         else ytPlayerRef.current?.unMute();
       } catch {
         // Ignore.
       }
     } else if (videoRef.current) {
       videoRef.current.volume = volume;
-      videoRef.current.muted = muted;
+      videoRef.current.muted = effectiveMuted;
     }
-  }, [isYouTube, muted, ready, volume]);
+  }, [isYouTube, muted, mutedOverride, ready, volume]);
 
   useEffect(() => {
     const onFullscreenChange = () => setFullscreen(document.fullscreenElement === containerRef.current);
@@ -607,9 +623,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const showIntroHint =
-    ready && !error && Number(episode.dialogueStartSec) > 0 && currentTime < Number(episode.dialogueStartSec) - 0.2;
+    !isYouTube &&
+    ready &&
+    !error &&
+    Number(episode.dialogueStartSec) > 0 &&
+    currentTime < Number(episode.dialogueStartSec) - 0.2;
 
-  const showBigPlay = ready && !error && !hasStarted;
+  const showBigPlay = !isYouTube && ready && !error && !hasStarted;
   const segmentLength = Math.max(1, segmentEnd - clipStart);
 
   return (
@@ -677,7 +697,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </button>
         )}
 
-        {activeCue && !showBigPlay && captionsOn && (
+        {!isYouTube && activeCue && !showBigPlay && captionsOn && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-slate-950/90 via-slate-950/55 to-transparent px-4 pb-3 pt-12">
             <div className="pointer-events-auto mx-auto max-w-3xl text-center">
               {ageGroup === '5-6' ? (
@@ -731,7 +751,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         )}
       </div>
 
-      {/* Custom controls: no YouTube chrome, no channel title, no related rail. */}
+      {/* Custom controls for hosted videos; YouTube uses its full native controls. */}
+      {!isYouTube && (
       <div className="shrink-0 border-t border-white/5 bg-slate-950 px-2.5 pb-2 pt-1.5">
         <div>
           <input
@@ -876,6 +897,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
