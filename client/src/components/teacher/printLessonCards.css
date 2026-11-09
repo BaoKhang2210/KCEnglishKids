@@ -1,13 +1,124 @@
-#lesson-print-sheet { display: none; }
+#lesson-print-sheet {
+  display: none;
+}
+
 @media print {
-  @page { size: A4 portrait; margin: 12mm; }
-  body:has(#lesson-print-sheet) > :not(#lesson-print-sheet) { display: none !important; }
-  #lesson-print-sheet { display: block; color: #111; font-family: Arial, sans-serif; }
-  #lesson-print-sheet header { margin-bottom: 6mm; font-size: 15pt; }
-  #lesson-print-sheet header p { font-size: 10pt; }
-  #lesson-print-sheet .lesson-print-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5mm; }
-  #lesson-print-sheet article { height: 75mm; break-inside: avoid; border: 1px dashed #777; border-radius: 3mm; padding: 5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; }
-  #lesson-print-sheet img { width: 58mm; height: 48mm; object-fit: contain; }
-  #lesson-print-sheet article strong { font-size: 21pt; }
-  #lesson-print-sheet article span { font-size: 11pt; }
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body:has(#lesson-print-sheet) > :not(#lesson-print-sheet) {
+    display: none !important;
+  }
+
+  #lesson-print-sheet {
+    display: block !important;
+    color: #111;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #fff;
+  }
+
+  #lesson-print-sheet header {
+    margin-bottom: 8mm;
+    padding-bottom: 3mm;
+    border-bottom: 2px solid #333;
+    text-align: center;
+  }
+
+  #lesson-print-sheet header strong {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #1e293b;
+    display: block;
+    margin-bottom: 1.5mm;
+  }
+
+  #lesson-print-sheet header p {
+    font-size: 10pt;
+    color: #64748b;
+    margin: 0;
+  }
+
+  #lesson-print-sheet .lesson-print-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8mm;
+  }
+
+  #lesson-print-sheet .coloring-card {
+    height: 120mm;
+    break-inside: avoid;
+    border: 2px dashed #94a3b8;
+    border-radius: 6mm;
+    padding: 6mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    background: #fff;
+  }
+
+  #lesson-print-sheet .coloring-img-wrapper {
+    width: 100%;
+    height: 65mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 4mm;
+    padding: 3mm;
+    background: #fff;
+  }
+
+  #lesson-print-sheet .coloring-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    /* High contrast grayscale outline effect for kid coloring */
+    filter: grayscale(100%) contrast(160%) brightness(105%);
+  }
+
+  #lesson-print-sheet .coloring-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5mm;
+    margin-top: 3mm;
+  }
+
+  #lesson-print-sheet .coloring-word {
+    font-size: 26pt;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #fff;
+    -webkit-text-stroke: 2px #0f172a;
+    text-transform: uppercase;
+  }
+
+  #lesson-print-sheet .coloring-phonetic {
+    font-size: 12pt;
+    color: #475569;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  #lesson-print-sheet .coloring-vietnamese {
+    font-size: 13pt;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  #lesson-print-sheet .coloring-footer {
+    width: 100%;
+    text-align: center;
+    padding-top: 2mm;
+    border-top: 1px dotted #cbd5e1;
+  }
+
+  #lesson-print-sheet .coloring-instruction {
+    font-size: 9pt;
+    color: #64748b;
+    font-style: italic;
+  }
 }

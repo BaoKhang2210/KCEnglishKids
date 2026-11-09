@@ -8,6 +8,22 @@ const { statsFor } = require('../services/teacherStatistics');
 const handler = fn => async (req, res, next) => { try { await fn(req, res); } catch (error) { next(error); } };
 const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 
+const ANIMAL_AVATARS = ['lion', 'panda', 'rabbit', 'bear', 'fox', 'koala', 'monkey', 'cat', 'dog', 'elephant'];
+const ANIMAL_AVATAR_SYMBOLS = {
+  lion: '/images/symbols/1f981.svg',
+  tiger: '/images/symbols/1f42f.svg',
+  panda: '/images/symbols/1f43c.svg',
+  rabbit: '/images/symbols/1f430.svg',
+  bear: '/images/symbols/1f43b.svg',
+  fox: '/images/symbols/1f98a.svg',
+  koala: '/images/symbols/1f43b.svg',
+  monkey: '/images/symbols/1f412.svg',
+  cat: '/images/symbols/1f431.svg',
+  dog: '/images/rewards/fluent-3d/dog_face_3d.png',
+  elephant: '/images/symbols/1f418.svg'
+};
+const randomAnimalAvatar = () => ANIMAL_AVATARS[Math.floor(Math.random() * ANIMAL_AVATARS.length)];
+
 exports.createChild = handler(async (req, res) => {
   const body = req.body;
   if (!String(body.name || '').trim()) throw I.fail('Vui lòng nhập tên học sinh.');
@@ -19,9 +35,11 @@ exports.createChild = handler(async (req, res) => {
   if (!age) throw I.fail('Nhóm tuổi không hợp lệ.');
   const rawPin = I.pin(body.pin);
   const login = await I.username(body.name, body.username);
+  const avatarKey = body.avatar || randomAnimalAvatar();
+  const avatarUrl = body.avatarUrl || ANIMAL_AVATAR_SYMBOLS[avatarKey] || '/images/symbols/1f981.svg';
   const child = new User({ name: body.name.trim(), role: 'CHILD', username: login, pin: rawPin,
     password: body.password || rawPin, dob, ageGroup: age._id, ageGroupCode: code, assignedClass: room?._id,
-    avatar: body.avatar || 'lion', contact: String(body.contact || '').trim(), parentContact: String(body.contact || '').trim(),
+    avatar: avatarKey, avatarUrl, contact: String(body.contact || '').trim(), parentContact: String(body.contact || '').trim(),
     ...(body.email ? { email: body.email.trim().toLowerCase() } : {}), status: 'ACTIVE' });
   await I.atomic(async () => {
     await child.save();
@@ -37,7 +55,7 @@ exports.createTeacher = handler(async (req, res) => {
   if (!name?.trim() || !username?.trim() || !email?.trim() || String(password || '').length < 8) throw I.fail('Nhập đầy đủ họ tên, mã đăng nhập, email và mật khẩu ít nhất 8 ký tự.');
   if (await User.exists({ $or: [{ username: username.trim().toLowerCase() }, { email: email.trim().toLowerCase() }] })) throw I.fail('Email hoặc mã đăng nhập đã được sử dụng.');
   const room = assignedClass ? await I.classroom(assignedClass) : null;
-  const teacher = new User({ role: 'TEACHER', name: name.trim(), username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), password, contact, status: 'ACTIVE', avatar: 'fox' });
+  const teacher = new User({ role: 'TEACHER', name: name.trim(), username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), password, contact, status: 'ACTIVE', avatar: req.body.avatar || randomAnimalAvatar() });
   await I.atomic(async () => {
     await teacher.save();
     try { if (room) await I.syncTeacher(room, teacher._id); }
@@ -155,7 +173,17 @@ exports.deleteClassroom = handler(async (req, res) => {
     await models.Attendance.updateMany({ 'records.student': { $in: ids } }, { $pull: { records: { student: { $in: ids } } } });
     await ClassroomSession.updateMany({ 'studentScores.student': { $in: ids } }, { $pull: { studentScores: { student: { $in: ids } }, 'questionResults.$[].studentAnswers': { student: { $in: ids } }, 'summary.topPerformers': { $in: ids }, 'summary.studentsNeedingPractice': { $in: ids } } });
     await ClassRoom.updateMany({ _id: { $ne: room._id } }, { $pull: { students: { $in: ids } } });
-    await User.updateMany({ assignedClass: room._id, role: 'TEACHER' }, { $unset: { assignedClass: 1 } });
+    await User.updateMany({ role: 'TEACHER' }, { $pull: { assignedClasses: room._id } });
+    const remainingForTeacher = room.teacher
+      ? await ClassRoom.findOne({ _id: { $ne: room._id }, teacher: room.teacher, status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('_id').lean()
+      : null;
+    if (room.teacher) {
+      if (remainingForTeacher) {
+        await User.updateOne({ _id: room.teacher, role: 'TEACHER', assignedClass: room._id }, { $set: { assignedClass: remainingForTeacher._id } });
+      } else {
+        await User.updateOne({ _id: room.teacher, role: 'TEACHER', assignedClass: room._id }, { $unset: { assignedClass: 1 } });
+      }
+    }
     await User.deleteMany({ _id: { $in: ids }, role: 'CHILD' });
     await ClassRoom.deleteOne({ _id: room._id });
   });

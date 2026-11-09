@@ -7,6 +7,8 @@ interface DraftRow {
   childId: string;
   childName: string;
   attended: boolean;
+  lessonTitle?: string;
+  unitTitle?: string;
   basisToken?: string;
   sentContent?: string | null;
   observations: any[];
@@ -14,11 +16,14 @@ interface DraftRow {
   plan?: any;
 }
 
-const getDefaultNote = (childName: string, attended: boolean) => {
+const getDefaultNote = (childName: string, attended: boolean, lessonName?: string, unitName?: string) => {
   if (attended) {
     return `Dạ kính gửi Phụ huynh bé ${childName}, hôm nay bé tham gia buổi học rất tích cực và hào hứng. Bé đã ghi nhớ tốt các từ vựng bài học và tham gia sôi nổi các trò chơi trên lớp. Ba mẹ ở nhà hãy khen ngợi và cùng bé mở thẻ bài để ôn lại nhé! ❤️`;
   }
-  return `Dạ kính gửi Phụ huynh bé ${childName}, hôm nay bé vắng mặt ở buổi học trên lớp. Ba mẹ cho bé xem bài học và nghe từ vựng qua ứng dụng ở nhà để bé theo kịp bài học cùng các bạn nhé!`;
+  const lessonDesc = lessonName
+    ? (unitName ? `Bài "${lessonName}" (thuộc Unit: ${unitName})` : `Bài "${lessonName}"`)
+    : 'buổi học hôm nay';
+  return `Dạ kính gửi Phụ huynh bé ${childName}, hôm nay bé vắng mặt ở buổi học trên lớp: ${lessonDesc}. Ba mẹ mở phần luyện tập 5 phút hoặc mở ứng dụng ở nhà cho bé ôn bài này giúp bé nắm vững kiến thức và theo kịp bài học cùng các bạn nhé! ❤️`;
 };
 
 const TEMPLATES = [
@@ -44,10 +49,12 @@ const TEMPLATES = [
 
 export function FamilyReportModal({
   session,
-  onClose
+  onClose,
+  onSuccess
 }: {
   session: ClassroomSession;
   onClose: () => void;
+  onSuccess?: (msg: string) => void;
 }) {
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -72,7 +79,9 @@ export function FamilyReportModal({
         const toSelect: string[] = [];
 
         items.forEach((item) => {
-          initialNotes[item.childId] = item.sentContent || getDefaultNote(item.childName, item.attended);
+          const lTitle = item.lessonTitle || (session.lesson as any)?.vietnameseTitle || (session.lesson as any)?.title || session.title;
+          const uTitle = item.unitTitle || (session.lesson as any)?.topic?.vietnameseTitle || (session.lesson as any)?.topic?.name || (session.lesson as any)?.topic?.title;
+          initialNotes[item.childId] = item.sentContent || getDefaultNote(item.childName, item.attended, lTitle, uTitle);
           if (item.sentContent) {
             initialSent[item.childId] = true;
           } else {
@@ -110,14 +119,18 @@ export function FamilyReportModal({
     try {
       const childReports = rows
         .filter((r) => selected.includes(r.childId))
-        .map((r) => ({
-          childId: r.childId,
-          teacherNote: notes[r.childId] || getDefaultNote(r.childName, r.attended),
-          basisToken: r.basisToken,
-          observationIds: (r.observations || []).map((o: any) => o._id),
-          includeAssignment: Boolean(r.assignment),
-          includePlan: Boolean(r.plan)
-        }));
+        .map((r) => {
+          const lTitle = r.lessonTitle || (session.lesson as any)?.vietnameseTitle || (session.lesson as any)?.title || session.title;
+          const uTitle = r.unitTitle || (session.lesson as any)?.topic?.vietnameseTitle || (session.lesson as any)?.topic?.name || (session.lesson as any)?.topic?.title;
+          return {
+            childId: r.childId,
+            teacherNote: notes[r.childId] || getDefaultNote(r.childName, r.attended, lTitle, uTitle),
+            basisToken: r.basisToken,
+            observationIds: (r.observations || []).map((o: any) => o._id),
+            includeAssignment: Boolean(r.assignment),
+            includePlan: Boolean(r.plan)
+          };
+        });
 
       await api.post('/teacher/parent-notifications/bulk', {
         sessionId: session._id,
@@ -130,7 +143,14 @@ export function FamilyReportModal({
         updatedSent[id] = true;
       });
       setSentMap(updatedSent);
-      setSuccessMessage(`Đã gửi nhận xét thành công đến Sổ liên lạc của ${selected.length} bé! 🎉`);
+      const msg = `Đã gửi nhận xét thành công đến Sổ liên lạc của ${selected.length} bé! 🎉`;
+      setSuccessMessage(msg);
+      if (onSuccess) {
+        onSuccess(msg);
+      }
+      setTimeout(() => {
+        onClose();
+      }, 700);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chưa gửi được nhận xét. Vui lòng thử lại.');
     } finally {

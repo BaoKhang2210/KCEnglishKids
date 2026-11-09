@@ -5,7 +5,6 @@ import {
   School,
   BookOpen,
   MessageSquare,
-  Sparkles,
   CheckCircle2,
   ArrowRight,
   ShieldAlert,
@@ -13,6 +12,7 @@ import {
   Layers,
   Award,
   CalendarDays,
+  Calendar,
   AlertTriangle,
   Radio
 } from 'lucide-react';
@@ -59,54 +59,54 @@ export const AdminDashboardPage: React.FC = () => {
       label: 'Học sinh đang học',
       value: metrics.totalChildren || 0,
       icon: Users,
-      bgColor: 'bg-blue-50 dark:bg-blue-50',
-      iconColor: 'text-blue-800 dark:text-blue-800',
-      borderColor: 'border-blue-100 dark:border-blue-900/50',
+      gradient: 'from-blue-50/90 via-white to-indigo-50/40 border-indigo-200/90',
+      badge: 'bg-indigo-600 text-white shadow-xs',
+      valueColor: 'text-indigo-950',
       sub: 'Tài khoản trẻ em kích hoạt'
     },
     {
       label: 'Giáo viên phụ trách',
       value: metrics.totalTeachers || 0,
       icon: Award,
-      bgColor: 'bg-emerald-50 dark:bg-emerald-50',
-      iconColor: 'text-emerald-800 dark:text-emerald-800',
-      borderColor: 'border-emerald-100 dark:border-emerald-900/50',
+      gradient: 'from-emerald-50/90 via-white to-teal-50/40 border-teal-200/90',
+      badge: 'bg-teal-600 text-white shadow-xs',
+      valueColor: 'text-teal-950',
       sub: 'Giảng viên đứng lớp'
     },
     {
       label: 'Units Giáo trình',
       value: metrics.totalCurriculumUnits ?? 0,
       icon: BookOpen,
-      bgColor: 'bg-amber-50 dark:bg-amber-50',
-      iconColor: 'text-amber-800 dark:text-amber-800',
-      borderColor: 'border-amber-100 dark:border-amber-900/50',
+      gradient: 'from-amber-50/90 via-white to-orange-50/40 border-amber-200/90',
+      badge: 'bg-amber-600 text-white shadow-xs',
+      valueColor: 'text-amber-950',
       sub: '3 Bộ sách (3-4, 4-5, 5-6 tuổi)'
     },
     {
       label: 'Bài học & Hoạt động',
       value: `${metrics.activeLessons || 0} / ${metrics.totalActivities || 0}`,
       icon: Layers,
-      bgColor: 'bg-purple-50 dark:bg-purple-50',
-      iconColor: 'text-purple-800 dark:text-purple-800',
-      borderColor: 'border-purple-100 dark:border-purple-900/50',
+      gradient: 'from-purple-50/90 via-white to-pink-50/40 border-purple-200/90',
+      badge: 'bg-purple-600 text-white shadow-xs',
+      valueColor: 'text-purple-950',
       sub: 'Bài học & trò chơi tương tác'
     },
     {
       label: 'Từ vựng chuẩn hóa',
       value: metrics.totalVocabulary || 0,
       icon: MessageSquare,
-      bgColor: 'bg-sky-50 dark:bg-sky-50',
-      iconColor: 'text-sky-800 dark:text-sky-800',
-      borderColor: 'border-sky-100 dark:border-sky-900/50',
+      gradient: 'from-sky-50/90 via-white to-cyan-50/40 border-sky-200/90',
+      badge: 'bg-sky-600 text-white shadow-xs',
+      valueColor: 'text-sky-950',
       sub: 'Phát âm & minh họa trực quan'
     },
     {
       label: 'Buổi dạy đã kết thúc',
       value: metrics.completedSessions || 0,
       icon: CheckCircle2,
-      bgColor: 'bg-rose-50 dark:bg-rose-50',
-      iconColor: 'text-rose-800 dark:text-rose-800',
-      borderColor: 'border-rose-100 dark:border-rose-900/50',
+      gradient: 'from-rose-50/90 via-white to-pink-50/40 border-rose-200/90',
+      badge: 'bg-rose-600 text-white shadow-xs',
+      valueColor: 'text-rose-950',
       sub: `Toàn trường · ${metrics.completedSessions || 0}/${metrics.totalSessions || 0} buổi đã tạo`
     }
   ];
@@ -117,50 +117,40 @@ export const AdminDashboardPage: React.FC = () => {
       desc: 'Gán giáo viên, thêm xóa học sinh theo lớp, nhập xuất danh sách Excel.',
       to: '/admin/classrooms',
       icon: School,
-      color: 'indigo',
-      badgeBg: 'bg-indigo-50 text-indigo-800 dark:bg-indigo-50 dark:text-indigo-800',
-      hoverBorder: 'hover:border-indigo-400 dark:hover:border-indigo-500',
-      accentColor: 'text-indigo-800 dark:text-indigo-800'
+      theme: 'border-indigo-200/90 bg-gradient-to-br from-indigo-50/50 via-white to-blue-50/20',
+      badgeBg: 'bg-indigo-600 text-white shadow-xs',
+      hoverBorder: 'hover:border-indigo-400',
+      accentColor: 'text-indigo-900'
     },
     {
       title: 'Thời Khóa Biểu',
       desc: 'Quản lý lịch dạy cố định hàng tuần cho từng lớp, phân ca sáng chiều cho giáo viên.',
       to: '/admin/schedule',
       icon: CalendarDays,
-      color: 'sky',
-      badgeBg: 'bg-sky-50 text-sky-800 dark:bg-sky-50 dark:text-sky-800',
-      hoverBorder: 'hover:border-sky-400 dark:hover:border-sky-500',
-      accentColor: 'text-sky-800 dark:text-sky-800'
+      theme: 'border-sky-200/90 bg-gradient-to-br from-sky-50/50 via-white to-cyan-50/20',
+      badgeBg: 'bg-sky-600 text-white shadow-xs',
+      hoverBorder: 'hover:border-sky-400',
+      accentColor: 'text-sky-900'
     },
     {
-      title: 'Giáo trình & Bài học',
-      desc: 'Quản lý 3 Bộ sách, 27 Units, bài học, từ vựng chuẩn hóa và các câu hỏi lớn.',
+      title: 'Giáo trình',
+      desc: 'Quản lý 3 Bộ sách, 27 Units, bài học, từ vựng và mẫu câu giao tiếp.',
       to: '/admin/curriculum',
       icon: BookOpen,
-      color: 'amber',
-      badgeBg: 'bg-amber-50 text-amber-800 dark:bg-amber-50 dark:text-amber-800',
-      hoverBorder: 'hover:border-amber-400 dark:hover:border-amber-500',
-      accentColor: 'text-amber-800 dark:text-amber-800'
-    },
-    {
-      title: 'Thư viện Mẫu câu',
-      desc: 'Quản lý mẫu câu giao tiếp, cấu trúc hỏi đáp, rèn luyện kỹ năng Oracy theo độ tuổi.',
-      to: '/admin/sentences',
-      icon: MessageSquare,
-      color: 'teal',
-      badgeBg: 'bg-teal-50 text-teal-800 dark:bg-teal-50 dark:text-teal-800',
-      hoverBorder: 'hover:border-teal-400 dark:hover:border-teal-500',
-      accentColor: 'text-teal-800 dark:text-teal-800'
+      theme: 'border-amber-200/90 bg-gradient-to-br from-amber-50/50 via-white to-orange-50/20',
+      badgeBg: 'bg-amber-600 text-white shadow-xs',
+      hoverBorder: 'hover:border-amber-400',
+      accentColor: 'text-amber-950'
     },
     {
       title: 'Quản lý Tài khoản',
       desc: 'Cấp tài khoản giáo viên, trẻ em, cấp đổi mã PIN 4 số và phân quyền quản trị.',
       to: '/admin/users',
       icon: Users,
-      color: 'purple',
-      badgeBg: 'bg-purple-50 text-purple-800 dark:bg-purple-50 dark:text-purple-800',
-      hoverBorder: 'hover:border-purple-400 dark:hover:border-purple-500',
-      accentColor: 'text-purple-800 dark:text-purple-800'
+      theme: 'border-purple-200/90 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/20',
+      badgeBg: 'bg-purple-600 text-white shadow-xs',
+      hoverBorder: 'hover:border-purple-400',
+      accentColor: 'text-purple-900'
     }
   ];
 
@@ -175,20 +165,13 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="absolute left-1/3 -bottom-10 h-44 w-44 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2.5 max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/15 px-3.5 py-1 text-xs font-bold text-indigo-800 border border-indigo-500/30 backdrop-blur-md">
-              <Sparkles size={14} className="text-indigo-800 animate-pulse" />
-              <span>Trung Tâm Điều Hành Toàn Hệ Thống</span>
-            </div>
+          <div className="space-y-1.5 max-w-3xl">
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-inherit flex flex-wrap items-center gap-2.5">
               <span>KCEnglishKids</span>
-              <span className="  text-indigo-800">
+              <span className="text-indigo-800">
                 Admin Dashboard
               </span>
             </h1>
-            <p className="text-sm md:text-base text-slate-700 max-w-2xl leading-relaxed font-normal">
-              Quản lý Giáo trình, Thời khóa biểu, Thư viện Mẫu câu, Phân lớp &amp; Phân công Giáo viên tập trung.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -227,12 +210,9 @@ export const AdminDashboardPage: React.FC = () => {
                   <CalendarDays size={20} />
                 </span>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                  Giám Sát Giảng Dạy Hôm Nay (Thời Khóa Biểu vs Thực Tế)
+                  Lịch học hôm nay
                 </h2>
               </div>
-              <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                Tự động đối chiếu lịch học trong ngày và phát hiện nếu giáo viên chưa vào lớp giảng dạy
-              </p>
             </div>
 
             <Link
@@ -277,7 +257,7 @@ export const AdminDashboardPage: React.FC = () => {
                 </span>
                 <div>
                   <p className="text-sm font-black text-sky-900 flex items-center gap-2">
-                    <span>🔴 Đang có {stats.teachingMonitor.liveSessions.length} lớp học trong giờ dạy trực tiếp:</span>
+                    <span>Đang có {stats.teachingMonitor.liveSessions.length} lớp học trong giờ dạy trực tiếp:</span>
                   </p>
                   <p className="text-xs font-bold text-sky-800 mt-0.5">
                     {stats.teachingMonitor.liveSessions.map((ls: any) => `${ls.classroomName} — Bài: ${ls.lessonTitle} (GV: ${ls.teacherName})`).join(' • ')}
@@ -293,52 +273,71 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           )}
 
-          {/* Quick status counters */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Lịch Học Hôm Nay</p>
-                <p className="text-xl font-black text-slate-900 mt-0.5">{stats.teachingMonitor.scheduledTodayCount || 0} lớp</p>
+          {/* Cancelled Teaching Sessions Alert */}
+          {stats.teachingMonitor.cancelledSessions && stats.teachingMonitor.cancelledSessions.length > 0 && (
+            <div className="mt-4 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <span className="text-xl shrink-0">🚫</span>
+                <div>
+                  <p className="text-sm font-black text-amber-950 flex items-center gap-2">
+                    <span>Hôm nay có {stats.teachingMonitor.cancelledSessions.length} lớp học báo nghỉ:</span>
+                  </p>
+                  <p className="text-xs font-bold text-amber-900 mt-0.5">
+                    {stats.teachingMonitor.cancelledSessions.map((cs: any) => `${cs.classroomName} — ${cs.note} (GV: ${cs.teacherName})`).join(' • ')}
+                  </p>
+                </div>
               </div>
-              <CalendarDays size={20} className="text-slate-400" />
+              <Link
+                to="/admin/schedules"
+                className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-colors"
+              >
+                Xem thời khóa biểu
+              </Link>
+            </div>
+          )}
+
+          {/* Quick status counters */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
+            <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-indigo-900">Lịch hôm nay</p>
+                <p className="text-xl font-black text-indigo-950 mt-0.5">{stats.teachingMonitor.scheduledTodayCount || 0} lớp</p>
+              </div>
+              <CalendarDays size={20} className="text-indigo-600" />
             </div>
 
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800">Đã Dạy Xong</p>
+                <p className="text-xs font-bold text-emerald-900">Đã dạy</p>
                 <p className="text-xl font-black text-emerald-950 mt-0.5">{stats.teachingMonitor.taughtCount || 0} lớp</p>
               </div>
               <CheckCircle2 size={20} className="text-emerald-600" />
             </div>
 
-            <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
-              (stats.teachingMonitor.missedCount || 0) > 0
-                ? 'bg-rose-50 border-rose-200'
-                : 'bg-slate-50 border-slate-100'
-            }`}>
+            <div className="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-center justify-between">
               <div>
-                <p className={`text-[11px] font-black uppercase tracking-wider ${
-                  (stats.teachingMonitor.missedCount || 0) > 0 ? 'text-rose-800 font-extrabold' : 'text-slate-500'
-                }`}>
-                  Chưa Dạy / Quá Giờ
-                </p>
-                <p className={`text-xl font-black mt-0.5 ${
-                  (stats.teachingMonitor.missedCount || 0) > 0 ? 'text-rose-700' : 'text-slate-900'
-                }`}>
-                  {stats.teachingMonitor.missedCount || 0} lớp
-                </p>
+                <p className="text-xs font-bold text-rose-900">Chưa dạy</p>
+                <p className="text-xl font-black text-rose-950 mt-0.5">{stats.teachingMonitor.missedCount || 0} lớp</p>
               </div>
-              <AlertTriangle size={20} className={(stats.teachingMonitor.missedCount || 0) > 0 ? 'text-rose-600' : 'text-slate-400'} />
+              <AlertTriangle size={20} className="text-rose-600" />
             </div>
 
             <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-100 flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">Đang Dạy / Sắp Tới</p>
+                <p className="text-xs font-bold text-sky-900">Đang dạy</p>
                 <p className="text-xl font-black text-sky-950 mt-0.5">
                   {(stats.teachingMonitor.liveCount || 0) + (stats.teachingMonitor.upcomingCount || 0)} lớp
                 </p>
               </div>
               <Radio size={20} className="text-sky-600" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-100 flex items-center justify-between col-span-2 sm:col-span-1">
+              <div>
+                <p className="text-xs font-bold text-amber-900">Báo nghỉ</p>
+                <p className="text-xl font-black text-amber-950 mt-0.5">{stats.teachingMonitor.cancelledCount || 0} lớp</p>
+              </div>
+              <Calendar size={20} className="text-amber-600" />
             </div>
           </div>
         </div>
@@ -351,22 +350,22 @@ export const AdminDashboardPage: React.FC = () => {
           return (
             <div
               key={idx}
-              className="rounded-3xl border border-slate-200 bg-white p-5 transition-all dark:border-slate-200 dark:bg-white"
+              className={`rounded-3xl border bg-gradient-to-br ${kpi.gradient} p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all group`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-600">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     {kpi.label}
                   </p>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-inherit mt-1.5 tracking-tight">
+                  <p className={`text-2xl sm:text-3xl font-black ${kpi.valueColor} mt-1.5 tracking-tight`}>
                     {kpi.value}
                   </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-600 mt-1 font-medium">
+                  <p className="text-xs text-slate-600 mt-1 font-semibold">
                     {kpi.sub}
                   </p>
                 </div>
                 <div
-                  className={`h-12 w-12 rounded-2xl flex items-center justify-center ${kpi.bgColor} ${kpi.iconColor}`}
+                  className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${kpi.badge} group-hover:scale-105 transition-transform`}
                 >
                   <Icon size={22} />
                 </div>
@@ -376,36 +375,36 @@ export const AdminDashboardPage: React.FC = () => {
         })}
       </div>
 
-      {/* ── Quick Action Navigation Cards (Sạch đẹp, sáng rõ, dễ nhìn) ───── */}
+      {/* ── Quick Action Navigation Cards ─────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-extrabold text-slate-900 dark:text-inherit flex items-center gap-2">
+          <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
             <span>Truy Cập Nhanh Các Phân Hệ</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((item, idx) => {
             const Icon = item.icon;
             return (
               <Link
                 key={idx}
                 to={item.to}
-                className={`group flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-1 dark:border-slate-200 dark:bg-white ${item.hoverBorder}`}
+                className={`group flex flex-col justify-between rounded-3xl border ${item.theme} p-5 transition-all duration-200 hover:-translate-y-1 shadow-xs hover:shadow-md ${item.hoverBorder}`}
               >
                 <div>
-                  <div className={`h-11 w-11 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 ${item.badgeBg}`}>
+                  <div className={`h-12 w-12 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105 ${item.badgeBg}`}>
                     <Icon size={22} />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-inherit mb-1 group-hover:text-indigo-800 dark:group-hover:text-indigo-800 transition-colors">
+                  <h3 className="text-base font-black text-slate-900 mb-1 group-hover:text-indigo-900 transition-colors">
                     {item.title}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-600 line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed font-medium">
                     {item.desc}
                   </p>
                 </div>
 
-                <div className={`mt-4 pt-3 border-t border-slate-100 dark:border-slate-200 flex items-center gap-1.5 text-xs font-bold ${item.accentColor}`}>
+                <div className={`mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs font-bold ${item.accentColor}`}>
                   <span>Truy cập</span>
                   <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
                 </div>
@@ -424,9 +423,6 @@ export const AdminDashboardPage: React.FC = () => {
                 <Activity size={18} className="text-indigo-800 dark:text-indigo-800" />
                 <span>Hoạt động học tập gần nhất của học sinh</span>
               </h2>
-              <p className="text-xs text-slate-600 dark:text-slate-600 mt-0.5">
-                Kết quả làm bài và hoàn thành trò chơi theo thời gian thực
-              </p>
             </div>
             <Link
               to="/admin/audit-logs"

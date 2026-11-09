@@ -309,7 +309,7 @@ exports.getContent = async (req, res, next) => { try {
     const room = await access.classroom(req, req.query.classroomId);
     if (room.curriculumBook) uq.book = room.curriculumBook;
     else uq.ageGroupCode = room.ageGroupCode;
-  } else if (req.user.role !== 'ADMIN' && req.query.repository !== 'true') {
+  } else if (req.user.role !== 'ADMIN') {
     const rooms = await ClassRoom.find(access.classScope(req)).select('curriculumBook ageGroupCode');
     const books = rooms.map(r => r.curriculumBook).filter(Boolean);
     const ages = rooms.map(r => r.ageGroupCode).filter(Boolean);

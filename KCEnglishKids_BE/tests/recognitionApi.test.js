@@ -23,6 +23,7 @@ const classroom = { _id: ids.classroom, name: 'Lớp Lá', teacher: ids.teacher,
 let records = [];
 let schoolRecords = [];
 let sessions = [];
+let homeStars = [];
 let simulateConcurrentPublish = false;
 function query(value) {
   return { select() { return this; }, populate() { return this; }, sort() { return this; }, limit() { return this; },
@@ -31,7 +32,14 @@ function query(value) {
 // Recognition also reads lifetime statistics; keep this controller test isolated
 // from MongoDB while its period-ranking fixtures remain defined below.
 const statisticsModels = require('../src/models');
-for (const Model of [statisticsModels.ActivityResult, statisticsModels.Progress, ClassroomSession, statisticsModels.UnitCompletion, statisticsModels.LearningEvent]) Model.aggregate = async () => [];
+for (const Model of [statisticsModels.ActivityResult, statisticsModels.Progress, ClassroomSession, statisticsModels.UnitCompletion, statisticsModels.LearningEvent, statisticsModels.Assignment]) Model.aggregate = async () => [];
+statisticsModels.HomePracticeCompletion.aggregate = async () => homeStars;
+ClassroomSession.aggregate = async () => users.filter(user => user.role === 'CHILD').map(user => ({
+  _id: user._id,
+  classroomStars: sessions.filter(session => session.status === 'COMPLETED').flatMap(session => session.studentScores || [])
+    .filter(score => String(score.student) === user._id && !['ABSENT', 'EXCUSED'].includes(score.attendance))
+    .reduce((sum, score) => sum + score.stars, 0)
+}));
 statisticsModels.Progress.find = () => query([]);
 statisticsModels.Assignment.find = () => query([]);
 User.findById = id => query(users.find(user => String(user._id) === String(id)));
@@ -83,6 +91,7 @@ test.after(() => new Promise(resolve => server.close(resolve)));
 test.beforeEach(() => {
   records = [];
   schoolRecords = [];
+  homeStars = [];
   simulateConcurrentPublish = false;
   sessions = [{ status: 'COMPLETED', studentScores: [
     { student: ids.child, stars: 4, attendance: 'PRESENT' },
@@ -99,14 +108,14 @@ const params = '?kind=WEEK&date=2025-01-01';
 const publishPath = '/classes/' + ids.classroom + '/publish';
 const period = { kind: 'WEEK', date: '2025-01-01' };
 
-test('school recognition is admin-only, compares all children and publishes once with minimum attendance', async () => {
+test('school recognition is admin-only, compares total stars and publishes once without minimum attendance', async () => {
   assert.equal((await request('/school' + params, 'teacher')).status, 403);
   assert.equal((await request('/school/publish', 'child', 'POST', period)).status, 403);
-  assert.equal((await request('/school' + params, 'admin')).data.data.canPublish, false);
+  assert.equal((await request('/school' + params, 'admin')).data.data.canPublish, true);
   sessions.push(sessions[0]);
   const preview = await request('/school' + params, 'admin');
   assert.equal(preview.status, 200);
-  assert.equal(preview.data.data.minimumSessions, 2);
+  assert.equal(preview.data.data.minimumSessions, 0);
   assert.equal(preview.data.data.ranking[0].starsPerSession, 4);
   assert.equal(preview.data.data.canPublish, true);
   for (let i = 0; i < 2; i++) assert.equal((await request('/school/publish', 'admin', 'POST', period)).status, 200);
@@ -114,6 +123,26 @@ test('school recognition is admin-only, compares all children and publishes once
   const own = await request('/mine', 'child');
   assert.equal(own.data.data.length, 1);
   assert.equal(own.data.data[0].className, 'Toàn trường');
+});
+
+test('Child with seven stars in session leads both school and class and receives seven stars in the award', async () => {
+  sessions = [{ status: 'COMPLETED', studentScores: [
+    { student: ids.child, stars: 7, attendance: 'PRESENT' },
+    { student: ids.otherChild, stars: 6, attendance: 'PRESENT' }
+  ] }];
+  for (const path of ['/school', '/classes/' + ids.classroom]) {
+    const preview = await request(path + params, 'admin');
+    assert.equal(preview.status, 200);
+    const [child, other] = preview.data.data.ranking;
+    assert.equal(child.child, ids.child);
+    assert.equal(child.stars, 7);
+    assert.equal(child.sessions, 1);
+    assert.equal(child.winner, true);
+    assert.equal(other.winner, false);
+    const published = await request(path + '/publish', 'admin', 'POST', period);
+    assert.equal(published.status, 200);
+    assert.equal(published.data.data.winners[0].stars, 7);
+  }
 });
 
 test('authentication and class ownership apply to preview and publication', async () => {

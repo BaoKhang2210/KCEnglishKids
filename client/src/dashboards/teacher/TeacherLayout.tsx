@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardList, History, KeyRound, LayoutDashboard, LogOut, Menu, Target, Users, X } from 'lucide-react';
+import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardList, History, KeyRound, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { TeacherChangePasswordModal } from '../../components/teacher/TeacherChangePasswordModal';
 import '../../styles/teacher.css';
@@ -8,18 +8,17 @@ import '../../styles/teacher.css';
 const groups = [
   { title: 'Không gian giảng dạy', links: [
     { to: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
-    { to: 'schedule', label: 'Lịch dạy & lộ trình', icon: CalendarDays },
+    { to: 'schedule', label: 'Lịch giảng dạy và tiến độ', icon: CalendarDays },
     { to: 'students', label: 'Hồ sơ học sinh', icon: Users }
   ] },
   { title: 'Chuẩn bị & tổ chức', links: [
-    { to: 'lesson-planner', label: 'Ôn tập lỗ hổng', icon: Target },
-    { to: 'content', label: 'Giáo trình & Mẫu câu', icon: BookOpen },
-    { to: 'assignments', label: 'Bài tập & nhận xét', icon: ClipboardList },
+    { to: 'content', label: 'Giáo trình', icon: BookOpen },
+    { to: 'assignments', label: 'Bài tập', icon: ClipboardList },
     { to: 'classroom-sessions', label: 'Nhật ký buổi dạy', icon: History }
   ] },
   { title: 'Đồng hành cùng học sinh', links: [
     { to: 'analytics', label: 'Theo dõi tiến bộ', icon: ChartNoAxesCombined },
-    { to: 'recognitions', label: 'Ghi nhận & động viên', icon: Award }
+    { to: 'recognitions', label: 'Vinh danh', icon: Award }
   ] }
 ];
 
@@ -111,14 +110,6 @@ export const TeacherLayout = () => {
             <span>Giảng dạy <span aria-hidden="true">/</span> <b>{current?.label || 'Học liệu'}</b></span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowPasswordModal(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-teal-50 text-slate-600 hover:text-teal-800 text-xs font-bold transition-all shadow-xs cursor-pointer"
-            >
-              <KeyRound size={14} className="text-teal-600" />
-              <span>Đổi mật khẩu</span>
-            </button>
             <Link to="/teacher/classroom-sessions/new" className="teacher-topbar-action">
               Chuẩn bị buổi dạy <ArrowUpRight size={17} />
             </Link>

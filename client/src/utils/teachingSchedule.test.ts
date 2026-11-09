@@ -4,6 +4,33 @@ const schedule = { _id: 's', isActive: true, effectiveFrom: '2026-10-01T00:00:00
   { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, { dayOfWeek: 3, startTime: '09:00', endTime: '09:45' }
 ] };
 describe('teaching timetable', () => {
+  it('advances the admin three-session timetable even when its template stores lessons 1, 2, 3', () => {
+    const lessons = Array.from({ length: 18 }, (_, index) => ({
+      _id: `lesson-${index + 1}`, title: `Lesson ${index + 1}`, syllabusOrder: index + 1
+    }));
+    const threeDaySchedule = {
+      _id: 'class-3-4', effectiveFrom: '2026-11-02T00:00:00+07:00',
+      weeklySlots: [1, 3, 5].map((dayOfWeek, index) => ({
+        dayOfWeek, startTime: '08:30', endTime: '09:15',
+        lesson: lessons[index], lessonNumber: index + 1, lessonTitle: lessons[index].title
+      }))
+    };
+    const weeks = [
+      ['2026-11-02', '2026-11-04', '2026-11-06'],
+      ['2026-11-09', '2026-11-11', '2026-11-13'],
+      ['2026-11-16', '2026-11-18', '2026-11-20']
+    ];
+    for (const weekIndex of [0, 1, 2, 1, 0]) {
+      threeDaySchedule.weeklySlots.forEach((slot, index) => {
+        for (const lesson of [slot.lesson, slot.lesson._id]) {
+          const result = getSequentialLessonForSlot(threeDaySchedule, { ...slot, lesson }, weeks[weekIndex][index], lessons, 'sequential');
+          expect(result.lessonNumber).toBe(weekIndex * 3 + index + 1);
+          expect(result.lesson?._id).toBe(lessons[weekIndex * 3 + index]._id);
+          expect(result.title).toBe(lessons[weekIndex * 3 + index].title);
+        }
+      });
+    }
+  });
   it('uses the assigned People at School lesson ahead of the recurring forecast', () => {
     const lessons = [{ _id: 'l1', title: 'Things at School' }, { _id: 'l2', title: 'People at School' }, { _id: 'l3', title: 'Colors' }];
     const slot = { dayOfWeek: 2, startTime: '08:30', endTime: '09:15', lesson: 'l2', lessonNumber: 2 };

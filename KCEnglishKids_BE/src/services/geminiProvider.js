@@ -47,6 +47,26 @@ const planSchema = object({
   phases: array(object({ phaseId: string, activities: array(object({ name: string, teacherTalk: string, tprAction: string, description: string })) }))
 });
 const speechSchema = object({ heardSpeech: { type: 'boolean' }, transcript: string, score: { type: 'integer' }, feedback: string, practiceTip: string });
+const curriculumDraftSchema = object({
+  suggestedLessonTitle: string,
+  suggestedVietnameseTitle: string,
+  category: string,
+  vocabularies: array(object({
+    english: string,
+    vietnamese: string,
+    pronunciation: string,
+    wordType: { type: 'string', enum: ['noun', 'verb', 'adjective', 'color', 'number'] },
+    imagePrompt: string
+  })),
+  sentencePairs: array(object({
+    questionEnglish: string,
+    questionVietnamese: string,
+    questionPronunciation: string,
+    answerEnglish: string,
+    answerVietnamese: string,
+    answerPronunciation: string
+  }))
+});
 
 const parentNoteProvider = {
   source: 'gemini', generative: true,
@@ -56,4 +76,4 @@ const parentNoteProvider = {
       instruction: 'Return exactly 3 parent-note drafts, types and ids praise, encouragement, practice_hint. Write in Vietnamese, address Gia đình bé. Each content 60–180 words, titles and badges under 100 characters. Suggested stars 1–3 for assignment scope, 1–5 otherwise. All-time totals must never be described as this week. Null means no evidence. Do not infer pronunciation, confidence, attendance or behavior from scores. Only mention facts supplied. Practice hints are optional short games, no pressure.' });
   }
 };
-module.exports = { configuration, generateJson, parentNoteProvider, planSchema, speechSchema };
+module.exports = { configuration, generateJson, parentNoteProvider, planSchema, speechSchema, curriculumDraftSchema };

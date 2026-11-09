@@ -6,7 +6,8 @@
  * on the classroom screen. Previously this collection was orphaned — no API.
  */
 const mongoose = require('mongoose');
-const { LanguageContent, CurriculumUnit, Lesson } = require('../models');
+const { ClassRoom, LanguageContent, CurriculumUnit, Lesson } = require('../models');
+const access = require('../services/teacherAccess');
 
 // Types worth teaching out loud on the class screen (WORDS/SENTENCES are skipped)
 const TEACHING_TYPES = ['PATTERN', 'SENTENCE', 'QUESTION', 'ANSWER', 'ORACY', 'DIALOGUE'];
@@ -227,7 +228,13 @@ exports.list = async (req, res, next) => {
     const { ageGroupCode, unitId, lessonId, topicId, contentType, search } = req.query;
     const q = { status: 'ACTIVE' };
 
-    if (ageGroupCode) q.ageGroupCode = ageGroupCode;
+    if (req.user && req.user.role !== 'ADMIN') {
+      const rooms = await ClassRoom.find(access.classScope(req)).select('ageGroupCode').lean();
+      const assignedAges = [...new Set(rooms.map(room => room.ageGroupCode).filter(Boolean))];
+      q.ageGroupCode = ageGroupCode
+        ? { $eq: ageGroupCode, $in: assignedAges }
+        : { $in: assignedAges };
+    } else if (ageGroupCode) q.ageGroupCode = ageGroupCode;
     if (unitId) { if (!validId(unitId)) return invalid(res, 'Invalid unit id.'); q.sourceUnit = unitId; }
     if (topicId) { if (!validId(topicId)) return invalid(res, 'Invalid topic id.'); q.topic = topicId; }
 
@@ -296,6 +303,26 @@ exports.list = async (req, res, next) => {
     const absorbedAnswerIds = new Set();
     const pairedItems = [];
 
+    // Pre-index answers by relatedQuestion and pairId for exact matching
+    const questionToAnswers = new Map();
+    const pairIdToAnswers = new Map();
+
+    for (const r of rows) {
+      if (r.contentType === 'ANSWER') {
+        const qId = r.relatedQuestion
+          ? String(r.relatedQuestion._id || r.relatedQuestion)
+          : null;
+        if (qId) {
+          if (!questionToAnswers.has(qId)) questionToAnswers.set(qId, []);
+          questionToAnswers.get(qId).push(r);
+        } else if (r.pairId) {
+          const pId = String(r.pairId);
+          if (!pairIdToAnswers.has(pId)) pairIdToAnswers.set(pId, []);
+          pairIdToAnswers.get(pId).push(r);
+        }
+      }
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       byType[r.contentType] = (byType[r.contentType] || 0) + 1;
@@ -303,14 +330,31 @@ exports.list = async (req, res, next) => {
       const itemAnswers = [];
 
       if (r.contentType === 'QUESTION') {
-        // Collect following consecutive answers in the same unit
-        let j = i + 1;
-        while (
-          j < rows.length &&
-          rows[j].contentType === 'ANSWER' &&
-          String(rows[j].sourceUnit?._id || '') === String(r.sourceUnit?._id || '')
-        ) {
-          const ans = rows[j];
+        const qId = String(r._id);
+        let matchedAnswers = [];
+
+        // 1. Direct match by relatedQuestion
+        if (questionToAnswers.has(qId)) {
+          matchedAnswers = questionToAnswers.get(qId);
+        } else if (r.pairId && pairIdToAnswers.has(String(r.pairId))) {
+          // 2. Direct match by pairId
+          matchedAnswers = pairIdToAnswers.get(String(r.pairId));
+        } else {
+          // 3. Fallback: consecutive answers in same unit that have no explicit question link
+          let j = i + 1;
+          while (
+            j < rows.length &&
+            rows[j].contentType === 'ANSWER' &&
+            !rows[j].relatedQuestion &&
+            !absorbedAnswerIds.has(String(rows[j]._id)) &&
+            String(rows[j].sourceUnit?._id || '') === String(r.sourceUnit?._id || '')
+          ) {
+            matchedAnswers.push(rows[j]);
+            j++;
+          }
+        }
+
+        for (const ans of matchedAnswers) {
           absorbedAnswerIds.add(String(ans._id));
           itemAnswers.push({
             _id: ans._id,
@@ -325,7 +369,6 @@ exports.list = async (req, res, next) => {
               true
             )
           });
-          j++;
         }
       } else if (r.contentType === 'PATTERN') {
         // Patterns like "Is she happy? Yes, she is."
@@ -424,7 +467,13 @@ exports.unitsOverview = async (req, res, next) => {
     if (requested.length && !types.length) return invalid(res, 'No valid content type requested.');
 
     const match = { status: 'ACTIVE', sourceUnit: { $ne: null }, contentType: { $in: types } };
-    if (ageGroupCode) match.ageGroupCode = ageGroupCode;
+    if (req.user && req.user.role !== 'ADMIN') {
+      const rooms = await ClassRoom.find(access.classScope(req)).select('ageGroupCode').lean();
+      const assignedAges = [...new Set(rooms.map(room => room.ageGroupCode).filter(Boolean))];
+      match.ageGroupCode = ageGroupCode
+        ? { $eq: ageGroupCode, $in: assignedAges }
+        : { $in: assignedAges };
+    } else if (ageGroupCode) match.ageGroupCode = ageGroupCode;
 
     const groups = await LanguageContent.aggregate([
       { $match: match },

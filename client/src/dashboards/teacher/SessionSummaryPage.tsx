@@ -10,19 +10,13 @@ import {
   Clock,
   Target,
   BookOpen,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { classroomSessionApi } from '../../services/api';
 import { FamilyReportModal } from '../../components/teacher/FamilyReportModal';
+import { StudentAvatar } from '../../components/common/StudentAvatar';
 import type { ClassroomSession, User } from '../../types';
-
-const initials = (name?: string) =>
-  (name || '?')
-    .split(' ')
-    .map((x) => x[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 
 const fmt = (d?: string) =>
   d
@@ -49,6 +43,13 @@ export const SessionSummaryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [successToast, setSuccessToast] = useState('');
+
+  useEffect(() => {
+    if (!successToast) return;
+    const t = setTimeout(() => setSuccessToast(''), 4000);
+    return () => clearTimeout(t);
+  }, [successToast]);
 
   useEffect(() => {
     classroomSessionApi
@@ -202,11 +203,7 @@ export const SessionSummaryPage: React.FC = () => {
                       <tr key={i} className="border-t">
                         <td className="py-3 font-bold">{sc.stars > 0 && !['ABSENT', 'EXCUSED'].includes(sc.attendance || '') ? 1 + scores.filter(row => !['ABSENT', 'EXCUSED'].includes(row.attendance || '') && row.stars > sc.stars).length : '—'}</td>
                         <td className="py-3 flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-teal-100 text-xs font-bold text-teal-800 flex items-center justify-center flex-shrink-0">
-                            {stu?.avatarUrl ? (
-                              <img src={stu.avatarUrl} className="h-8 w-8 rounded-full object-cover" alt={name} />
-                            ) : initials(name)}
-                          </div>
+                          <StudentAvatar student={stu} size="sm" />
                           <span style={{ minWidth: 130, whiteSpace: 'nowrap' }} className="font-medium text-slate-800">{name}</span>
                         </td>
                         <td className="py-3">
@@ -302,11 +299,20 @@ export const SessionSummaryPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Toast notification ────────────────────────────────────────── */}
+      {successToast && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 rounded-2xl bg-emerald-600 px-5 py-3.5 text-white font-bold shadow-2xl animate-fade-in border border-emerald-400/30">
+          <CheckCircle2 size={20} className="text-emerald-200 shrink-0" />
+          <span>{successToast}</span>
+        </div>
+      )}
+
       {/* ── Parent Report Modal ──────────────────────────────────────────── */}
       {showReportModal && (
         <FamilyReportModal
           session={session}
           onClose={() => setShowReportModal(false)}
+          onSuccess={(msg) => setSuccessToast(msg)}
         />
       )}
     </div>

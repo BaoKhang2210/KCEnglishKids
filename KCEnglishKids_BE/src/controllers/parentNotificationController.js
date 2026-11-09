@@ -38,7 +38,7 @@ async function prepare(req, body) {
   let learningSnapshot;
   if(session&&body.basisToken){
     const report=require('../services/familyLearningReport');
-    await session.populate('lesson','title vietnameseTitle');
+    await session.populate({path:'lesson',select:'title vietnameseTitle curriculumUnits',populate:{path:'curriculumUnits',select:'bookNumber unitNumber bigQuestion'}});
     learningSnapshot=report.snapshot(await report.row(session,child,row),body);
     lines.push(...report.lines(learningSnapshot));
   }
@@ -57,7 +57,7 @@ async function deliver(values) {
 }
 exports.reportDraft=wrap(async(req,res)=>{
   if(!validId(req.params.id))fail('Mã buổi học không hợp lệ.');
-  const session=await ClassroomSession.findOne({_id:req.params.id,...scope(req),status:'COMPLETED'}).populate('lesson','title vietnameseTitle').populate('studentScores.student','name');
+  const session=await ClassroomSession.findOne({_id:req.params.id,...scope(req),status:'COMPLETED'}).populate({path:'lesson',select:'title vietnameseTitle curriculumUnits',populate:{path:'curriculumUnits',select:'bookNumber unitNumber bigQuestion'}}).populate('studentScores.student','name');
   if(!session)fail('Không tìm thấy buổi dạy đã kết thúc được phân công.',403);
   await access.classroom(req,session.classroom);
   const report=require('../services/familyLearningReport');

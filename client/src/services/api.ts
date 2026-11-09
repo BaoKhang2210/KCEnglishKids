@@ -299,6 +299,33 @@ export const adminApi = {
     api.patch(`/admin/lessons/${id}/status`),
 
   getLessonReadiness: (id: string) => api.get(`/admin/curriculum/lessons/${id}/readiness`),
+  generateAiCurriculum: (data: { topic: string; ageGroup: string }) =>
+    api.post('/admin/curriculum/ai-generate', data),
+  applyAiCurriculum: (data: {
+    lessonId?: string;
+    unitId?: string;
+    ageGroupCode?: string;
+    suggestedLessonTitle?: string;
+    suggestedVietnameseTitle?: string;
+    category?: string;
+    vocabularies: Array<{
+      english: string;
+      vietnamese: string;
+      pronunciation?: string;
+      wordType?: string;
+      category?: string;
+      imageUrl?: string;
+      imagePrompt?: string;
+    }>;
+    sentencePairs: Array<{
+      questionEnglish: string;
+      questionVietnamese?: string;
+      questionPronunciation?: string;
+      answerEnglish: string;
+      answerVietnamese?: string;
+      answerPronunciation?: string;
+    }>;
+  }) => api.post('/admin/curriculum/ai-apply', data),
   createVocabulary: (data: { imageUrl?: string; audioUrl?: string; wordType?: string; status?: string; english: string; vietnamese: string; pronunciation?: string; category?: string; ageGroupCodes?: string[]; sourceUnits?: string[]; lessonId?: string }) =>
     api.post('/admin/curriculum/vocabularies', data),
   updateVocabulary: (id: string, data: any) =>
@@ -342,6 +369,8 @@ export const adminApi = {
     api.get('/admin/classrooms'),
   getClassroomById: (id: string) =>
     api.get(`/admin/classrooms/${id}`),
+  getClassroomFullDetail: (id: string) =>
+    api.get(`/admin/classrooms/${id}/full-detail`),
   createClassroom: (data: {
     name: string;
     ageGroupCode: string;
@@ -673,8 +702,16 @@ export const classroomSessionApi = {
   ) => api.post(`/teacher/classroom-sessions/${id}/question-result`, data),
   updateActivityIndex: (id: string, index: number) =>
     api.patch(`/teacher/classroom-sessions/${id}/activity-index`, { index }),
+  updateStudentAttendance: (id: string, studentId: string, attendance: 'PRESENT' | 'LATE' | 'EXCUSED' | 'ABSENT' = 'LATE') =>
+    api.patch(`/teacher/classroom-sessions/${id}/students/${studentId}/attendance`, { attendance }),
   getSessionSummary: (id: string) =>
-    api.get(`/teacher/classroom-sessions/${id}/summary`)
+    api.get(`/teacher/classroom-sessions/${id}/summary`),
+  reportOff: (data: { classroomId: string; date?: string; reason: string; note?: string; timeSlot?: { startTime: string; endTime: string } }) =>
+    api.post('/teacher/classroom-sessions/report-off', data),
+  cancelSession: (id: string, data: { reason: string; note?: string }) =>
+    api.post(`/teacher/classroom-sessions/${id}/cancel`, data),
+  restoreCancelledSession: (id: string) =>
+    api.post(`/teacher/classroom-sessions/${id}/restore`, {})
 };
 
 // Vocabulary Mastery API (Phase 5)

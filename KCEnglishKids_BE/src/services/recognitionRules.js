@@ -25,45 +25,114 @@ function recognitionPeriod(kind, date) {
 
 function rewardFor(kind) {
   return kind === 'WEEK'
-    ? { title: 'Ngôi sao tuần', symbol: '🌟', description: 'Huy hiệu Ngôi sao tuần', suggestion: 'Mời bé dẫn phần chào hỏi hoặc khởi động cùng cô.' }
-    : { title: 'Ngôi sao tháng', symbol: '🏅', description: 'Huy chương Ngôi sao tháng', suggestion: 'Mời bé làm trợ giúp lớp và chọn một bài hát cho cả lớp.' };
+    ? {
+        title: 'Ngôi Sao Tuần',
+        symbol: '🌟',
+        badge: 'gold-star',
+        description: 'Danh hiệu Ngôi Sao Tuần dành cho bé có thành tích học tập xuất sắc nhất tuần!',
+        suggestion: 'Mời bé dẫn phần chào hỏi hoặc khởi động cùng cô trong buổi học tới.'
+      }
+    : {
+        title: 'Ngôi Sao Tháng',
+        symbol: '🏅',
+        badge: 'gold-medal',
+        description: 'Danh hiệu Ngôi Sao Tháng vinh danh bé nỗ lực và tỏa sáng nhất trong tháng!',
+        suggestion: 'Mời bé làm trợ giúp lớp và chọn một bài hát yêu thích cho cả lớp cùng hát.'
+      };
 }
 
 function rankClassroomStars(students, sessions) {
   const totals = new Map(students.map(student => [String(student._id), {
-    child: String(student._id), name: student.name, avatarUrl: student.avatarUrl || '',
+    child: String(student._id),
+    name: student.name,
+    avatarUrl: student.avatarUrl || '',
     className: student.className || student.assignedClass?.name || '',
-    stars: 0, sessions: 0, totalStars: student.totalStars ?? 0
+    classStars: 0,
+    homeStars: Number.isFinite(Number(student.homeStars)) ? Math.max(0, Math.floor(Number(student.homeStars))) : 0,
+    stars: 0,
+    sessions: 0,
+    totalStars: Number.isFinite(Number(student.totalStars)) ? Math.max(0, Math.floor(Number(student.totalStars))) : 0
   }]));
+
+  let totalSessions = 0;
   for (const session of sessions) {
     if (session.status !== 'COMPLETED') continue;
+    totalSessions += 1;
     for (const score of session.studentScores || []) {
       const row = totals.get(String(score.student));
       if (!row || ['ABSENT', 'EXCUSED'].includes(score.attendance)) continue;
       row.sessions += 1;
       const stars = Number(score.stars);
-      if (Number.isFinite(stars)) row.stars += Math.max(0, Math.floor(stars));
+      if (Number.isFinite(stars)) row.classStars += Math.max(0, Math.floor(stars));
     }
   }
-  const ranking = [...totals.values()].sort((a, b) => b.stars - a.stars || (b.totalStars || 0) - (a.totalStars || 0) || a.name.localeCompare(b.name, 'vi'));
+
+  // Tổng sao trong kỳ = sao học trên lớp + sao học ở nhà
+  for (const row of totals.values()) {
+    row.stars = row.classStars + row.homeStars;
+  }
+
+  // Sắp xếp: Ưu tiên Tổng sao trong kỳ (stars) > Số buổi học (sessions) > Sao ở nhà (homeStars) > Tổng tích lũy (totalStars)
+  const ranking = [...totals.values()].map(row => ({
+    ...row,
+    starsPerSession: row.sessions ? Math.round(100 * row.classStars / row.sessions) / 100 : 0,
+    isPerfectAttendance: totalSessions > 0 && row.sessions === totalSessions
+  })).sort((a, b) => 
+    b.stars - a.stars || 
+    b.sessions - a.sessions || 
+    b.homeStars - a.homeStars ||
+    b.totalStars - a.totalStars || 
+    a.name.localeCompare(b.name, 'vi')
+  );
+
   const maximum = ranking[0]?.stars || 0;
-  return ranking.map(row => ({ ...row, winner: maximum > 0 && row.stars === maximum }));
+  let currentRank = 1;
+
+  return ranking.map((row, idx, arr) => {
+    if (idx > 0 && row.stars < arr[idx - 1].stars) {
+      currentRank = idx + 1;
+    }
+    const hasStars = row.stars > 0 && (row.sessions > 0 || row.homeStars > 0);
+    const isWinner = maximum > 0 && row.stars === maximum && hasStars;
+    return {
+      ...row,
+      rank: hasStars ? currentRank : null,
+      winner: isWinner,
+      awardTier: isWinner ? 'GOLD' : (currentRank === 2 && hasStars ? 'SILVER' : (currentRank === 3 && hasStars ? 'BRONZE' : null))
+    };
+  });
 }
 
-function rankSchoolStars(students, sessions, minimumSessions) {
-  const rows = rankClassroomStars(students, sessions).map(row => ({
-    ...row, eligible: row.sessions >= minimumSessions,
-    starsPerSession: row.sessions ? Math.round(100 * row.stars / row.sessions) / 100 : null,
-    winner: false
-  }));
-  // Compare exact fractions; rounded display values must never create or break ties.
-  rows.sort((a, b) => Number(b.eligible) - Number(a.eligible) ||
-    (b.stars * (a.sessions || 1) - a.stars * (b.sessions || 1)) || a.name.localeCompare(b.name, 'vi'));
-  const best = rows.find(row => row.eligible && row.stars > 0);
-  for (const row of rows) {
-    row.winner = Boolean(best && row.eligible && row.stars * best.sessions === best.stars * row.sessions);
-    row.rank = row.eligible && row.stars > 0 ? 1 + rows.filter(other => other.eligible && other.stars * row.sessions > row.stars * other.sessions).length : null;
-  }
-  return rows;
+function rankSchoolStars(students, sessions, minimumSessions = 0) {
+  const classroomRanking = rankClassroomStars(students, sessions);
+
+  const rows = classroomRanking.map(row => ({
+    ...row,
+    eligible: row.stars > 0 && (row.sessions >= minimumSessions || row.homeStars > 0)
+  })).sort((a, b) => 
+    Number(b.eligible) - Number(a.eligible) ||
+    b.stars - a.stars ||
+    b.sessions - a.sessions || 
+    b.homeStars - a.homeStars ||
+    b.totalStars - a.totalStars || 
+    a.name.localeCompare(b.name, 'vi')
+  );
+
+  const bestStars = rows.find(r => r.eligible)?.stars || 0;
+  let currentRank = 1;
+
+  return rows.map((row, idx, arr) => {
+    if (idx > 0 && row.stars < arr[idx - 1].stars) {
+      currentRank = idx + 1;
+    }
+    const isWinner = bestStars > 0 && row.eligible && row.stars === bestStars;
+    return {
+      ...row,
+      rank: row.eligible ? currentRank : null,
+      winner: isWinner,
+      awardTier: isWinner ? 'GOLD' : (currentRank === 2 && row.eligible ? 'SILVER' : (currentRank === 3 && row.eligible ? 'BRONZE' : null))
+    };
+  });
 }
+
 module.exports = { recognitionPeriod, rewardFor, rankClassroomStars, rankSchoolStars };

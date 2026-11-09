@@ -18,7 +18,7 @@ import {
   ChevronRight,
   Calendar
 } from 'lucide-react';
-import { adminApi } from '../../services/api';
+import { adminApi, classroomSessionApi } from '../../services/api';
 import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
 import { getSequentialLessonForSlot } from '../../utils/teachingSchedule';
 
@@ -186,16 +186,18 @@ export const AdminSchedulePage: React.FC = () => {
 
   // Map classId -> sequential syllabus lessons
   const [classSyllabusMap, setClassSyllabusMap] = useState<Record<string, any[]>>({});
+  const [sessions, setSessions] = useState<any[]>([]);
 
   // Fetch data
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [schedRes, clsRes, teachersRes, settingsRes] = await Promise.all([
+      const [schedRes, clsRes, teachersRes, settingsRes, sessRes] = await Promise.all([
         adminApi.getSchedules(),
         adminApi.getClassrooms(),
         fetchAllPages<any>(page => adminApi.getUsers({ role: 'TEACHER', limit: 100, page })).then(data => ({ data, users: data })),
-        adminApi.getSettings()
+        adminApi.getSettings(),
+        classroomSessionApi.getSessions().catch(() => ({ data: [] }))
       ]);
       setDefaultYear(settingsRes.data.academicYear);
 
@@ -207,6 +209,10 @@ export const AdminSchedulePage: React.FC = () => {
 
       const tList = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || teachersRes?.users || []);
       setTeachers(tList);
+
+      if (sessRes?.data) {
+        setSessions(sessRes.data);
+      }
 
       // Load syllabus lessons for each classroom to calculate weekly lesson progression
       void Promise.all(
@@ -240,13 +246,15 @@ export const AdminSchedulePage: React.FC = () => {
     fetchData();
   }, []);
 
-  // Map teachers that already have an active class (1-1 check)
-  const teacherClassMap = useMemo(() => {
-    const map = new Map<string, string>();
+  // Map teachers to the list of classes they currently teach (multi-class support)
+  const teacherClassesMap = useMemo(() => {
+    const map = new Map<string, string[]>();
     classrooms.forEach((c) => {
       const tId = c.teacher?._id || (typeof c.teacher === 'string' ? c.teacher : null);
       if (tId) {
-        map.set(String(tId), c.name);
+        const list = map.get(String(tId)) || [];
+        list.push(c.name);
+        map.set(String(tId), list);
       }
     });
     return map;
@@ -437,11 +445,12 @@ export const AdminSchedulePage: React.FC = () => {
 
   // Open Quick Add Class Modal
   const handleOpenQuickAddClass = () => {
-    const availableTeacher = teachers.find((t) => !teacherClassMap.has(String(t._id)));
+    const unassignedTeacher = teachers.find((t) => !teacherClassesMap.has(String(t._id)));
+    const defaultTeacher = unassignedTeacher || teachers[0];
     setQuickClassData({
       name: '',
       ageGroupCode: '3-4',
-      teacherId: availableTeacher?._id || '',
+      teacherId: defaultTeacher?._id || '',
       academicYear: defaultYear,
       description: ''
     });
@@ -626,7 +635,7 @@ export const AdminSchedulePage: React.FC = () => {
       {/* ── Page Header ───────────────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 bg-white p-7 rounded-3xl border border-slate-200/90">
         <div>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3">
             <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-800">
               <CalendarDays size={28} />
             </span>
@@ -634,9 +643,6 @@ export const AdminSchedulePage: React.FC = () => {
               Thời Khóa Biểu Giảng Dạy
             </h1>
           </div>
-          <p className="text-base text-slate-600 font-semibold max-w-2xl leading-relaxed">
-            Thiết lập lịch học cố định theo tuần cho từng lớp. Giáo viên chỉ có thể mở lớp và bắt đầu giảng dạy khi đến đúng ngày và giờ quy định theo thời khóa biểu.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -775,6 +781,47 @@ export const AdminSchedulePage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Week Cancelled Sessions Overview Alert ────────────────────────── */}
+      {(() => {
+        const weekDateSet = new Set(currentWeekDays.map(d => d.dateString));
+        const weekCancelled = sessions.filter((s: any) => {
+          if (s.status !== 'CANCELLED') return false;
+          const sDate = s.startedAt ? s.startedAt.slice(0, 10) : (s.createdAt ? s.createdAt.slice(0, 10) : '');
+          return weekDateSet.has(sDate);
+        });
+
+        if (weekCancelled.length === 0) return null;
+
+        return (
+          <div className="p-4 sm:p-5 rounded-3xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-3.5">
+              <span className="text-2xl p-2 rounded-2xl bg-amber-200 border border-amber-300 shrink-0">🚫</span>
+              <div>
+                <p className="text-sm font-black text-amber-950 flex items-center gap-2">
+                  <span>Tổng quan tuần: Có {weekCancelled.length} ca học đã báo nghỉ</span>
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-900 mt-1.5">
+                  {weekCancelled.map((cs: any) => {
+                    const cName = typeof cs.classroom === 'object' ? cs.classroom?.name : 'Lớp';
+                    const sDate = cs.startedAt ? cs.startedAt.slice(0, 10) : '';
+                    const parts = sDate.split('-');
+                    const shortDate = parts.length === 3 ? `${parts[2]}/${parts[1]}` : sDate;
+                    return (
+                      <span key={cs._id} className="bg-amber-100/90 border border-amber-300 px-2.5 py-1 rounded-xl text-amber-950 font-bold">
+                        {cName} ({shortDate}: {cs.cancellationReason || 'Nghỉ theo kế hoạch'})
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-amber-900 bg-amber-200/90 border border-amber-300 px-3 py-1.5 rounded-xl shrink-0 self-start md:self-auto">
+              ⭐ Bài học tự động bảo lưu
+            </span>
+          </div>
+        );
+      })()}
+
       {/* ── Main View: Weekly Grid or List ─────────────────────────────────── */}
       {loading ? (
         <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center">
@@ -785,9 +832,6 @@ export const AdminSchedulePage: React.FC = () => {
         <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center space-y-4">
           <CalendarDays size={52} className="mx-auto text-slate-700" />
           <h3 className="text-xl font-black text-slate-900">Chưa có thời khóa biểu nào được xếp</h3>
-          <p className="text-base text-slate-600 font-semibold max-w-md mx-auto">
-            Hãy bắt đầu tạo lịch học đầu tiên cho các lớp để phân công lịch dạy cố định cho giáo viên.
-          </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={handleOpenQuickAddClass}
@@ -805,7 +849,7 @@ export const AdminSchedulePage: React.FC = () => {
         </div>
       ) : viewMode === 'grid' ? (
         /* ── WEEKLY GRID VIEW ────────────────────────────────────────────── */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
           {currentWeekDays.map((day) => {
             const daySlots = timetableByDay[day.dayNum] || [];
             const isToday = day.isToday;
@@ -813,40 +857,68 @@ export const AdminSchedulePage: React.FC = () => {
             return (
               <div
                 key={day.dayNum}
-                className={`rounded-3xl border transition-all flex flex-col min-h-[380px] ${
+                className={`rounded-3xl border transition-all flex flex-col min-h-[380px] overflow-hidden ${
                   isToday
-                    ? 'bg-indigo-50/40 border-indigo-300 ring-2 ring-indigo-500/20'
+                    ? 'bg-indigo-700 border-indigo-700 ring-4 ring-indigo-500/25 shadow-lg'
                     : 'bg-white border-slate-200/90'
                 }`}
               >
                 {/* Day Header */}
                 <div
-                  className={`p-4 border-b rounded-t-3xl flex items-center justify-between ${
-                    isToday ? 'bg-indigo-700 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
+                  className={`p-4 border-b flex items-center justify-between ${
+                    isToday ? 'bg-indigo-700 border-indigo-600/60 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
                   }`}
                 >
                   <div className="flex flex-col">
                     <span className="font-black text-base">{day.dayName}</span>
-                    <span className={`text-[11px] font-bold ${isToday ? 'text-indigo-100' : 'text-slate-500'}`}>
+                    <span className={`text-[11px] font-bold ${isToday ? 'text-indigo-200' : 'text-slate-500'}`}>
                       {day.shortDate}
                     </span>
                   </div>
-                  {isToday ? (
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full">
-                      Hôm nay
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold text-slate-500">
-                      {daySlots.length} ca
-                    </span>
-                  )}
+                  {(() => {
+                    const dayCancelledCount = daySlots.filter(({ schedule }) => {
+                      const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
+                      return sessions.some((sess: any) => {
+                        const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
+                        if (sessCId !== cId || sess.status !== 'CANCELLED') return false;
+                        const sDate = sess.startedAt ? sess.startedAt.slice(0, 10) : (sess.createdAt ? sess.createdAt.slice(0, 10) : '');
+                        return sDate === day.dateString;
+                      });
+                    }).length;
+
+                    return (
+                      <div className="flex flex-col items-end gap-1">
+                        {isToday ? (
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-2.5 py-0.5 rounded-full border border-white/20">
+                            Hôm nay
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-500">
+                            {daySlots.length} ca
+                          </span>
+                        )}
+                        {dayCancelledCount > 0 && (
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                              isToday ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                            }`}
+                            title={`Có ${dayCancelledCount} ca báo nghỉ`}
+                          >
+                            🚫 {dayCancelledCount} nghỉ
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Day Slots Body */}
-                <div className="p-3 flex-1 overflow-y-auto space-y-2.5">
+                <div className={`p-3 flex-1 overflow-y-auto space-y-2.5 ${isToday ? 'bg-indigo-700' : ''}`}>
                   {daySlots.length === 0 ? (
                     <div className="h-full flex items-center justify-center p-4 text-center">
-                      <span className="text-xs font-semibold text-slate-600 italic">Không có ca học</span>
+                      <span className={`text-xs font-semibold italic ${isToday ? 'text-indigo-200' : 'text-slate-600'}`}>
+                        Không có ca học
+                      </span>
                     </div>
                   ) : (
                     daySlots.map(({ schedule, slot }, sIdx) => {
@@ -860,7 +932,11 @@ export const AdminSchedulePage: React.FC = () => {
                       return (
                         <div
                           key={`${schedule._id}-${sIdx}`}
-                          className={`p-3.5 rounded-2xl border transition-all group relative ${theme.bg} ${theme.border} `}
+                          className={`p-3.5 rounded-2xl border transition-all group relative ${
+                            isToday
+                              ? 'bg-white border-white/90 shadow-md text-slate-900'
+                              : `${theme.bg} ${theme.border}`
+                          }`}
                         >
                           {/* Live Now glowing badge */}
                           {isLive && (
@@ -870,53 +946,101 @@ export const AdminSchedulePage: React.FC = () => {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <span className="text-xs font-black text-slate-900 truncate" title={cName}>
+                          <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                            <span className="text-xs font-black text-slate-900 break-words leading-tight flex-1" title={cName}>
                               {cName}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleOpenEditModal(schedule)}
-                              className="text-slate-600 hover:text-indigo-800 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
+                              className="text-slate-400 hover:text-indigo-800 p-1 rounded-md cursor-pointer opacity-80 group-hover:opacity-100 shrink-0"
                               title="Sửa lịch"
                             >
                               <Edit2 size={13} />
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-1 text-xs font-black text-indigo-800 mb-1">
-                            <Clock size={13} />
-                            <span>
-                              {slot.startTime} – {slot.endTime}
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-black text-indigo-800 mb-1">
+                            <span className="flex items-center gap-1">
+                              <Clock size={13} className="shrink-0" />
+                              <span>
+                                {slot.startTime} – {slot.endTime}
+                              </span>
                             </span>
+                            {slot.room && (
+                              <span className="text-[10px] text-slate-600 font-bold bg-black/5 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                <MapPin size={10} />
+                                <span>{slot.room}</span>
+                              </span>
+                            )}
                           </div>
 
-                          <p className="text-xs text-slate-600 font-semibold truncate" title={tName}>
-                            GV: {tName}
+                          <p className="text-xs text-slate-700 font-semibold break-words leading-tight mb-1" title={tName}>
+                            GV: <strong className="font-black text-slate-900">{tName}</strong>
                           </p>
 
-                          {/* Attached Lesson Badge (Bài mấy) - tính lũy tiến chính xác theo tuần */}
+                          {/* Attached Lesson Badge or Cancelled Status */}
                           {(() => {
                             const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
+                            const matchedCancelled = sessions.find((sess: any) => {
+                              const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
+                              if (sessCId !== cId) return false;
+                              if (sess.status !== 'CANCELLED') return false;
+                              const sDate = sess.startedAt ? sess.startedAt.slice(0, 10) : (sess.createdAt ? sess.createdAt.slice(0, 10) : '');
+                              return sDate === day.dateString;
+                            });
+
+                            if (matchedCancelled) {
+                              return (
+                                <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 border border-amber-300 whitespace-nowrap">
+                                      🚫 Đã báo nghỉ
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] font-bold text-amber-950 leading-tight">
+                                    Lý do: <span className="underline font-black">{matchedCancelled.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
+                                  </p>
+                                  {matchedCancelled.cancellationNote && (
+                                    <p className="text-[10px] text-amber-800 italic leading-snug">"{matchedCancelled.cancellationNote}"</p>
+                                  )}
+                                  <p className="text-[10px] text-amber-800/90 font-medium">
+                                    ⭐ Bài học được bảo lưu
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!window.confirm(`Khôi phục ca học cho lớp ${cName}? Lớp sẽ được mở lại lịch dạy bình thường.`)) return;
+                                      try {
+                                        await classroomSessionApi.restoreCancelledSession(matchedCancelled._id);
+                                        showAlert('success', 'Đã hủy báo nghỉ và mở lại lịch học bình thường');
+                                        await fetchData();
+                                      } catch (err: any) {
+                                        showAlert('error', err?.message || 'Không thể khôi phục');
+                                      }
+                                    }}
+                                    className="mt-1 w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 px-1.5 text-[11px] font-black transition-colors cursor-pointer flex items-center justify-center gap-1 active:scale-95"
+                                    title="Hủy báo nghỉ và mở lại lịch dạy ca này"
+                                  >
+                                    <span>↩</span>
+                                    <span>Hủy báo nghỉ</span>
+                                  </button>
+                                </div>
+                              );
+                            }
+
                             const classLessons = classSyllabusMap[cId] || [];
-                            const seq = getSequentialLessonForSlot(schedule, slot, day.dateString, classLessons);
+                            const seq = getSequentialLessonForSlot(schedule, slot, day.dateString, classLessons, 'sequential');
                             const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
                             return displayName ? (
-                              <div className="mt-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 border border-indigo-200/90 flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0" />
-                                <span className="text-[11px] font-black truncate" title={displayName}>
-                                  Bài {seq.lessonNumber}: {displayName}
-                                </span>
+                              <div className="mt-2 p-2 rounded-xl bg-indigo-50/90 text-indigo-950 border border-indigo-200/90 flex items-start gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-700 shrink-0 mt-1" />
+                                <div className="text-[11px] font-black break-words leading-snug">
+                                  <span className="text-indigo-700">Bài {seq.lessonNumber}:</span> {displayName}
+                                </div>
                               </div>
                             ) : null;
                           })()}
-
-                          {slot.room && (
-                            <p className="text-[11px] text-slate-600 font-bold flex items-center gap-1 mt-1 truncate">
-                              <MapPin size={11} />
-                              <span>{slot.room}</span>
-                            </p>
-                          )}
                         </div>
                       );
                     })
@@ -977,9 +1101,9 @@ export const AdminSchedulePage: React.FC = () => {
                     <div className="h-9 w-9 rounded-xl bg-indigo-700 text-white font-black text-xs flex items-center justify-center shrink-0">
                       {tName[0] || 'T'}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-900 truncate">{tName}</p>
-                      <p className="text-xs text-slate-600 font-semibold truncate">{tEmail}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-slate-900 break-words">{tName}</p>
+                      <p className="text-xs text-slate-600 font-semibold break-words">{tEmail}</p>
                     </div>
                   </div>
 
@@ -994,7 +1118,7 @@ export const AdminSchedulePage: React.FC = () => {
                           key={idx}
                           className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-bold"
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-black">
                               {DAY_LABELS[slot.dayOfWeek]}
                             </span>
@@ -1002,7 +1126,7 @@ export const AdminSchedulePage: React.FC = () => {
                               {slot.startTime} – {slot.endTime}
                             </span>
                             {slot.room && (
-                              <span className="text-slate-600 font-semibold truncate">
+                              <span className="text-slate-600 font-semibold">
                                 • {slot.room}
                               </span>
                             )}
@@ -1011,11 +1135,11 @@ export const AdminSchedulePage: React.FC = () => {
                             const cId = String(typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom);
                             const classLessons = classSyllabusMap[cId] || [];
                             const targetDay = currentWeekDays.find(d => d.dayNum === slot.dayOfWeek);
-                            const seq = getSequentialLessonForSlot(sch, slot, targetDay?.dateString || currentWeekDays[0].dateString, classLessons);
+                            const seq = getSequentialLessonForSlot(sch, slot, targetDay?.dateString || currentWeekDays[0].dateString, classLessons, 'sequential');
                             const displayName = seq.vietnameseTitle || seq.title || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
                             return displayName ? (
                               <span
-                                className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-black border border-amber-200 truncate max-w-[200px]"
+                                className="px-2 py-1 rounded-md bg-amber-50 text-amber-900 font-black border border-amber-200 break-words"
                                 title={displayName}
                               >
                                 🎯 Bài {seq.lessonNumber}: {displayName}
@@ -1029,7 +1153,7 @@ export const AdminSchedulePage: React.FC = () => {
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
-                  <span>Màu thẻ: {sch.colorTag}</span>
+                  <span>{sch.weeklySlots?.length || 0} ca/tuần</span>
                   <span className={sch.isActive ? 'text-emerald-800 font-bold' : 'text-slate-600'}>
                     {sch.isActive ? '✓ Đang kích hoạt' : 'Tạm dừng'}
                   </span>
@@ -1043,7 +1167,7 @@ export const AdminSchedulePage: React.FC = () => {
       {/* ── MODAL: XẾP THỜI KHÓA BIỂU (CREATE / EDIT) ───────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl max-h-[92vh] flex flex-col border border-slate-200 animate-scale-up">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-5xl max-h-[92vh] flex flex-col border border-slate-200 shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
@@ -1053,9 +1177,6 @@ export const AdminSchedulePage: React.FC = () => {
                   <h2 className="text-xl font-black text-slate-900">
                     {editingSchedule ? 'Cập Nhật Thời Khóa Biểu' : 'Xếp Thời Khóa Biểu Cho Lớp'}
                   </h2>
-                  <p className="text-sm font-semibold text-slate-600">
-                    Sắp xếp ngày và khung giờ dạy học định kỳ hàng tuần cho lớp
-                  </p>
                 </div>
               </div>
               <button
@@ -1216,9 +1337,6 @@ export const AdminSchedulePage: React.FC = () => {
                       <Clock size={16} className="text-indigo-700" />
                       <span>Khung Giờ Học Hàng Tuần ({formData.weeklySlots.length} ca/tuần)</span> <span className="text-rose-800">*</span>
                     </label>
-                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                      Cài đặt thứ và giờ học định kỳ. Hệ thống sẽ tự động gán bài học theo giáo trình chuẩn của lớp.
-                    </p>
                   </div>
                   <button
                     type="button"
@@ -1356,7 +1474,7 @@ export const AdminSchedulePage: React.FC = () => {
       {/* ── MODAL: THÊM LỚP HỌC MỚI TRỰC TIẾP TỪ TKB ──────────────────────── */}
       {isQuickAddClassOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-lg border border-slate-200 animate-scale-up space-y-5">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl border border-slate-200 shadow-2xl animate-scale-up space-y-5">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
@@ -1364,7 +1482,6 @@ export const AdminSchedulePage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-slate-900">Tạo Lớp Học Mới</h3>
-                  <p className="text-xs font-semibold text-slate-600">Tạo lớp và đồng bộ ngay vào danh sách xếp lịch</p>
                 </div>
               </div>
               <button
@@ -1385,14 +1502,14 @@ export const AdminSchedulePage: React.FC = () => {
             <form onSubmit={handleQuickAddClassSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Tên Lớp Học * (Không được trùng lặp)
+                  Tên Lớp Học *
                 </label>
                 <input
                   type="text"
                   required
                   value={quickClassData.name}
                   onChange={(e) => setQuickClassData({ ...quickClassData, name: e.target.value })}
-                  placeholder="Ví dụ: Rainbow Stars (4-5 tuổi)"
+                  placeholder="Ví dụ: Rainbow Stars"
                   className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white"
                 />
               </div>
@@ -1407,9 +1524,9 @@ export const AdminSchedulePage: React.FC = () => {
                     onChange={(e) => setQuickClassData({ ...quickClassData, ageGroupCode: e.target.value })}
                     className="w-full px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold"
                   >
-                    <option value="3-4">3–4 Tuổi (Mầm)</option>
-                    <option value="4-5">4–5 Tuổi (Chồi)</option>
-                    <option value="5-6">5–6 Tuổi (Lá)</option>
+                    <option value="3-4">3–4 Tuổi</option>
+                    <option value="4-5">4–5 Tuổi</option>
+                    <option value="5-6">5–6 Tuổi</option>
                   </select>
                 </div>
 
@@ -1428,7 +1545,7 @@ export const AdminSchedulePage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Giáo Viên Phụ Trách * (1 Giáo Viên - 1 Lớp)
+                  Giáo Viên Phụ Trách *
                 </label>
                 <select
                   required
@@ -1439,19 +1556,15 @@ export const AdminSchedulePage: React.FC = () => {
                   <option value="" disabled>
                     -- Chọn giáo viên --
                   </option>
-                  {teachers.map((t) => {
-                    const assigned = teacherClassMap.get(String(t._id));
-                    return (
-                      <option
-                        key={t._id}
-                        value={t._id}
-                        disabled={Boolean(assigned)}
-                        className={assigned ? 'text-slate-600 italic' : 'text-slate-900 font-bold'}
-                      >
-                        {t.name} {assigned ? `[Đã có lớp: ${assigned}]` : '✓ Sẵn sàng'}
-                      </option>
-                    );
-                  })}
+                  {teachers.map((t) => (
+                    <option
+                      key={t._id}
+                      value={t._id}
+                      className="text-slate-900 font-bold"
+                    >
+                      {t.name} - {t.email}
+                    </option>
+                  ))}
                 </select>
               </div>
 

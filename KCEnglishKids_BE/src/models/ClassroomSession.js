@@ -87,10 +87,14 @@ const classroomSessionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['SCHEDULED', 'LIVE', 'COMPLETED'],
+      enum: ['SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'],
       default: 'SCHEDULED',
       index: true
     },
+    cancellationReason: { type: String, default: '' },
+    cancellationNote: { type: String, default: '' },
+    cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    cancelledAt: { type: Date },
     startedAt: { type: Date },
     endedAt: { type: Date },
     plannedDuration: {

@@ -56,7 +56,7 @@ async function populateSession(item, summary = false) {
     { path: 'curriculumUnits', select: 'unitNumber bookNumber bigQuestion title' },
     { path: 'topic', select: 'englishName vietnameseName' }
   ] });
-  await item.populate('activities', 'title activityType questionCount questions status');
+  await item.populate('activities', 'title vietnameseTitle instructions activityType questionCount questions status');
   await item.populate('studentScores.student', 'name avatar avatarUrl ageGroupCode');
   if (summary) {
     await item.populate('summary.studentsNeedingPractice', 'name avatar avatarUrl');
@@ -73,7 +73,7 @@ exports.getSessions = wrap(async (req, res) => {
   const query = scope(req);
   if (req.user.role !== 'ADMIN') query.classroom = { $in: await access.classroomIds(req) };
   if (req.query.status) {
-    if (!['SCHEDULED', 'LIVE', 'COMPLETED'].includes(req.query.status)) fail('Trạng thái buổi học không hợp lệ.');
+    if (!['SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'].includes(req.query.status)) fail('Trạng thái buổi học không hợp lệ.');
     query.status = req.query.status;
   }
   if (req.query.classroomId) { await access.classroom(req, req.query.classroomId); query.classroom = req.query.classroomId; }
@@ -150,8 +150,13 @@ exports.startSession = wrap(async (req, res) => {
     if (session.status === 'LIVE') return false;
     if (session.status !== 'SCHEDULED') fail('Buổi học đã kết thúc.', 409);
     const scheduledSlot = await checkTiming(req, session.classroom);
-    if (!reviewSession(session) && scheduledSlot?.lesson && idOf(scheduledSlot.lesson) !== idOf(session.lesson)) fail('Bài dạy không khớp bài đã được phân trên thời khóa biểu. Vui lòng mở đúng bài theo lịch.', 409);
     const room = await access.classroom(req, session.classroom, true);
+    const completedIds = (room.completedLessons || []).map(id => idOf(id));
+    const slotLessonId = scheduledSlot?.lesson ? idOf(scheduledSlot.lesson) : null;
+    const slotLessonAlreadyCompleted = Boolean(slotLessonId && completedIds.includes(slotLessonId));
+    if (!reviewSession(session) && slotLessonId && !slotLessonAlreadyCompleted && slotLessonId !== idOf(session.lesson)) {
+      fail('Bài dạy không khớp bài đã được phân trên thời khóa biểu. Vui lòng mở đúng bài theo lịch.', 409);
+    }
     const attendance = await Attendance.findOne({ classroom: room._id, date: rules.vnDate() });
     if (!attendance) fail('Vui lòng hoàn tất điểm danh hôm nay ở phần chuẩn bị buổi dạy trước khi mở lớp.');
     const records = rules.attendanceRecords(attendance.records, room.students);
@@ -241,6 +246,30 @@ exports.recordQuestionResult = wrap(async (req, res) => {
   });
   res.json({ success: true, data: item });
 });
+exports.updateStudentAttendance = wrap(async (req, res) => {
+  const { studentId } = req.params;
+  const status = req.body.attendance || 'LATE';
+  if (!['PRESENT', 'LATE', 'EXCUSED', 'ABSENT'].includes(status)) fail('Trạng thái điểm danh không hợp lệ.');
+
+  const item = await saveSession(req, async session => {
+    rules.requireLive(session);
+    const scoreRow = session.studentScores.find(row => idOf(row.student) === studentId);
+    if (!scoreRow) fail('Học sinh không thuộc danh sách buổi học.', 404);
+    scoreRow.attendance = status;
+  });
+
+  try {
+    const today = rules.vnDate();
+    await Attendance.updateOne(
+      { classroom: item.classroom, date: today, 'records.student': studentId },
+      { $set: { 'records.$.status': status } }
+    );
+  } catch (err) {
+    console.warn('Could not sync live attendance update to daily roster:', err);
+  }
+
+  res.json({ success: true, data: await populateSession(item) });
+});
 exports.updateActivityIndex = wrap(async (req, res) => {
   const item = await saveSession(req, session => {
     rules.requireLive(session);
@@ -262,4 +291,79 @@ exports.deleteDraft = wrap(async (req, res) => {
   const result = await ClassroomSession.deleteOne({ _id: item._id, status: 'SCHEDULED', __v: item.__v });
   if (!result.deletedCount) fail('Kế hoạch vừa thay đổi. Vui lòng tải lại.', 409);
   res.json({ success: true });
+});
+
+exports.reportOff = wrap(async (req, res) => {
+  const { classroomId, date: inputDate, reason, note, timeSlot } = req.body;
+  if (!rules.validId(classroomId)) fail('Mã lớp học không hợp lệ.');
+  const room = await access.classroom(req, classroomId, true);
+  let date = rules.vnDate();
+  if (inputDate) {
+    if (typeof inputDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(inputDate)) fail('Ngày báo nghỉ không đúng định dạng YYYY-MM-DD.');
+    if (isNaN(new Date(`${inputDate}T00:00:00+07:00`).getTime())) fail('Ngày báo nghỉ không hợp lệ.');
+    date = inputDate;
+  }
+  const validReason = rules.text(reason, 200) || 'Nghỉ theo kế hoạch';
+  const validNote = rules.text(note, 500) || '';
+
+  const startOfDay = new Date(`${date}T00:00:00+07:00`);
+  const endOfDay = new Date(`${date}T23:59:59+07:00`);
+
+  let session = await ClassroomSession.findOne({
+    classroom: room._id,
+    status: { $in: ['SCHEDULED', 'CANCELLED'] },
+    $or: [
+      { startedAt: { $gte: startOfDay, $lte: endOfDay } },
+      { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+    ]
+  });
+
+  if (session) {
+    session.status = 'CANCELLED';
+    session.cancellationReason = validReason;
+    session.cancellationNote = validNote;
+    session.cancelledBy = req.user._id;
+    session.cancelledAt = new Date();
+    await session.save();
+  } else {
+    session = await ClassroomSession.create({
+      classroom: room._id,
+      teacher: room.teacher || req.user._id,
+      lesson: null,
+      title: 'Buổi học báo nghỉ',
+      ageGroup: room.ageGroupCode || '4-5',
+      status: 'CANCELLED',
+      plannedDuration: 0,
+      sessionNumber: (await ClassroomSession.countDocuments({ classroom: room._id })) + 1,
+      cancellationReason: validReason,
+      cancellationNote: validNote,
+      cancelledBy: req.user._id,
+      cancelledAt: new Date(),
+      startedAt: new Date(`${date}T${timeSlot?.startTime || '08:00'}:00+07:00`),
+      endedAt: new Date(`${date}T${timeSlot?.endTime || '08:45'}:00+07:00`)
+    });
+  }
+
+  res.status(200).json({ success: true, data: session });
+});
+
+exports.cancelSession = wrap(async (req, res) => {
+  const item = await sessionFor(req, true, false);
+  if (item.status === 'COMPLETED' || item.status === 'LIVE') {
+    fail('Không thể báo nghỉ buổi học đang diễn ra hoặc đã hoàn thành.', 409);
+  }
+  item.status = 'CANCELLED';
+  item.cancellationReason = rules.text(req.body.reason, 200) || 'Nghỉ theo kế hoạch';
+  item.cancellationNote = rules.text(req.body.note, 500) || '';
+  item.cancelledBy = req.user._id;
+  item.cancelledAt = new Date();
+  await item.save();
+  res.json({ success: true, data: item });
+});
+
+exports.restoreCancelledSession = wrap(async (req, res) => {
+  const item = await sessionFor(req, true, false);
+  if (item.status !== 'CANCELLED') fail('Buổi học không ở trạng thái báo nghỉ.', 409);
+  await ClassroomSession.deleteOne({ _id: item._id });
+  res.json({ success: true, message: 'Đã hủy báo nghỉ thành công.' });
 });

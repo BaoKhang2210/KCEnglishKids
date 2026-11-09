@@ -13,10 +13,11 @@ import {
   GraduationCap,
   CalendarDays,
   Flame,
-  Clock,
   Layers,
   ArrowRight,
-  Lock
+  Lock,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { teacherApi, classroomSessionApi } from '../../services/api';
 import type { ClassroomSession, ClassSchedule } from '../../types';
@@ -147,6 +148,80 @@ export const TeacherTeachingSchedule: React.FC = () => {
     }, 15000);
     return () => clearInterval(timer);
   }, []);
+
+  const [reportOffModal, setReportOffModal] = useState<{
+    isOpen: boolean;
+    classroomId: string;
+    className: string;
+    dateString: string;
+    timeSlot?: { startTime: string; endTime: string };
+    sessionId?: string;
+    reason: string;
+    note: string;
+    loading: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    classroomId: '',
+    className: '',
+    dateString: '',
+    reason: 'Nghỉ lễ theo lịch nhà trường',
+    note: '',
+    loading: false,
+    error: null
+  });
+
+  const handleOpenReportOff = (classroomId: string, className: string, dateString: string, timeSlot?: { startTime: string; endTime: string }, sessionId?: string) => {
+    setReportOffModal({
+      isOpen: true,
+      classroomId,
+      className,
+      dateString,
+      timeSlot,
+      sessionId,
+      reason: 'Nghỉ lễ theo lịch nhà trường',
+      note: '',
+      loading: false,
+      error: null
+    });
+  };
+
+  const handleSubmitReportOff = async () => {
+    if (!reportOffModal.classroomId) return;
+    try {
+      setReportOffModal(prev => ({ ...prev, loading: true, error: null }));
+      if (reportOffModal.sessionId) {
+        await classroomSessionApi.cancelSession(reportOffModal.sessionId, {
+          reason: reportOffModal.reason,
+          note: reportOffModal.note
+        });
+      } else {
+        await classroomSessionApi.reportOff({
+          classroomId: reportOffModal.classroomId,
+          date: reportOffModal.dateString,
+          reason: reportOffModal.reason,
+          note: reportOffModal.note,
+          timeSlot: reportOffModal.timeSlot
+        });
+      }
+      setReportOffModal(prev => ({ ...prev, isOpen: false, loading: false }));
+      const sessRes = await classroomSessionApi.getSessions();
+      setSessions(sessRes.data || []);
+    } catch (err: any) {
+      setReportOffModal(prev => ({ ...prev, loading: false, error: err?.message || 'Không thể gửi báo nghỉ' }));
+    }
+  };
+
+  const handleRestoreSession = async (sessionId: string) => {
+    if (!window.confirm('Bạn có chắc muốn hủy báo nghỉ và mở lại lịch học bình thường cho ca này?')) return;
+    try {
+      await classroomSessionApi.restoreCancelledSession(sessionId);
+      const sessRes = await classroomSessionApi.getSessions();
+      setSessions(sessRes.data || []);
+    } catch (err: any) {
+      alert(err?.message || 'Không thể hủy báo nghỉ');
+    }
+  };
 
   // Load initial data
   useEffect(() => {
@@ -373,6 +448,24 @@ export const TeacherTeachingSchedule: React.FC = () => {
       }
     }
 
+    const todayStr = vietnamDate();
+    const cancelledTodayForClass = sessions.find((s: any) => {
+      const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
+      const sDate = s.startedAt ? s.startedAt.slice(0, 10) : (s.createdAt ? s.createdAt.slice(0, 10) : '');
+      return String(cId) === String(selectedClassId) && s.status === 'CANCELLED' && sDate === todayStr;
+    });
+
+    if (cancelledTodayForClass) {
+      return {
+        canTeachNow: false,
+        activeSlot: null,
+        activeClassroom: null,
+        nextSlotText: null,
+        hasSchedule: true,
+        reason: `Lớp đã báo nghỉ ca dạy hôm nay (${cancelledTodayForClass.cancellationReason || 'Nghỉ theo kế hoạch'}). Tiến độ bài học được tự động bảo lưu cho buổi học tiếp theo.`
+      };
+    }
+
     const effectiveSlot = activeSlot || todaySlot;
     if (effectiveSlot) {
       const isExactWindow = !!activeSlot;
@@ -412,7 +505,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
         ? `Chưa đến giờ dạy theo thời khóa biểu. Buổi học kế tiếp: ${nextSlotText}`
         : 'Không tìm thấy ca dạy tiếp theo.'
     };
-  }, [currentVnTime, selectedClassId, mySchedules]);
+  }, [currentVnTime, selectedClassId, mySchedules, sessions]);
 
   // Roadmap ordering: strict sequence according to book (Unit 1..9, Lesson displayOrder)
   const bookRoadmap = useMemo(() => {
@@ -740,121 +833,9 @@ export const TeacherTeachingSchedule: React.FC = () => {
       </div>
 
 
-      {/* ── TAB 1: WEEKLY CALENDAR & ADMIN TIMETABLE ─────────────────────────── */}
+      {/* ── TAB 1: WEEKLY CALENDAR ─────────────────────────── */}
       {activeTab === 'calendar' && (
         <div className="space-y-6">
-          {/* Admin Timetable Fixed Slots Banner */}
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-700 text-white font-black">
-                  <Clock size={22} />
-                </div>
-                <div>
-                  <h3 className="font-black text-lg text-slate-900">
-                    Thời Khóa Biểu Cố Định (Do Nhà Trường Phân Bổ)
-                  </h3>
-                  <p className="text-sm text-slate-600 mt-0.5">
-                    Các ca dạy hàng tuần của lớp. Khi đến giờ dạy, giáo viên có thể mở trực tiếp buổi học tại đây.
-                  </p>
-                </div>
-              </div>
-
-              {filteredMySchedules.length === 0 && (
-                <div className="text-sm font-semibold text-slate-600 italic">
-                  Chưa có lịch phân công cố định từ Admin cho lớp này
-                </div>
-              )}
-            </div>
-
-            {/* List of scheduled slots */}
-            {filteredMySchedules.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-3">
-                {filteredMySchedules.map((sch) => {
-                  const theme = COLOR_THEMES[sch.colorTag] || COLOR_THEMES.indigo;
-                  const cName = typeof sch.classroom === 'object' ? sch.classroom?.name : 'Lớp học';
-                  const cId = typeof sch.classroom === 'object' ? sch.classroom?._id : sch.classroom;
-
-                  return sch.weeklySlots?.map((slot, sIdx) => {
-                    const isSlotToday = slot.dayOfWeek === currentVnTime.getDay();
-                    const isSlotNow = scheduleLiveTiming.canTeachNow && (
-                      (scheduleLiveTiming.activeSlot?.startTime === slot.startTime && scheduleLiveTiming.activeSlot?.dayOfWeek === slot.dayOfWeek) ||
-                      (isSlotToday && scheduleLiveTiming.activeSlot?.dayOfWeek === slot.dayOfWeek)
-                    );
-
-                    return (
-                      <div
-                        key={`${sch._id}-${sIdx}`}
-                        onClick={() => {
-                          if (isSlotNow || isSlotToday) {
-                            const slotLes = slot.lesson;
-                            const slotLessonId = typeof slotLes === 'object' && slotLes ? slotLes._id : (typeof slotLes === 'string' ? slotLes : '');
-                            const activeLes = scheduleLiveTiming.activeSlot?.lesson;
-                            const activeLessonId = typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '');
-                            const targetLessonId = slotLessonId || activeLessonId || nextLessonToTeach?._id;
-                            navigate(`/teacher/classes/${cId}/sessions/new${targetLessonId ? `?lessonId=${targetLessonId}` : ''}`);
-                          }
-                        }}
-                        className={`group flex items-center gap-3 rounded-2xl border-2 p-3.5 transition-all ${theme.bg} ${theme.border} ${
-                          (isSlotNow || isSlotToday)
-                            ? 'ring-2 ring-emerald-500 cursor-pointer hover:scale-102'
-                            : 'cursor-default'
-                        }`}
-                      >
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-block h-2.5 w-2.5 rounded-full ${isSlotNow ? 'bg-emerald-700 animate-ping' : theme.dot}`} />
-                            <span className="text-sm font-black text-slate-900">{DAY_LABELS[slot.dayOfWeek]}</span>
-                            <span className={`rounded-lg px-2 py-0.5 text-xs font-black ${theme.badge}`}>
-                              {slot.startTime} - {slot.endTime}
-                            </span>
-                            {isSlotNow && (
-                              <span className="rounded-md bg-emerald-700 text-white text-[10px] font-black px-1.5 py-0.5 uppercase tracking-wide">
-                                Đang diễn ra
-                              </span>
-                            )}
-                            {!isSlotNow && isSlotToday && (
-                              <span className="rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black px-1.5 py-0.5 uppercase tracking-wide">
-                                Hôm nay
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="text-xs font-bold text-slate-700 mt-1 flex items-center gap-1.5">
-                            <span>{cName}</span>
-                            {slot.room && <span className="text-slate-600 font-semibold">• {slot.room}</span>}
-                          </div>
-
-                          {/* Attached Lesson Badge (Bài mấy) */}
-                          {(() => {
-                            const seq = getSequentialLessonForSlot(sch, slot, localCalendarDate(currentVnTime), bookRoadmap.lessons);
-                            const displayName = (seq.title ? `${seq.title}${seq.vietnameseTitle ? ` (${seq.vietnameseTitle})` : ""}` : "") || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
-                            return displayName ? (
-                              <div className="mt-1.5 px-2 py-0.5 rounded-lg bg-slate-100 text-indigo-900 border border-indigo-200/80 font-black text-[11px] flex items-center gap-1">
-                                <span className="text-indigo-800 font-black">
-                                  🎯 Bài {seq.lessonNumber}:
-                                </span>
-                                <span className="truncate max-w-[170px]" title={displayName}>
-                                  {displayName}
-                                </span>
-                              </div>
-                            ) : null;
-                          })()}
-                        </div>
-
-                        {isSlotNow && (
-                          <div className="bg-emerald-700 text-white rounded-xl p-2 group-hover:scale-110 transition-transform">
-                            <Play size={14} className="fill-white" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  });
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Week Navigation Controls */}
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 border border-slate-200">
             <div className="flex items-center gap-2.5">
@@ -934,30 +915,96 @@ export const TeacherTeachingSchedule: React.FC = () => {
                       </div>
                       {dayFixedSlots.map(({ schedule, slot }, fIdx) => {
                         const theme = COLOR_THEMES[schedule.colorTag] || COLOR_THEMES.indigo;
-                        const cName = typeof schedule.classroom === 'object' ? schedule.classroom?.name : 'Lớp';
+                        const cObj = typeof schedule.classroom === 'object' ? schedule.classroom : null;
+                        const cId = String(cObj?._id || schedule.classroom || selectedClassId || '');
+                        const cName = cObj?.name || 'Lớp';
                         const seqLesson = getSequentialLessonForSlot(schedule, slot, day.dateString, bookRoadmap.lessons);
-                        const lessonDisplayTitle = (seqLesson.title ? `${seqLesson.title}${seqLesson.vietnameseTitle ? ` (${seqLesson.vietnameseTitle})` : ""}` : "") || 'Buổi học tiếng Anh';
+                        const effectiveLesson =
+                          day.isToday && nextLessonToTeach && (!slot.lesson || seqLesson.lesson?.isCompleted)
+                            ? {
+                                lesson: nextLessonToTeach,
+                                lessonNumber: nextLessonToTeach.bookOrderIndex || seqLesson.lessonNumber || 1,
+                                title: nextLessonToTeach.title,
+                                vietnameseTitle: nextLessonToTeach.vietnameseTitle
+                              }
+                            : seqLesson;
+                        const lessonDisplayTitle = (effectiveLesson.title ? `${effectiveLesson.title}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}` : '') || 'Buổi học tiếng Anh';
+
+                        const matchedSession = daySessions.find(
+                          (s: any) => String(s.classroom?._id || s.classroom) === cId
+                        );
+                        const isCancelled = matchedSession?.status === 'CANCELLED';
+
                         return (
                           <div
                             key={fIdx}
                             className={`rounded-xl border px-3 py-2 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-1.5`}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-1.5">
                               <p className="text-sm font-black break-words">{cName}</p>
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
-                                Bài #{seqLesson.lessonNumber}
-                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {isCancelled && (
+                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 border border-amber-300">
+                                    🚫 Báo nghỉ
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
+                                  Bài #{effectiveLesson.lessonNumber}
+                                </span>
+                              </div>
                             </div>
                             <p className="font-black text-slate-900">{slot.startTime} – {slot.endTime}</p>
                             {slot.room && <p className="text-[11px]">🏫 Phòng: {slot.room}</p>}
                             <div className="mt-1 pt-1.5 border-t border-black/10">
                               <p className="text-[10px] uppercase tracking-wider opacity-75 font-black">
-                                🎯 {day.dateString < vietnamDate() ? "Bài theo lịch:" : "Bài học dự kiến:"}
+                                🎯 {day.dateString < vietnamDate() ? 'Bài theo lịch:' : 'Bài học dự kiến:'}
                               </p>
-                              <p className="font-black text-slate-900 text-xs mt-0.5 truncate" title={lessonDisplayTitle}>
-                                Bài {seqLesson.lessonNumber}: {lessonDisplayTitle}
+                              <p className="font-black text-slate-900 text-xs mt-0.5 break-words" title={lessonDisplayTitle}>
+                                Bài {effectiveLesson.lessonNumber}: {lessonDisplayTitle}
                               </p>
                             </div>
+
+                            {/* Actions for this slot */}
+                            {cId && (
+                              <div className="pt-1.5 space-y-1.5">
+                                {isCancelled && matchedSession ? (
+                                  <div className="p-2.5 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 space-y-1">
+                                    <p className="font-extrabold text-[11px] text-amber-900">
+                                      Đã báo nghỉ: <span className="font-black underline">{matchedSession.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
+                                    </p>
+                                    {matchedSession.cancellationNote && (
+                                      <p className="text-[10px] text-amber-800 italic">"{matchedSession.cancellationNote}"</p>
+                                    )}
+                                    <p className="text-[10px] text-amber-900/80 font-bold">
+                                      ⭐ Bài học #{effectiveLesson.lessonNumber} được tự động bảo lưu sang buổi kế tiếp.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRestoreSession(matchedSession._id)}
+                                      className="w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 text-[11px] font-black transition-colors cursor-pointer mt-1"
+                                    >
+                                      ↩ Hủy báo nghỉ (Học bình thường)
+                                    </button>
+                                  </div>
+                                ) : day.dateString >= vietnamDate() ? (
+                                  <div className="space-y-1">
+                                    <Link
+                                      to={`/teacher/classes/${cId}/sessions/new${effectiveLesson.lesson?._id ? `?lessonId=${effectiveLesson.lesson._id}` : ''}`}
+                                      className="block w-full text-center rounded-lg bg-white/90 hover:bg-white text-slate-900 border border-black/15 py-1.5 text-xs font-black transition-colors"
+                                    >
+                                      {day.isToday ? 'Bắt đầu / Chuẩn bị ca dạy ➔' : 'Soạn kế hoạch dạy trước'}
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
+                                      className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1 text-[11px] font-bold transition-colors cursor-pointer"
+                                    >
+                                      Báo nghỉ ca này
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -965,56 +1012,84 @@ export const TeacherTeachingSchedule: React.FC = () => {
                   )}
 
                   {/* Actual sessions conducted */}
-                  <div className="flex-1 space-y-2.5">
-                    <div className="text-[11px] font-black uppercase tracking-wider text-slate-600">
-                      Buổi dạy thực tế ({daySessions.length}):
-                    </div>
+                  {(() => {
+                    const activeSessions = daySessions.filter((s: any) => s.status !== 'CANCELLED');
+                    const cancelledSessions = daySessions.filter((s: any) => s.status === 'CANCELLED');
 
-                    {daySessions.length === 0 ? (
-                      <div className="h-32 flex flex-col items-center justify-center text-center p-3 text-slate-700">
-                        <Calendar size={22} className="mb-1.5 opacity-40" />
-                        <span className="text-xs font-medium italic">Chưa ghi nhận buổi dạy</span>
+                    return (
+                      <div className="flex-1 space-y-2.5">
+                        <div className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center justify-between">
+                          <span>Buổi dạy thực tế ({activeSessions.length}):</span>
+                          {cancelledSessions.length > 0 && (
+                            <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                              🚫 {cancelledSessions.length} ca báo nghỉ
+                            </span>
+                          )}
+                        </div>
+
+                        {activeSessions.length === 0 ? (
+                          cancelledSessions.length > 0 ? (
+                            <div className="h-28 flex flex-col items-center justify-center text-center p-3 text-amber-900 border border-dashed border-amber-300/80 bg-amber-50/50 rounded-xl">
+                              <span className="text-base mb-1">🚫</span>
+                              <span className="text-xs font-black text-amber-950">
+                                Đã báo nghỉ ({cancelledSessions.length} ca)
+                              </span>
+                              <span className="text-[11px] font-semibold text-amber-800 mt-0.5">
+                                Không phát sinh giờ dạy thực tế • Tiến độ được bảo lưu
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="h-28 flex flex-col items-center justify-center text-center p-3 text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                              <Calendar size={20} className="mb-1 opacity-30" />
+                              <span className="text-xs font-medium italic text-slate-500">
+                                {dayFixedSlots.length > 0 ? 'Chưa có buổi dạy thực tế' : 'Chưa ghi nhận buổi dạy'}
+                              </span>
+                            </div>
+                          )
+                        ) : (
+                          activeSessions.map((s: any) => {
+                            const lessonTitle = s.lesson?.title || s.title || 'Buổi học tiếng Anh';
+                            const roomName = s.classroom?.name || 'Lớp';
+                            const scoreCount = (s.studentScores || []).filter((row: any) => !['ABSENT', 'EXCUSED'].includes(row.attendance)).length;
+                            const stars = s.summary?.totalStars;
+
+                            return (
+                              <div
+                                key={s._id}
+                                className="rounded-xl border p-3 transition-all border-teal-100 bg-white hover:border-teal-300"
+                              >
+                                <div className="flex items-center justify-between gap-1 mb-1.5">
+                                  <span className="text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
+                                    {roomName}
+                                  </span>
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md text-slate-600">
+                                    {s.startedAt
+                                      ? new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                      : 'Dạy'}
+                                  </span>
+                                </div>
+                                <h5 className="text-sm font-black text-slate-900 break-words" title={lessonTitle}>
+                                  {lessonTitle}
+                                </h5>
+                                <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600 border-t border-slate-50 pt-1.5">
+                                  <span>👥 {scoreCount} bé</span>
+                                  {stars !== undefined && (
+                                    <span className="font-bold text-amber-800">⭐ {stars} sao</span>
+                                  )}
+                                </div>
+                                <Link
+                                  to={`/teacher/classroom-sessions/${s._id}/summary`}
+                                  className="mt-2 block text-center rounded-lg bg-teal-50 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors"
+                                >
+                                  Xem nhật ký buổi dạy
+                                </Link>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
-                    ) : (
-                      daySessions.map((s: any) => {
-                        const lessonTitle = s.lesson?.title || s.title || 'Buổi học tiếng Anh';
-                        const roomName = s.classroom?.name || 'Lớp';
-                        const scoreCount = (s.studentScores || []).filter((row: any) => !['ABSENT', 'EXCUSED'].includes(row.attendance)).length;
-                        const stars = s.summary?.totalStars;
-
-                        return (
-                          <div
-                            key={s._id}
-                            className="rounded-xl border border-teal-100 bg-white p-3 hover:border-teal-300 transition-all"
-                          >
-                            <div className="flex items-center justify-between gap-1 mb-1.5">
-                              <span className="text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
-                                {roomName}
-                              </span>
-                              <span className="text-xs font-bold text-slate-600">
-                                {s.startedAt ? new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Dạy'}
-                              </span>
-                            </div>
-                            <h5 className="text-sm font-black text-slate-900 break-words" title={lessonTitle}>
-                              {lessonTitle}
-                            </h5>
-                            <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600 border-t border-slate-50 pt-1.5">
-                              <span>👥 {scoreCount} bé</span>
-                              {stars !== undefined && (
-                                <span className="font-bold text-amber-800">⭐ {stars} sao</span>
-                              )}
-                            </div>
-                            <Link
-                              to={`/teacher/classroom-sessions/${s._id}/summary`}
-                              className="mt-2 block text-center rounded-lg bg-teal-50 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors"
-                            >
-                              Xem nhật ký buổi dạy
-                            </Link>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -1302,6 +1377,142 @@ export const TeacherTeachingSchedule: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Báo Nghỉ Buổi Học (Auto-shift Guaranteed) ────────────────────── */}
+      {reportOffModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in zoom-in-95">
+            {/* Header with rich pastel styling */}
+            <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50/40 p-6 sm:p-7 border-b border-amber-100 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <span className="p-3 rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/25 shrink-0">
+                  <CalendarDays size={26} />
+                </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/70 px-2.5 py-0.5 rounded-full border border-amber-300">
+                      Quản lý lịch giảng dạy
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Báo Nghỉ Buổi Học
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-3 py-1 text-xs font-black text-slate-900 shadow-2xs">
+                      🏫 {reportOffModal.className}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-3 py-1 text-xs font-black text-indigo-950 shadow-2xs">
+                      📅 Ngày: {reportOffModal.dateString}
+                    </span>
+                    {reportOffModal.timeSlot && (
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-3 py-1 text-xs font-black text-emerald-950 shadow-2xs">
+                        ⏰ Khung giờ: {reportOffModal.timeSlot.startTime} – {reportOffModal.timeSlot.endTime}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportOffModal(prev => ({ ...prev, isOpen: false }))}
+                className="rounded-2xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 sm:p-7 space-y-6 max-h-[70vh] overflow-y-auto">
+              {reportOffModal.error && (
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs sm:text-sm font-bold text-rose-800 flex items-center gap-2.5">
+                  <AlertCircle size={20} className="shrink-0 text-rose-600" />
+                  <span>{reportOffModal.error}</span>
+                </div>
+              )}
+
+              {/* Cam kết tiến độ giáo trình (Auto-shift Guarantee Card) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-teal-50/90 border border-teal-200 text-teal-950 space-y-2 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <span className="h-5 w-5 rounded-md bg-teal-700 text-white text-xs flex items-center justify-center font-bold">✓</span>
+                  <h4 className="text-sm font-black text-teal-950">
+                    Cơ chế bảo lưu giáo trình tự động (Auto-shift)
+                  </h4>
+                </div>
+                <p className="text-xs text-teal-900 font-medium leading-relaxed">
+                  Buổi nghỉ này sẽ được ghi nhận minh bạch cho lớp. <span className="font-bold underline">Bài học chưa dạy sẽ không bị mất</span>: ca học tiếp theo theo thời khóa biểu sẽ tự động giảng dạy bài này theo đúng lộ trình giáo trình của trường.
+                </p>
+              </div>
+
+              {/* Chọn lý do nghỉ */}
+              <div className="space-y-3">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center justify-between">
+                  <span>Lý do báo nghỉ <span className="text-rose-500">*</span></span>
+                  <span className="text-[11px] font-semibold text-slate-500 lowercase">chọn theo danh mục</span>
+                </label>
+
+                {/* Quick selector cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {[
+                    { label: 'Nghỉ lễ theo lịch nhà trường', icon: '🏛️' },
+                    { label: 'Giáo viên có việc đột xuất / Báo ốm', icon: '👩‍🏫' },
+                    { label: 'Hoạt động ngoại khóa / Dã ngoại của trường', icon: '🚌' },
+                    { label: 'Thời tiết bất lợi (Mưa bão)', icon: '🌧️' },
+                    { label: 'Học sinh nghỉ sinh hoạt hè / Nghỉ chuyên đề', icon: '🏖️' },
+                    { label: 'Lý do khác', icon: '📝' }
+                  ].map(item => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => setReportOffModal(prev => ({ ...prev, reason: item.label }))}
+                      className={`p-3.5 rounded-2xl text-left border text-xs sm:text-sm font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                        reportOffModal.reason === item.label
+                          ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-500/30'
+                          : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span className="text-base shrink-0">{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ghi chú thêm */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Ghi chú dặn dò (Hiển thị cho Admin & Phụ huynh)
+                </label>
+                <textarea
+                  rows={3}
+                  value={reportOffModal.note}
+                  onChange={(e) => setReportOffModal(prev => ({ ...prev, note: e.target.value }))}
+                  placeholder="Ví dụ: Lớp nghỉ theo lịch chung của trường; dặn phụ huynh cho bé mở app Koko luyện tập từ vựng ở nhà..."
+                  className="w-full rounded-2xl border border-slate-200 p-3.5 text-xs sm:text-sm font-medium text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                />
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={reportOffModal.loading}
+                onClick={() => setReportOffModal(prev => ({ ...prev, isOpen: false }))}
+                className="rounded-2xl px-5 py-3 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-200/70 transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                disabled={reportOffModal.loading}
+                onClick={handleSubmitReportOff}
+                className="rounded-2xl bg-amber-600 hover:bg-amber-700 px-6 sm:px-7 py-3 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/25 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-95"
+              >
+                {reportOffModal.loading ? 'Đang gửi...' : 'Xác nhận Báo Nghỉ Buổi Học'}
+              </button>
             </div>
           </div>
         </div>

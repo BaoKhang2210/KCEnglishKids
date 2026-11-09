@@ -211,3 +211,55 @@ test('detectClassGaps: empty inputs yield an empty but well-formed report', () =
   assert.deepEqual(result.healthy, []);
   assert.equal(result.generative, false);
 });
+
+test('generateCurriculumDraft: generates 6 core vocabularies with IPA, image prompts, and 2 Q&A pairs for Vehicles (3-4)', () => {
+  const { generateCurriculumDraft } = require('../src/services/aiService');
+  const draft = generateCurriculumDraft({
+    topic: 'Các phương tiện giao thông (Vehicles)',
+    ageGroup: '3-4'
+  });
+
+  assert.equal(draft.ageGroupCode, '3-4');
+  assert.equal(draft.vocabularies.length, 6);
+  assert.deepEqual(draft.vocabularies.map(v => v.english), ['Car', 'Bus', 'Train', 'Bike', 'Boat', 'Plane']);
+  for (const vocab of draft.vocabularies) {
+    assert.ok(vocab.pronunciation.startsWith('/') && vocab.pronunciation.endsWith('/'));
+    assert.ok(vocab.imagePrompt.includes(vocab.english));
+    assert.ok(vocab.imageUrl.startsWith('/images/vocabulary/'));
+  }
+  assert.equal(draft.sentencePairs.length, 2);
+  assert.equal(draft.sentencePairs[0].questionEnglish, 'What can you see?');
+  assert.equal(draft.sentencePairs[0].answerEnglish, 'I can see a red bus.');
+});
+
+test('auditLessonAgeAppropriateness: flags long sentences for 3-4 age group and suggests shorter rewrite, while passing for 5-6', () => {
+  const { auditLessonAgeAppropriateness } = require('../src/services/aiService');
+  const sentences = [
+    { _id: 'q1', contentType: 'QUESTION', english: 'What can you see?', vietnamese: 'Con nhìn thấy gì?' },
+    { _id: 'a1', contentType: 'ANSWER', english: 'I can see a red bus.', vietnamese: 'Con thấy xe buýt đỏ.' }
+  ];
+  const vocabularies = [
+    { _id: 'v1', english: 'Car', vietnamese: 'Ô tô', pronunciation: '/kɑːr/' },
+    { _id: 'v2', english: 'Bus', vietnamese: 'Xe buýt', pronunciation: '/bʌs/' }
+  ];
+
+  const audit34 = auditLessonAgeAppropriateness({
+    lesson: { ageGroupCode: '3-4' },
+    vocabularies,
+    sentences
+  });
+  assert.equal(audit34.passed, false);
+  assert.equal(audit34.warningCount, 1);
+  const answerAudit34 = audit34.sentenceAudits.find(s => s.id === 'a1');
+  assert.equal(answerAudit34.status, 'WARNING');
+  assert.equal(answerAudit34.wordCount, 6);
+  assert.equal(answerAudit34.suggestedRewrite, 'A red bus.');
+
+  const audit56 = auditLessonAgeAppropriateness({
+    lesson: { ageGroupCode: '5-6' },
+    vocabularies,
+    sentences
+  });
+  assert.equal(audit56.passed, true);
+  assert.equal(audit56.warningCount, 0);
+});

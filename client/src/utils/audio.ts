@@ -253,40 +253,177 @@ class SoundEffectsEngine {
     this.playGentleWrong();
   }
 
-  // Realistic enthusiastic classroom clapping / applause effect
+  // Realistic enthusiastic classroom clapping / applause effect (rich multi-person applause + warm cheer)
   playApplause() {
     try {
       const ctx = this.getContext();
-      if (!ctx || ctx.state === 'suspended') return;
-      const bufferSize = ctx.sampleRate * 0.05;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
       }
 
-      // Stagger 18 claps over 1.2 seconds for realistic audience clapping
-      for (let i = 0; i < 18; i++) {
+      // Create a stereo noise buffer for realistic hand-clap bursts
+      const clapDuration = 0.085;
+      const bufferSize = Math.floor(ctx.sampleRate * clapDuration);
+      const buffer = ctx.createBuffer(2, bufferSize, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = buffer.getChannelData(ch);
+        for (let i = 0; i < bufferSize; i++) {
+          // Sharp attack + natural room decay
+          const env = Math.pow(1 - i / bufferSize, 2.2);
+          data[i] = (Math.random() * 2 - 1) * env;
+        }
+      }
+
+      // 36 staggered claps across 2.0 seconds simulating multiple children/teacher clapping
+      const totalClaps = 36;
+      for (let i = 0; i < totalClaps; i++) {
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 800 + Math.random() * 600;
-        filter.Q.value = 1.8;
+
+        // Bandpass filter around human palm-clap resonant frequencies (900Hz - 2200Hz)
+        const bandpass = ctx.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.value = 950 + (i % 5) * 240 + Math.random() * 250;
+        bandpass.Q.value = 1.4;
+
+        // Highpass to keep claps crisp and non-muddy
+        const highpass = ctx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 500;
 
         const gain = ctx.createGain();
-        const t = ctx.currentTime + i * 0.065 + Math.random() * 0.03;
-        gain.gain.setValueAtTime(0.25 + Math.random() * 0.15, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        const progress = i / totalClaps;
+        // Swell up then gently fade out
+        const envelope = progress < 0.15 ? progress / 0.15 : progress > 0.75 ? (1 - progress) / 0.25 : 1;
+        const t = ctx.currentTime + i * 0.052 + Math.random() * 0.028;
+        const peakGain = (0.28 + Math.random() * 0.18) * Math.max(0.2, envelope);
 
-        noise.connect(filter);
-        filter.connect(gain);
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(peakGain, t + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + clapDuration);
+
+        noise.connect(highpass);
+        highpass.connect(bandpass);
+        bandpass.connect(gain);
         gain.connect(ctx.destination);
 
         noise.start(t);
-        noise.stop(t + 0.05);
+        noise.stop(t + clapDuration);
       }
+
+      // Add a subtle celebratory chime on top so it feels extra rewarding for kids
+      const chimeNotes = [523.25, 659.25, 783.99, 1046.5];
+      chimeNotes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const st = ctx.currentTime + 0.08 + idx * 0.09;
+        g.gain.setValueAtTime(0, st);
+        g.gain.linearRampToValueAtTime(0.16, st + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, st + 0.35);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(st);
+        osc.stop(st + 0.35);
+      });
     } catch (e) {}
+  }
+
+  // Playable cheerful Goodbye Song with melody + sung-like vocal synthesis
+  playGoodbyeSong(): Promise<void> {
+    return new Promise((resolve) => {
+      try {
+        stopWordAudio();
+        const ctx = this.getContext();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+
+        // Play a warm, cheerful musical accompaniment (Goodbye melody ~ 9 seconds)
+        if (ctx) {
+          const melody = [
+            // "Good-bye, good-bye, it's time to go!"
+            { f: 523.25, t: 0.0, d: 0.35 },   // C5
+            { f: 659.25, t: 0.4, d: 0.35 },   // E5
+            { f: 783.99, t: 0.8, d: 0.35 },   // G5
+            { f: 659.25, t: 1.2, d: 0.35 },   // E5
+            { f: 880.00, t: 1.6, d: 0.35 },   // A5
+            { f: 783.99, t: 2.0, d: 0.35 },   // G5
+            { f: 659.25, t: 2.4, d: 0.35 },   // E5
+            { f: 523.25, t: 2.8, d: 0.60 },   // C5
+            // "Good-bye, good-bye, I'll miss you so!"
+            { f: 587.33, t: 3.6, d: 0.35 },   // D5
+            { f: 659.25, t: 4.0, d: 0.35 },   // E5
+            { f: 698.46, t: 4.4, d: 0.35 },   // F5
+            { f: 587.33, t: 4.8, d: 0.35 },   // D5
+            { f: 783.99, t: 5.2, d: 0.35 },   // G5
+            { f: 698.46, t: 5.6, d: 0.35 },   // F5
+            { f: 659.25, t: 6.0, d: 0.35 },   // E5
+            { f: 587.33, t: 6.4, d: 0.60 },   // D5
+            // "See you to-mor-row, have a won-der-ful day!"
+            { f: 523.25, t: 7.2, d: 0.30 },   // C5
+            { f: 659.25, t: 7.55, d: 0.30 },  // E5
+            { f: 783.99, t: 7.9, d: 0.35 },   // G5
+            { f: 1046.50, t: 8.3, d: 0.40 },  // C6
+            { f: 987.77, t: 8.75, d: 0.30 },  // B5
+            { f: 880.00, t: 9.1, d: 0.30 },   // A5
+            { f: 783.99, t: 9.45, d: 0.35 },  // G5
+            { f: 1046.50, t: 9.85, d: 0.90 }  // C6 grand finish
+          ];
+
+          melody.forEach(({ f, t, d }) => {
+            const osc = ctx.createOscillator();
+            const sub = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.value = f;
+
+            sub.type = 'sine';
+            sub.frequency.value = f / 2;
+
+            const st = ctx.currentTime + t;
+            gain.gain.setValueAtTime(0, st);
+            gain.gain.linearRampToValueAtTime(0.22, st + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, st + d);
+
+            osc.connect(gain);
+            sub.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(st);
+            sub.start(st);
+            osc.stop(st + d);
+            sub.stop(st + d);
+          });
+        }
+
+        // Accompany with friendly vocal singing / recitation via Web Speech API
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          setTimeout(() => {
+            try {
+              const lyrics = "Goodbye, goodbye, it's time to go! Goodbye, goodbye, I'll miss you so! See you tomorrow, have a wonderful day!";
+              const utterance = new SpeechSynthesisUtterance(lyrics);
+              utterance.lang = 'en-US';
+              utterance.rate = 0.82;
+              utterance.pitch = 1.25;
+              utterance.onend = () => resolve();
+              utterance.onerror = () => resolve();
+              window.speechSynthesis.speak(utterance);
+            } catch {
+              setTimeout(resolve, 10500);
+            }
+          }, 150);
+        } else {
+          setTimeout(resolve, 10500);
+        }
+      } catch {
+        resolve();
+      }
+    });
   }
 
   // Bright, cheerful fanfare for clear, loud speech ("Nói to rõ ràng")
@@ -885,4 +1022,53 @@ export const playWordAudioSlow = (word: string): Promise<void> => {
     }
   });
 };
+
+/**
+ * Play full sentence dialogue: reads Question, pauses, then reads ALL answers sequentially
+ */
+export const playDialogueAudio = async (
+  questionText: string,
+  answers?: string | Array<string | { english?: string; text?: string; audioUrl?: string | null }> | null,
+  questionAudioUrl?: string | null,
+  singleAnswerAudioUrl?: string | null
+): Promise<void> => {
+  stopWordAudio();
+  const q = String(questionText || '').trim();
+
+  // Normalize list of answers
+  const ansList: Array<{ text: string; audioUrl?: string | null }> = [];
+  if (Array.isArray(answers)) {
+    for (const item of answers) {
+      if (typeof item === 'string') {
+        if (item.trim()) ansList.push({ text: item.trim() });
+      } else if (item && typeof item === 'object') {
+        const text = String(item.english || item.text || '').trim();
+        if (text) ansList.push({ text, audioUrl: item.audioUrl || undefined });
+      }
+    }
+  } else if (typeof answers === 'string') {
+    const a = answers.trim();
+    if (a && (!q || a.toLowerCase() !== q.toLowerCase())) {
+      ansList.push({ text: a, audioUrl: singleAnswerAudioUrl });
+    }
+  }
+
+  // 1. Play Question if present
+  if (q) {
+    await playWordAudio(q, questionAudioUrl || undefined);
+    if (ansList.length > 0) {
+      await new Promise((r) => setTimeout(r, 700));
+    }
+  }
+
+  // 2. Play all answers sequentially with natural pause
+  for (let i = 0; i < ansList.length; i++) {
+    const ans = ansList[i];
+    await playWordAudio(ans.text, ans.audioUrl || undefined);
+    if (i < ansList.length - 1) {
+      await new Promise((r) => setTimeout(r, 650));
+    }
+  }
+};
+
 

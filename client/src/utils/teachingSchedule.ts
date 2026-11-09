@@ -54,11 +54,22 @@ export function getSequentialLessonForSlot(
   schedule: Schedule,
   slot: Slot,
   dateStr: string,
-  lessons: Lesson[]
+  lessons: Lesson[],
+  assignmentMode: 'fixed' | 'sequential' = 'fixed'
 ): { lesson: Lesson | null; lessonNumber: number; title: string; vietnameseTitle?: string } {
   const fixedId = typeof slot.lesson === 'string' ? slot.lesson : slot.lesson?._id;
   const fixed = (lessons || []).find(lesson => lesson._id === fixedId) || (typeof slot.lesson === 'object' ? slot.lesson : null);
-  if (fixed) return { lesson: fixed as Lesson, lessonNumber: slot.lessonNumber || (fixed as any).displayOrder || 1, title: fixed.title || slot.lessonTitle || '', vietnameseTitle: fixed.vietnameseTitle };
+  // Admin previews advance through the syllabus. Stored slot lessons describe
+  // the initial recurring template, so they must not pin every future week once completed.
+  const isFixedCompleted = Boolean(fixed && (fixed as Lesson).isCompleted);
+  if (assignmentMode === 'fixed' && fixed && !isFixedCompleted) {
+    return {
+      lesson: fixed as Lesson,
+      lessonNumber: slot.lessonNumber || (fixed as any).bookOrderIndex || (fixed as any).syllabusOrder || (fixed as any).displayOrder || 1,
+      title: fixed.title || slot.lessonTitle || '',
+      vietnameseTitle: fixed.vietnameseTitle
+    };
+  }
   if (!lessons || lessons.length === 0) {
     const fixedTitle = slot.lessonTitle || (typeof slot.lesson === 'object' ? slot.lesson?.title : '') || '';
     return {

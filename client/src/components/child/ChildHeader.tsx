@@ -9,6 +9,7 @@ import { ParentNotebookModal } from './ParentNotebookModal';
 import { DailyStreakBadge } from './DailyStreakBadge';
 import { DailyStreakModal } from './DailyStreakModal';
 import { streakApi, parentNotificationApi } from '../../services/api';
+import { StudentAvatar } from '../common/StudentAvatar';
 import type { ChildStreakData } from '../../types';
 
 interface ChildHeaderProps {
@@ -221,17 +222,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                   className="hidden lg:flex items-center gap-2 sm:gap-3 bg-amber-50/90 hover:bg-amber-100 border-2 border-amber-200/80 hover:border-amber-300 pl-1.5 pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs"
                   title={`Hồ sơ của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel}`}
                 >
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0">
-                    {user.avatarUrl ? (
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.name}
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <span className="text-lg sm:text-xl" aria-hidden="true">🐼</span>
-                    )}
-                  </div>
+                  <StudentAvatar student={user as any} size="sm" rounded="rounded-[14px]" />
                   <span className="flex flex-col items-start leading-tight">
                     <span className="font-black text-[15px] sm:text-[16px] text-slate-800 whitespace-nowrap" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
                       {user.name}

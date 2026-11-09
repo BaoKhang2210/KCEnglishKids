@@ -14,8 +14,6 @@ const ActivityPlayPage = lazy(() => import('./pages/child/ActivityPlayPage').the
 const TeacherLoginPage = lazy(() => import('./dashboards/teacher/TeacherLoginPage').then(module => ({default:module.TeacherLoginPage})));
 const TeacherLayout = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherLayout})));
 const TeacherDashboard = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherDashboard})));
-const TeacherClasses = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherClasses})));
-const TeacherClassDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherClassDetail})));
 const TeacherContent = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherContent})));
 const TeacherAssignments = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAssignments})));
 const TeacherAssignmentDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAssignmentDetail})));
@@ -29,7 +27,6 @@ const SessionSummaryPage = lazy(() => import('./dashboards/teacher/SessionSummar
 const ClassroomSessionsList = lazy(() => import('./dashboards/teacher/ClassroomSessionsList').then(module => ({default:module.ClassroomSessionsList})));
 const SentenceTeachingPage = lazy(() => import('./dashboards/teacher/SentenceTeachingPage').then(module => ({default:module.SentenceTeachingPage})));
 const TeacherTeachingSchedule = lazy(() => import('./dashboards/teacher/TeacherTeachingSchedule').then(module => ({default:module.TeacherTeachingSchedule})));
-const TeacherLessonPlanner = lazy(() => import('./dashboards/teacher/TeacherLessonPlanner').then(module => ({default:module.TeacherLessonPlanner})));
 const ChangePinPage = lazy(() => import('./pages/child/ChangePinPage').then(module => ({default:module.ChangePinPage})));
 const RecoverAccountPage = lazy(() => import('./pages/child/RecoverAccountPage').then(module => ({default:module.RecoverAccountPage})));
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -40,7 +37,6 @@ const AdminLayout = lazy(() => import('./dashboards/admin/AdminLayout').then(mod
 const AdminDashboardPage = lazy(() => import('./dashboards/admin/AdminDashboardPage').then(module => ({default:module.AdminDashboardPage})));
 const AdminClassroomsPage = lazy(() => import('./dashboards/admin/AdminClassroomsPage').then(module => ({default:module.AdminClassroomsPage})));
 const AdminCurriculumPage = lazy(() => import('./dashboards/admin/AdminCurriculumPage').then(module => ({default:module.AdminCurriculumPage})));
-const AdminSentencesPage = lazy(() => import('./dashboards/admin/AdminSentencesPage').then(module => ({default:module.AdminSentencesPage})));
 const AdminUsersPage = lazy(() => import('./dashboards/admin/AdminUsersPage').then(module => ({default:module.AdminUsersPage})));
 const AdminLogsPage = lazy(() => import('./dashboards/admin/AdminLogsPage').then(module => ({default:module.AdminLogsPage})));
 const AdminAnalyticsPage = lazy(() => import('./dashboards/admin/AdminAnalyticsPage').then(module => ({default:module.AdminAnalyticsPage})));
@@ -155,8 +151,8 @@ export function App() {
           <Route path="/teacher" element={<ProtectedTeacherRoute><TeacherLayout /></ProtectedTeacherRoute>}>
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="schedule" element={<TeacherTeachingSchedule />} />
-            <Route path="classes" element={<TeacherClasses />} />
-            <Route path="classes/:classId" element={<TeacherClassDetail />} />
+            <Route path="classes" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
+            <Route path="classes/:classId" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="content" element={<TeacherContent />} />
             <Route path="assignments" element={<TeacherAssignments />} />
             <Route path="assignments/:assignmentId" element={<TeacherAssignmentDetail />} />
@@ -167,7 +163,7 @@ export function App() {
             <Route path="recognitions" element={<ClassRecognitionsPage />} />
             <Route path="classroom-sessions" element={<ClassroomSessionsList />} />
             <Route path="sentences" element={<SentenceTeachingPage />} />
-            <Route path="lesson-planner" element={<TeacherLessonPlanner />} />
+            <Route path="lesson-planner" element={<TeacherLegacyRedirect target="/teacher/content" />} />
             <Route path="learning-studio" element={<TeacherLegacyRedirect target="/teacher/content" />} />
             <Route path="home-practice" element={<TeacherLegacyRedirect target="/teacher/assignments" />} />
             <Route path="unit-review" element={<TeacherLegacyRedirect target="/teacher/analytics" />} />
@@ -199,7 +195,7 @@ export function App() {
             <Route path="classrooms" element={<AdminClassroomsPage />} />
             <Route path="schedule" element={<AdminSchedulePage />} />
             <Route path="curriculum" element={<AdminCurriculumPage />} />
-            <Route path="sentences" element={<AdminSentencesPage />} />
+            <Route path="sentences" element={<Navigate to="/admin/curriculum" replace />} />
             <Route path="games" element={<AdminGamesPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="analytics" element={<AdminAnalyticsPage />} />

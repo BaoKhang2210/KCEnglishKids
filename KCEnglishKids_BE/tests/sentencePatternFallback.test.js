@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Lesson, LanguageContent } = require('../src/models');
+const { ClassRoom, CurriculumUnit, Lesson, LanguageContent } = require('../src/models');
 const controller = require('../src/controllers/sentencePatternController');
 const id = n => String(n).padStart(24, '0');
 const query = value => ({
@@ -29,3 +29,28 @@ for (const linked of [false, true]) {
     assert.equal(response.data[0].english, 'Hello');
   });
 }
+
+test('teacher sentence lists and unit overview stay within assigned ages', async t => {
+  const teacherId = id(9);
+  t.mock.method(ClassRoom, 'find', filter => {
+    assert.equal(filter.teacher, teacherId);
+    return query([{ ageGroupCode: '4-5' }]);
+  });
+  t.mock.method(LanguageContent, 'find', filter => {
+    assert.deepEqual(filter.ageGroupCode, { $eq: '3-4', $in: ['4-5'] });
+    return query([]);
+  });
+  t.mock.method(LanguageContent, 'aggregate', async pipeline => {
+    assert.deepEqual(pipeline[0].$match.ageGroupCode, { $eq: '3-4', $in: ['4-5'] });
+    return [];
+  });
+  t.mock.method(Lesson, 'find', () => query([]));
+  t.mock.method(CurriculumUnit, 'find', () => query([]));
+  const req = { user: { _id: teacherId, role: 'TEACHER' }, query: { ageGroupCode: '3-4' } };
+  let listed;
+  await controller.list(req, { json(data) { listed = data; } }, error => { throw error; });
+  assert.deepEqual(listed.data, []);
+  let overview;
+  await controller.unitsOverview(req, { json(data) { overview = data; } }, error => { throw error; });
+  assert.deepEqual(overview.data, []);
+});

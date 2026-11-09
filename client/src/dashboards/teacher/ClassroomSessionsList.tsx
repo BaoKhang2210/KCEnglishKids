@@ -21,7 +21,8 @@ import type { ClassroomSession } from '../../types';
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
   SCHEDULED: { label: 'Đã lên lịch', color: 'bg-blue-100 text-blue-800', dot: 'bg-blue-700' },
   LIVE: { label: '● Đang dạy', color: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-700 animate-pulse' },
-  COMPLETED: { label: 'Đã kết thúc', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' }
+  COMPLETED: { label: 'Đã kết thúc', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+  CANCELLED: { label: '🚫 Đã báo nghỉ', color: 'bg-amber-100 text-amber-900 border border-amber-300', dot: 'bg-amber-600' }
 };
 
 const fmt = (d?: string) =>
@@ -47,7 +48,7 @@ export const ClassroomSessionsList: React.FC = () => {
 
   const [search, setSearch] = useState(initialSearch);
   const [selectedClassFilter, setSelectedClassFilter] = useState(initialClassId);
-  const [selectedStatusTab, setSelectedStatusTab] = useState<'ALL' | 'LIVE' | 'COMPLETED' | 'SCHEDULED'>('ALL');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<'ALL' | 'LIVE' | 'COMPLETED' | 'SCHEDULED' | 'CANCELLED'>('ALL');
 
   useEffect(() => {
     const cId = classId || searchParams.get('classroomId') || '';
@@ -237,6 +238,17 @@ export const ClassroomSessionsList: React.FC = () => {
             >
               Live
             </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStatusTab('CANCELLED')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                selectedStatusTab === 'CANCELLED'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Báo nghỉ
+            </button>
           </div>
         </div>
 
@@ -344,10 +356,10 @@ export const ClassroomSessionsList: React.FC = () => {
             </button>
           ) : (
             <Link
-              to="/teacher/classes"
+              to="/teacher/schedule"
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-bold text-white hover:bg-teal-700 transition"
             >
-              <School size={16} /> Xem các lớp học
+              <School size={16} /> Xem lịch dạy
             </Link>
           )}
         </div>
@@ -361,29 +373,39 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
   const dur = durationMin(s);
   const classroom = s.classroom as any;
   const lesson = s.lesson as any;
-  const link =
-    s.status !== 'COMPLETED'
-      ? `/teacher/classroom-sessions/${s._id}/live`
-      : `/teacher/classroom-sessions/${s._id}/summary`;
+  const isCancelled = s.status === 'CANCELLED';
+  const link = isCancelled
+    ? '/teacher/schedule'
+    : s.status !== 'COMPLETED'
+    ? `/teacher/classroom-sessions/${s._id}/live`
+    : `/teacher/classroom-sessions/${s._id}/summary`;
 
   const avg = (s.summary as any)?.averageScore ?? s.summary?.averageAccuracy;
 
   return (
     <Link
       to={link}
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 hover:border-teal-400 transition-all group"
+      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-4 sm:p-5 transition-all group ${
+        isCancelled
+          ? 'bg-amber-50/40 border-amber-200 hover:border-amber-400'
+          : 'border-slate-200 bg-white hover:border-teal-400'
+      }`}
     >
       <div className="flex items-center gap-3.5 min-w-0">
         <div
           className={`h-11 w-11 flex-shrink-0 rounded-2xl grid place-items-center ${
-            s.status === 'LIVE'
+            isCancelled
+              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+              : s.status === 'LIVE'
               ? 'bg-emerald-100 text-emerald-800'
               : s.status === 'SCHEDULED'
               ? 'bg-blue-100 text-blue-800'
               : 'bg-teal-50 text-teal-800'
           }`}
         >
-          {s.status === 'LIVE' ? (
+          {isCancelled ? (
+            <span className="text-xl">🚫</span>
+          ) : s.status === 'LIVE' ? (
             <Play size={20} className="fill-emerald-600" />
           ) : s.status === 'SCHEDULED' ? (
             <Calendar size={20} />
@@ -403,12 +425,13 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
           </div>
 
           <p className="font-extrabold text-slate-900 truncate text-sm sm:text-base group-hover:text-teal-800 transition-colors">
-            {s.title}
+            {isCancelled && s.cancellationReason ? `Báo nghỉ: ${s.cancellationReason}` : s.title}
           </p>
 
           <p className="text-xs text-slate-600 truncate mt-0.5">
-            {lesson?.title ? `Bài học: ${lesson.title}` : 'Buổi dạy tự do'} · {fmt(s.startedAt || s.createdAt)}
-            {dur !== null && ` · ${dur} phút`}
+            {isCancelled
+              ? `Lý do: ${s.cancellationReason || 'Nghỉ theo kế hoạch'} · Tiến độ được bảo lưu · ${fmt(s.startedAt || s.createdAt)}`
+              : `${lesson?.title ? `Bài học: ${lesson.title}` : 'Buổi dạy tự do'} · ${fmt(s.startedAt || s.createdAt)}${dur !== null ? ` · ${dur} phút` : ''}`}
           </p>
         </div>
       </div>
@@ -428,8 +451,8 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 text-xs font-bold text-teal-800 group-hover:translate-x-0.5 transition-transform">
-          <span>{s.status === 'LIVE' ? 'Tiếp tục dạy' : s.status === 'SCHEDULED' ? 'Mở kế hoạch' : 'Xem tổng kết'}</span>
+        <div className={`flex items-center gap-1.5 text-xs font-bold group-hover:translate-x-0.5 transition-transform ${isCancelled ? 'text-amber-900' : 'text-teal-800'}`}>
+          <span>{isCancelled ? 'Xem trên TKB' : s.status === 'LIVE' ? 'Tiếp tục dạy' : s.status === 'SCHEDULED' ? 'Mở kế hoạch' : 'Xem tổng kết'}</span>
           <ChevronRight size={15} />
         </div>
       </div>

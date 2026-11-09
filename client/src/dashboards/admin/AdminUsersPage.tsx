@@ -19,7 +19,6 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
-  Brain,
   FileSpreadsheet,
   Download,
   UploadCloud,
@@ -29,7 +28,10 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminApi } from '../../services/api';
-import { StudentCompetencyModal } from '../../components/teacher/StudentCompetencyModal';
+import { StudentAvatar } from '../../components/common/StudentAvatar';
+
+const ANIMAL_AVATARS = ['lion', 'panda', 'rabbit', 'bear', 'fox', 'koala', 'monkey', 'cat', 'dog', 'elephant'];
+const getRandomAnimal = () => ANIMAL_AVATARS[Math.floor(Math.random() * ANIMAL_AVATARS.length)];
 
 export const AdminUsersPage: React.FC = () => {
   const { user: currentUser, logout } = useAuth();
@@ -52,7 +54,6 @@ export const AdminUsersPage: React.FC = () => {
   const [createChildModal, setCreateChildModal] = useState(false);
   const [editUserModal, setEditUserModal] = useState<any | null>(null);
   const [resetPinModal, setResetPinModal] = useState<any | null>(null);
-  const [competencyStudent, setCompetencyStudent] = useState<any | null>(null);
 
   // Bulk Excel Student Import state
   const [bulkImportModalOpen, setBulkImportModalOpen] = useState(false);
@@ -142,11 +143,6 @@ export const AdminUsersPage: React.FC = () => {
   };
 
   // ── CREATE TEACHER ────────────────────────────────────────────────────────
-  const openCompetency = async (student: any) => {
-    try { const response = await adminApi.getStudentCompetency(student._id); setCompetencyStudent({ ...student, ...response.data }); }
-    catch (error: any) { showAlert('error', error.message || 'Không tải được hồ sơ năng lực.'); }
-  };
-
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teacherForm.name || !teacherForm.username || !teacherForm.email || !teacherForm.password) {
@@ -154,7 +150,7 @@ export const AdminUsersPage: React.FC = () => {
       return;
     }
     try {
-      const res = await adminApi.createTeacher(teacherForm);
+      const res = await adminApi.createTeacher({ ...teacherForm, avatar: getRandomAnimal() });
       if (res.success) {
         if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', `Đã tạo tài khoản Giáo viên ${teacherForm.name} thành công!`);
@@ -179,7 +175,7 @@ export const AdminUsersPage: React.FC = () => {
       return;
     }
     try {
-      const res = await adminApi.createChild(childForm);
+      const res = await adminApi.createChild({ ...childForm, avatar: getRandomAnimal() });
       if (res.success) {
         if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', `Đã tạo tài khoản Học sinh ${childForm.name} thành công!`);
@@ -275,11 +271,11 @@ export const AdminUsersPage: React.FC = () => {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'ADMIN':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-800 border border-rose-500/20">ADMIN</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-950 border border-purple-200">ADMIN</span>;
       case 'TEACHER':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">GIÁO VIÊN</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-950 border border-emerald-200">GIÁO VIÊN</span>;
       default:
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-800 border border-indigo-500/20">HỌC SINH</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-950 border border-amber-200">HỌC SINH</span>;
     }
   };
 
@@ -473,9 +469,6 @@ export const AdminUsersPage: React.FC = () => {
             <Users className="text-purple-800" size={26} />
             <span>Quản Lý Tài Khoản Người Dùng</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Quản trị viên khởi tạo tài khoản giáo viên, trẻ em, phân lớp và đặt lại mã PIN bảo mật.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
@@ -549,10 +542,10 @@ export const AdminUsersPage: React.FC = () => {
                 setRoleFilter(r.id);
                 setPage(1);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                 roleFilter === r.id
-                  ? 'bg-purple-700 text-white '
-                  : 'bg-white text-slate-600 hover:text-inherit border border-slate-200'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200'
               }`}
             >
               {r.label}
@@ -570,14 +563,13 @@ export const AdminUsersPage: React.FC = () => {
         <div className="py-16 text-center bg-white rounded-3xl border border-slate-200">
           <Users size={40} className="mx-auto text-slate-600 mb-3" />
           <p className="text-sm font-bold text-slate-700">Không tìm thấy tài khoản nào</p>
-          <p className="text-xs text-slate-600 mt-1">Hãy thay đổi từ khóa tìm kiếm hoặc vai trò lọc.</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-white text-slate-600 uppercase tracking-wider font-bold text-[11px]">
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 uppercase tracking-wider font-bold text-[11px]">
                   <th className="py-3.5 px-4">Tài khoản</th>
                   <th className="py-3.5 px-4">Vai trò</th>
                   <th className="py-3.5 px-4">Lớp đang theo học / Phụ trách</th>
@@ -585,21 +577,25 @@ export const AdminUsersPage: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-medium">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {users.map((u) => (
-                  <tr key={u._id} className="hover:bg-slate-100 transition-colors">
+                  <tr key={u._id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center font-bold text-xs text-purple-800 shrink-0">
-                          {u.avatarUrl ? (
-                            <img src={u.avatarUrl} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            u.name?.[0] || 'U'
-                          )}
-                        </div>
+                        {u.role === 'CHILD' ? (
+                          <StudentAvatar student={u} size="sm" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-xs text-white shrink-0 shadow-2xs">
+                            {u.avatarUrl ? (
+                              <img src={u.avatarUrl} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              u.name?.[0] || 'U'
+                            )}
+                          </div>
+                        )}
                         <div>
-                          <p className="font-bold text-inherit">{u.name}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-600">
+                          <p className="font-black text-slate-900">{u.name}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
                             <span>@{u.username || 'N/A'}</span>
                             {u.email && <span>• {u.email}</span>}
                           </div>
@@ -611,23 +607,57 @@ export const AdminUsersPage: React.FC = () => {
                       {getRoleBadge(u.role)}
                     </td>
 
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      {u.assignedClass ? (
-                        <div className="flex items-center gap-1.5 text-xs text-indigo-800 font-bold">
-                          <School size={14} className="text-indigo-800" />
-                          <span>{u.assignedClass.name || 'Lớp học'}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-600 italic">Chưa xếp lớp</span>
-                      )}
+                    <td className="py-3.5 px-4">
+                      {(() => {
+                        if (u.role === 'TEACHER') {
+                          const teacherRooms = classrooms.filter(
+                            (c) =>
+                              String(c.teacher?._id || c.teacher) === String(u._id) &&
+                              ['ACTIVE', 'UPCOMING'].includes(c.status)
+                          );
+                          const displayRooms =
+                            teacherRooms.length > 0
+                              ? teacherRooms
+                              : Array.isArray((u as any).assignedClasses) && (u as any).assignedClasses.length > 0
+                              ? (u as any).assignedClasses
+                              : u.assignedClass
+                              ? [u.assignedClass]
+                              : [];
+                          if (displayRooms.length > 0) {
+                            return (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {displayRooms.map((r: any, idx: number) => (
+                                  <span
+                                    key={r._id || idx}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs text-indigo-900 font-bold"
+                                  >
+                                    <School size={12} className="text-indigo-700 shrink-0" />
+                                    <span>{r.name || 'Lớp học'}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return <span className="text-xs text-slate-600 italic">Chưa phân công lớp</span>;
+                        }
+                        if (u.assignedClass) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-xs text-indigo-900 font-bold">
+                              <School size={14} className="text-indigo-700" />
+                              <span>{u.assignedClass.name || 'Lớp học'}</span>
+                            </div>
+                          );
+                        }
+                        return <span className="text-xs text-slate-600 italic">Chưa xếp lớp</span>;
+                      })()}
                     </td>
 
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
                           u.status === 'ACTIVE'
-                            ? 'bg-emerald-500/10 text-emerald-800 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-800 border border-rose-500/20'
+                            ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
+                            : 'bg-rose-100 text-rose-950 border-rose-300'
                         }`}
                       >
                         {u.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}
@@ -638,25 +668,16 @@ export const AdminUsersPage: React.FC = () => {
                       <div className="flex items-center justify-center gap-1.5">
                         {(u.role === 'TEACHER' || u.role === 'ADMIN' && String(u._id) === String(currentUser?.id || currentUser?._id)) && <button type="button" title="Đổi mật khẩu" onClick={() => setPasswordUser(u)} className="p-1.5 rounded-xl text-indigo-800 hover:bg-indigo-50"><Key size={16} /></button>}
                         {u.role === 'CHILD' && (
-                          <>
-                            <button
-                              onClick={() => openCompetency(u)}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-teal-600/30 text-teal-800 transition-all cursor-pointer"
-                              title="Xem Hồ sơ năng lực 3 trụ cột (Passport)"
-                            >
-                              <Brain size={14} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setResetPinModal(u);
-                                setNewPin('');
-                              }}
-                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-indigo-600/30 text-indigo-800 transition-all cursor-pointer"
-                              title="Đặt lại mã PIN 4 số"
-                            >
-                              <Key size={14} />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => {
+                              setResetPinModal(u);
+                              setNewPin('');
+                            }}
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-indigo-600/30 text-indigo-800 transition-all cursor-pointer"
+                            title="Đặt lại mã PIN 4 số"
+                          >
+                            <Key size={14} />
+                          </button>
                         )}
                         <button
                           onClick={() => handleToggleStatus(u)}
@@ -719,7 +740,7 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: CREATE TEACHER ────────────────────────────────────────────── */}
       {createTeacherModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-inherit flex items-center gap-2">
                 <Award className="text-emerald-800" size={20} />
@@ -830,7 +851,7 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: CREATE CHILD ──────────────────────────────────────────────── */}
       {createChildModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-inherit flex items-center gap-2">
                 <Users className="text-indigo-800" size={20} />
@@ -957,7 +978,7 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: EDIT USER ─────────────────────────────────────────────────── */}
       {editUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-lg animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-inherit flex items-center gap-2">
                 <Edit className="text-purple-800" size={20} />
@@ -1104,7 +1125,7 @@ export const AdminUsersPage: React.FC = () => {
       {/* ── MODAL: BULK CREATE CHILDREN FROM EXCEL ──────────────────────── */}
       {bulkImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-3xl max-h-[92vh] flex flex-col animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-indigo-500/20 text-indigo-800 flex items-center justify-center">
@@ -1112,9 +1133,6 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-black text-inherit">Tạo Hàng Loạt Học Sinh Từ File Excel</h2>
-                  <p className="text-xs text-slate-600">
-                    Tải danh sách học sinh từ file (.xlsx, .xls, .csv), tự sinh tài khoản và mã PIN đăng nhập
-                  </p>
                 </div>
               </div>
               <button
@@ -1222,7 +1240,7 @@ export const AdminUsersPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200">
+                  <div className="max-h-52 overflow-auto rounded-xl border border-slate-200" tabIndex={0} role="region" aria-label="Danh sách nhập từ Excel, cuộn để xem đủ các cột">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-white sticky top-0 text-[10px] uppercase font-bold text-slate-600 border-b border-slate-200">
                         <tr>
@@ -1318,17 +1336,6 @@ export const AdminUsersPage: React.FC = () => {
             </form>
           </div>
         </div>
-      )}
-
-      {/* Modal Hồ sơ Năng lực 3 Trụ Cột (Passport) */}
-      {competencyStudent && (
-        <StudentCompetencyModal
-          isOpen={!!competencyStudent}
-          onClose={() => setCompetencyStudent(null)}
-          student={competencyStudent}
-          stats={competencyStudent.stats}
-          competencyReport={competencyStudent.competencyReport}
-        />
       )}
     </div>
   );

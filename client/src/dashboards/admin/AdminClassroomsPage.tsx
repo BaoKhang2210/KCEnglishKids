@@ -27,12 +27,11 @@ import {
   Database,
   CalendarDays,
   Clock,
-  Radio,
-  AlertTriangle,
   KeyRound
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminApi } from '../../services/api';
+import { StudentAvatar } from '../../components/common/StudentAvatar';
 
 export const AdminClassroomsPage: React.FC = () => {
   const [issuedCredentials, setIssuedCredentials] = useState<IssuedCredential[]>([]);
@@ -82,7 +81,7 @@ export const AdminClassroomsPage: React.FC = () => {
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [availableStudentsLoading, setAvailableStudentsLoading] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
-  const [studentFilterScope, setStudentFilterScope] = useState<'ALL' | 'UNASSIGNED'>('ALL');
+  const [studentFilterScope, setStudentFilterScope] = useState<'MATCH' | 'ALL' | 'UNASSIGNED'>('MATCH');
   const [addingStudentId, setAddingStudentId] = useState<string | null>(null);
   const [showManualCreateFallback, setShowManualCreateFallback] = useState(false);
   const [singleStudentForm, setSingleStudentForm] = useState({
@@ -92,6 +91,7 @@ export const AdminClassroomsPage: React.FC = () => {
     contact: ''
   });
   const [singleStudentSubmitting, setSingleStudentSubmitting] = useState(false);
+  const [rosterSearchTerm, setRosterSearchTerm] = useState('');
 
   // Curriculum progress management state
   const [curriculumData, setCurriculumData] = useState<any | null>(null);
@@ -132,13 +132,15 @@ export const AdminClassroomsPage: React.FC = () => {
     }
   };
 
-  // Map teachers that already have an active class (1-1 rule check)
-  const teacherClassMap = useMemo(() => {
-    const map = new Map<string, string>();
+  // Map teachers to the list of active/upcoming classes they currently teach (multi-class support)
+  const teacherClassesMap = useMemo(() => {
+    const map = new Map<string, string[]>();
     classrooms.forEach((c) => {
       const tId = c.teacher?._id || (typeof c.teacher === 'string' ? c.teacher : null);
       if (tId && ['ACTIVE', 'UPCOMING'].includes(c.status)) {
-        map.set(String(tId), c.name);
+        const list = map.get(String(tId)) || [];
+        list.push(c.name);
+        map.set(String(tId), list);
       }
     });
     return map;
@@ -146,12 +148,12 @@ export const AdminClassroomsPage: React.FC = () => {
 
   // Open Create Class Modal
   const handleOpenCreate = () => {
-    // Find first teacher without an assigned classroom
-    const availableTeacher = teachers.find((t) => !teacherClassMap.has(String(t._id)));
+    const unassignedTeacher = teachers.find((t) => !teacherClassesMap.has(String(t._id)));
+    const defaultTeacher = unassignedTeacher || teachers[0];
     setFormData({
       name: '',
       ageGroupCode: '3-4',
-      teacherId: availableTeacher?._id || '',
+      teacherId: defaultTeacher?._id || '',
       academicYear: defaultYear,
       description: '',
       status: 'ACTIVE'
@@ -187,16 +189,7 @@ export const AdminClassroomsPage: React.FC = () => {
     }
 
     if (!formData.teacherId) {
-      setFormError('Vui lòng phân công một giáo viên phụ trách lớp (quy định 1-1).');
-      return;
-    }
-
-    // Check teacher 1-1
-    const currentClassOfTeacher = teacherClassMap.get(String(formData.teacherId));
-    if (currentClassOfTeacher) {
-      setFormError(
-        `Giáo viên đã được phân công lớp "${currentClassOfTeacher}". Mỗi giáo viên chỉ được phụ trách 1 lớp học!`
-      );
+      setFormError('Vui lòng phân công giáo viên phụ trách lớp.');
       return;
     }
 
@@ -269,17 +262,6 @@ export const AdminClassroomsPage: React.FC = () => {
       return;
     }
 
-    // Check teacher 1-1 if changing teacher
-    if (formData.teacherId && String(formData.teacherId) !== String(editClassModal.teacher?._id)) {
-      const assignedClass = teacherClassMap.get(String(formData.teacherId));
-      if (assignedClass && assignedClass !== editClassModal.name) {
-        setFormError(
-          `Giáo viên đã được phân công lớp "${assignedClass}". Mỗi giáo viên chỉ được phụ trách 1 lớp học!`
-        );
-        return;
-      }
-    }
-
     try {
       setFormSubmitting(true);
       const res = await adminApi.updateClassroom(editClassModal._id, formData);
@@ -320,6 +302,7 @@ export const AdminClassroomsPage: React.FC = () => {
       setStudentSearchTerm('');
       setSingleStudentForm({ name: '', dob: '', pin: '', contact: '' });
       setShowManualCreateFallback(false);
+      setRosterSearchTerm('');
       loadAvailableStudents();
       // Fetch latest class details
       const res = await adminApi.getClassroomById(c._id);
@@ -334,6 +317,10 @@ export const AdminClassroomsPage: React.FC = () => {
   // Add existing student into classroom (Thêm từ tài khoản có sẵn trong hệ thống)
   const handleAddExistingStudent = async (student: any) => {
     if (!manageStudentsModal) return;
+    if (student.ageGroupCode && manageStudentsModal.ageGroupCode && student.ageGroupCode !== manageStudentsModal.ageGroupCode) {
+      showAlert('error', `Không thể thêm học sinh khác độ tuổi vào lớp. Lớp "${manageStudentsModal.name}" dành cho lứa tuổi ${manageStudentsModal.ageGroupCode}, nhưng học sinh "${student.name}" thuộc nhóm ${student.ageGroupCode} tuổi.`);
+      return;
+    }
     try {
       setAddingStudentId(student._id);
       const res = await adminApi.addStudentToClassroom(manageStudentsModal._id, student._id);
@@ -357,7 +344,11 @@ export const AdminClassroomsPage: React.FC = () => {
   // Filter available students for picker
   const filteredAvailableStudents = useMemo(() => {
     return availableStudents.filter((st) => {
-      if (studentFilterScope === 'UNASSIGNED') {
+      if (studentFilterScope === 'MATCH') {
+        if (manageStudentsModal?.ageGroupCode && st.ageGroupCode && st.ageGroupCode !== manageStudentsModal.ageGroupCode) {
+          return false;
+        }
+      } else if (studentFilterScope === 'UNASSIGNED') {
         const hasClass = Boolean(st.assignedClass && (typeof st.assignedClass === 'object' ? st.assignedClass._id : st.assignedClass));
         if (hasClass) return false;
       }
@@ -370,7 +361,7 @@ export const AdminClassroomsPage: React.FC = () => {
       }
       return true;
     });
-  }, [availableStudents, studentFilterScope, studentSearchTerm]);
+  }, [availableStudents, studentFilterScope, studentSearchTerm, manageStudentsModal]);
 
   // Remove Student from Classroom
   const handleRemoveStudent = async (studentId: string, studentName: string) => {
@@ -662,10 +653,21 @@ export const AdminClassroomsPage: React.FC = () => {
     setSessionAttendanceFilter('ALL');
     setCurriculumLoading(true);
     try {
-      const res = await adminApi.getClassroomCurriculumProgress(c._id);
-      if (res.success && res.data) {
-        setCurriculumData(res.data);
-      }
+      const [fullRes, progRes] = await Promise.allSettled([
+        adminApi.getClassroomFullDetail(c._id),
+        adminApi.getClassroomCurriculumProgress(c._id)
+      ]);
+      const progData = progRes.status === 'fulfilled' && (progRes.value as any)?.success ? (progRes.value as any).data : null;
+      const fullData = fullRes.status === 'fulfilled' && (fullRes.value as any)?.success ? (fullRes.value as any).data : null;
+
+      setCurriculumData({
+        ...(progData || {}),
+        fullDetail: fullData,
+        schedules: fullData?.schedules || progData?.schedules || [],
+        classroom: fullData?.classroom || progData?.classroom || c,
+        sessions: fullData?.sessions || progData?.sessions || [],
+        stats: fullData?.stats || progData?.stats || null
+      });
     } catch (err: any) {
       showAlert('error', 'Không thể tải chi tiết lớp: ' + (err?.message || 'Lỗi'));
     } finally {
@@ -757,9 +759,6 @@ export const AdminClassroomsPage: React.FC = () => {
               Quản lý Lớp học
             </h1>
           </div>
-          <p className="text-base text-slate-600 font-semibold max-w-2xl leading-relaxed">
-            Quản trị danh sách lớp, phân công 1 giáo viên - 1 lớp học, nạp học sinh trực tiếp bằng file Excel và theo dõi tiến độ từng bài học theo giáo trình chuẩn.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -787,51 +786,51 @@ export const AdminClassroomsPage: React.FC = () => {
 
       {/* ── KPI Metric Cards ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center shrink-0">
-            <School size={28} />
-          </div>
+        <div className="bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/40 p-5 rounded-3xl border border-indigo-200/90 flex items-center justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all group">
           <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-600">Tổng Lớp Học</p>
-            <p className="text-2xl font-black text-slate-900">{classrooms.length} lớp</p>
-            <p className="text-xs text-indigo-800 font-bold mt-0.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">Tổng Lớp Học</p>
+            <p className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1">{classrooms.length} lớp</p>
+            <p className="text-xs text-indigo-800 font-semibold mt-0.5">
               {classrooms.filter((c) => c.status === 'ACTIVE').length} đang hoạt động
             </p>
           </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0">
-            <Users size={28} />
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-600">Tổng Học Sinh</p>
-            <p className="text-2xl font-black text-slate-900">{totalStudents} bé</p>
-            <p className="text-xs text-emerald-800 font-bold mt-0.5">Đã phân bổ theo lớp</p>
+          <div className="h-12 w-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <School size={22} />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center shrink-0">
-            <Sparkles size={28} />
-          </div>
+        <div className="bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/40 p-5 rounded-3xl border border-teal-200/90 flex items-center justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all group">
           <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-600">Quy Tắc Giáo Viên</p>
-            <p className="text-2xl font-black text-slate-900">1 Giáo Viên - 1 Lớp</p>
-            <p className="text-xs text-amber-800 font-bold mt-0.5">
-              {teacherClassMap.size}/{teachers.length} giáo viên đã nhận lớp
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">Tổng Học Sinh</p>
+            <p className="text-2xl sm:text-3xl font-black text-teal-950 mt-1">{totalStudents} bé</p>
+            <p className="text-xs text-teal-800 font-semibold mt-0.5">Đã phân bổ theo lớp</p>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <Users size={22} />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-50/90 via-white to-orange-50/40 p-5 rounded-3xl border border-amber-200/90 flex items-center justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all group">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">Phân Công Giáo Viên</p>
+            <p className="text-2xl sm:text-3xl font-black text-amber-950 mt-1">Đa Lớp Linh Hoạt</p>
+            <p className="text-xs text-amber-800 font-semibold mt-0.5">
+              {teacherClassesMap.size}/{teachers.length} giáo viên đứng lớp
             </p>
           </div>
+          <div className="h-12 w-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <Sparkles size={22} />
+          </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-teal-50 text-teal-800 flex items-center justify-center shrink-0">
-            <BookOpen size={28} />
-          </div>
+        <div className="bg-gradient-to-br from-purple-50/90 via-white to-pink-50/40 p-5 rounded-3xl border border-purple-200/90 flex items-center justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all group">
           <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-600">Giáo Trình Chuẩn</p>
-            <p className="text-2xl font-black text-slate-900">3 Khung Tuổi</p>
-            <p className="text-xs text-teal-800 font-bold mt-0.5">Mầm (3-4), Chồi (4-5), Lá (5-6)</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">Giáo Trình Chuẩn</p>
+            <p className="text-2xl sm:text-3xl font-black text-purple-950 mt-1">3 Khung Tuổi</p>
+            <p className="text-xs text-purple-800 font-semibold mt-0.5">Mầm (3-4), Chồi (4-5), Lá (5-6)</p>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <BookOpen size={22} />
           </div>
         </div>
       </div>
@@ -877,19 +876,17 @@ export const AdminClassroomsPage: React.FC = () => {
 
       {/* ── Cảnh báo Giảng dạy Hôm nay (MISSED SCHEDULE ALERT) ── */}
       {missedClasses.length > 0 && (
-        <div className="p-5 rounded-3xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-pulse-subtle">
-          <div className="flex items-start gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md">
-              <AlertTriangle size={26} />
-            </div>
-            <div>
-              <h4 className="text-base sm:text-lg font-black text-rose-900 flex items-center gap-2">
-                <span>CẢNH BÁO GIẢNG DẠY HÔM NAY: Có {missedClasses.length} lớp học chưa vào dạy!</span>
-              </h4>
-              <p className="text-xs sm:text-sm font-semibold text-rose-800 mt-1">
-                Lớp có lịch học nhưng quá giờ chưa ghi nhận buổi dạy: {missedClasses.map((c) => `${c.name} (${c.todayTeachingNote || 'Chưa dạy'})`).join(', ')}. Admin vui lòng kiểm tra ngay!
-              </p>
-            </div>
+        <div className="px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+            <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-black text-xs uppercase tracking-wide">
+              Cảnh báo hôm nay
+            </span>
+            <span className="font-bold text-rose-900">
+              Có {missedClasses.length} lớp quá giờ chưa vào dạy:
+            </span>
+            <span className="font-semibold text-rose-800">
+              {missedClasses.map((c) => `${c.name} (${c.todayTeachingNote || 'Chưa dạy'})`).join(', ')}
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             {missedClasses.map((c) => (
@@ -897,10 +894,9 @@ export const AdminClassroomsPage: React.FC = () => {
                 key={c._id}
                 type="button"
                 onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs sm:text-sm transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors cursor-pointer"
               >
-                <AlertTriangle size={14} />
-                <span>Kiểm tra {c.name}</span>
+                Kiểm tra {c.name}
               </button>
             ))}
           </div>
@@ -917,9 +913,6 @@ export const AdminClassroomsPage: React.FC = () => {
         <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center">
           <School size={48} className="mx-auto text-slate-700 mb-3" />
           <h3 className="text-xl font-black text-slate-800">Không tìm thấy lớp học nào</h3>
-          <p className="text-base text-slate-600 font-semibold mt-1 max-w-md mx-auto">
-            Chưa có lớp học nào phù hợp với bộ lọc hiện tại. Bấm vào nút bên dưới để tạo lớp học đầu tiên!
-          </p>
           <button
             onClick={handleOpenCreate}
             className="mt-5 py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-base cursor-pointer"
@@ -940,30 +933,18 @@ export const AdminClassroomsPage: React.FC = () => {
                 className="bg-white rounded-3xl border border-slate-200/90 transition-all flex flex-col justify-between overflow-hidden"
               >
                 {/* Card Top */}
-                <div className="p-6 space-y-3.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 bg-indigo-50 text-indigo-800 border border-indigo-100">
-                        {c.ageGroupCode === '3-4'
-                          ? 'Mầm (3-4 tuổi)'
-                          : c.ageGroupCode === '4-5'
-                          ? 'Chồi (4-5 tuổi)'
-                          : 'Lá (5-6 tuổi)'}
-                      </span>
-                      <h3
-                        onClick={() => handleOpenCurriculumProgress(c, 'progress')}
-                        className="text-xl font-black text-slate-900 tracking-tight leading-snug cursor-pointer hover:text-indigo-700 transition-colors"
-                        title="Bấm để xem chi tiết và tiến độ lớp học"
-                      >
-                        {c.name}
-                      </h3>
-                      <p className="text-xs font-bold text-slate-600 mt-0.5">
-                        Năm học: {c.academicYear || '2026-2027'}
-                      </p>
-                    </div>
-
+                <div className="p-6 space-y-3">
+                  {/* Badges Row: Age group & Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-100">
+                      {c.ageGroupCode === '3-4'
+                        ? 'Mầm (3-4 tuổi)'
+                        : c.ageGroupCode === '4-5'
+                        ? 'Chồi (4-5 tuổi)'
+                        : 'Lá (5-6 tuổi)'}
+                    </span>
                     <span
-                      className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 ${
+                      className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 ${
                         c.status === 'ACTIVE'
                           ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                           : c.status === 'UPCOMING'
@@ -975,17 +956,40 @@ export const AdminClassroomsPage: React.FC = () => {
                     </span>
                   </div>
 
+                  {/* Class Name & Academic Year (Full width, single line, no wrapping) */}
+                  <div className="min-w-0">
+                    <h3
+                      onClick={() => handleOpenCurriculumProgress(c, 'progress')}
+                      className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug cursor-pointer hover:text-indigo-700 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
+                      title={c.name}
+                    >
+                      {c.name}
+                    </h3>
+                    <p className="text-xs font-bold text-slate-500 mt-0.5">
+                      Năm học: {c.academicYear || '2026-2027'}
+                    </p>
+                  </div>
+
                   {/* Giám sát tình trạng giảng dạy hôm nay */}
+                  {c.todayTeachingStatus === 'CANCELLED' && (
+                    <div
+                      onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
+                      className="px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-black flex items-center justify-between gap-2 cursor-pointer hover:bg-amber-100 transition-colors shadow-xs"
+                      title="Lớp đã báo nghỉ ca dạy hôm nay. Bấm để xem chi tiết lý do và lịch học"
+                    >
+                      <span className="truncate">
+                        🚫 {c.todayTeachingNote || 'Đã báo nghỉ ca dạy hôm nay'}
+                      </span>
+                      <span className="underline shrink-0 text-amber-800 font-extrabold text-[11px]">Chi tiết</span>
+                    </div>
+                  )}
                   {c.todayTeachingStatus === 'MISSED' && (
                     <div
                       onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
-                      className="px-3.5 py-2.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 text-xs font-black flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-100 transition-colors shadow-xs"
+                      className="px-3.5 py-2 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 text-xs font-black flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-100 transition-colors shadow-xs"
                       title="Có lịch học hôm nay nhưng giáo viên chưa vào lớp giảng dạy! Bấm để xem chi tiết"
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <AlertTriangle size={17} className="text-rose-600 shrink-0 animate-bounce" />
-                        <span className="truncate">⚠️ Có lịch hôm nay: Giáo viên chưa dạy!</span>
-                      </div>
+                      <span className="truncate">Có lịch hôm nay: Giáo viên chưa dạy</span>
                       <span className="underline shrink-0 text-rose-700 font-extrabold text-[11px]">Kiểm tra</span>
                     </div>
                   )}
@@ -994,10 +998,7 @@ export const AdminClassroomsPage: React.FC = () => {
                       onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
                       className="px-3.5 py-2 rounded-2xl bg-sky-50 border border-sky-300 text-sky-950 text-xs font-black flex items-center justify-between gap-2 cursor-pointer hover:bg-sky-100 transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <Radio size={16} className="text-sky-600 shrink-0" />
-                        <span>🔴 Đang trong giờ dạy trực tiếp</span>
-                      </div>
+                      <span>Đang trong giờ dạy trực tiếp</span>
                       <span className="underline shrink-0 text-sky-700 font-extrabold text-[11px]">Chi tiết</span>
                     </div>
                   )}
@@ -1006,10 +1007,7 @@ export const AdminClassroomsPage: React.FC = () => {
                       onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
                       className="px-3.5 py-2 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-black flex items-center justify-between gap-2 cursor-pointer hover:bg-emerald-100 transition-colors"
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
-                        <span className="truncate">✅ Đã dạy xong hôm nay ({c.todaySlots?.[0]?.startTime || ''})</span>
-                      </div>
+                      <span className="truncate">Đã dạy xong hôm nay ({c.todaySlots?.[0]?.startTime || ''})</span>
                       <span className="underline shrink-0 text-emerald-800 font-extrabold text-[11px]">Nhật ký</span>
                     </div>
                   )}
@@ -1018,24 +1016,20 @@ export const AdminClassroomsPage: React.FC = () => {
                       onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
                       className="px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-black flex items-center justify-between gap-2 cursor-pointer hover:bg-amber-100 transition-colors"
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <Clock size={16} className="text-amber-700 shrink-0" />
-                        <span className="truncate">⏰ Sắp tới giờ học ({c.todaySlots?.[0]?.startTime || ''})</span>
-                      </div>
+                      <span className="truncate">Sắp tới giờ học ({c.todaySlots?.[0]?.startTime || ''})</span>
                       <span className="underline shrink-0 text-amber-800 font-extrabold text-[11px]">Lịch dạy</span>
                     </div>
                   )}
                   {c.todayTeachingStatus === 'NO_SCHEDULE' && (
-                    <div className="px-3 py-1.5 rounded-2xl bg-slate-100/90 border border-slate-200 text-slate-600 text-xs font-bold flex items-center gap-2">
-                      <CalendarDays size={14} className="text-slate-500 shrink-0" />
-                      <span>📅 Hôm nay không có lịch dạy</span>
+                    <div className="px-3 py-1.5 rounded-2xl bg-slate-100/90 border border-slate-200 text-slate-600 text-xs font-bold flex items-center">
+                      <span>Hôm nay không có lịch dạy</span>
                     </div>
                   )}
 
-                  {/* Teacher Assignment Info (Strict 1-1) */}
+                  {/* Teacher Assignment Info */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5">
                     <div className="text-xs font-black text-slate-600 uppercase tracking-wider">
-                      Giáo Viên Chủ Nhiệm (1-1)
+                      Giáo Viên Phụ Trách
                     </div>
                     <div className="flex items-center gap-3 pt-0.5">
                       <div className="h-10 w-10 rounded-xl bg-indigo-700 text-white font-black text-sm flex items-center justify-center shrink-0">
@@ -1078,11 +1072,11 @@ export const AdminClassroomsPage: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => handleOpenCurriculumProgress(c, 'progress')}
+                      onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
                       className="py-2.5 px-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <BookOpen size={16} />
-                      <span>Chi Tiết &amp; Tiến Độ</span>
+                      <span>Xem Chi Tiết Lớp</span>
                     </button>
                   </div>
 
@@ -1129,71 +1123,96 @@ export const AdminClassroomsPage: React.FC = () => {
 
       {/* ── MODAL 1: TẠO LỚP HỌC MỚI ──────────────────────────────────────── */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl max-h-[92vh] flex flex-col border border-slate-200 animate-scale-up">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-3xl border border-slate-200 shadow-2xl animate-scale-up my-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
+                <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black shrink-0">
                   <School size={24} />
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-slate-900">Tạo Lớp Học Mới</h2>
-                  <p className="text-sm font-semibold text-slate-600">
-                    Khai báo tên lớp độc nhất và phân công 1 giáo viên phụ trách
+                  <p className="text-xs sm:text-sm font-semibold text-slate-500">
+                    Khai báo thông tin lớp học và phân công giáo viên phụ trách
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="p-2 text-slate-600 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
             {formError && (
-              <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold flex items-center gap-2">
+              <div className="mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold flex items-center gap-2">
                 <AlertCircle size={18} className="shrink-0 text-rose-800" />
                 <span>{formError}</span>
               </div>
             )}
 
-            <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto py-5 space-y-5 pr-1">
-              {/* Tên lớp */}
-              <div>
-                <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-2">
-                  Tên Lớp Học <span className="text-rose-800">* (Không được trùng lặp)</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ví dụ: Little Stars 3A, Sunny Kindergarten..."
-                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
-                />
-              </div>
-
-              {/* Độ tuổi & Năm học */}
+            <form onSubmit={handleCreateSubmit} className="pt-5 space-y-5">
+              {/* Thông tin lớp học: Grid 2 cột cân đối */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-2">
-                    Độ Tuổi Giảng Dạy <span className="text-rose-800">*</span>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Tên Lớp Học <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ví dụ: Little Stars 3A, Sunny Kindergarten..."
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Giáo Viên Phụ Trách <span className="text-rose-600">*</span>
                   </label>
                   <select
-                    value={formData.ageGroupCode}
-                    onChange={(e) => setFormData({ ...formData, ageGroupCode: e.target.value })}
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:border-indigo-600 focus:outline-none"
+                    required
+                    value={formData.teacherId}
+                    onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all truncate"
                   >
-                    <option value="3-4">3–4 Tuổi (Mầm - Giáo trình Book 1)</option>
-                    <option value="4-5">4–5 Tuổi (Chồi - Giáo trình Book 2)</option>
-                    <option value="5-6">5–6 Tuổi (Lá - Giáo trình Book 3)</option>
+                    <option value="" disabled>
+                      -- Chọn giáo viên phụ trách --
+                    </option>
+                    {teachers.map((t) => (
+                      <option
+                        key={t._id}
+                        value={t._id}
+                        className="text-slate-900 font-bold"
+                      >
+                        {t.name} ({t.email})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-2">
-                    Niên Khóa / Năm Học <span className="text-rose-800">*</span>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Độ Tuổi Giảng Dạy <span className="text-rose-600">*</span>
+                  </label>
+                  <select
+                    value={formData.ageGroupCode}
+                    onChange={(e) => setFormData({ ...formData, ageGroupCode: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
+                  >
+                    <option value="3-4">3–4 Tuổi</option>
+                    <option value="4-5">4–5 Tuổi</option>
+                    <option value="5-6">5–6 Tuổi</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Niên Khóa <span className="text-rose-600">*</span>
                   </label>
                   <input
                     type="text"
@@ -1201,67 +1220,39 @@ export const AdminClassroomsPage: React.FC = () => {
                     value={formData.academicYear}
                     onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                     placeholder="2026-2027"
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold focus:border-indigo-600 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* Giáo viên (1-1) */}
-              <div>
-                <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-2">
-                  Giáo Viên Phụ Trách <span className="text-rose-800">* (Mỗi GV chỉ có 1 lớp đang hoạt động/sắp mở)</span>
-                </label>
-                <select
-                  required
-                  value={formData.teacherId}
-                  onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
-                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:border-indigo-600 focus:outline-none"
-                >
-                  <option value="" disabled>
-                    -- Chọn giáo viên phụ trách --
-                  </option>
-                  {teachers.map((t) => {
-                    const assigned = teacherClassMap.get(String(t._id));
-                    return (
-                      <option
-                        key={t._id}
-                        value={t._id}
-                        disabled={Boolean(assigned)}
-                        className={assigned ? 'text-slate-600 italic' : 'text-slate-900 font-bold'}
-                      >
-                        {t.name} ({t.email}) {assigned ? `[Đã giảng dạy: ${assigned}]` : '✓ Sẵn sàng'}
-                      </option>
-                    );
-                  })}
-                </select>
-                <p className="text-xs font-semibold text-slate-600 mt-1.5">
-                  Theo quy định của trường, các giáo viên đã có lớp sẽ bị khóa để tránh trùng lịch.
-                </p>
-              </div>
-
-              {/* Tùy chọn nạp ngay file Excel khi tạo lớp */}
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
-                <div className="flex items-center justify-between">
+              {/* Khối nạp sẵn danh sách học sinh từ file Excel */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <FileSpreadsheet size={18} className="text-emerald-800" />
+                    <FileSpreadsheet size={18} className="text-emerald-700 shrink-0" />
                     <span className="text-sm font-black text-slate-900">
-                      Nạp sẵn danh sách học sinh từ file Excel (Tùy chọn)
+                      Nạp sẵn học sinh từ Excel
                     </span>
+                    <span className="text-xs text-slate-500 font-semibold">(Tùy chọn)</span>
                   </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Tự động tạo tài khoản và gán trực tiếp học sinh vào lớp ngay sau khi tạo.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 shrink-0">
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
-                    className="text-xs font-bold text-indigo-800 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer underline px-2 py-1"
                   >
                     <Download size={13} />
-                    <span>Tải file mẫu Excel</span>
+                    <span>Tải file mẫu</span>
                   </button>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <label className="py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shrink-0">
-                    <UploadCloud size={16} />
-                    <span>{createExcelFileName ? 'Đổi File Khác' : 'Chọn File Excel (.xlsx, .csv)'}</span>
+                  <label className="py-2 px-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs">
+                    <UploadCloud size={15} />
+                    <span>{createExcelFileName ? 'Đổi File Khác' : 'Chọn File Excel'}</span>
                     <input
                       type="file"
                       accept=".xlsx, .xls, .csv"
@@ -1269,27 +1260,44 @@ export const AdminClassroomsPage: React.FC = () => {
                       className="sr-only"
                     />
                   </label>
-                  <span className="text-xs font-semibold text-slate-600 truncate">
-                    {createExcelFileName
-                      ? `Đã nhận: ${createExcelFileName} (${createExcelRows.filter((r) => r.isValid).length} học sinh)`
-                      : 'Chưa chọn file (có thể nạp sau)'}
-                  </span>
                 </div>
               </div>
 
+              {/* Thông báo file Excel đã chọn */}
+              {createExcelFileName && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <Check size={15} className="text-emerald-700 shrink-0" />
+                    <span className="truncate">
+                      Đã chọn: <b>{createExcelFileName}</b> — Sẵn sàng nạp {createExcelRows.filter((r) => r.isValid).length} học sinh hợp lệ.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateExcelFileName('');
+                      setCreateExcelRows([]);
+                    }}
+                    className="text-xs text-rose-700 hover:underline font-bold shrink-0 cursor-pointer"
+                  >
+                    Xóa file
+                  </button>
+                </div>
+              )}
+
               {/* Action buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-base cursor-pointer"
+                  className="py-2.5 px-6 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer transition-colors"
                 >
                   Hủy Bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  className="py-3 px-7 rounded-2xl bg-indigo-700 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-base cursor-pointer"
+                  className="py-2.5 px-8 rounded-2xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-black text-sm cursor-pointer shadow-md transition-all"
                 >
                   {formSubmitting ? 'Đang tạo lớp...' : 'Xác Nhận Tạo Lớp'}
                 </button>
@@ -1302,7 +1310,7 @@ export const AdminClassroomsPage: React.FC = () => {
       {/* ── MODAL 2: CHỈNH SỬA THÔNG TIN LỚP HỌC ──────────────────────────── */}
       {editClassModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-lg border border-slate-200 animate-scale-up">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl border border-slate-200 shadow-2xl animate-scale-up">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
@@ -1341,7 +1349,7 @@ export const AdminClassroomsPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Giáo Viên Chủ Nhiệm (1-1) *
+                  Giáo Viên Phụ Trách *
                 </label>
                 <select
                   required
@@ -1349,20 +1357,15 @@ export const AdminClassroomsPage: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
                   className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600"
                 >
-                  {teachers.map((t) => {
-                    const assigned = teacherClassMap.get(String(t._id));
-                    const isCurrent = String(editClassModal.teacher?._id) === String(t._id);
-                    return (
-                      <option
-                        key={t._id}
-                        value={t._id}
-                        disabled={Boolean(assigned) && !isCurrent}
-                        className={assigned && !isCurrent ? 'text-slate-600 italic' : 'text-slate-900 font-bold'}
-                      >
-                        {t.name} ({t.email}) {isCurrent ? '(Đang phụ trách lớp này)' : assigned ? `[Đã có lớp: ${assigned}]` : '✓ Sẵn sàng'}
-                      </option>
-                    );
-                  })}
+                  {teachers.map((t) => (
+                    <option
+                      key={t._id}
+                      value={t._id}
+                      className="text-slate-900 font-bold"
+                    >
+                      {t.name} - {t.email}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1376,9 +1379,9 @@ export const AdminClassroomsPage: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, ageGroupCode: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold"
                   >
-                    <option value="3-4">3–4 Tuổi (Mầm)</option>
-                    <option value="4-5">4–5 Tuổi (Chồi)</option>
-                    <option value="5-6">5–6 Tuổi (Lá)</option>
+                    <option value="3-4">3–4 Tuổi</option>
+                    <option value="4-5">4–5 Tuổi</option>
+                    <option value="5-6">5–6 Tuổi</option>
                   </select>
                 </div>
 
@@ -1422,426 +1425,509 @@ export const AdminClassroomsPage: React.FC = () => {
 
       {/* ── MODAL 3: QUẢN LÝ HỌC SINH CỦA LỚP (IMPORT EXCEL & THÊM LẺ) ─────── */}
       {manageStudentsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-4xl max-h-[92vh] flex flex-col border border-slate-200 animate-scale-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-5 sm:p-7 w-[98vw] max-w-7xl h-[92vh] max-h-[92vh] flex flex-col border border-slate-200 shadow-2xl animate-scale-up overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+            <div className="flex items-center justify-between pb-4 sm:pb-5 border-b border-slate-100 shrink-0">
               <div>
-                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2.5">
-                  <Users className="text-indigo-800" size={24} />
-                  <span>Quản Lý Học Sinh — {manageStudentsModal.name}</span>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+                  <Users className="text-indigo-800" size={26} />
+                  <span>Quản Lý Học Sinh: {manageStudentsModal.name}</span>
                 </h2>
-                <p className="text-sm font-semibold text-slate-600 mt-0.5">
-                  Độ tuổi: {manageStudentsModal.ageGroupCode} tuổi • Sĩ số hiện tại:{' '}
-                  <span className="font-black text-indigo-800">
-                    {manageStudentsModal.students?.length || 0} học sinh
+                <div className="flex flex-wrap items-center gap-2.5 text-sm font-semibold text-slate-600 mt-1">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-800 font-bold">
+                    Lớp độ tuổi: {manageStudentsModal.ageGroupCode} tuổi
                   </span>
-                </p>
+                  <span>•</span>
+                  <span>
+                    Sĩ số hiện tại: <strong className="text-indigo-800 font-black">{manageStudentsModal.students?.length || 0} học sinh</strong>
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setManageStudentsModal(null)}
-                className="p-2 text-slate-600 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
+                className="p-2 text-slate-600 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors"
               >
-                <X size={20} />
+                <X size={22} />
               </button>
             </div>
 
-            {/* Sub-header navigation: Import Excel vs Thêm Lẻ Học Sinh */}
-            <div className="flex items-center gap-2 mt-4 p-1.5 rounded-2xl bg-slate-100 shrink-0">
-              <button
-                type="button"
-                onClick={() => setSingleStudentTab('excel')}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  singleStudentTab === 'excel'
-                    ? 'bg-white text-indigo-800'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <FileSpreadsheet size={16} />
-                <span>Nạp Danh Sách Từ File Excel (.xlsx, .csv)</span>
-              </button>
+            {/* Main Content: 2-Column Responsive Layout */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-7 min-h-0 pt-4 overflow-y-auto lg:overflow-hidden">
+              {/* CỘT TRÁI (6/12): TIẾP NHẬN & THÊM HỌC SINH */}
+              <div className="lg:col-span-6 flex flex-col min-h-0 border-b lg:border-b-0 lg:border-r border-slate-200 lg:pr-7 pb-4 lg:pb-0">
+                {/* Tabs */}
+                <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 shrink-0 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setSingleStudentTab('single')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      singleStudentTab === 'single'
+                        ? 'bg-white text-indigo-800 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <UserCheck size={16} />
+                    <span>Thêm Lẻ Học Sinh</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setSingleStudentTab('single')}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  singleStudentTab === 'single'
-                    ? 'bg-white text-indigo-800'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <UserCheck size={16} />
-                <span>+ Thêm Lẻ Từ Tài Khoản Có Sẵn ({availableStudents.length})</span>
-              </button>
-            </div>
-
-            {/* TAB 1: IMPORT FROM EXCEL */}
-            {singleStudentTab === 'excel' && (
-              <div className="p-4 my-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-3 shrink-0">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-slate-900">Import danh sách từ file bảng tính</p>
-                    <p className="text-xs text-slate-600 font-semibold">
-                      Tự động tạo tài khoản, sinh mã PIN 4 số và gán thẳng vào lớp này.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleDownloadTemplate}
-                      className="py-2 px-3 rounded-xl bg-white text-indigo-800 font-bold text-xs border border-indigo-200 flex items-center gap-1.5 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      <Download size={13} />
-                      <span>Tải file mẫu Excel</span>
-                    </button>
-                    <label className="py-2 px-3 rounded-xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer">
-                      <UploadCloud size={14} />
-                      <span>{excelFileName ? 'Đổi File' : 'Chọn File Excel'}</span>
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls, .csv"
-                        onChange={handleUploadExcelForExisting}
-                        className="sr-only"
-                      />
-                    </label>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSingleStudentTab('excel')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      singleStudentTab === 'excel'
+                        ? 'bg-white text-indigo-800 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <FileSpreadsheet size={16} />
+                    <span>Nạp Từ File Excel</span>
+                  </button>
                 </div>
 
-                {/* Preview of rows if selected */}
-                {excelImportRows.length > 0 && (
-                  <div className="pt-2 border-t border-indigo-100/80 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                      <span>Đã nhận diện: {excelImportRows.length} dòng ({excelImportRows.filter((r) => r.isValid).length} hợp lệ)</span>
+                {/* TAB 1: THÊM LẺ HỌC SINH CÓ SẴN */}
+                {singleStudentTab === 'single' && (
+                  <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                    {/* Filter buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-600">
+                        Chọn tài khoản có sẵn
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setStudentFilterScope('MATCH')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                            studentFilterScope === 'MATCH'
+                              ? 'bg-indigo-700 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                          title={`Chỉ hiển thị các bé ${manageStudentsModal.ageGroupCode} tuổi`}
+                        >
+                          Đúng tuổi lớp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudentFilterScope('UNASSIGNED')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                            studentFilterScope === 'UNASSIGNED'
+                              ? 'bg-indigo-700 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          Chưa có lớp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudentFilterScope('ALL')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                            studentFilterScope === 'ALL'
+                              ? 'bg-indigo-700 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          Tất cả
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative shrink-0">
+                      <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={studentSearchTerm}
+                        onChange={(e) => setStudentSearchTerm(e.target.value)}
+                        placeholder="Tìm theo tên học sinh, mã tài khoản hoặc SĐT..."
+                        className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                      />
+                      {studentSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setStudentSearchTerm('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* List of existing students (Scrollable) */}
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[140px]">
+                      {availableStudentsLoading ? (
+                        <div className="py-8 text-center text-xs font-bold text-slate-600">
+                          <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                          Đang tải danh sách học sinh...
+                        </div>
+                      ) : filteredAvailableStudents.length === 0 ? (
+                        <div className="py-8 text-center text-xs font-semibold text-slate-600 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                          Không tìm thấy học sinh nào phù hợp.
+                        </div>
+                      ) : (
+                        filteredAvailableStudents.slice(0, 60).map((st: any) => {
+                          const currentClassId = typeof st.assignedClass === 'object' ? st.assignedClass?._id : st.assignedClass;
+                          const isInThisClass = currentClassId === manageStudentsModal._id ||
+                            manageStudentsModal.students?.some((currSt: any) => currSt._id === st._id);
+                          const isAdding = addingStudentId === st._id;
+                          const isAgeMismatch = Boolean(
+                            st.ageGroupCode &&
+                            manageStudentsModal.ageGroupCode &&
+                            st.ageGroupCode !== manageStudentsModal.ageGroupCode
+                          );
+
+                          return (
+                            <div
+                              key={st._id}
+                              className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                                isAgeMismatch
+                                  ? 'bg-slate-50/70 border-slate-200/60 opacity-60'
+                                  : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-xs'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <StudentAvatar student={st} size="sm" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
+                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-600 mt-1">
+                                    <span className="font-mono text-indigo-800 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded">
+                                      {st.username || 'N/A'}
+                                    </span>
+                                    {st.ageGroupCode && (
+                                      <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                                        isAgeMismatch
+                                          ? 'bg-rose-50 text-rose-800 font-bold border border-rose-200'
+                                          : 'bg-slate-100 text-slate-700'
+                                      }`}>
+                                        {st.ageGroupCode} tuổi
+                                      </span>
+                                    )}
+                                    {isInThisClass ? (
+                                      <span className="bg-emerald-50 text-emerald-800 font-black px-1.5 py-0.2 rounded flex items-center gap-1 border border-emerald-200">
+                                        <Check size={11} /> Đang ở lớp này
+                                      </span>
+                                    ) : st.assignedClass ? (
+                                      <span className="bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                                        Lớp: {typeof st.assignedClass === 'object' ? st.assignedClass.name : 'Khác'}
+                                      </span>
+                                    ) : (
+                                      <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                                        Chưa có lớp
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="shrink-0">
+                                {isInThisClass ? (
+                                  <span
+                                    className="py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 font-black text-xs border border-emerald-200 flex items-center gap-1 select-none"
+                                  >
+                                    <Check size={12} />
+                                    <span>Đã Trong Lớp</span>
+                                  </span>
+                                ) : isAgeMismatch ? (
+                                  <span
+                                    className="py-1.5 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs border border-slate-200 flex items-center gap-1 select-none"
+                                    title={`Học sinh này thuộc độ tuổi ${st.ageGroupCode}, không thể xếp vào lớp ${manageStudentsModal.ageGroupCode} tuổi`}
+                                  >
+                                    <AlertCircle size={12} className="text-amber-500" />
+                                    <span>Khác độ tuổi</span>
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={isAdding}
+                                    onClick={() => handleAddExistingStudent(st)}
+                                    className={`py-1.5 px-3.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                                      st.assignedClass
+                                        ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                        : 'bg-indigo-700 hover:bg-indigo-800 text-white'
+                                    }`}
+                                  >
+                                    {isAdding ? (
+                                      <>
+                                        <div className="h-3 w-3 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
+                                        <span>Đang thêm...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserPlus size={13} />
+                                        <span>{st.assignedClass ? 'Chuyển Lớp' : '+ Thêm Vào Lớp'}</span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Collapsible Manual Add Fallback */}
+                    <div className="pt-2 border-t border-slate-200 shrink-0">
                       <button
                         type="button"
-                        disabled={excelImporting}
-                        onClick={handleConfirmImportExcel}
-                        className="py-1.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer"
+                        onClick={() => setShowManualCreateFallback(!showManualCreateFallback)}
+                        className="text-xs font-bold text-slate-700 hover:text-indigo-800 flex items-center gap-1 transition-colors cursor-pointer"
                       >
-                        {excelImporting ? 'Đang nạp...' : '✓ Xác Nhận Nạp Tất Cả Vào Lớp'}
+                        {showManualCreateFallback ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        <span>Hoặc tạo nhanh học sinh mới chưa có trên hệ thống</span>
                       </button>
+
+                      {showManualCreateFallback && (
+                        <form onSubmit={handleAddSingleStudent} className="pt-3 space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <div>
+                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
+                                Họ Và Tên *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={singleStudentForm.name}
+                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, name: e.target.value })}
+                                placeholder="Ví dụ: Hoàng Bảo Nam"
+                                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-bold focus:outline-none focus:border-indigo-600"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
+                                Ngày Sinh
+                              </label>
+                              <input
+                                type="date"
+                                value={singleStudentForm.dob}
+                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, dob: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
+                                SĐT Phụ Huynh
+                              </label>
+                              <input
+                                type="text"
+                                value={singleStudentForm.contact}
+                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, contact: e.target.value })}
+                                placeholder="0912345678"
+                                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[11px] text-slate-600 font-semibold italic">
+                              Học sinh mới sẽ tự động nhận nhóm {manageStudentsModal.ageGroupCode} tuổi theo lớp.
+                            </span>
+                            <button
+                              type="submit"
+                              disabled={singleStudentSubmitting}
+                              className="py-1.5 px-4 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-black text-xs cursor-pointer"
+                            >
+                              {singleStudentSubmitting ? 'Đang tạo...' : '+ Tạo & Thêm Vào Lớp'}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: IMPORT TỪ EXCEL */}
+                {singleStudentTab === 'excel' && (
+                  <div className="flex-1 flex flex-col justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-black text-slate-900">
+                          Nạp danh sách từ file bảng tính
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleDownloadTemplate}
+                          className="py-1.5 px-3 rounded-lg bg-white text-indigo-800 font-bold text-xs border border-indigo-200 flex items-center gap-1.5 hover:bg-indigo-50 cursor-pointer"
+                        >
+                          <Download size={13} />
+                          <span>Tải file mẫu Excel</span>
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Hệ thống sẽ tự động tạo tài khoản, sinh mã PIN và phân bổ các bé thẳng vào lớp {manageStudentsModal.name}.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-white border border-dashed border-slate-300 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <label className="py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shrink-0">
+                          <UploadCloud size={15} />
+                          <span>{excelFileName ? 'Đổi File Khác' : 'Chọn File Excel'}</span>
+                          <input
+                            type="file"
+                            accept=".xlsx, .xls, .csv"
+                            onChange={handleUploadExcelForExisting}
+                            className="sr-only"
+                          />
+                        </label>
+                        <span className="text-xs font-semibold text-slate-700 truncate">
+                          {excelFileName || 'Chưa chọn file'}
+                        </span>
+                      </div>
+
+                      {excelImportRows.length > 0 && (
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-700">
+                            Nhận diện: {excelImportRows.filter((r) => r.isValid).length} học sinh hợp lệ
+                          </span>
+                          <button
+                            type="button"
+                            disabled={excelImporting}
+                            onClick={handleConfirmImportExcel}
+                            className="py-2 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs cursor-pointer shadow-xs"
+                          >
+                            {excelImporting ? 'Đang nạp...' : '✓ Nạp Tất Cả Vào Lớp'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* TAB 2: THÊM LẺ TỪ TÀI KHOẢN CÓ SẴN TRONG HỆ THỐNG */}
-            {singleStudentTab === 'single' && (
-              <div className="p-4 my-3 rounded-2xl bg-indigo-50/60 border border-indigo-200/80 space-y-3 shrink-0">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* CỘT PHẢI (6/12): DANH SÁCH HỌC SINH ĐANG HỌC TRONG LỚP */}
+              <div className="lg:col-span-6 flex flex-col min-h-0 space-y-3">
+                <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-700 px-1 shrink-0">
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-indigo-700 text-white flex items-center justify-center font-black text-xs">
-                      <UserCheck size={15} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-900">
-                        Chọn Học Sinh Từ Tài Khoản Có Sẵn Trong Hệ Thống
-                      </h4>
-                      <p className="text-xs font-semibold text-slate-600">
-                        Tìm kiếm và bấm 1 chạm để thêm ngay học sinh vào lớp {manageStudentsModal.name}
-                      </p>
-                    </div>
+                    <span className="text-slate-900 font-extrabold text-sm">Học sinh trong lớp</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 font-black text-xs">
+                      {manageStudentsModal.students?.length || 0} em
+                    </span>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setStudentFilterScope('ALL')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                        studentFilterScope === 'ALL'
-                          ? 'bg-indigo-700 text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                      }`}
-                    >
-                      Tất Cả ({availableStudents.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStudentFilterScope('UNASSIGNED')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                        studentFilterScope === 'UNASSIGNED'
-                          ? 'bg-indigo-700 text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                      }`}
-                    >
-                      Chưa Có Lớp ({availableStudents.filter(s => !s.assignedClass || !s.assignedClass?._id).length})
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleExportRoster(manageStudentsModal)}
+                    className="text-indigo-700 hover:text-indigo-900 hover:underline flex items-center gap-1.5 font-bold text-xs normal-case cursor-pointer"
+                  >
+                    <Download size={14} />
+                    <span>Xuất file Excel</span>
+                  </button>
                 </div>
 
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
+                {/* Quick search within class roster */}
+                <div className="relative shrink-0">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    value={studentSearchTerm}
-                    onChange={(e) => setStudentSearchTerm(e.target.value)}
-                    placeholder="Tìm theo tên học sinh, mã tài khoản (username) hoặc số điện thoại..."
-                    className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-white border border-slate-300 text-sm font-bold text-slate-900 placeholder:text-slate-600 focus:outline-none focus:border-indigo-600"
+                    value={rosterSearchTerm}
+                    onChange={(e) => setRosterSearchTerm(e.target.value)}
+                    placeholder="Tìm theo tên học sinh, mã số, hoặc SĐT phụ huynh..."
+                    className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
                   />
-                  {studentSearchTerm && (
+                  {rosterSearchTerm && (
                     <button
                       type="button"
-                      onClick={() => setStudentSearchTerm('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                      onClick={() => setRosterSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
                     >
                       <X size={14} />
                     </button>
                   )}
                 </div>
 
-                {/* List of existing students */}
-                <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
-                  {availableStudentsLoading ? (
-                    <div className="py-6 text-center text-xs font-bold text-slate-600">
-                      <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                      Đang tải danh sách tài khoản học sinh...
-                    </div>
-                  ) : filteredAvailableStudents.length === 0 ? (
-                    <div className="py-6 text-center text-xs font-semibold text-slate-600 bg-white rounded-xl border border-dashed border-slate-200">
-                      Không tìm thấy tài khoản học sinh phù hợp với từ khóa "{studentSearchTerm}".
-                    </div>
-                  ) : (
-                    filteredAvailableStudents.slice(0, 50).map((st: any) => {
-                      const currentClassId = typeof st.assignedClass === 'object' ? st.assignedClass?._id : st.assignedClass;
-                      const isInThisClass = currentClassId === manageStudentsModal._id ||
-                        manageStudentsModal.students?.some((currSt: any) => currSt._id === st._id);
-                      const isAdding = addingStudentId === st._id;
-
+                {/* Students List Table */}
+                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 min-h-0">
+                  {(() => {
+                    const rosterStudents = (manageStudentsModal.students || []).filter((st: any) => {
+                      if (!rosterSearchTerm.trim()) return true;
+                      const q = rosterSearchTerm.toLowerCase().trim();
                       return (
-                        <div
-                          key={st._id}
-                          className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-3 hover:border-indigo-300 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="h-9 w-9 rounded-xl bg-indigo-100 text-indigo-800 font-black text-sm flex items-center justify-center shrink-0">
-                              {st.avatarUrl ? (
-                                <img src={st.avatarUrl} alt="" className="h-full w-full object-cover rounded-xl" />
-                              ) : (
-                                st.name?.[0] || 'B'
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-black text-slate-900 truncate">{st.name}</p>
-                              <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-600 mt-0.5">
-                                <span className="font-mono text-indigo-800 bg-indigo-50 px-1.5 py-0.5 rounded">
-                                  {st.username || 'Mã N/A'}
-                                </span>
-                                {st.ageGroupCode && (
-                                  <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                                    {st.ageGroupCode} tuổi
-                                  </span>
-                                )}
-                                {isInThisClass ? (
-                                  <span className="bg-emerald-50 text-emerald-800 font-black px-1.5 py-0.5 rounded flex items-center gap-1">
-                                    <Check size={11} /> Đang ở lớp này
-                                  </span>
-                                ) : st.assignedClass ? (
-                                  <span className="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded">
-                                    Lớp: {typeof st.assignedClass === 'object' ? st.assignedClass.name : 'Khác'}
-                                  </span>
-                                ) : (
-                                  <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                                    Chưa có lớp
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                        st.name?.toLowerCase().includes(q) ||
+                        st.username?.toLowerCase().includes(q) ||
+                        st.contact?.toLowerCase().includes(q)
+                      );
+                    });
 
-                          <div className="shrink-0">
-                            {isInThisClass ? (
-                              <button
-                                type="button"
-                                disabled
-                                className="py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 font-black text-xs border border-emerald-200 cursor-not-allowed opacity-90 flex items-center gap-1"
-                              >
-                                <Check size={13} />
-                                <span>Đã Trong Lớp</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={isAdding}
-                                onClick={() => handleAddExistingStudent(st)}
-                                className={`py-1.5 px-3.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-                                  st.assignedClass
-                                    ? 'bg-amber-700 hover:bg-amber-700 text-white'
-                                    : 'bg-indigo-700 hover:bg-indigo-700 text-white'
-                                }`}
-                              >
-                                {isAdding ? (
-                                  <>
-                                    <div className="h-3 w-3 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
-                                    <span>Đang thêm...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserPlus size={13} />
-                                    <span>{st.assignedClass ? 'Chuyển Vào Lớp Này' : '+ Thêm Vào Lớp'}</span>
-                                  </>
-                                )}
-                              </button>
-                            )}
-                          </div>
+                    if (!manageStudentsModal.students || manageStudentsModal.students.length === 0) {
+                      return (
+                        <div className="h-full min-h-[220px] flex flex-col items-center justify-center p-6 text-center text-slate-500 font-semibold text-sm bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                          <Users size={36} className="text-slate-300 mb-2" />
+                          <p className="font-bold text-slate-700">Lớp học hiện chưa có học sinh nào.</p>
+                          <p className="text-xs text-slate-400 mt-1">Hãy chọn học sinh từ cột bên trái hoặc nạp danh sách từ file Excel.</p>
                         </div>
                       );
-                    })
-                  )}
-                </div>
+                    }
 
-                {/* Collapsible Manual Add Fallback */}
-                <div className="pt-2 border-t border-indigo-100/80">
-                  <button
-                    type="button"
-                    onClick={() => setShowManualCreateFallback(!showManualCreateFallback)}
-                    className="text-xs font-bold text-slate-600 hover:text-indigo-800 flex items-center gap-1 transition-colors cursor-pointer"
-                  >
-                    {showManualCreateFallback ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    <span>Hoặc nhập form đăng ký mới nếu học sinh chưa từng có tài khoản trên hệ thống</span>
-                  </button>
-
-                  {showManualCreateFallback && (
-                    <form onSubmit={handleAddSingleStudent} className="pt-3 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
-                            Họ Và Tên Học Sinh *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={singleStudentForm.name}
-                            onChange={(e) => setSingleStudentForm({ ...singleStudentForm, name: e.target.value })}
-                            placeholder="Ví dụ: Hoàng Bảo Nam"
-                            className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm font-bold focus:outline-none focus:border-indigo-600"
-                          />
+                    if (rosterStudents.length === 0) {
+                      return (
+                        <div className="py-10 text-center text-xs font-semibold text-slate-500 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                          Không tìm thấy học sinh nào trong lớp khớp với "{rosterSearchTerm}".
                         </div>
+                      );
+                    }
 
-                        <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
-                            Ngày Sinh (Tùy chọn)
-                          </label>
-                          <input
-                            type="date"
-                            value={singleStudentForm.dob}
-                            onChange={(e) => setSingleStudentForm({ ...singleStudentForm, dob: e.target.value })}
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-semibold focus:outline-none"
-                          />
-                        </div>
+                    return rosterStudents.map((st: any, idx: number) => (
+                      <div
+                        key={st._id}
+                        className="p-3 sm:p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between gap-3 hover:border-indigo-300 hover:shadow-xs transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="h-7 w-7 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-800 font-black text-xs flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
 
-                        <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
-                            SĐT Phụ Huynh
-                          </label>
-                          <input
-                            type="text"
-                            value={singleStudentForm.contact}
-                            onChange={(e) => setSingleStudentForm({ ...singleStudentForm, contact: e.target.value })}
-                            placeholder="0912345678"
-                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-semibold focus:outline-none"
-                          />
-                        </div>
-                      </div>
+                          <StudentAvatar student={st} size="sm" />
 
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs text-slate-600 font-semibold italic">
-                          Mã PIN 4 số sẽ được hệ thống tạo tự động nếu để trống.
-                        </span>
-                        <button
-                          type="submit"
-                          disabled={singleStudentSubmitting}
-                          className="py-2 px-5 rounded-xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-xs cursor-pointer"
-                        >
-                          {singleStudentSubmitting ? 'Đang tạo...' : '+ Tạo Mới & Tiếp Nhận Vào Lớp'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Students Table */}
-            <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-              <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-600 px-1 py-1">
-                <span>Danh sách học sinh đang học trong lớp ({manageStudentsModal.students?.length || 0})</span>
-                <button
-                  type="button"
-                  onClick={() => handleExportRoster(manageStudentsModal)}
-                  className="text-indigo-800 hover:underline flex items-center gap-1 font-bold lowercase cursor-pointer"
-                >
-                  <Download size={13} />
-                  <span>tải file danh sách (.csv)</span>
-                </button>
-              </div>
-
-              {!manageStudentsModal.students || manageStudentsModal.students.length === 0 ? (
-                <div className="py-16 text-center text-slate-600 font-semibold text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  Lớp học hiện tại chưa có học sinh nào. Hãy tải lên file Excel hoặc thêm lẻ học sinh ở trên!
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {manageStudentsModal.students.map((st: any, idx: number) => (
-                    <div
-                      key={st._id}
-                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between hover:bg-slate-100/60 transition-all"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <span className="h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-600 font-black text-xs flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-
-                        <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-800 font-black text-sm flex items-center justify-center shrink-0">
-                          {st.name?.[0] || 'C'}
-                        </div>
-
-                        <div>
-                          <p className="text-base font-black text-slate-900">{st.name}</p>
-                          <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 mt-0.5">
-                            <span className="font-mono text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded">
-                              Mã: {st.username || 'N/A'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setResetPinTarget(st);
-                                setNewPinValue('');
-                              }}
-                              className="font-mono text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded flex items-center gap-1 transition-colors cursor-pointer"
-                              title="Đặt lại mã PIN 4 số cho bé"
-                            >
-                              <KeyRound size={12} />
-                              <span>Đặt lại PIN</span>
-                            </button>
-                            {st.dob && <span>NS: {new Date(st.dob).toLocaleDateString('vi-VN')}</span>}
-                            {st.contact && <span>SĐT: {st.contact}</span>}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-600 mt-1">
+                              <span className="font-mono text-indigo-900 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-[10px] font-bold">
+                                Mã: {st.username || 'N/A'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setResetPinTarget(st);
+                                  setNewPinValue('');
+                                }}
+                                className="font-mono text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Đặt lại mã PIN đăng nhập cho bé"
+                              >
+                                <KeyRound size={11} />
+                                <span>Đổi PIN</span>
+                              </button>
+                              {st.contact && (
+                                <span className="text-[11px] text-slate-600 truncate max-w-[140px] font-medium">
+                                  📞 {st.contact}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStudent(st._id, st.name)}
-                        className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                        title="Xóa học sinh ra khỏi lớp"
-                      >
-                        <UserMinus size={14} />
-                        <span>Xóa khỏi lớp</span>
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveStudent(st._id, st.name)}
+                          className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 border border-rose-200/70"
+                          title="Xóa học sinh ra khỏi lớp"
+                        >
+                          <UserMinus size={14} />
+                          <span>Xóa khỏi lớp</span>
+                        </button>
+                      </div>
+                    ));
+                  })()}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Bottom Modal Close */}
-            <div className="pt-4 mt-3 border-t border-slate-100 flex justify-end shrink-0">
+            <div className="pt-3 border-t border-slate-100 flex justify-end shrink-0">
               <button
                 type="button"
                 onClick={() => setManageStudentsModal(null)}
-                className="py-2.5 px-6 rounded-2xl bg-slate-100 hover:bg-white text-inherit font-black text-base cursor-pointer"
+                className="py-2.5 px-7 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm cursor-pointer transition-colors"
               >
                 Đóng
               </button>
@@ -1852,10 +1938,10 @@ export const AdminClassroomsPage: React.FC = () => {
 
       {/* ── MODAL 4: CHI TIẾT & TIẾN ĐỘ LỚP HỌC (GIÁO TRÌNH, LỊCH DẠY, HỌC SINH) ──── */}
       {curriculumProgressModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-4xl max-h-[92vh] flex flex-col border border-slate-200 animate-scale-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-5xl xl:max-w-6xl max-h-[92vh] sm:max-h-[90vh] flex flex-col border border-slate-200 shadow-2xl animate-scale-up overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-4 border-b border-slate-100 shrink-0">
+            <div className="flex items-start justify-between pb-3 sm:pb-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="h-11 w-11 rounded-2xl bg-teal-50 text-teal-800 flex items-center justify-center font-black shrink-0">
                   <BookOpen size={24} />
@@ -2051,17 +2137,14 @@ export const AdminClassroomsPage: React.FC = () => {
                                   <div className="shrink-0">
                                     {isCurrent ? (
                                       <span className="text-xs font-black text-indigo-900 bg-indigo-100/90 border border-indigo-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-2xs">
-                                        <span>🎯</span>
                                         <span>Bài Đang Dạy</span>
                                       </span>
                                     ) : les.isCompleted ? (
                                       <span className="text-xs font-black text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                                        <CheckCircle2 size={13} className="text-emerald-700" />
                                         <span>Đã Hoàn Thành</span>
                                       </span>
                                     ) : (
                                       <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                                        <Clock size={13} className="text-slate-400" />
                                         <span>Chưa Học</span>
                                       </span>
                                     )}
@@ -2097,7 +2180,7 @@ export const AdminClassroomsPage: React.FC = () => {
                         </div>
 
                         <span className="px-3 py-1 rounded-xl bg-indigo-100/70 text-indigo-900 font-extrabold text-xs self-start sm:self-auto">
-                          📅 {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                       </div>
 
@@ -2118,9 +2201,9 @@ export const AdminClassroomsPage: React.FC = () => {
                                 </p>
                               )}
                               <p className="text-xs font-bold text-indigo-800 mt-1 flex items-center gap-2">
-                                <span>⏰ Khung giờ: {curriculumData.todayStatus?.slots?.[0]?.startTime} – {curriculumData.todayStatus?.slots?.[0]?.endTime}</span>
+                                <span>Khung giờ: {curriculumData.todayStatus?.slots?.[0]?.startTime} – {curriculumData.todayStatus?.slots?.[0]?.endTime}</span>
                                 <span>•</span>
-                                <span>🏫 {curriculumData.todayStatus?.slots?.[0]?.room || 'Phòng học chính'}</span>
+                                <span>Phòng: {curriculumData.todayStatus?.slots?.[0]?.room || 'Phòng học chính'}</span>
                               </p>
                             </div>
 
@@ -2133,20 +2216,39 @@ export const AdminClassroomsPage: React.FC = () => {
                           </div>
 
                           {/* Tình trạng đối chiếu thực tế của giáo viên */}
+                          {curriculumData.todayStatus?.status === 'CANCELLED' && (
+                            <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 space-y-2.5">
+                              <div>
+                                <h4 className="text-base font-black text-amber-900 flex items-center gap-2">
+                                  <span>🚫</span> Lớp Đã Báo Nghỉ Ca Dạy Hôm Nay
+                                </h4>
+                                <p className="text-xs text-amber-800 font-bold mt-1">
+                                  Lý do: {curriculumData.todayStatus?.cancelledSession?.cancellationReason || 'Nghỉ theo kế hoạch'}
+                                  {curriculumData.todayStatus?.cancelledSession?.cancellationNote && ` — Ghi chú: "${curriculumData.todayStatus.cancelledSession.cancellationNote}"`}
+                                </p>
+                              </div>
+
+                              <div className="p-3.5 rounded-xl bg-white border border-amber-200 text-xs sm:text-sm font-semibold text-amber-900 space-y-1 shadow-xs">
+                                <p>
+                                  💡 <span className="font-bold">Cơ chế bảo lưu giáo trình:</span> Bài học{' '}
+                                  <span className="font-black text-indigo-900">
+                                    "{curriculumData.todayStatus?.scheduledLesson?.title || curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}"
+                                  </span>{' '}
+                                  sẽ được tự động giảng dạy vào buổi học kế tiếp trên thời khóa biểu. Lớp không bị mất bài.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           {curriculumData.todayStatus?.status === 'MISSED' && (
                             <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 space-y-2.5">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                                  <AlertTriangle size={22} />
-                                </div>
-                                <div>
-                                  <h4 className="text-base font-black text-rose-900">
-                                    ⚠️ CẢNH BÁO: Quá giờ bắt đầu nhưng giáo viên chưa vào lớp dạy bài này!
-                                  </h4>
-                                  <p className="text-xs text-rose-700 font-bold mt-0.5">
-                                    Hôm nay có ca học từ {curriculumData.todayStatus?.slots?.[0]?.startTime} đến {curriculumData.todayStatus?.slots?.[0]?.endTime} nhưng chưa ghi nhận phiên dạy nào.
-                                  </p>
-                                </div>
+                              <div>
+                                <h4 className="text-base font-black text-rose-900">
+                                  CẢNH BÁO: Quá giờ bắt đầu nhưng giáo viên chưa vào lớp dạy bài này!
+                                </h4>
+                                <p className="text-xs text-rose-700 font-bold mt-0.5">
+                                  Hôm nay có ca học từ {curriculumData.todayStatus?.slots?.[0]?.startTime} đến {curriculumData.todayStatus?.slots?.[0]?.endTime} nhưng chưa ghi nhận phiên dạy nào.
+                                </p>
                               </div>
 
                               <div className="p-3.5 rounded-xl bg-white border border-rose-200 text-xs sm:text-sm font-semibold text-rose-900 space-y-1 shadow-xs">
@@ -2165,66 +2267,46 @@ export const AdminClassroomsPage: React.FC = () => {
                           )}
 
                           {curriculumData.todayStatus?.status === 'TAUGHT' && (
-                            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex items-center gap-3.5">
-                              <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                                <CheckCircle2 size={22} />
-                              </div>
-                              <div>
-                                <h4 className="text-base font-black text-emerald-900">
-                                  ✅ Đã hoàn thành buổi dạy bài này hôm nay!
-                                </h4>
-                                <p className="text-xs text-emerald-800 font-semibold mt-0.5">
-                                  Giáo viên {curriculumData.classroom?.teacher?.name} đã hoàn tất phiên giảng dạy theo đúng bài quy định trên thời khóa biểu.
-                                </p>
-                              </div>
+                            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950">
+                              <h4 className="text-base font-black text-emerald-900">
+                                Đã hoàn thành buổi dạy bài này hôm nay!
+                              </h4>
+                              <p className="text-xs text-emerald-800 font-semibold mt-0.5">
+                                Giáo viên {curriculumData.classroom?.teacher?.name} đã hoàn tất phiên giảng dạy theo đúng bài quy định trên thời khóa biểu.
+                              </p>
                             </div>
                           )}
 
                           {curriculumData.todayStatus?.status === 'LIVE' && (
-                            <div className="p-4 rounded-2xl bg-sky-50 border border-sky-300 text-sky-950 flex items-center gap-3.5">
-                              <div className="h-10 w-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0">
-                                <Radio size={22} className="animate-pulse" />
-                              </div>
-                              <div>
-                                <h4 className="text-base font-black text-sky-900">
-                                  🔴 Đang trong giờ dạy trực tiếp bài học này!
-                                </h4>
-                                <p className="text-xs text-sky-800 font-semibold mt-0.5">
-                                  Giáo viên {curriculumData.classroom?.teacher?.name} đang tổ chức tiết học với học sinh trong lớp.
-                                </p>
-                              </div>
+                            <div className="p-4 rounded-2xl bg-sky-50 border border-sky-300 text-sky-950">
+                              <h4 className="text-base font-black text-sky-900">
+                                Đang trong giờ dạy trực tiếp bài học này!
+                              </h4>
+                              <p className="text-xs text-sky-800 font-semibold mt-0.5">
+                                Giáo viên {curriculumData.classroom?.teacher?.name} đang tổ chức tiết học với học sinh trong lớp.
+                              </p>
                             </div>
                           )}
 
                           {curriculumData.todayStatus?.status === 'UPCOMING' && (
-                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 flex items-center gap-3.5">
-                              <div className="h-10 w-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0">
-                                <Clock size={22} />
-                              </div>
-                              <div>
-                                <h4 className="text-base font-black text-amber-900">
-                                  ⏰ Tiết học hôm nay sắp bắt đầu!
-                                </h4>
-                                <p className="text-xs text-amber-800 font-semibold mt-0.5">
-                                  Khung giờ: {curriculumData.todayStatus?.slots?.[0]?.startTime} – {curriculumData.todayStatus?.slots?.[0]?.endTime}. Giáo viên chuẩn bị vào lớp giảng dạy bài học này.
-                                </p>
-                              </div>
+                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950">
+                              <h4 className="text-base font-black text-amber-900">
+                                Tiết học hôm nay sắp bắt đầu!
+                              </h4>
+                              <p className="text-xs text-amber-800 font-semibold mt-0.5">
+                                Khung giờ: {curriculumData.todayStatus?.slots?.[0]?.startTime} – {curriculumData.todayStatus?.slots?.[0]?.endTime}. Giáo viên chuẩn bị vào lớp giảng dạy bài học này.
+                              </p>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div className="p-5 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center gap-3.5">
-                          <div className="h-10 w-10 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center shrink-0">
-                            <CalendarDays size={22} />
-                          </div>
-                          <div>
-                            <h4 className="text-base font-black text-slate-800">
-                              📅 Hôm nay không có lịch học theo thời khóa biểu
-                            </h4>
-                            <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                              Lớp {curriculumProgressModal.name} không có ca dạy vào ngày hôm nay. Buổi học kế tiếp sẽ học bài: <span className="font-bold text-indigo-900">{curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}</span>.
-                            </p>
-                          </div>
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 text-slate-700">
+                          <h4 className="text-base font-black text-slate-800">
+                            Hôm nay không có lịch học theo thời khóa biểu
+                          </h4>
+                          <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                            Lớp {curriculumProgressModal.name} không có ca dạy vào ngày hôm nay. Buổi học kế tiếp sẽ học bài: <span className="font-bold text-indigo-900">{curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}</span>.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -2298,7 +2380,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                     Bài học quy định:
                                   </p>
                                   {(slot.lessonTitle || slot.lesson) ? (
-                                    <p className="text-xs font-black text-indigo-950 mt-0.5 truncate" title={slot.lessonTitle || slot.lesson?.title}>
+                                    <p className="text-xs font-black text-indigo-950 mt-0.5 break-words leading-snug" title={slot.lessonTitle || slot.lesson?.title}>
                                       🎯 {slot.lessonTitle || slot.lesson?.title}
                                     </p>
                                   ) : (
@@ -2316,9 +2398,8 @@ export const AdminClassroomsPage: React.FC = () => {
 
                     {/* Nhật ký các buổi học đã tổ chức gần đây */}
                     <div className="space-y-2.5">
-                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                        <CheckCircle2 size={16} className="text-emerald-700" />
-                        <span>Nhật Ký Các Buổi Dạy Gần Đây</span>
+                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                        Nhật Ký Các Buổi Dạy Gần Đây
                       </h4>
 
                       {(!curriculumData.recentSessions || curriculumData.recentSessions.length === 0) ? (
@@ -2326,17 +2407,15 @@ export const AdminClassroomsPage: React.FC = () => {
                           Chưa có buổi học nào được ghi nhận tổ chức cho lớp này.
                         </div>
                       ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200">
                           <table className="w-full text-left text-xs">
                             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-black tracking-wider">
                               <tr>
-                                <th className="py-2.5 px-3 whitespace-nowrap">Ngày học</th>
-                                <th className="py-2.5 px-3 whitespace-nowrap">Khung giờ</th>
-                                <th className="py-2.5 px-3 whitespace-nowrap min-w-[200px]">Bài học / Nội dung</th>
-                                <th className="py-2.5 px-3 whitespace-nowrap">Giáo viên</th>
-                                <th className="py-2.5 px-3 text-center whitespace-nowrap">Chuyên cần</th>
-                                <th className="py-2.5 px-3 whitespace-nowrap">Trạng thái</th>
-                                <th className="py-2.5 px-3 text-right whitespace-nowrap">Khen thưởng</th>
+                                <th className="py-2.5 px-3">Thời gian</th>
+                                <th className="py-2.5 px-3">Bài học / Nội dung</th>
+                                <th className="py-2.5 px-3">Giáo viên</th>
+                                <th className="py-2.5 px-3 text-center">Chuyên cần</th>
+                                <th className="py-2.5 px-3 text-right">Trạng thái &amp; Khen thưởng</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 font-semibold">
@@ -2360,14 +2439,12 @@ export const AdminClassroomsPage: React.FC = () => {
 
                                 return (
                                   <tr key={s._id} className="hover:bg-slate-50/70">
-                                    <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
-                                      {dateStr}
+                                    <td className="py-2.5 px-3">
+                                      <div className="font-bold text-slate-900 text-xs">{dateStr}</div>
+                                      <div className="text-[11px] text-slate-500 font-medium">{timeStr}</div>
                                     </td>
-                                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                                      {timeStr}
-                                    </td>
-                                    <td className="py-2.5 px-3 min-w-[200px] max-w-[280px]">
-                                      <div className="flex flex-col">
+                                    <td className="py-2.5 px-3">
+                                      <div className="flex flex-col min-w-0 max-w-[260px]">
                                         <span className="font-black text-indigo-950 text-xs truncate" title={rawLesson}>
                                           📖 {cleanLessonTitle}
                                         </span>
@@ -2378,10 +2455,10 @@ export const AdminClassroomsPage: React.FC = () => {
                                         )}
                                       </div>
                                     </td>
-                                    <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap">
+                                    <td className="py-2.5 px-3 text-slate-800">
                                       {teacherStr}
                                     </td>
-                                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                    <td className="py-2.5 px-3 text-center">
                                       <div className="flex flex-col items-center gap-0.5">
                                         <span className="font-bold text-slate-800 text-[11px]">
                                           {present}/{total} ({rate}%)
@@ -2395,19 +2472,29 @@ export const AdminClassroomsPage: React.FC = () => {
                                         )}
                                       </div>
                                     </td>
-                                    <td className="py-2.5 px-3 whitespace-nowrap">
-                                      <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
-                                        s.status === 'COMPLETED'
-                                          ? 'bg-emerald-100 text-emerald-800'
-                                          : s.status === 'LIVE'
-                                          ? 'bg-sky-100 text-sky-800'
-                                          : 'bg-slate-100 text-slate-600'
-                                      }`}>
-                                        {s.status === 'COMPLETED' ? 'Đã hoàn thành' : s.status === 'LIVE' ? '🔴 Đang dạy' : s.status}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 font-black text-amber-700 text-right whitespace-nowrap">
-                                      ⭐ {s.summary?.totalStars || s.averageScore || 0} sao
+                                    <td className="py-2.5 px-3 text-right">
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
+                                          s.status === 'COMPLETED'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : s.status === 'LIVE'
+                                            ? 'bg-sky-100 text-sky-800'
+                                            : s.status === 'CANCELLED'
+                                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                            : 'bg-slate-100 text-slate-600'
+                                        }`}>
+                                          {s.status === 'COMPLETED' ? 'Đã hoàn thành' : s.status === 'LIVE' ? '🔴 Đang dạy' : s.status === 'CANCELLED' ? '🚫 Đã báo nghỉ' : s.status}
+                                        </span>
+                                        {s.status === 'CANCELLED' ? (
+                                          <span className="font-bold text-amber-800 text-[11px] max-w-[160px] truncate" title={s.cancellationReason || 'Nghỉ theo kế hoạch'}>
+                                            Lý do: {s.cancellationReason || 'Nghỉ theo kế hoạch'}
+                                          </span>
+                                        ) : (
+                                          <span className="font-bold text-amber-700 text-xs">
+                                            ⭐ {s.summary?.totalStars || s.averageScore || 0} sao
+                                          </span>
+                                        )}
+                                      </div>
                                     </td>
                                   </tr>
                                 );
@@ -2461,10 +2548,6 @@ export const AdminClassroomsPage: React.FC = () => {
                     return true;
                   });
 
-                  const animalEmojis: Record<string, string> = {
-                    lion: '🦁', fox: '🦊', koala: '🐨', rabbit: '🐰', panda: '🐼', bear: '🐻', monkey: '🐒', cat: '🐱', dog: '🐶', elephant: '🐘'
-                  };
-
                   return (
                     <div className="space-y-6">
                       {/* KPI Summary Cards */}
@@ -2502,9 +2585,6 @@ export const AdminClassroomsPage: React.FC = () => {
                               <Users size={18} className="text-amber-700" />
                               <span>Thống Kê Chuyên Cần Từng Bé</span>
                             </h4>
-                            <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                              Theo dõi mức độ đi học đầy đủ, số buổi có mặt, vắng nghỉ hoặc đi muộn
-                            </p>
                           </div>
 
                           <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100 p-1 rounded-xl">
@@ -2549,19 +2629,16 @@ export const AdminClassroomsPage: React.FC = () => {
                             Không có học sinh nào phù hợp với bộ lọc chuyên cần đã chọn.
                           </div>
                         ) : (
-                          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                          <div className="overflow-hidden rounded-2xl border border-slate-200">
                             <table className="w-full text-left text-xs">
                               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-black tracking-wider">
                                 <tr>
                                   <th className="py-2.5 px-3">Học sinh</th>
                                   <th className="py-2.5 px-3">SĐT Phụ huynh</th>
-                                  <th className="py-2.5 px-3 text-center">Tổng ca học</th>
-                                  <th className="py-2.5 px-3 text-center">Có mặt 🟢</th>
-                                  <th className="py-2.5 px-3 text-center">Nghỉ phép 🟡</th>
-                                  <th className="py-2.5 px-3 text-center">Vắng mặt 🔴</th>
-                                  <th className="py-2.5 px-3 text-center">Đi muộn 🟠</th>
+                                  <th className="py-2.5 px-3 text-center">Tổng ca</th>
+                                  <th className="py-2.5 px-3 text-center">Chi tiết tham gia</th>
                                   <th className="py-2.5 px-3 text-center">Tỷ lệ chuyên cần</th>
-                                  <th className="py-2.5 px-3 text-right">Đánh giá & Ghi chú</th>
+                                  <th className="py-2.5 px-3 text-right">Đánh giá &amp; Ghi chú</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 font-semibold">
@@ -2575,16 +2652,9 @@ export const AdminClassroomsPage: React.FC = () => {
                                     <tr key={st._id} className="hover:bg-slate-50/70">
                                       <td className="py-2.5 px-3 font-bold text-slate-900">
                                         <div className="flex items-center gap-2.5">
-                                          {st.avatarUrl ? (
-                                            <img src={st.avatarUrl} alt={st.name} className="w-7 h-7 rounded-full object-contain shrink-0 border border-slate-200 bg-slate-50" />
-                                          ) : (
-                                            <span className="text-xl shrink-0">
-                                              {animalEmojis[st.avatar] || '🦁'}
-                                            </span>
-                                          )}
+                                          <StudentAvatar student={st} size="sm" />
                                           <div>
                                             <p className="font-black text-slate-900 text-xs">{st.name}</p>
-                                            <p className="text-[10px] text-slate-500 font-normal">@{st.username || 'user'}</p>
                                           </div>
                                         </div>
                                       </td>
@@ -2594,17 +2664,30 @@ export const AdminClassroomsPage: React.FC = () => {
                                       <td className="py-2.5 px-3 text-center font-bold text-slate-800">
                                         {item.totalSessions ?? (item.present + item.excused + item.absent + item.late)} buổi
                                       </td>
-                                      <td className="py-2.5 px-3 text-center font-bold text-emerald-800">
-                                        {item.present ?? 0} buổi
-                                      </td>
-                                      <td className="py-2.5 px-3 text-center font-bold text-amber-800">
-                                        {item.excused ?? 0} buổi
-                                      </td>
-                                      <td className="py-2.5 px-3 text-center font-bold text-rose-700">
-                                        {item.absent ?? 0} buổi
-                                      </td>
-                                      <td className="py-2.5 px-3 text-center font-bold text-orange-800">
-                                        {item.late ?? 0} buổi
+                                      <td className="py-2.5 px-3 text-center">
+                                        <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
+                                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold" title="Có mặt">
+                                            🟢 {item.present ?? 0} có mặt
+                                          </span>
+                                          {(item.excused ?? 0) > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 font-bold" title="Nghỉ phép">
+                                              🟡 {item.excused} phép
+                                            </span>
+                                          )}
+                                          {(item.absent ?? 0) > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-bold" title="Vắng mặt">
+                                              🔴 {item.absent} vắng
+                                            </span>
+                                          )}
+                                          {(item.late ?? 0) > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded bg-orange-50 text-orange-800 font-bold" title="Đi muộn">
+                                              🟠 {item.late} trễ
+                                            </span>
+                                          )}
+                                          {(item.excused ?? 0) === 0 && (item.absent ?? 0) === 0 && (item.late ?? 0) === 0 && (
+                                            <span className="text-[10px] text-emerald-600 font-bold">Đi đủ 100%</span>
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="py-2.5 px-3 text-center">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
@@ -2621,7 +2704,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                         <div className="flex flex-col items-end gap-1">
                                           {isPerfect ? (
                                             <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-black">
-                                              🌟 Chăm ngoan
+                                              Chăm ngoan
                                             </span>
                                           ) : isGood ? (
                                             <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
@@ -2629,7 +2712,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                             </span>
                                           ) : (
                                             <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-black">
-                                              ⚠️ Cần chú ý
+                                              Cần chú ý
                                             </span>
                                           )}
                                           {item.latestNote && (
@@ -2655,9 +2738,6 @@ export const AdminClassroomsPage: React.FC = () => {
                             <Clock size={18} className="text-indigo-800" />
                             <span>Nhật Ký Từng Buổi Học (Danh Sách Vắng / Nghỉ Phép)</span>
                           </h4>
-                          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                            Theo dõi chi tiết từng buổi học cụ thể xem có học sinh nào vắng hoặc nghỉ phép không
-                          </p>
                         </div>
 
                         {sessionsList.length === 0 ? (
@@ -2695,19 +2775,19 @@ export const AdminClassroomsPage: React.FC = () => {
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className="font-black text-slate-900 text-xs sm:text-sm">
-                                        📅 {dateStr}
+                                        {dateStr}
                                       </span>
                                       <span className="text-slate-400 font-semibold">•</span>
                                       <span className="text-xs font-bold text-slate-600">
-                                        ⏰ {timeStr}
+                                        {timeStr}
                                       </span>
                                       <span className="text-slate-400 font-semibold">•</span>
                                       <span className="text-xs font-black text-indigo-900 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-lg">
-                                        📖 {lessonStr}
+                                        {lessonStr}
                                       </span>
                                       {session.status === 'LIVE' && (
                                         <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white text-[10px] font-black uppercase">
-                                          🔴 Đang diễn ra
+                                          Đang diễn ra
                                         </span>
                                       )}
                                     </div>
@@ -2766,7 +2846,6 @@ export const AdminClassroomsPage: React.FC = () => {
                                       </div>
                                     ) : (
                                       <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                                        <CheckCircle2 size={15} className="text-emerald-700" />
                                         <span>Buổi học đạt chuyên cần 100% — Tất cả {totalCount} học sinh đều đi học đầy đủ.</span>
                                       </div>
                                     )}
@@ -2816,7 +2895,6 @@ export const AdminClassroomsPage: React.FC = () => {
 
             <p className="text-sm text-slate-600 font-semibold">
               Học sinh: <span className="font-black text-slate-900">{resetPinTarget.name}</span>
-              {resetPinTarget.username && <span className="text-slate-400 font-mono text-xs ml-2">(@{resetPinTarget.username})</span>}
             </p>
 
             <form onSubmit={handleConfirmResetPin} className="space-y-4">
@@ -2835,9 +2913,6 @@ export const AdminClassroomsPage: React.FC = () => {
                   placeholder="Ví dụ: 1234"
                   className="w-full px-4 py-3 rounded-2xl border-2 border-slate-200 focus:border-indigo-600 text-2xl tracking-[0.5em] text-center font-mono font-black outline-hidden"
                 />
-                <p className="text-[11px] text-slate-500 font-semibold mt-1.5 text-center">
-                  Mã PIN gồm 4 số (0-9) để bé và phụ huynh đăng nhập vào hệ thống.
-                </p>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
@@ -2875,13 +2950,10 @@ export const AdminClassroomsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 text-sm font-bold text-rose-900 space-y-2">
+            <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 text-sm font-bold text-rose-900">
               <p>
                 Cảnh báo: Hành động này sẽ xóa sạch lớp <span className="font-black text-rose-800">"{deleteTargetClass.name}"</span> và{' '}
                 <span className="underline">toàn bộ {deleteTargetClass.students?.length || 0} tài khoản học sinh</span> thuộc lớp, cùng dữ liệu điểm danh và thời khóa biểu liên quan.
-              </p>
-              <p className="text-xs font-semibold text-rose-800">
-                (Theo quy định, học sinh của lớp sẽ bị xóa hoàn toàn khỏi hệ thống, không chuyển thành học sinh không có lớp).
               </p>
             </div>
 

@@ -100,6 +100,9 @@ test('content without an assigned classroom cannot leak the whole curriculum', a
   const result = await invoke(C.getContent);
   assert.equal(result.error, undefined);
   assert.deepEqual(result.data.data, { books: [], units: [], lessons: [], activities: [] });
+  const repositoryResult = await invoke(C.getContent, {}, {}, { query: { repository: 'true' } });
+  assert.equal(repositoryResult.error, undefined);
+  assert.deepEqual(repositoryResult.data.data, { books: [], units: [], lessons: [], activities: [] });
 });
 test('a reassigned former teacher cannot mutate an old classroom session', async t => {
   t.mock.method(models.ClassroomSession, 'findOne', () => query({ _id: id(2), classroom: id(4), status: 'LIVE', save: () => assert.fail('must not write') }));

@@ -341,7 +341,7 @@ export interface RevealedChest {
 
 // ─── Classroom Session (Phase 2) ──────────────────────────────────────────────
 
-export type SessionStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED';
+export type SessionStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
 export type StudentAnswerResult = 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED';
 export type StudentSessionStatus = 'ACTIVE' | 'NEEDS_PRACTICE' | 'COMPLETED';
 
@@ -391,6 +391,10 @@ export interface ClassroomSession {
   title: string;
   ageGroup: AgeGroupCode;
   status: SessionStatus;
+  cancellationReason?: string;
+  cancellationNote?: string;
+  cancelledBy?: any;
+  cancelledAt?: string;
   startedAt?: string;
   endedAt?: string;
   plannedDuration: number;
