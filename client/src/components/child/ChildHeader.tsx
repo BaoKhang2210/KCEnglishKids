@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { ChildBadgesModal } from './ChildBadgesModal';
+import { ChildProfileModal, getChildAvatarEmoji } from './ChildProfileModal';
 import { ParentNotebookModal } from './ParentNotebookModal';
 import { DailyStreakBadge } from './DailyStreakBadge';
 import { DailyStreakModal } from './DailyStreakModal';
@@ -31,6 +32,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const location = useLocation();
 
   const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [avatarImgError, setAvatarImgError] = useState(false);
   const [showParentModal, setShowParentModal] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [localStreakData, setLocalStreakData] = useState<ChildStreakData | null>(propStreakData || null);
@@ -168,7 +171,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <BookMarked className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isVocabActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Từ vựng</span>
+<span className="text-[14px] 2xl:text-[16px] leading-none">Sổ từ vựng</span>
               </button>
 
               <button
@@ -213,35 +216,47 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 }}
               />
 
-              {/* Child Profile Pill (Clickable - opens Badges & Stars Modal) */}
-
+              {/* Child Profile Pill (Always visible on navbar: Avatar, Name, Book, Age + opens ChildProfileModal with integrated Change PIN) */}
               {user && (
                 <button
                   onClick={() => {
                     sfx.playPop();
-                    setShowBadgesModal(true);
+                    setShowProfileModal(true);
                   }}
-                  className="hidden min-[1700px]:flex items-center gap-2 sm:gap-3 bg-amber-50/90 hover:bg-amber-100 border-2 border-amber-200/80 hover:border-amber-300 pl-1.5 pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs flex-shrink-0"
-                  title={`Hồ sơ của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel}`}
+                  className="flex items-center gap-2 sm:gap-2.5 bg-amber-50/95 hover:bg-amber-100 border-2 border-amber-300/90 hover:border-amber-400 pl-1.5 pr-2.5 sm:pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs active:scale-95 flex-shrink-0"
+                  title={`Thông tin của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel} (Bấm để xem hồ sơ & đổi mã PIN)`}
                 >
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0">
-                    {user.avatarUrl ? (
+                  <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 flex-shrink-0">
+                    {user.avatarUrl && !avatarImgError ? (
                       <img
                         src={user.avatarUrl}
                         alt={user.name}
-                        className="w-full h-full object-contain"
+                        onError={() => setAvatarImgError(true)}
+                        className="w-full h-full object-contain rounded-[10px]"
                       />
                     ) : (
-                      <span className="text-lg sm:text-xl" aria-hidden="true">🐼</span>
+                      <span className="text-lg sm:text-xl leading-none" aria-hidden="true">
+                        {getChildAvatarEmoji(user.avatar)}
+                      </span>
                     )}
+                    <span
+                      className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border border-white flex items-center justify-center text-amber-950 shadow-2xs"
+                      aria-hidden="true"
+                    >
+                      <KeyRound className="w-2.5 h-2.5 stroke-[2.5]" />
+                    </span>
                   </div>
-                  <span className="flex flex-col items-start leading-tight">
-                    <span className="font-black text-[15px] sm:text-[16px] text-slate-800 whitespace-nowrap" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
+                  <span className="flex flex-col items-start leading-tight text-left">
+                    <span
+                      className="font-black text-[13px] sm:text-[15px] text-slate-800 whitespace-nowrap max-w-[110px] sm:max-w-[150px] truncate"
+                      style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+                    >
                       {user.name}
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 whitespace-nowrap">
-                      <BookOpen className="h-3 w-3" aria-hidden="true" />
-                      {currentOption.book} <span className="text-amber-800/80">· {currentOption.ageLabel}</span>
+                      <BookOpen className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      <span>{currentOption.book}</span>
+                      <span className="text-amber-800/80">· {currentOption.ageLabel}</span>
                     </span>
                   </span>
                 </button>
@@ -261,25 +276,12 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                   📒
                 </span>
                 <span 
-                  className="hidden sm:inline font-black text-[13px] sm:text-[14px] text-amber-950 whitespace-nowrap"
+                  className="hidden 2xl:inline font-black text-[13px] sm:text-[14px] text-amber-950 whitespace-nowrap"
                   style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
                 >
                   Sổ liên lạc
                 </span>
                 <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
-              </button>
-
-              {/* Change Password */}
-              <button
-                onClick={() => {
-                  sfx.playPop();
-                  navigate('/child/change-pin');
-                }}
-                title="Đổi mật khẩu của bé"
-                aria-label="Đổi mật khẩu của bé"
-                className="p-2 sm:p-3.5 rounded-[18px] bg-[#211d18] hover:bg-[#332819] text-slate-300 hover:text-amber-200 border border-slate-700 hover:border-amber-700 shadow-sm transition-colors cursor-pointer flex-shrink-0"
-              >
-                <KeyRound className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
               {/* Switch Player / Logout */}
@@ -295,6 +297,19 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Thông tin của bé & Đổi mã PIN Modal */}
+      <ChildProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        bookLabel={currentOption.book}
+        ageLabel={currentOption.ageLabel}
+        ageCode={currentOption.code}
+        totalStars={totalStars}
+        completedCount={completedCount}
+        streakDays={localStreakData?.streak || 1}
+        onOpenBadges={() => setShowBadgesModal(true)}
+      />
 
       {/* Sổ liên lạc Phụ huynh Modal */}
       {showParentModal && user && (

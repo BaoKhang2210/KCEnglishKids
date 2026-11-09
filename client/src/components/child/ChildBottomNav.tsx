@@ -90,7 +90,7 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
           <div className={`p-2 rounded-2xl transition-all ${isVocabActive ? 'bg-rose-500 text-white shadow-sm' : ''}`}>
             <BookMarked className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <span className="text-[10px] sm:text-xs leading-tight whitespace-nowrap">Từ vựng</span>
+<span className="text-[10px] sm:text-xs leading-tight whitespace-nowrap">Sổ từ vựng</span>
         </button>
 
         <button
