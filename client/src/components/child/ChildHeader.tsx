@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, PlayCircle } from 'lucide-react';
+import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, PlayCircle, BookOpenCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
@@ -81,6 +81,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const isVideosActive = currentTab === 'videos' || location.pathname.startsWith('/videos');
   const isVocabActive = currentTab === 'vocab';
   const isGamesActive = currentTab === 'games' || currentTab === 'arcade';
+  const isDiaryActive = currentTab === 'diary' || currentTab === 'history';
   const isBadgesActive = currentTab === 'badges';
 
   const ageOptions: { code: string; book: string; ageLabel: string; color: string }[] = [
@@ -176,7 +177,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
               <button
                 onClick={() => handleNav('games')}
-                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isGamesActive
                     ? 'bg-sky-500 text-white shadow-[inset_0_-3px_0_#0369a1]'
                     : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900 border-2 border-transparent hover:border-sky-200 shadow-2xs'
@@ -184,12 +185,25 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Gamepad2 className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isGamesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Trò chơi</span>
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Trò chơi</span>
+              </button>
+
+              <button
+                onClick={() => handleNav('diary')}
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  isDiaryActive
+                    ? 'bg-orange-500 text-white shadow-[inset_0_-3px_0_#c2410c]'
+                    : 'text-slate-600 hover:bg-orange-50 hover:text-orange-900 border-2 border-transparent hover:border-orange-200 shadow-2xs'
+                }`}
+                style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+              >
+                <BookOpenCheck className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isDiaryActive ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Nhật ký</span>
               </button>
 
               <button
                 onClick={() => handleNav('badges')}
-                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isBadgesActive
                     ? 'bg-purple-500 text-white shadow-[inset_0_-3px_0_#6d28d9]'
                     : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900 border-2 border-transparent hover:border-purple-200 shadow-2xs'
@@ -197,7 +211,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Award className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isBadgesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Bộ sưu tập</span>
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Bộ sưu tập</span>
               </button>
             </div>
           </div>

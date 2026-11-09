@@ -16,7 +16,8 @@ const getChildProgress = async (req, res, next) => {
     const [progressList, starLedger] = await Promise.all([Progress.find({ child: id })
       .populate('topic', 'englishName vietnameseName icon colorCode')
       .populate('lesson', 'title vietnameseTitle difficulty')
-      .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl'),
+      .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl')
+      .sort({ lastActivityAt: -1, updatedAt: -1 }),
     require('../services/starLedgerService').computeStarLedger(id)]);
 
     // Aggregate statistics
@@ -42,9 +43,9 @@ const getChildProgress = async (req, res, next) => {
 
     const recentResults = await ActivityResult.find({ child: id })
       .populate('activity', 'title activityType')
-      .populate('lesson', 'title')
+      .populate('lesson', 'title vietnameseTitle')
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(20);
 
     res.status(200).json({
       success: true,
@@ -56,7 +57,7 @@ const getChildProgress = async (req, res, next) => {
         starLedger,
         progressList,
         weakVocabulary: Object.values(weakWordsMap),
-        recentActivityResults: await require('../services/learningHistory').recentHistory(id,recentResults,5)
+        recentActivityResults: await require('../services/learningHistory').recentHistory(id,recentResults,25)
       }
     });
   } catch (error) {

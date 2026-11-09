@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Map, Compass, Award, Gamepad2, BookMarked, PlayCircle } from 'lucide-react';
+import { Map, Compass, Award, Gamepad2, BookMarked, PlayCircle, BookOpenCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { ChildBadgesModal } from './ChildBadgesModal';
@@ -40,6 +40,7 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
   const isVideosActive = currentTab === 'videos' || location.pathname.startsWith('/videos');
   const isVocabActive = currentTab === 'vocab';
   const isGamesActive = currentTab === 'games' || currentTab === 'arcade';
+  const isDiaryActive = currentTab === 'diary' || currentTab === 'history';
   const isBadgesActive = currentTab === 'badges';
 
   return (
@@ -103,6 +104,18 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
             <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
           </div>
           <span className="text-[10px] sm:text-xs leading-tight whitespace-nowrap">Trò chơi</span>
+        </button>
+
+        <button
+          onClick={() => handleNav('/', 'diary')}
+          className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 cursor-pointer transition-transform active:scale-90 ${
+            isDiaryActive ? 'text-orange-300 font-black' : 'text-stone-300 font-bold'
+          }`}
+        >
+          <div className={`p-2 rounded-2xl transition-all ${isDiaryActive ? 'bg-orange-500 text-white shadow-sm' : ''}`}>
+            <BookOpenCheck className="w-6 h-6 stroke-[2.5]" />
+          </div>
+          <span className="text-[10px] sm:text-xs leading-tight whitespace-nowrap">Nhật ký</span>
         </button>
 
         <button

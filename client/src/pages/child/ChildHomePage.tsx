@@ -23,6 +23,7 @@ import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
 import { ChildVideoLibrarySection } from '../../components/child/video/ChildVideoLibrarySection';
+import { ChildLearningDiarySection } from '../../components/child/ChildLearningDiarySection';
 import { StarCollectionSection } from '../../components/child/StarCollectionSection';
 import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
@@ -317,14 +318,13 @@ export const ChildHomePage: React.FC = () => {
 
       <main className={`flex-1 min-h-0 ${activeTab === 'vocab' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
         <div className={activeTab === 'vocab' ? 'flex h-full min-h-0 w-full flex-col px-4 py-3 sm:px-8 lg:px-12' : 'w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12'}>
-        {activeTab !== 'videos' && activeTab !== 'vocab' && (
+        {activeTab !== 'videos' && activeTab !== 'vocab' && activeTab !== 'diary' && activeTab !== 'history' && (
           <>
-            <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
             <ChildRecognitions />
           </>
         )}
         {/* COMPACT BANNER */}
-        {activeTab !== 'vocab' && activeTab !== 'videos' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
+        {activeTab !== 'vocab' && activeTab !== 'videos' && activeTab !== 'diary' && activeTab !== 'history' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
           <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_62%]" />
           <div className="absolute inset-0 bg-gradient-to-r from-teal-950/85 via-teal-950/55 to-teal-950/15" />
           <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
@@ -640,6 +640,18 @@ export const ChildHomePage: React.FC = () => {
                   onNavigateTab={goTab}
                 />
               </section>
+            )}
+
+            {/* ==================== TAB: NHẬT KÝ & TIẾN ĐỘ HỌC TẬP CỦA BÉ ==================== */}
+            {(activeTab === 'diary' || activeTab === 'history') && (
+              <ChildLearningDiarySection
+                units={displayUnits}
+                ageGroupCode={ageCode}
+                totalStars={totalStars}
+                completedLessons={completedLessons}
+                streakDays={streakData?.streak || 1}
+                onNavigateTab={goTab}
+              />
             )}
 
             {/* ==================== TAB 4: HUY HIỆU CỦA BÉ ==================== */}

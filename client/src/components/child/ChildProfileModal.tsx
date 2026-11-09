@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   X,
   BookOpen,
+  BookOpenCheck,
   KeyRound,
   CheckCircle2,
   ShieldCheck,
@@ -83,6 +84,7 @@ export const ChildProfileModal: React.FC<ChildProfileModalProps> = ({
 }) => {
   const { user } = useAuth();
   const { rewards } = useRewards();
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'info' | 'pin'>('info');
   const [imgError, setImgError] = useState(false);
 
@@ -370,6 +372,31 @@ export const ChildProfileModal: React.FC<ChildProfileModalProps> = ({
 
               {/* Quick Actions inside Child Profile */}
               <div className="space-y-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.playPop();
+                    onClose();
+                    navigate('/?tab=diary');
+                  }}
+                  className="w-full p-4 rounded-2xl border-2 border-orange-300 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 hover:from-orange-100 hover:to-amber-100 flex items-center justify-between gap-3 transition-all cursor-pointer shadow-2xs group"
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-11 h-11 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform flex-shrink-0">
+                      <BookOpenCheck className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <span className="font-black text-sm sm:text-base text-slate-800 block">
+                        Nhật ký & Tiến độ học tập của bé
+                      </span>
+                      <span className="text-xs font-bold text-slate-500 block">
+                        Xem bé đã học bài gì, đang học bài nào và kết quả từng chặng
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-orange-700 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
