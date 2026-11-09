@@ -1,8 +1,8 @@
-import { StoryBanner } from '../../components/StoryScene';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check,
+  Droplets,
   LockKeyhole,
   Sparkles,
   Star,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
+import { topicsApi, lessonsApi, vocabularyApi, streakApi, vocabReviewApi } from '../../services/api';
 import type { Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildRecognitions } from '../../components/child/ChildRecognitions';
@@ -135,6 +135,7 @@ export const ChildHomePage: React.FC = () => {
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
   const [ageTopics, setAgeTopics] = useState<Topic[]>([]);
   const [vocabularyList, setVocabularyList] = useState<Vocabulary[]>([]);
+  const [dueWordCount, setDueWordCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // §1.2 — Reward chest flow (Màn 1: kệ rương, Màn 2: mở quà)
@@ -228,6 +229,12 @@ export const ChildHomePage: React.FC = () => {
           } catch (stErr) {
             console.warn('Could not fetch daily streak:', stErr);
           }
+          try {
+            const dueRes = await vocabReviewApi.getDue(childId, 1);
+            setDueWordCount(Number(dueRes.data?.total) || 0);
+          } catch {
+            /* The notebook shows its own retry state. */
+          }
         }
       } catch (err) {
         console.error('Failed to load child home data:', err);
@@ -255,7 +262,7 @@ export const ChildHomePage: React.FC = () => {
   const ledgerUnitsById = new Map((ledger?.units || []).map(unit => [unit.id, unit]));
   const displayUnits = units.map(unit => {
     const starUnit = ledgerUnitsById.get(String(unit._id));
-    if (!starUnit) return { ...unit, lessons: unit.lessons.map(lesson => ({ ...lesson, stars: undefined })) };
+    if (!starUnit) return { ...unit, lessons: unit.lessons.map(lesson => ({ ...lesson, stars: 0 })) };
     const lessonsById = new Map(starUnit.lessons.map(lesson => [lesson.id, lesson]));
     return { ...unit, isCompleted: starUnit.completed,
       lessons: unit.lessons.map(lesson => {
@@ -308,9 +315,9 @@ export const ChildHomePage: React.FC = () => {
         />
       </div>
 
-      <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-        <div className="w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12">
-        {activeTab !== 'videos' && (
+      <main className={`flex-1 min-h-0 ${activeTab === 'vocab' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
+        <div className={activeTab === 'vocab' ? 'flex h-full min-h-0 w-full flex-col px-4 py-3 sm:px-8 lg:px-12' : 'w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12'}>
+        {activeTab !== 'videos' && activeTab !== 'vocab' && (
           <>
             <button className="mb-4 w-full rounded-2xl bg-teal-700 p-4 text-white font-black shadow-sm" onClick={()=>navigate('/my-learning')}>🌱 Ôn 5 phút · Báo cáo tuần · Nguồn sao</button>
             <ChildRecognitions />
@@ -332,7 +339,7 @@ export const ChildHomePage: React.FC = () => {
                 <p className="text-amber-100 font-bold text-xs">{getBookBadgeText(ageCode)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
                 <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
                 <span>{ledger ? `${totalStars} Sao` : rewardsLoading ? 'Đang tải sao…' : '— Sao'}</span>
@@ -341,6 +348,10 @@ export const ChildHomePage: React.FC = () => {
                 <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
                 <span>{completedLessons} Lesson</span>
               </div>
+              {dueWordCount > 0 && <button type="button" onClick={() => navigate('/?tab=vocab&review=1')} aria-label={`Ôn nhanh ${dueWordCount} từ đến hạn`} className="bg-sky-950/30 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25 active:scale-95">
+                <Droplets className="w-4 h-4 text-sky-200" />
+                <span>{dueWordCount} từ cần ôn</span>
+              </button>}
             </div>
           </div>
         </section>}
@@ -354,7 +365,7 @@ export const ChildHomePage: React.FC = () => {
           <>
             {/* ==================== TAB 1: HÀNH TRÌNH HỌC (CURRICULUM PATH) ==================== */}
             {activeTab === 'path' && (
-              <section className="space-y-10"><StoryBanner scene="adventure" title="Hôm nay mình khám phá gì nhỉ?" eyebrow="CÙNG KOKO HỌC QUA CHƠI"><p>Chọn một chặng, nghe và chạm vào tranh nhé.</p></StoryBanner>
+              <section className="space-y-10">
                 {/* Header */}
                 <div className="flex items-end justify-between flex-wrap gap-2">
                   <div>
@@ -615,8 +626,8 @@ export const ChildHomePage: React.FC = () => {
 
             {/* ==================== TAB: SỔ TỪ VỰNG CỦA BÉ ==================== */}
             {activeTab === 'vocab' && (
-              <section className="space-y-6">
-                <ChildVocabNotebookSection onNavigateTab={goTab} />
+              <section className="h-full min-h-0">
+                <ChildVocabNotebookSection onNavigateTab={goTab} autoStartReview={params.get('review') === '1'} />
               </section>
             )}
 

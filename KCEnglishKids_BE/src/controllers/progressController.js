@@ -75,7 +75,9 @@ const getLessonProgress = async (req, res, next) => {
     );
     if (!progress) return res.status(200).json({ success: true, data: progress });
     let stage2Report = null;
+    let lesson = null;
     if (progress.stage2Completed) {
+      lesson = await Lesson.findById(lessonId).select('ageGroupCode vocabularyItems').lean();
       const LearningEvent = require('../models/LearningEvent');
       const event = await LearningEvent.findOne({ child: childId, lesson: lessonId, stage: 2 }).sort({ createdAt: -1, _id: -1 }).lean();
       if (event?.stage2Report) {
@@ -90,10 +92,18 @@ const getLessonProgress = async (req, res, next) => {
         };
       } else if (event?.answers?.length) {
         const { buildStage2Report } = require('../config/stage2Report');
-        const lesson = await Lesson.findById(lessonId).select('vocabularyItems').lean();
         const words = await Vocabulary.find({ _id: { $in: lesson?.vocabularyItems || [] }, status: 'ACTIVE' }).select('english vietnamese imageUrl audioUrl').lean();
         stage2Report = buildStage2Report(event.answers, words, progress, 0);
         stage2Report.legacy = true;
+      }
+      if (stage2Report) {
+        const vocabReview = require('../services/vocabReview');
+        const snapshots = await vocabReview.getReviewSnapshots(
+          childId,
+          stage2Report.words.map((word) => word.wordId),
+          lesson?.ageGroupCode || '4-5'
+        );
+        stage2Report = vocabReview.attachReview(stage2Report, snapshots);
       }
     }
     res.status(200).json({ success: true, data: { ...progress.toObject(), stage2Report } });

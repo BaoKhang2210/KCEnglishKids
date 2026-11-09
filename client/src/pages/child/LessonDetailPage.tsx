@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Droplets, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { lessonsApi, stageProgressApi, topicsApi } from '../../services/api';
+import { lessonsApi, stageProgressApi, topicsApi, vocabReviewApi } from '../../services/api';
 import type { Lesson, Vocabulary } from '../../types';
 import { sfx, stopWordAudio } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
@@ -52,6 +52,8 @@ export const LessonDetailPage: React.FC = () => {
   const lockedStageTriggerRef = useRef<HTMLElement | null>(null);
   const stageButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [showParentDrawer, setShowParentDrawer] = useState(false);
+  const [warmupDue, setWarmupDue] = useState(0);
+  const [warmupDismissed, setWarmupDismissed] = useState(false);
 
   const childId = user?._id || user?.id || 'child_guest';
 
@@ -63,6 +65,7 @@ export const LessonDetailPage: React.FC = () => {
 
     let cancelled = false;
     setLoading(true); setLesson(null); setPlan(null); setLessonProgress(null); setLoadError('');setCompletedGames([]);
+    setWarmupDue(0); setWarmupDismissed(false);
     const fetchLesson = async () => {
       try {
         if (!id) return;
@@ -110,6 +113,13 @@ export const LessonDetailPage: React.FC = () => {
             }
           } catch {
             /* offline fallback */
+          }
+
+          try {
+            const dueRes = await vocabReviewApi.getDue(childId, 1);
+            if (!cancelled) setWarmupDue(Number(dueRes.data?.total) || 0);
+          } catch {
+            /* The warm-up is only a suggestion; offline keeps lesson flow intact. */
           }
 
           const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
@@ -461,6 +471,14 @@ export const LessonDetailPage: React.FC = () => {
         </div>
       ) : (
         <div className="w-full h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+          {user?.role === 'CHILD' && warmupDue > 0 && !warmupDismissed && !isStage1Completed && (
+            <div className="flex shrink-0 items-center gap-2 rounded-2xl border-2 border-sky-200 bg-sky-50 px-2 py-1 text-slate-900">
+              <Droplets className="h-5 w-5 shrink-0 text-sky-600" aria-hidden="true" />
+              <p className="min-w-0 flex-1 truncate text-xs font-black sm:text-sm">Có {warmupDue} từ sắp quên. Ôn nhanh 3 từ trước khi học nhé?</p>
+              <button type="button" onClick={() => navigate('/?tab=vocab&review=1')} className="min-h-9 shrink-0 rounded-xl bg-sky-700 px-2 text-xs font-black text-white">Ôn nhanh</button>
+              <button type="button" onClick={() => setWarmupDismissed(true)} aria-label="Để sau" className="grid min-h-9 min-w-9 shrink-0 place-items-center rounded-xl bg-white text-slate-700"><X className="h-4 w-4" /></button>
+            </div>
+          )}
           {/* ACTIVE STAGE CONTENT — fills all space */}
           <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             {/* STAGE 1: KHÁM PHÁ */}

@@ -937,22 +937,3 @@ textarea {
   }
 }
 
-/* Stage 2 summary: all words share one responsive grid and equal-height rows. */
-.stage2-result-grid {
-  grid-auto-rows: minmax(72px, 1fr);
-}
-
-.stage2-result-card {
-  min-height: 72px;
-}
-
-@media (max-height: 420px) {
-  .stage2-result-grid {
-    gap: 4px;
-    grid-auto-rows: minmax(56px, 1fr);
-  }
-
-  .stage2-result-card {
-    min-height: 56px;
-  }
-}

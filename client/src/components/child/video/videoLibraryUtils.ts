@@ -405,6 +405,53 @@ export interface VideoChoiceExercise {
 export type VideoExercise = VideoOpenExercise | VideoChoiceExercise;
 
 /**
+ * YouTube lessons carry no caption text of their own, so a quiz can only point
+ * back at the embedded video. A segment question plays one numbered sentence
+ * slot and asks the child to recognise which slot it was, so the activity
+ * trains listening attention without copying any subtitle text.
+ */
+export interface VideoSegmentExercise {
+  kind: 'segment';
+  id: string;
+  prompt: string;
+  cue: VideoCue;
+  options: Array<{ text: string; correct: boolean }>;
+}
+
+export function segmentCueLabel(cue: VideoCue): string {
+  return `Câu ${cue.idx} · ${formatCueTimestamp(cue.start)}–${formatCueTimestamp(cue.end)}`;
+}
+
+export function buildSegmentExercises(cues: VideoCue[], maxChoices = 6): VideoSegmentExercise[] {
+  const usable = cues.filter(
+    (cue) => Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start
+  );
+  if (usable.length < 3) return [];
+  const count = Math.min(maxChoices, usable.length - 2);
+  const chosen: VideoCue[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const cue = usable[Math.floor((index * usable.length) / count)];
+    if (cue && !chosen.some((item) => item.idx === cue.idx)) chosen.push(cue);
+  }
+  return chosen.map((cue, index) => {
+    const others = usable.filter((item) => item.idx !== cue.idx);
+    const decoys = [...others.slice(index + 1), ...others.slice(0, index + 1)].slice(0, 2);
+    const options = [
+      { text: segmentCueLabel(cue), correct: true },
+      ...decoys.map((decoy) => ({ text: segmentCueLabel(decoy), correct: false }))
+    ];
+    const rotate = options.length > 0 ? index % options.length : 0;
+    return {
+      kind: 'segment' as const,
+      id: `segment-${index + 1}`,
+      prompt: 'Bé vừa nghe câu nào trong video? Chọn đúng nhé!',
+      cue,
+      options: [...options.slice(rotate), ...options.slice(0, rotate)]
+    };
+  });
+}
+
+/**
  * The source page shows seven exercises: one open question plus six listening
  * choices derived deterministically from the licensed cues.
  */

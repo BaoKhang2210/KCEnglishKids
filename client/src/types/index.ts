@@ -672,6 +672,91 @@ export interface MasterySummary {
   notStarted: number;
 }
 
+// ─── Vocabulary review schedule (Leitner, server-owned) ──────────────────────
+
+export type VocabReviewOutcome = 'SECURE' | 'PRACTICE' | 'REVIEW';
+export type VocabReviewStatus = 'LEARNING' | 'PRACTICE' | 'REVIEW' | 'MASTERED';
+
+export interface VocabRoundMark {
+  code?: number | null;
+  key?: string | null;
+  name?: string;
+  rating?: VocabReviewOutcome | null;
+  isCorrect?: boolean;
+  wrongAttemptCount?: number | null;
+  usedHint?: boolean | null;
+}
+
+export interface VocabReviewSnapshot {
+  level: number;
+  maxLevel: number;
+  dueOn: string | null;
+  dueAt: string | null;
+  status: VocabReviewStatus;
+  mastered: boolean;
+  lastOutcome: VocabReviewOutcome | null;
+  lastPromotionOn?: string | null;
+  demotionCount?: number;
+}
+
+export interface VocabReviewWord extends VocabReviewSnapshot {
+  vocabId: string;
+  english: string;
+  vietnamese: string;
+  pronunciation?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  category?: string;
+  exampleSentence?: string;
+  exampleSentenceVietnamese?: string;
+  lastRounds: VocabRoundMark[];
+  lastPracticedOn?: string | null;
+}
+
+export interface VocabNotebookLesson {
+  _id: string;
+  title: string;
+  vietnameseTitle?: string;
+  displayOrder: number;
+  totalWords: number;
+  learnedWords: number;
+  masteredWords: number;
+  dueWords: number;
+  words: VocabReviewWord[];
+}
+
+export interface VocabNotebookUnit {
+  _id: string;
+  unitNumber: number;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  color?: string;
+  locked: boolean;
+  totalWords: number;
+  learnedWords: number;
+  masteredWords: number;
+  dueWords: number;
+  lessons: VocabNotebookLesson[];
+}
+
+export interface VocabNotebook {
+  ageGroup: AgeGroupCode;
+  today: string;
+  summary: { total: number; mastered: number; learning: number; dueToday: number };
+  dueToday: VocabReviewWord[];
+  limits: { dailyDueLimit: number; sessionLimit: number };
+  units: VocabNotebookUnit[];
+}
+
+export interface VocabDueList {
+  ageGroup: AgeGroupCode;
+  today: string;
+  total: number;
+  limit: number;
+  data: VocabReviewWord[];
+}
+
 // ─── Parent Notifications (Phase 2) ───────────────────────────────────────────
 
 export type NotificationTemplateType = 'SESSION_REPORT' | 'PROGRESS_UPDATE' | 'GENERAL';

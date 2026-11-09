@@ -19,7 +19,7 @@ const {
   effectiveClipEnd
 } = require('../services/videoProgress');
 const { ensureVideoSeed, CATALOGUE_TOTALS } = require('../services/videoSeed');
-const { fetchSourceCues } = require('../services/videoCues');
+const { fetchSourceCues, fetchYouTubeCues } = require('../services/videoCues');
 const { assertChildAccess, fail } = require('../services/childAccess');
 
 const AGE_GROUPS = CONFIG.ageOrder;
@@ -467,6 +467,21 @@ const getEpisodeCues = async (req, res, next) => {
       });
     }
     if (!episode.cueUrl) {
+      if (episode.source === 'youtube' && episode.youtubeId) {
+        try {
+          const ytCues = await fetchYouTubeCues(episode.youtubeId);
+          return res.status(200).json({
+            success: true,
+            data: { cues: ytCues, count: ytCues.length, source: 'youtube', unavailable: ytCues.length === 0 }
+          });
+        } catch {
+          // Captions are a runtime enhancement; numbered markers still work.
+          return res.status(200).json({
+            success: true,
+            data: { cues: [], count: 0, source: 'youtube', unavailable: true }
+          });
+        }
+      }
       return res.status(200).json({
         success: true,
         data: { cues: [], count: 0, source: 'none', unavailable: false }

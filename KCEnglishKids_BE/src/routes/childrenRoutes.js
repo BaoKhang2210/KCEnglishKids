@@ -40,6 +40,11 @@ router.get('/:childId/vocabulary-mastery', protect, ownChildOr403(), vocabMaster
 router.post('/:childId/vocabulary-mastery', protect, ownChildOr403(), vocabMasteryController.syncMastery);
 router.post('/:childId/vocabulary-mastery/:vocabId/record', protect, ownChildOr403(), vocabMasteryController.recordPractice);
 
+// Vocabulary notebook grouped by Unit → Lesson + Leitner review schedule
+router.get('/:childId/vocabulary-notebook', protect, ownChildOr403(), vocabMasteryController.getNotebook);
+router.get('/:childId/vocabulary-review/due', protect, ownChildOr403(), vocabMasteryController.getDueReview);
+router.post('/:childId/vocabulary-review/:vocabId', protect, ownChildOr403(), vocabMasteryController.recordReview);
+
 // §1.2 — rewards (stars + chests + stickers)
 router.get('/:childId/rewards', protect, childRewardReadAccess, getChildRewards);
 router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(), revealChildChest);

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { VocabularyMastery, User, Vocabulary } = require('../models');
 const { calculateMasteryLevel } = require('../models/VocabularyMastery');
+const vocabReview = require('../services/vocabReview');
 
 const validId = (id) => mongoose.isValidObjectId(id);
 
@@ -164,16 +165,89 @@ exports.recordPractice = async (req, res, next) => {
     record.independentStreak = independentStreak;
     record.practiceDaysCount = streakDays.size;
     record.recentActivityTypes = [...streakActivityTypes];
-    record.needsReview = needsReview;
-    record.masteryAlgorithmVersion = 2;
-    record.masteryLevel = masteryLevel;
-    if (!record.lastReviewedAt || new Date(record.lastReviewedAt) <= new Date(lastReviewedAt)) {
-      record.lastReviewedAt = lastReviewedAt;
-      record.nextReviewAt = new Date(new Date(lastReviewedAt).getTime() + intervalDays * 86400000);
+    // Stage 2 round events and the Leitner module own the schedule once a word
+    // enters the review system; legacy counters still update, but they must not
+    // overwrite the level or the due date computed by services/vocabReview.js.
+    const reviewManaged = Number(record.reviewAlgorithmVersion) >= 1 || String(submissionId).startsWith('stage2-');
+    if (!reviewManaged) {
+      record.needsReview = needsReview;
+      record.masteryAlgorithmVersion = 2;
+      record.masteryLevel = masteryLevel;
+      if (!record.lastReviewedAt || new Date(record.lastReviewedAt) <= new Date(lastReviewedAt)) {
+        record.lastReviewedAt = lastReviewedAt;
+        record.nextReviewAt = new Date(new Date(lastReviewedAt).getTime() + intervalDays * 86400000);
+      }
     }
     await record.save();
 
     res.json({ success: true, data: record });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/children/:childId/vocabulary-notebook
+// Unit → Lesson notebook grouped from the single review schedule.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getNotebook = async (req, res, next) => {
+  try {
+    const { childId } = req.params;
+    await requireChild(req, childId);
+    const data = await vocabReview.getNotebook(childId);
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/children/:childId/vocabulary-review/due?limit=5
+// Due words ordered by the longest overdue first.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getDueReview = async (req, res, next) => {
+  try {
+    const { childId } = req.params;
+    await requireChild(req, childId);
+    const limit = req.query.limit == null ? undefined : Number(req.query.limit);
+    if (limit != null && (!Number.isSafeInteger(limit) || limit < 1 || limit > 50)) {
+      return res.status(400).json({ success: false, message: 'Invalid review limit.' });
+    }
+    const data = await vocabReview.getDueReview(childId, { limit });
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/children/:childId/vocabulary-review/:vocabId
+// Quick review answer; shares the Leitner module with Stage 2.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.recordReview = async (req, res, next) => {
+  try {
+    const { childId, vocabId } = req.params;
+    await requireChild(req, childId);
+    if (!validId(vocabId)) return res.status(400).json({ success: false, message: 'Invalid vocabulary id.' });
+    const { isCorrect, wrongAttempts = 0, independent = true, submissionId, activityType } = req.body || {};
+    if (typeof isCorrect !== 'boolean'
+      || !Number.isSafeInteger(wrongAttempts) || wrongAttempts < 0 || wrongAttempts > 20
+      || typeof independent !== 'boolean'
+      || typeof submissionId !== 'string' || !/^[a-zA-Z0-9_-]{8,120}$/.test(submissionId)
+      || activityType != null && (typeof activityType !== 'string' || activityType.length > 40)) {
+      return res.status(400).json({ success: false, message: 'Invalid review outcome.' });
+    }
+    await requireVocabulary([vocabId]);
+    const outcome = vocabReview.outcomeFromAnswer({ isCorrect, wrongAttempts, independent });
+    const data = await vocabReview.recordReviewOutcome({
+      childId,
+      vocabId,
+      outcome,
+      submissionId,
+      isCorrect,
+      wrongAttempts
+    });
+    res.json({ success: true, data });
   } catch (e) {
     next(e);
   }
