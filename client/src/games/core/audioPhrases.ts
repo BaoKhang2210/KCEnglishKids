@@ -33,7 +33,15 @@ const PHRASE_TEXT: Record<AudioPhrase, string> = {
   match_the: 'Match the',
 };
 
-function speakText(text: string): Promise<void> {
+export async function speakText(text: string, audioUrl?: string): Promise<void> {
+  if (audioUrl) {
+    try {
+      await playWordAudio(text, audioUrl);
+      return;
+    } catch {
+      // Fallback to speechSynthesis below
+    }
+  }
   return new Promise((resolve) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       resolve();

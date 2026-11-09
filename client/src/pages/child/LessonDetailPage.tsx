@@ -283,10 +283,6 @@ export const LessonDetailPage: React.FC = () => {
         activePlan = null;
       }
     }
-    if (!hasGamePlan(activePlan)) {
-      setSyncNotice('Chưa tải được kế hoạch minigame. Hãy kết nối mạng rồi thử mở lại trò chơi để kết quả được ghi nhận.');
-      return;
-    }
     sfx.playPop();
     setActiveGameId(gameId as GameId);
   };
