@@ -19,6 +19,7 @@
     "L1": {
       "label": "L1",
       "title": "Làm quen & phản xạ",
+      "subtitleEn": "Starter",
       "ageLabel": "4–5 tuổi",
       "ageMin": 4,
       "ageMax": 5,
@@ -27,6 +28,7 @@
     "L2": {
       "label": "L2",
       "title": "Từ vựng & âm chữ",
+      "subtitleEn": "Foundation",
       "ageLabel": "4–6 tuổi",
       "ageMin": 4,
       "ageMax": 6,
@@ -35,6 +37,7 @@
     "L3": {
       "label": "L3",
       "title": "Câu đơn & mẫu âm",
+      "subtitleEn": "Developing",
       "ageLabel": "5–7 tuổi",
       "ageMin": 5,
       "ageMax": 7,
@@ -43,6 +46,7 @@
     "L4": {
       "label": "L4",
       "title": "Hội thoại & đọc hiểu",
+      "subtitleEn": "Progressing",
       "ageLabel": "6–8 tuổi",
       "ageMin": 6,
       "ageMax": 8,
@@ -51,6 +55,7 @@
     "L5": {
       "label": "L5",
       "title": "Thử thách tiếng Anh",
+      "subtitleEn": "Challenge",
       "ageLabel": "7–8 tuổi",
       "ageMin": 7,
       "ageMax": 8,

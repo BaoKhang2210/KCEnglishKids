@@ -103,7 +103,7 @@ export function defaultLevelForAge(childAge: AgeGroupCode): VideoLevel {
   return levels[levels.length - 1] || VIDEO_LEVELS[0];
 }
 
-export function defaultVideoFilters(childAge: AgeGroupCode): VideoFilters {
+export function defaultVideoFilters(childAge: AgeGroupCode = '4-5'): VideoFilters {
   return {
     age: childAge,
     level: '',
@@ -114,16 +114,16 @@ export function defaultVideoFilters(childAge: AgeGroupCode): VideoFilters {
   };
 }
 
-export function readVideoFilters(params: URLSearchParams, childAge: AgeGroupCode): VideoFilters {
+export function readVideoFilters(params: URLSearchParams, childAge: AgeGroupCode = '4-5'): VideoFilters {
   const fallback = defaultVideoFilters(childAge);
   const requestedAge = params.get('vage') as AgeGroupCode | null;
   const age =
-    requestedAge && VIDEO_AGE_ORDER.includes(requestedAge) && isAgeTabAllowed(childAge, requestedAge)
+    requestedAge && VIDEO_AGE_ORDER.includes(requestedAge)
       ? requestedAge
       : fallback.age;
   const requestedLevel = params.get('vlevel') as VideoLevel | null;
   const level =
-    requestedLevel && VIDEO_LEVELS.includes(requestedLevel) && levelsForAgeTab(age).includes(requestedLevel)
+    requestedLevel && VIDEO_LEVELS.includes(requestedLevel)
       ? requestedLevel
       : '';
   const source = params.get('vsource') as VideoSource | null;
@@ -141,7 +141,7 @@ export function readVideoFilters(params: URLSearchParams, childAge: AgeGroupCode
 export function writeVideoFilters(params: URLSearchParams, filters: VideoFilters): URLSearchParams {
   const next = new URLSearchParams(params);
   next.set('tab', 'videos');
-  next.set('vage', filters.age);
+  next.delete('vage');
   if (filters.level) next.set('vlevel', filters.level); else next.delete('vlevel');
   if (filters.source) next.set('vsource', filters.source); else next.delete('vsource');
   if (filters.dubbing !== 'all') next.set('vdub', filters.dubbing); else next.delete('vdub');
@@ -151,7 +151,6 @@ export function writeVideoFilters(params: URLSearchParams, filters: VideoFilters
 }
 
 export function seriesMatchesFilters(series: VideoSeriesSummary, filters: VideoFilters): boolean {
-  if (!levelsForAgeTab(filters.age).includes(series.level)) return false;
   if (filters.level && series.level !== filters.level) return false;
   if (filters.source && series.source !== filters.source) return false;
   if (filters.dubbing === 'yes' && !series.hasDubbing) return false;
@@ -165,7 +164,8 @@ export function seriesMatchesFilters(series: VideoSeriesSummary, filters: VideoF
       series.subtitle,
       series.description,
       series.levelTitle,
-      series.targetAge,
+      VIDEO_LEVEL_META[series.level]?.title,
+      VIDEO_LEVEL_META[series.level]?.subtitleEn,
       topicLabel(series.topicCode)
     ]
       .filter(Boolean)

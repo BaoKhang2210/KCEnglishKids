@@ -10,13 +10,18 @@ async function createPlan(childId,lessonId){
  const unit=await CurriculumUnit.findById(lesson.curriculumUnits[0]);
  const base={purpose:'LEARNING_PLAN',child:String(childId),lesson:String(lessonId),content:fingerprint(words)};
  const sign=claims=>jwt.sign({...base,...claims},jwtSecret(),{expiresIn:'30d'});
- const games=(await require('./gameCatalog').configuredGames(words,unit.unitNumber,lesson.displayOrder||1)).map(game=>{
-  const pool=usable(game,words).map(w=>String(w._id));
+ const buildGamePlan=game=>{
+  const usablePool=usable(game,words).map(w=>String(w._id));
+  const pool=usablePool.length?usablePool:words.map(w=>String(w._id));
   for(let i=pool.length-1;i>0;i--){const j=crypto.randomInt(0,i+1);[pool[i],pool[j]]=[pool[j],pool[i]];}
-  const targetOrder=Array.from({length:game.targetCountByAge[lesson.ageGroupCode]},(_,i)=>pool[i%pool.length]);
+  const targetOrder=Array.from({length:game.targetCountByAge[lesson.ageGroupCode]||4},(_,i)=>pool[i%pool.length]);
   return {id:game.id,targetOrder,attemptToken:sign({stage:3,gameId:game.id,targetOrder})};
- });
- return {stage2Token:sign({stage:2}),games};
+ };
+ const configured=await require('./gameCatalog').configuredGames(words,unit.unitNumber,lesson.displayOrder||1);
+ const games=configured.map(buildGamePlan);
+ const allRules=require('../../../shared/learningGames.json');
+ const allGames=allRules.map(rule=>games.find(g=>g.id===rule.id)||buildGamePlan(rule));
+ return {stage2Token:sign({stage:2}),games,allGames};
 }
 function verifyPlan(childId,lessonId,body,words){
  let plan;try{plan=jwt.verify(body.attemptToken,jwtSecret());}catch{fail('Kế hoạch luyện tập hết hạn hoặc không hợp lệ. Mở lại bài để bắt đầu.',409);}

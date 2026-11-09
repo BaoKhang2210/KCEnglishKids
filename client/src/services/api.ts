@@ -690,6 +690,7 @@ export const teacherApi = {
     studentId?: string;
     lessonId: string;
     activityId?: string;
+    minigameId?: string;
     dueDate?: string;
     instructions?: string;
   }) => api.post('/teacher/assignments', data),

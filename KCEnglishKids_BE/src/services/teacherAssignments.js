@@ -16,6 +16,13 @@ async function submissions(assignment, students) {
   const results = await ActivityResult.find(resultQuery(assignment, { $in: students.map(s => s._id || s) }))
     .populate('child', 'name username avatar avatarUrl').populate('answers.vocabularyId', 'english vietnamese imageUrl pronunciation')
     .sort({ createdAt: -1, _id: -1 }).lean();
+  const minigameRows = assignment.completionMode === 'MINIGAME' && assignment.minigameId ? await require('../models/LearningEvent').find({
+    child: { $in: students.map(s => s._id || s) },
+    lesson: assignment.lesson?._id || assignment.lesson,
+    stage: 3,
+    gameId: assignment.minigameId,
+    createdAt: resultQuery(assignment, null).createdAt
+  }).sort({ createdAt: -1 }).lean() : [];
   const stageRows = assignment.completionMode === 'LESSON' && !assignment.activity ? await require('../models/LearningEvent').find({
     child: { $in: students.map(s => s._id || s) }, lesson: assignment.lesson?._id || assignment.lesson,
     lessonCompleted: true, createdAt: resultQuery(assignment, null).createdAt
@@ -23,6 +30,31 @@ async function submissions(assignment, students) {
   const stageProgress = stageRows.length ? await require('../models').Progress.find({child:{$in:students.map(s=>s._id||s)},lesson:assignment.lesson?._id||assignment.lesson}).lean() : [];
   const practiceRows=stageRows.length?await require('../models/LearningEvent').find({child:{$in:students.map(s=>s._id||s)},lesson:assignment.lesson?._id||assignment.lesson,stage:2}).sort({createdAt:-1}).lean():[];
   const data = students.map(student => {
+    if (assignment.completionMode === 'MINIGAME' && assignment.minigameId) {
+      const mgEvent = minigameRows.find(row => idOf(row.child) === idOf(student));
+      const mgAnswers = (mgEvent?.answers || []).map((answer, idx) => ({
+        ...answer,
+        promptText: `Mục tiêu #${idx + 1} (${assignment.minigameId})`,
+        vocabularyId: { _id: answer.wordId, english: answer.english, vietnamese: answer.vietnamese, imageUrl: answer.imageUrl }
+      }));
+      return {
+        student,
+        hasSubmitted: Boolean(mgEvent),
+        submission: mgEvent ? {
+          _id: mgEvent._id,
+          source: 'STAGES',
+          completed: true,
+          score: mgEvent.score ?? 100,
+          stars: 3,
+          correctCount: mgAnswers.filter(a => a.isCorrect).length,
+          incorrectCount: mgAnswers.filter(a => !a.isCorrect).length,
+          answers: mgAnswers,
+          submittedAt: mgEvent.createdAt,
+          createdAt: mgEvent.createdAt,
+          teacherFeedback: assignment.reviews?.find(review => idOf(review.child) === idOf(student)) || null
+        } : null
+      };
+    }
     const event = stageRows.find(row => idOf(row.child) === idOf(student));
     const progress = stageProgress.find(row => idOf(row.child) === idOf(student));
     const practice=event&&practiceRows.find(row=>idOf(row.child)===idOf(student)&&new Date(row.createdAt)<=new Date(event.createdAt));

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Droplets, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
@@ -34,6 +34,8 @@ const cache = {
 
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const requestedGameParam = searchParams.get('game') as GameId | null;
   const { user } = useAuth();
   const { refresh: refreshRewards } = useRewards();
   const navigate = useNavigate();
@@ -126,7 +128,10 @@ export const LessonDetailPage: React.FC = () => {
           const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
           const savedActive = cache.getItem(`kc_stage_active_${childId}_${id}`);
-          if (savedActive === '3' && savedStage2) {
+          if (requestedGameParam && (savedStage2 || user.role !== 'CHILD')) {
+            setActiveStage(3);
+            setActiveGameId(requestedGameParam);
+          } else if (savedActive === '3' && savedStage2) {
             setActiveStage(3);
           } else if (savedActive === '2' && savedStage1) {
             setActiveStage(2);
@@ -231,7 +236,8 @@ export const LessonDetailPage: React.FC = () => {
   }, [childId, id]);
   const handleGameCompleted = async (gameId: string, _stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => {
     try {
-      const saved = await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken});
+      const gamePlans = plan?.allGames || plan?.games || [];
+      const saved = await persistStage({stage: 3, gameId, answers,attemptToken:gamePlans.find((game:any)=>game.id===gameId)?.attemptToken});
       if (!saved) return;
     } catch (e) {
       if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 3 game:', e);
@@ -267,7 +273,8 @@ export const LessonDetailPage: React.FC = () => {
 
   const handleStartGame = async (gameId: string) => {
     let activePlan = plan;
-    if (!activePlan?.games?.some((game: any) => game.id === gameId && game.attemptToken && game.targetOrder?.length)) {
+    const hasGamePlan = (p: any) => (p?.allGames || p?.games)?.some((game: any) => game.id === gameId && game.attemptToken && game.targetOrder?.length);
+    if (!hasGamePlan(activePlan)) {
       try {
         const response = await stageProgressApi.getPlan(childId, id || '');
         activePlan = response?.data;
@@ -276,7 +283,7 @@ export const LessonDetailPage: React.FC = () => {
         activePlan = null;
       }
     }
-    if (!activePlan?.games?.some((game: any) => game.id === gameId && game.attemptToken && game.targetOrder?.length)) {
+    if (!hasGamePlan(activePlan)) {
       setSyncNotice('Chưa tải được kế hoạch minigame. Hãy kết nối mạng rồi thử mở lại trò chơi để kết quả được ghi nhận.');
       return;
     }
@@ -520,8 +527,8 @@ export const LessonDetailPage: React.FC = () => {
                     allowedGameIds={plan?.games.map((game: any) => game.id)}
                     key={activeGameId}
                     config={{
-                      targetOrder:plan?.games.find((game:any)=>game.id===activeGameId)?.targetOrder,
-                      attemptToken:plan?.games.find((game:any)=>game.id===activeGameId)?.attemptToken,
+                      targetOrder:(plan?.allGames || plan?.games)?.find((game:any)=>game.id===activeGameId)?.targetOrder,
+                      attemptToken:(plan?.allGames || plan?.games)?.find((game:any)=>game.id===activeGameId)?.attemptToken,
                       unitId: (lesson as any)?.unit?._id
                         || (lesson as any)?.curriculumUnits?.[0]?._id
                         || (lesson as any)?.unitId

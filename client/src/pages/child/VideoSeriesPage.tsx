@@ -287,9 +287,6 @@ export const VideoSeriesPage: React.FC = () => {
                     <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-black text-sky-700">
                       {detail.completedEpisodes}/{detail.episodeCount} bài đã học
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">
-                      {detail.ageLabel}
-                    </span>
                     {detail.hasDubbing && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-pink-50 px-2.5 py-1 text-[11px] font-black text-pink-700">
                         <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -660,8 +657,8 @@ export const VideoSeriesPage: React.FC = () => {
             </h2>
             {[
               {
-                question: 'Bé mấy tuổi học được bộ video này?',
-                answer: `Bộ video phù hợp với bé ${detail.targetAge ? `${detail.targetAge} tuổi` : detail.ageLabel}.`
+                question: 'Bộ video này thuộc cấp độ nào?',
+                answer: `Bộ video thuộc ${levelBadgeLabel(detail.levelLabel)}${detail.levelTitle ? `: ${detail.levelTitle}` : ''}, bé có thể học theo tốc độ và khả năng của mình.`
               },
               {
                 question: 'Bộ video có bao nhiêu bài?',
