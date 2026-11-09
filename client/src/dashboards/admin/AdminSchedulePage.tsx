@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { adminApi, classroomSessionApi } from '../../services/api';
 import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
-import { getSequentialLessonForSlot } from '../../utils/teachingSchedule';
+import { getSequentialLessonForSlot, cleanReason } from '../../utils/teachingSchedule';
+
 
 interface ClassroomOption {
   _id: string;
@@ -808,7 +809,7 @@ export const AdminSchedulePage: React.FC = () => {
                     const shortDate = parts.length === 3 ? `${parts[2]}/${parts[1]}` : sDate;
                     return (
                       <span key={cs._id} className="bg-amber-100/90 border border-amber-300 px-2.5 py-1 rounded-xl text-amber-950 font-bold">
-                        {cName} ({shortDate}: {cs.cancellationReason || 'Nghỉ theo kế hoạch'})
+                        {cName} ({shortDate}: {cleanReason(cs.cancellationReason)})
                       </span>
                     );
                   })}
@@ -922,40 +923,39 @@ export const AdminSchedulePage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Main Row: Class name, Time, Room, Edit */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-sm font-black text-slate-900 tracking-tight" title={cName}>
-                                  {cName}
-                                </h4>
-                                <span className="flex items-center gap-1 bg-indigo-50 text-indigo-900 px-2 py-0.5 rounded-md text-xs font-black border border-indigo-100/80 shrink-0">
-                                  <Clock size={12} className="shrink-0 text-indigo-700" />
-                                  <span>
-                                    {slot.startTime} – {slot.endTime}
-                                  </span>
-                                </span>
-                                {slot.room && (
-                                  <span className="text-[10px] text-slate-600 font-bold bg-black/5 px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0">
-                                    <MapPin size={10} />
-                                    <span>{slot.room}</span>
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-slate-600 font-semibold mt-1" title={tName}>
-                                GV: <strong className="font-black text-slate-900">{tName}</strong>
-                              </p>
-                            </div>
-
+                          {/* Class Name & Edit button */}
+                          <div className="flex items-start justify-between gap-1.5">
+                            <h4 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight leading-snug break-words flex-1" title={cName}>
+                              {cName}
+                            </h4>
                             <button
                               type="button"
                               onClick={() => handleOpenEditModal(schedule)}
-                              className="text-slate-400 hover:text-indigo-800 p-1.5 rounded-lg hover:bg-black/5 cursor-pointer opacity-80 group-hover:opacity-100 shrink-0 transition-colors"
+                              className="text-slate-400 hover:text-indigo-800 p-1 rounded-md hover:bg-black/5 cursor-pointer shrink-0 transition-colors"
                               title="Sửa lịch"
                             >
                               <Edit2 size={13} />
                             </button>
                           </div>
+
+                          {/* Meta Row: Time badge & Room badge */}
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="flex items-center gap-1 bg-indigo-50 text-indigo-900 px-2 py-0.5 rounded-md font-bold border border-indigo-100/80 shrink-0 text-[11px]">
+                              <Clock size={11} className="shrink-0 text-indigo-700" />
+                              <span>{slot.startTime} – {slot.endTime}</span>
+                            </span>
+                            {slot.room && (
+                              <span className="text-[10px] text-slate-700 font-bold bg-slate-100 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0 border border-slate-200/80">
+                                <MapPin size={10} className="text-slate-500" />
+                                <span>{slot.room}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Teacher Name */}
+                          <p className="text-[11px] text-slate-600 font-semibold truncate" title={tName}>
+                            GV: <strong className="font-black text-slate-900">{tName}</strong>
+                          </p>
 
                           {/* Attached Lesson Badge or Cancelled Status */}
                           {(() => {
@@ -970,20 +970,31 @@ export const AdminSchedulePage: React.FC = () => {
 
                             if (matchedCancelled) {
                               return (
-                                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
-                                  <div className="min-w-0 flex-1 space-y-0.5">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs font-black text-amber-950 flex items-center gap-1">
-                                        🚫 Đã báo nghỉ: <span className="underline font-black">{matchedCancelled.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
-                                      </span>
-                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
-                                        Bảo lưu bài
-                                      </span>
-                                    </div>
+                                <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
+                                  {/* Row 1: Badges */}
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-200/90 text-amber-950 border border-amber-300 whitespace-nowrap inline-flex items-center gap-1 shrink-0">
+                                      🚫 Đã báo nghỉ
+                                    </span>
+                                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-md border border-amber-200 whitespace-nowrap shrink-0">
+                                      Bảo lưu bài
+                                    </span>
+                                  </div>
+
+                                  {/* Row 2: Lý do with cleanReason */}
+                                  <div className="text-[11px] font-bold text-amber-950 leading-snug break-words">
+                                    <span className="text-amber-800 font-extrabold">Lý do:</span>{' '}
+                                    <span className="underline decoration-amber-400 font-black">
+                                      {cleanReason(matchedCancelled.cancellationReason)}
+                                    </span>
                                     {matchedCancelled.cancellationNote && (
-                                      <p className="text-[10px] text-amber-800 italic leading-snug">"{matchedCancelled.cancellationNote}"</p>
+                                      <p className="text-[10px] text-amber-800 font-medium italic mt-0.5 leading-tight">
+                                        "{matchedCancelled.cancellationNote}"
+                                      </p>
                                     )}
                                   </div>
+
+                                  {/* Row 3: Action Button full-width */}
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -996,10 +1007,10 @@ export const AdminSchedulePage: React.FC = () => {
                                         showAlert('error', err?.message || 'Không thể khôi phục');
                                       }
                                     }}
-                                    className="rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 px-3 text-xs font-black transition-colors cursor-pointer shrink-0 active:scale-95 whitespace-nowrap self-start sm:self-auto"
+                                    className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
                                     title="Hủy báo nghỉ và mở lại lịch dạy ca này"
                                   >
-                                    ↩ Hủy báo nghỉ
+                                    <span>↩ Hủy báo nghỉ</span>
                                   </button>
                                 </div>
                               );

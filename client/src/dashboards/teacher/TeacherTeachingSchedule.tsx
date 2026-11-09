@@ -111,6 +111,12 @@ const DAY_LABELS: { [key: number]: string } = {
 // Helper: Vietnam timezone time (UTC+7)
 const getVietnamNow = vietnamWallClock;
 
+// Helper to clean cancellation reason and strip parentheses
+const cleanReason = (r?: string) => {
+  if (!r) return 'Nghỉ theo kế hoạch';
+  return r.replace(/\s*\((.*?)\)/g, ' - $1').replace(/[()]/g, '').trim();
+};
+
 export const TeacherTeachingSchedule: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -462,7 +468,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
         activeClassroom: null,
         nextSlotText: null,
         hasSchedule: true,
-        reason: `Lớp đã báo nghỉ ca dạy hôm nay (${cancelledTodayForClass.cancellationReason || 'Nghỉ theo kế hoạch'}). Tiến độ bài học được tự động bảo lưu cho buổi học tiếp theo.`
+        reason: `Lớp đã báo nghỉ ca dạy hôm nay: ${cleanReason(cancelledTodayForClass.cancellationReason)}. Tiến độ bài học được tự động bảo lưu cho buổi học tiếp theo.`
       };
     }
 
@@ -968,22 +974,36 @@ export const TeacherTeachingSchedule: React.FC = () => {
                             {cId && (
                               <div className="pt-1.5 space-y-1.5">
                                 {isCancelled && matchedSession ? (
-                                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
-                                    <div className="flex items-center justify-between gap-1 flex-wrap text-[11px]">
-                                      <span className="font-extrabold text-amber-900">
-                                        Lý do: <span className="font-black underline">{matchedSession.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
+                                  <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
+                                    {/* Row 1: Badges */}
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-200/90 text-amber-950 border border-amber-300 whitespace-nowrap inline-flex items-center gap-1 shrink-0">
+                                        🚫 Đã báo nghỉ
                                       </span>
-                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200">
+                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-md border border-amber-200 whitespace-nowrap shrink-0">
                                         Bảo lưu bài #{effectiveLesson.lessonNumber}
                                       </span>
                                     </div>
-                                    {matchedSession.cancellationNote && (
-                                      <p className="text-[10px] text-amber-800 italic leading-snug">"{matchedSession.cancellationNote}"</p>
-                                    )}
+
+                                    {/* Row 2: Lý do with cleanReason */}
+                                    <div className="text-[11px] font-bold text-amber-950 leading-snug break-words">
+                                      <span className="text-amber-800 font-extrabold">Lý do:</span>{' '}
+                                      <span className="underline decoration-amber-400 font-black">
+                                        {cleanReason(matchedSession.cancellationReason)}
+                                      </span>
+                                      {matchedSession.cancellationNote && (
+                                        <p className="text-[10px] text-amber-800 font-medium italic mt-0.5 leading-tight">
+                                          "{matchedSession.cancellationNote}"
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {/* Row 3: Action Button full-width */}
                                     <button
                                       type="button"
                                       onClick={() => handleRestoreSession(matchedSession._id)}
-                                      className="w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 text-xs font-black transition-colors cursor-pointer mt-0.5 flex items-center justify-center gap-1 active:scale-95"
+                                      className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
+                                      title="Hủy báo nghỉ và mở lại lịch dạy ca này"
                                     >
                                       <span>↩ Hủy báo nghỉ</span>
                                     </button>
@@ -1373,31 +1393,26 @@ export const TeacherTeachingSchedule: React.FC = () => {
       {/* ── Modal Báo Nghỉ Buổi Học (Auto-shift Guaranteed) ────────────────────── */}
       {reportOffModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in zoom-in-95">
-            {/* Header with rich pastel styling */}
-            <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50/40 p-6 sm:p-7 border-b border-amber-100 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <span className="p-3 rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/25 shrink-0">
-                  <CalendarDays size={26} />
+          <div className="relative w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in zoom-in-95">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50/40 p-5 sm:p-6 border-b border-amber-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <span className="p-2.5 rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/25 shrink-0">
+                  <CalendarDays size={24} />
                 </span>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/70 px-2.5 py-0.5 rounded-full border border-amber-300">
-                      Quản lý lịch giảng dạy
-                    </span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
                     Báo Nghỉ Buổi Học
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-3 py-1 text-xs font-black text-slate-900 shadow-2xs">
+                    <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-2.5 py-0.5 text-xs font-black text-slate-900 shadow-2xs">
                       🏫 {reportOffModal.className}
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-3 py-1 text-xs font-black text-indigo-950 shadow-2xs">
+                    <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-2.5 py-0.5 text-xs font-black text-indigo-950 shadow-2xs">
                       📅 Ngày: {reportOffModal.dateString}
                     </span>
                     {reportOffModal.timeSlot && (
-                      <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-3 py-1 text-xs font-black text-emerald-950 shadow-2xs">
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-white/95 border border-amber-200 px-2.5 py-0.5 text-xs font-black text-emerald-950 shadow-2xs">
                         ⏰ Khung giờ: {reportOffModal.timeSlot.startTime} – {reportOffModal.timeSlot.endTime}
                       </span>
                     )}
@@ -1413,83 +1428,77 @@ export const TeacherTeachingSchedule: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 sm:p-7 space-y-6 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 space-y-4">
               {reportOffModal.error && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs sm:text-sm font-bold text-rose-800 flex items-center gap-2.5">
-                  <AlertCircle size={20} className="shrink-0 text-rose-600" />
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs sm:text-sm font-bold text-rose-800 flex items-center gap-2.5">
+                  <AlertCircle size={18} className="shrink-0 text-rose-600" />
                   <span>{reportOffModal.error}</span>
                 </div>
               )}
 
               {/* Cam kết tiến độ giáo trình (Auto-shift Guarantee Card) */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-teal-50/90 border border-teal-200 text-teal-950 space-y-2 shadow-2xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-5 w-5 rounded-md bg-teal-700 text-white text-xs flex items-center justify-center font-bold">✓</span>
-                  <h4 className="text-sm font-black text-teal-950">
-                    Cơ chế bảo lưu giáo trình tự động (Auto-shift)
-                  </h4>
+              <div className="p-3.5 rounded-2xl bg-teal-50/90 border border-teal-200 text-teal-950 flex items-center gap-3 shadow-2xs">
+                <span className="h-6 w-6 rounded-lg bg-teal-700 text-white text-xs flex items-center justify-center font-bold shrink-0">✓</span>
+                <div className="text-xs text-teal-900 font-medium leading-relaxed flex-1">
+                  <strong className="text-teal-950 font-black">Cơ chế bảo lưu giáo trình:</strong> Buổi nghỉ này được ghi nhận minh bạch cho lớp. <span className="font-bold underline">Bài học chưa dạy sẽ không bị mất</span> mà được tự động chuyển sang ca tiếp theo theo đúng lộ trình của lớp.
                 </div>
-                <p className="text-xs text-teal-900 font-medium leading-relaxed">
-                  Buổi nghỉ này sẽ được ghi nhận minh bạch cho lớp. <span className="font-bold underline">Bài học chưa dạy sẽ không bị mất</span>: ca học tiếp theo theo thời khóa biểu sẽ tự động giảng dạy bài này theo đúng lộ trình giáo trình của trường.
-                </p>
               </div>
 
               {/* Chọn lý do nghỉ */}
-              <div className="space-y-3">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center justify-between">
-                  <span>Lý do báo nghỉ <span className="text-rose-500">*</span></span>
-                  <span className="text-[11px] font-semibold text-slate-500 lowercase">chọn theo danh mục</span>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Lý do báo nghỉ <span className="text-rose-500">*</span>
                 </label>
 
-                {/* Quick selector cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Quick selector cards in 3 columns for spacious 2-row layout */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {[
-                    { label: 'Nghỉ lễ theo lịch nhà trường', icon: '🏛️' },
-                    { label: 'Giáo viên có việc đột xuất / Báo ốm', icon: '👩‍🏫' },
-                    { label: 'Hoạt động ngoại khóa / Dã ngoại của trường', icon: '🚌' },
-                    { label: 'Thời tiết bất lợi (Mưa bão)', icon: '🌧️' },
-                    { label: 'Học sinh nghỉ sinh hoạt hè / Nghỉ chuyên đề', icon: '🏖️' },
+                    { label: 'Nghỉ lễ nhà trường', icon: '🏛️' },
+                    { label: 'Giáo viên bận / Báo ốm', icon: '👩‍🏫' },
+                    { label: 'Dã ngoại / Ngoại khóa', icon: '🚌' },
+                    { label: 'Thời tiết xấu - Mưa bão', icon: '🌧️' },
+                    { label: 'Nghỉ chuyên đề - Nghỉ hè', icon: '🏖️' },
                     { label: 'Lý do khác', icon: '📝' }
                   ].map(item => (
                     <button
                       key={item.label}
                       type="button"
                       onClick={() => setReportOffModal(prev => ({ ...prev, reason: item.label }))}
-                      className={`p-3.5 rounded-2xl text-left border text-xs sm:text-sm font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
+                      className={`p-3 rounded-2xl text-left border text-xs sm:text-sm font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
                         reportOffModal.reason === item.label
                           ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-500/30'
                           : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                       }`}
                     >
                       <span className="text-base shrink-0">{item.icon}</span>
-                      <span className="truncate">{item.label}</span>
+                      <span className="leading-tight text-xs sm:text-[13px] font-bold">{item.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Ghi chú thêm */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-800">
                   Ghi chú dặn dò (Hiển thị cho Admin & Phụ huynh)
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={reportOffModal.note}
                   onChange={(e) => setReportOffModal(prev => ({ ...prev, note: e.target.value }))}
                   placeholder="Ví dụ: Lớp nghỉ theo lịch chung của trường; dặn phụ huynh cho bé mở app Koko luyện tập từ vựng ở nhà..."
-                  className="w-full rounded-2xl border border-slate-200 p-3.5 text-xs sm:text-sm font-medium text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                  className="w-full rounded-2xl border border-slate-200 p-3 text-xs sm:text-sm font-medium text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                 />
               </div>
             </div>
 
             {/* Footer Buttons */}
-            <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
               <button
                 type="button"
                 disabled={reportOffModal.loading}
                 onClick={() => setReportOffModal(prev => ({ ...prev, isOpen: false }))}
-                className="rounded-2xl px-5 py-3 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-200/70 transition-colors cursor-pointer"
+                className="rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-200/70 transition-colors cursor-pointer"
               >
                 Đóng
               </button>
@@ -1497,7 +1506,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                 type="button"
                 disabled={reportOffModal.loading}
                 onClick={handleSubmitReportOff}
-                className="rounded-2xl bg-amber-600 hover:bg-amber-700 px-6 sm:px-7 py-3 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/25 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-95"
+                className="rounded-2xl bg-amber-600 hover:bg-amber-700 px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/25 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-95"
               >
                 {reportOffModal.loading ? 'Đang gửi...' : 'Xác nhận Báo Nghỉ Buổi Học'}
               </button>

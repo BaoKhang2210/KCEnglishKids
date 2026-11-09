@@ -1,3 +1,4 @@
+import { cleanReason } from '../../utils/teachingSchedule';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -425,12 +426,12 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
           </div>
 
           <p className="font-extrabold text-slate-900 truncate text-sm sm:text-base group-hover:text-teal-800 transition-colors">
-            {isCancelled && s.cancellationReason ? `Báo nghỉ: ${s.cancellationReason}` : s.title}
+            {isCancelled && s.cancellationReason ? `Báo nghỉ: ${cleanReason(s.cancellationReason)}` : s.title}
           </p>
 
           <p className="text-xs text-slate-600 truncate mt-0.5">
             {isCancelled
-              ? `Lý do: ${s.cancellationReason || 'Nghỉ theo kế hoạch'} · Tiến độ được bảo lưu · ${fmt(s.startedAt || s.createdAt)}`
+              ? `Lý do: ${cleanReason(s.cancellationReason)} · Tiến độ được bảo lưu · ${fmt(s.startedAt || s.createdAt)}`
               : `${lesson?.title ? `Bài học: ${lesson.title}` : 'Buổi dạy tự do'} · ${fmt(s.startedAt || s.createdAt)}${dur !== null ? ` · ${dur} phút` : ''}`}
           </p>
         </div>

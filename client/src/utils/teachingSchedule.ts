@@ -29,6 +29,15 @@ type Lesson = {
   bookOrderIndex?: number;
 };
 
+export function cleanReason(reason?: string): string {
+  if (!reason) return 'Nghỉ theo kế hoạch';
+  return reason
+    .replace(/\s*\((.*?)\)/g, ' - $1')
+    .replace(/[()]/g, '')
+    .replace(/^[\s\-–—]+/, '')
+    .trim();
+}
+
 export const slotKey = (scheduleId: string, date: string, startTime: string) => `${scheduleId}|${date}|${startTime}`;
 
 export function countsTowardCurriculum(session: { status?: string; teachingOutcome?: { coverage?: string } }) {

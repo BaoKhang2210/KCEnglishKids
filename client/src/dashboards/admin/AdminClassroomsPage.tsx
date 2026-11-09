@@ -1,3 +1,4 @@
+import { cleanReason } from '../../utils/teachingSchedule';
 import { downloadCsv } from '../../utils/downloadCsv';
 import { IssuedCredentialsDialog } from '../../components/staff/IssuedCredentialsDialog';
 import type { IssuedCredential } from '../../components/staff/IssuedCredentialsDialog';
@@ -2223,7 +2224,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                   <span>🚫</span> Lớp Đã Báo Nghỉ Ca Dạy Hôm Nay
                                 </h4>
                                 <p className="text-xs text-amber-800 font-bold mt-1">
-                                  Lý do: {curriculumData.todayStatus?.cancelledSession?.cancellationReason || 'Nghỉ theo kế hoạch'}
+                                  Lý do: {cleanReason(curriculumData.todayStatus?.cancelledSession?.cancellationReason)}
                                   {curriculumData.todayStatus?.cancelledSession?.cancellationNote && ` — Ghi chú: "${curriculumData.todayStatus.cancelledSession.cancellationNote}"`}
                                 </p>
                               </div>
@@ -2486,8 +2487,8 @@ export const AdminClassroomsPage: React.FC = () => {
                                           {s.status === 'COMPLETED' ? 'Đã hoàn thành' : s.status === 'LIVE' ? '🔴 Đang dạy' : s.status === 'CANCELLED' ? '🚫 Đã báo nghỉ' : s.status}
                                         </span>
                                         {s.status === 'CANCELLED' ? (
-                                          <span className="font-bold text-amber-800 text-[11px] max-w-[160px] truncate" title={s.cancellationReason || 'Nghỉ theo kế hoạch'}>
-                                            Lý do: {s.cancellationReason || 'Nghỉ theo kế hoạch'}
+                                          <span className="font-bold text-amber-800 text-[11px] max-w-[160px] truncate" title={cleanReason(s.cancellationReason)}>
+                                            Lý do: {cleanReason(s.cancellationReason)}
                                           </span>
                                         ) : (
                                           <span className="font-bold text-amber-700 text-xs">
