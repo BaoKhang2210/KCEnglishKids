@@ -13,10 +13,12 @@ import {
   ListChecks,
   LoaderCircle,
   Mic,
+  Play,
   RotateCcw,
   Subtitles,
   Video,
   Volume2,
+  VolumeX,
   X
 } from 'lucide-react';
 import { ScreenShell } from '../../components/layout/ScreenShell';
@@ -43,7 +45,8 @@ import {
   buildLessonExercises,
   buildSegmentExercises,
   estimateSentenceCues,
-  formatCueTimestamp
+  formatCueTimestamp,
+  splitCueWords
 } from '../../components/child/video/videoLibraryUtils';
 import videoConfig from '../../../../shared/videoLearning.json';
 
@@ -94,6 +97,9 @@ export const VideoWatchPage: React.FC = () => {
   const [reportDone, setReportDone] = useState(false);
   const [resumeAt, setResumeAt] = useState(0);
   const [playerTime, setPlayerTime] = useState(0);
+  const [selectedCueIdx, setSelectedCueIdx] = useState<number | null>(null);
+  const [dubVideoMuted, setDubVideoMuted] = useState(true);
+  const [localDubDone, setLocalDubDone] = useState(false);
   const [seekRequest, setSeekRequest] = useState<{
     time: number;
     token: number;
@@ -182,8 +188,13 @@ export const VideoWatchPage: React.FC = () => {
   const cueCount = sentenceCues.length > 0 ? sentenceCues.length : Number(episode?.captionCueCount) || 0;
   const exerciseTotal = useMemo(() => {
     if (!episode) return 0;
-    if (episode.source === 'youtube') return buildSegmentExercises(sentenceCues).length;
-    return buildLessonExercises(episode.title, cues).filter((item) => item.kind === 'choice').length;
+    const maxChoices = episode.source === 'youtube' ? 10 : 6;
+    const choiceCount = buildLessonExercises(episode.title, cues, maxChoices).filter(
+      (item) => item.kind === 'choice'
+    ).length;
+    if (choiceCount > 0) return choiceCount;
+    if (episode.source === 'youtube') return buildSegmentExercises(sentenceCues, maxChoices).length;
+    return 0;
   }, [episode, cues, sentenceCues]);
 
   const applyProgress = useCallback((data: VideoEpisodeProgress) => {
@@ -209,6 +220,9 @@ export const VideoWatchPage: React.FC = () => {
     setShowTranslation(false);
     setResumeAt(episode.progress.lastPositionSec || 0);
     setPlayerTime(episode.progress.lastPositionSec || 0);
+    setSelectedCueIdx(null);
+    setDubVideoMuted(true);
+    setLocalDubDone(Boolean(episode.progress.dubDone));
     setSeekRequest(null);
     setCues([]);
     setCuesUnavailable(false);
@@ -305,10 +319,11 @@ export const VideoWatchPage: React.FC = () => {
 
   const playCue = useCallback((cue: VideoCue) => {
     sfx.playPop();
+    setSelectedCueIdx(cue.idx);
     setSeekRequest({ time: cue.start, token: Date.now(), end: cue.end, autoplay: true });
   }, []);
 
-  /** The reading tab hides the player, so sentences are read with speech audio. */
+  /** The reading tab hides the player for stored videos, so sentences are read with speech audio. */
   const playCueSpeech = useCallback((cue: VideoCue) => playWordAudio(cue.text), []);
 
   const markRead = useCallback(
@@ -332,7 +347,8 @@ export const VideoWatchPage: React.FC = () => {
   /** The source has one "Hoàn thành đọc" action, so it marks every cue as read. */
   const completeReading = useCallback(async () => {
     if (!episode) return;
-    const pending = cues.filter((cue) => !readRef.current.has(cue.idx));
+    const sourceList = cues.length > 0 ? cues : sentenceCues;
+    const pending = sourceList.filter((cue) => !readRef.current.has(cue.idx));
     if (pending.length === 0) return;
     sfx.playSuccess();
     for (const cue of pending) {
@@ -344,17 +360,20 @@ export const VideoWatchPage: React.FC = () => {
         readRef.current.delete(cue.idx);
       }
     }
-  }, [applyProgress, cues, episode]);
+  }, [applyProgress, cues, episode, sentenceCues]);
 
   const playWord = useCallback((word: string) => {
     void playWordAudio(word);
   }, []);
 
   const markDubbed = useCallback(() => {
-    if (!episode || currentProgress?.dubDone) return;
+    if (!episode || currentProgress?.dubDone || localDubDone) return;
     sfx.playSuccess();
-    submitEvent({ type: 'dub', done: true });
-  }, [currentProgress?.dubDone, episode, submitEvent]);
+    setLocalDubDone(true);
+    if (episode.canDubbing) {
+      submitEvent({ type: 'dub', done: true });
+    }
+  }, [currentProgress?.dubDone, episode, localDubDone, submitEvent]);
 
   const goTab = (target: string) => {
     navigate(target === 'path' ? '/' : `/?tab=${target}`);
@@ -534,34 +553,39 @@ export const VideoWatchPage: React.FC = () => {
   ];
   const activeTab: LessonTab = tab;
   const activityItems: VideoActivity[] = currentProgress?.activities || [];
-  const playerEpisode: VideoEpisodeSummary = { ...episode, cues };
+  const playerEpisode: VideoEpisodeSummary = { ...episode, cues: sentenceCues };
   const readIdx = currentProgress?.readIdx || [];
-  const readThreshold = Math.ceil(cues.length * Number(videoConfig.progress.readDoneRatio));
+  const readThreshold = Math.ceil(sentenceCues.length * Number(videoConfig.progress.readDoneRatio));
   const readDone =
     Boolean(activityItems.find((item) => item.key === 'read')?.done) ||
-    (cues.length > 0 && readIdx.length >= readThreshold);
+    (sentenceCues.length > 0 && readIdx.length >= readThreshold);
   const playingCueIndex = sentenceCues.findIndex(
     (cue) => cue.start <= playerTime + 0.05 && playerTime < cue.end
   );
-  const focusCue = playingCueIndex >= 0 ? sentenceCues[playingCueIndex] : sentenceCues[0] || null;
+  const selectedCue =
+    selectedCueIdx !== null ? sentenceCues.find((cue) => cue.idx === selectedCueIdx) || null : null;
+  const focusCue =
+    playingCueIndex >= 0
+      ? sentenceCues[playingCueIndex]
+      : selectedCue || sentenceCues[0] || null;
   const readMode = activeTab === 'read';
   const speakMode = activeTab === 'speak';
   const exerciseMode = activeTab === 'exercise';
-  /**
-   * YouTube keeps the player on stage while reading or speaking so every
-   * sentence marker can seek the embed. Other lessons hide it in focus modes.
-   */
+  const dubDone = Boolean(currentProgress?.dubDone || localDubDone);
   /**
    * YouTube lessons keep the player mounted in every tab: the sentence grid
-   * seeks the embed while reading, the speaking studio samples from it, and
-   * the segment quiz plays numbered slots through it. Licensed lessons hide
-   * the player in the three focus tabs because their panels carry text.
+   * and transcript panel seek the embed while reading, the speaking and dubbing
+   * studios sample from it, and the exercise quiz can play segments through it.
+   * Licensed stored lessons hide the player in the three focus tabs.
    */
   const focusMode = !isYouTubeEpisode && (readMode || speakMode || exerciseMode);
-  const showSentencePanel = activeTab === 'listen' || (isYouTubeEpisode && readMode);
+  const showSentencePanel = activeTab === 'listen';
+  const showReadPanel = isYouTubeEpisode && readMode;
   const showSpeakPanel = isYouTubeEpisode && speakMode;
   const showExercisePanel = isYouTubeEpisode && exerciseMode;
-  const sidePanelOpen = showSentencePanel || showSpeakPanel || showExercisePanel;
+  const showDubStudioPanel = !dubbingAvailable && activeTab === 'dub' && sentenceCues.length > 0;
+  const sidePanelOpen =
+    showSentencePanel || showReadPanel || showSpeakPanel || showExercisePanel || showDubStudioPanel;
 
   return (
     <ScreenShell activeTab="videos" onTabChange={goTab} hideBottomNav>
@@ -734,6 +758,7 @@ export const VideoWatchPage: React.FC = () => {
                       onEnded={handleEnded}
                       onTimeChange={setPlayerTime}
                       seekRequest={seekRequest}
+                      mutedOverride={activeTab === 'dub' && !dubbingAvailable && dubVideoMuted}
                     />
                   </div>
 
@@ -817,16 +842,57 @@ export const VideoWatchPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={markDubbed}
-                            disabled={Boolean(currentProgress?.dubDone)}
+                            disabled={dubDone}
                             className={`mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-black disabled:opacity-60 cursor-pointer ${
-                              currentProgress?.dubDone
+                              dubDone
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-emerald-600 text-white'
                             }`}
                           >
                             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                            {currentProgress?.dubDone ? 'Đã lồng tiếng xong' : 'Đánh dấu đã lồng tiếng'}
+                            {dubDone ? 'Đã lồng tiếng xong' : 'Đánh dấu đã lồng tiếng'}
                           </button>
+                        </>
+                      ) : sentenceCues.length > 0 ? (
+                        <>
+                          <p className="mt-1 text-[12px] font-bold leading-relaxed text-slate-500">
+                            Bé hãy chọn từng câu ở bảng bên phải, tắt tiếng video gốc rồi ghi âm giọng lồng tiếng của mình theo hình ảnh trên video nhé!
+                          </p>
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sfx.playPop();
+                                setDubVideoMuted((value) => !value);
+                              }}
+                              aria-pressed={dubVideoMuted}
+                              className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl border-2 px-3 text-xs font-black transition-colors cursor-pointer ${
+                                dubVideoMuted
+                                  ? 'border-pink-300 bg-pink-50 text-pink-800'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              {dubVideoMuted ? (
+                                <VolumeX className="h-4 w-4 text-pink-600" aria-hidden="true" />
+                              ) : (
+                                <Volume2 className="h-4 w-4 text-sky-600" aria-hidden="true" />
+                              )}
+                              {dubVideoMuted ? 'Đang tắt tiếng video gốc (Chế độ lồng tiếng)' : 'Đang bật tiếng video gốc'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={markDubbed}
+                              disabled={dubDone}
+                              className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-black transition-colors disabled:opacity-60 cursor-pointer ${
+                                dubDone
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              }`}
+                            >
+                              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                              {dubDone ? 'Đã lồng tiếng xong' : 'Hoàn thành lồng tiếng'}
+                            </button>
+                          </div>
                         </>
                       ) : (
                         <p className="mt-2 text-sm font-black text-slate-700">Bài này chưa có bản lồng tiếng.</p>
@@ -844,8 +910,7 @@ export const VideoWatchPage: React.FC = () => {
                       </h2>
                       {sentenceCues.length > 0 && (
                         <p className="mt-0.5 text-center text-[10px] font-bold text-slate-500">
-                          Bấm số để phát câu đó · câu đang phát được tô xanh
-                          {isYouTubeEpisode ? ' · Phụ đề hiện trên video (bấm CC nếu chưa thấy)' : ''}
+                          Bấm số để phát câu đó · câu đang chọn/phát được tô xanh
                         </p>
                       )}
                       {sentenceCues.length > 0 ? (
@@ -853,7 +918,9 @@ export const VideoWatchPage: React.FC = () => {
                           <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
                             {sentenceCues.map((cue, index) => {
                               const read = readIdx.includes(cue.idx);
-                              const speaking = index === playingCueIndex;
+                              const isCurrent =
+                                index === playingCueIndex ||
+                                (playingCueIndex < 0 && focusCue?.idx === cue.idx);
                               const label = cue.text ? `Câu ${index + 1}: ${cue.text}` : `Phát câu ${index + 1}`;
                               return (
                                 <button
@@ -868,14 +935,14 @@ export const VideoWatchPage: React.FC = () => {
                                       ? label
                                       : `${label} (${formatCueTimestamp(cue.start)} đến ${formatCueTimestamp(cue.end)})`
                                   }
-                                  aria-current={speaking ? 'true' : undefined}
+                                  aria-current={isCurrent ? 'true' : undefined}
                                   title={
                                     cue.text
                                       ? label
                                       : `${label} · ${formatCueTimestamp(cue.start)}–${formatCueTimestamp(cue.end)}`
                                   }
                                   className={`grid h-[34px] w-[34px] place-items-center rounded-lg border-2 text-[12px] font-black tabular-nums transition-colors cursor-pointer ${
-                                    speaking
+                                    isCurrent
                                       ? 'border-sky-600 bg-sky-600 text-white shadow-sm'
                                       : read
                                         ? 'border-sky-200 bg-sky-50 text-sky-700'
@@ -899,41 +966,114 @@ export const VideoWatchPage: React.FC = () => {
                       )}
                     </section>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!focusCue) return;
-                        markRead(focusCue);
-                        playCue(focusCue);
-                      }}
-                      disabled={!focusCue}
-                      aria-label={
-                        focusCue
-                          ? focusCue.text
-                            ? `Nghe lại câu: ${focusCue.text}`
-                            : `Phát lại câu ${focusCue.idx} từ ${formatCueTimestamp(focusCue.start)}`
-                          : 'Chưa có câu phụ đề'
-                      }
-                      className="block w-full rounded-2xl border-2 border-slate-100 bg-white px-4 py-6 text-center shadow-sm transition-colors hover:border-sky-200 hover:bg-sky-50/40 disabled:cursor-default cursor-pointer"
-                    >
-                      <span className="text-lg font-black leading-snug text-slate-800">
-                        {focusCue
-                          ? focusCue.text
-                            ? `“${focusCue.text}”`
-                            : `Câu ${focusCue.idx}`
-                          : 'Chưa có câu phụ đề'}
-                      </span>
-                      {focusCue && !focusCue.text && (
+                    <div className="rounded-2xl border-2 border-slate-100 bg-white px-4 py-4 text-center shadow-sm">
+                      {focusCue ? (
                         <>
-                          <span className="mt-1 block text-[11px] font-black tabular-nums text-slate-500">
-                            {formatCueTimestamp(focusCue.start)} – {formatCueTimestamp(focusCue.end)}
-                          </span>
-                          <span className="mt-1 block text-[11px] font-bold text-sky-700">
-                            Lời câu này hiện ngay trên video — phụ đề đã được bật sẵn.
-                          </span>
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-black text-sky-700">
+                              Câu {focusCue.idx}/{sentenceCues.length}
+                              <span className="text-sky-400">·</span>
+                              <span className="tabular-nums">
+                                {formatCueTimestamp(focusCue.start)} – {formatCueTimestamp(focusCue.end)}
+                              </span>
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {focusCue.text && (
+                                <button
+                                  type="button"
+                                  onClick={() => void playWordAudio(focusCue.text)}
+                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 text-[11px] font-black text-sky-700 transition-colors hover:bg-sky-100 cursor-pointer"
+                                >
+                                  <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Đọc câu
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  markRead(focusCue);
+                                  playCue(focusCue);
+                                }}
+                                className="inline-flex h-8 items-center gap-1 rounded-lg bg-sky-600 px-2.5 text-[11px] font-black text-white transition-colors hover:bg-sky-700 cursor-pointer"
+                              >
+                                <Play className="h-3.5 w-3.5 fill-white" aria-hidden="true" />
+                                Phát đoạn này
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-3">
+                            {focusCue.text ? (
+                              <>
+                                <p className="text-lg font-black leading-snug text-slate-800 sm:text-xl">
+                                  “
+                                  {splitCueWords(focusCue.text).map((token, tokenIdx) =>
+                                    token.word ? (
+                                      <button
+                                        key={`${focusCue.idx}-${tokenIdx}`}
+                                        type="button"
+                                        onClick={() => playWord(token.text)}
+                                        aria-label={`Nghe từ ${token.text}`}
+                                        className="rounded px-0.5 text-inherit underline-offset-2 hover:bg-sky-100 hover:text-sky-900 cursor-pointer"
+                                      >
+                                        {token.text}
+                                      </button>
+                                    ) : (
+                                      <span key={`${focusCue.idx}-${tokenIdx}`}>{token.text}</span>
+                                    )
+                                  )}
+                                  ”
+                                </p>
+                                <p className="mt-1.5 text-[10.5px] font-bold text-slate-400">
+                                  Bấm vào từng từ tiếng Anh để nghe phát âm · bấm “Phát đoạn này” để xem trên video
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-lg font-black leading-snug text-slate-800">
+                                  Câu {focusCue.idx}
+                                </p>
+                                <p className="mt-1 text-[11px] font-bold text-sky-700">
+                                  Lời câu này hiện ngay trên video — phụ đề đã được bật sẵn.
+                                </p>
+                              </>
+                            )}
+                            {showTranslation && focusCue.translationVi && (
+                              <p className="mt-1.5 text-xs font-bold text-slate-500">
+                                {focusCue.translationVi}
+                              </p>
+                            )}
+                          </div>
                         </>
+                      ) : (
+                        <span className="text-base font-black text-slate-500">Chưa có câu phụ đề</span>
                       )}
-                    </button>
+                    </div>
+                  </div>
+                )}
+
+                {showReadPanel && (
+                  <div className="min-w-0 xl:h-[calc(100vh-180px)] xl:max-h-[680px]">
+                    <VideoTranscriptPanel
+                      key={`${episode._id}-read-yt`}
+                      cues={sentenceCues}
+                      captionCueCount={Number(episode.captionCueCount) || sentenceCues.length}
+                      readIdx={readIdx}
+                      readDone={readDone}
+                      onPlayCue={(cue) => {
+                        playCue(cue);
+                      }}
+                      onReadCue={markRead}
+                      onPlayWord={playWord}
+                      onCompleteReading={completeReading}
+                      onContinueSpeaking={() => {
+                        sfx.playPop();
+                        setTab('speak');
+                      }}
+                      showTranslation={showTranslation}
+                      onToggleTranslation={() => setShowTranslation((value) => !value)}
+                      unavailable={cuesUnavailable}
+                    />
                   </div>
                 )}
 
@@ -955,10 +1095,23 @@ export const VideoWatchPage: React.FC = () => {
                     <VideoExercisePanel
                       key={`${episode._id}-exercise`}
                       title={episode.title}
-                      cues={cues}
+                      cues={sentenceCues}
                       captionsInVideo={isYouTubeEpisode}
                       segmentCues={sentenceCues}
                       onPlaySegment={playCue}
+                    />
+                  </div>
+                )}
+
+                {showDubStudioPanel && (
+                  <div className="min-w-0">
+                    <VideoSpeakingStudio
+                      key={`${episode._id}-dub-studio`}
+                      cues={sentenceCues}
+                      showTranslation={showTranslation}
+                      doneIdx={currentProgress?.speakIdx || []}
+                      onSpeakCue={markSpoken}
+                      onPlaySample={playCue}
                     />
                   </div>
                 )}
