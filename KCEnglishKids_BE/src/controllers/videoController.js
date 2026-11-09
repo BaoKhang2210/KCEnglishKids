@@ -247,27 +247,12 @@ const listSeries = async (req, res, next) => {
     const childId = await viewerChildId(req);
     const childAge = req.user?.role === 'CHILD' ? req.user.ageGroupCode : null;
 
-    let requestedAge = req.query.ageGroup;
-    if (requestedAge && !AGE_GROUPS.includes(requestedAge)) {
-      return res.status(400).json({ success: false, message: 'Invalid age group.' });
-    }
-    if (childAge && requestedAge && !isAgeAllowedForChild(childAge, requestedAge)) {
-      return res.status(403).json({ success: false, message: 'This content is outside the child age group.' });
-    }
-
-    const allowedLevels = childAge ? accessibleLevelsFor(childAge) : CONFIG.levels;
+    const allowedLevels = CONFIG.levels;
     const requestedLevels = parseCsv(req.query.level, CONFIG.levels);
-    if (requestedLevels.some((level) => !allowedLevels.includes(level))) {
-      return res.status(403).json({ success: false, message: 'This level is outside the child age group.' });
-    }
 
     const query = { isPublished: true, catalogVersion: CONFIG.version };
     if (requestedLevels.length) {
       query.level = { $in: requestedLevels };
-    } else if (requestedAge) {
-      query.level = { $in: levelsForAgeTab(requestedAge).filter((level) => allowedLevels.includes(level)) };
-    } else if (childAge) {
-      query.level = { $in: allowedLevels };
     }
 
     const sources = parseCsv(req.query.source, CONFIG.sources);
@@ -326,23 +311,17 @@ const listSeries = async (req, res, next) => {
       count: data.length,
       data,
       meta: {
-        ageGroup: requestedAge || null,
+        ageGroup: null,
         childAge,
-        accessibleAgeGroups: childAge ? accessibleAgeGroups(childAge) : AGE_GROUPS,
-        levels: requestedLevels.length
-          ? requestedLevels
-          : requestedAge
-            ? levelsForAgeTab(requestedAge)
-            : childAge
-              ? allowedLevels
-              : CONFIG.levels,
-        accessibleLevels: childAge ? allowedLevels : CONFIG.levels,
+        accessibleAgeGroups: AGE_GROUPS,
+        levels: requestedLevels.length ? requestedLevels : CONFIG.levels,
+        accessibleLevels: allowedLevels,
         levelOrder: CONFIG.levels,
         levelMeta: CONFIG.levelMeta,
         levelAgeGroups: CONFIG.levelAgeGroups,
         sourceMeta: CONFIG.sourceMeta,
         ageOrder: AGE_GROUPS,
-        // Exact source-catalogue totals, independent of the child's age filter.
+        // Exact source-catalogue totals across all 5 levels.
         catalogue: {
           total: CATALOGUE_TOTALS.series,
           totalEpisodes: CATALOGUE_TOTALS.lessons,
@@ -371,9 +350,6 @@ const getSeries = async (req, res, next) => {
       : { slug: String(idOrSlug).toLowerCase(), isPublished: true };
     const series = await VideoSeries.findOne(query).lean();
     if (!series) return res.status(404).json({ success: false, message: 'Video series not found.' });
-    if (req.user?.role === 'CHILD' && !isLevelAllowedForChild(req.user.ageGroupCode, series.level)) {
-      return res.status(403).json({ success: false, message: 'This content is outside the child age group.' });
-    }
 
     const episodes = await VideoEpisode.find({ series: series._id, isPublished: true }).sort({ number: 1 }).lean();
     const progressDocs = childId
@@ -405,9 +381,6 @@ const getEpisode = async (req, res, next) => {
     if (!episode) return res.status(404).json({ success: false, message: 'Video episode not found.' });
     const series = await VideoSeries.findOne({ _id: episode.series, isPublished: true }).lean();
     if (!series) return res.status(404).json({ success: false, message: 'Video series not found.' });
-    if (req.user?.role === 'CHILD' && !isLevelAllowedForChild(req.user.ageGroupCode, series.level)) {
-      return res.status(403).json({ success: false, message: 'This content is outside the child age group.' });
-    }
     const childId = await viewerChildId(req);
     const progressDoc = childId
       ? await VideoProgress.findOne({ child: childId, episode: episode._id }).lean()
@@ -456,9 +429,6 @@ const getEpisodeCues = async (req, res, next) => {
     if (!episode) return res.status(404).json({ success: false, message: 'Video episode not found.' });
     const series = await VideoSeries.findOne({ _id: episode.series, isPublished: true }).select('level').lean();
     if (!series) return res.status(404).json({ success: false, message: 'Video series not found.' });
-    if (req.user?.role === 'CHILD' && !isLevelAllowedForChild(req.user.ageGroupCode, series.level)) {
-      return res.status(403).json({ success: false, message: 'This content is outside the child age group.' });
-    }
     const stored = Array.isArray(episode.subtitles) ? episode.subtitles : [];
     if (stored.length > 0) {
       return res.status(200).json({
@@ -566,9 +536,6 @@ const saveProgress = async (req, res, next) => {
     if (!episode) return res.status(404).json({ success: false, message: 'Video episode not found.' });
     const series = await VideoSeries.findOne({ _id: episode.series, isPublished: true }).lean();
     if (!series) return res.status(404).json({ success: false, message: 'Video series not found.' });
-    if (!isLevelAllowedForChild(req.user.ageGroupCode, series.level)) {
-      return res.status(403).json({ success: false, message: 'This content is outside the child age group.' });
-    }
 
     const event = req.body?.event || req.body;
     const existing = await VideoProgress.findOne({ child: req.user._id, episode: episode._id }).lean();
@@ -606,9 +573,6 @@ const toggleFavorite = async (req, res, next) => {
     }
     const series = await VideoSeries.findOne({ _id: req.params.seriesId, isPublished: true }).lean();
     if (!series) return res.status(404).json({ success: false, message: 'Video series not found.' });
-    if (!isLevelAllowedForChild(req.user.ageGroupCode, series.level)) {
-      return res.status(403).json({ success: false, message: 'This content is outside the child age group.' });
-    }
     const existing = await VideoFavorite.findOne({ child: req.user._id, series: series._id });
     let favorite;
     if (req.body?.favorite === undefined) {

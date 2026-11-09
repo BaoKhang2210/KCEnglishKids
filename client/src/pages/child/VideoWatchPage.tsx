@@ -1123,7 +1123,8 @@ export const VideoWatchPage: React.FC = () => {
                 </h1>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex rounded-md bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">
-                    Level {detail.level}
+                    Level {detail.level.replace(/^L/i, '')}
+                    {detail.levelTitle ? `: ${detail.levelTitle}` : ''}
                   </span>
                   {episode.source === 'youtube' && <YouTubeBadge size="sm" />}
                 </div>

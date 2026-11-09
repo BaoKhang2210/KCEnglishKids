@@ -148,6 +148,7 @@ export type VideoSkillKey = 'listen' | 'read' | 'speak' | 'quiz' | 'dub';
 export interface VideoLevelMeta {
   label: string;
   title?: string;
+  subtitleEn?: string;
   ageLabel: string;
   ageMin: number;
   ageMax: number;

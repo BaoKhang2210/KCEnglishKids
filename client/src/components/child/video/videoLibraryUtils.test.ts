@@ -127,27 +127,24 @@ describe('video level access', () => {
 });
 
 describe('video filter URL round-trip', () => {
-  it('falls back to the child age group when the URL asks for an older group', () => {
-    const params = new URLSearchParams('tab=videos&vage=5-6&vlevel=L3&vsource=stored&vdub=yes&vfav=1&vq=bat');
+  it('accepts any of the 5 levels (L1-L5) regardless of age', () => {
+    const params = new URLSearchParams('tab=videos&vlevel=L5&vsource=stored&vdub=yes&vfav=1&vq=bat');
     const parsed = readVideoFilters(params, '3-4');
-    expect(parsed.age).toBe('3-4');
-    expect(parsed.level).toBe('');
+    expect(parsed.level).toBe('L5');
     expect(parsed.source).toBe('stored');
     expect(parsed.dubbing).toBe('yes');
     expect(parsed.favorite).toBe(true);
     expect(parsed.search).toBe('bat');
   });
 
-  it('keeps a level only when it belongs to the selected age group', () => {
-    expect(readVideoFilters(new URLSearchParams('vage=4-5&vlevel=L3'), '5-6').level).toBe('');
-    expect(readVideoFilters(new URLSearchParams('vage=4-5&vlevel=L2'), '5-6')).toEqual({
-      ...defaultVideoFilters('5-6'),
-      age: '4-5',
+  it('keeps any valid level L1..L5 in URL query', () => {
+    expect(readVideoFilters(new URLSearchParams('vlevel=L4'), '3-4').level).toBe('L4');
+    expect(readVideoFilters(new URLSearchParams('vlevel=L2'), '5-6')).toMatchObject({
       level: 'L2'
     });
   });
 
-  it('ignores unknown values and writes a clean query string', () => {
+  it('ignores unknown values and writes a clean level-based query string without vage', () => {
     const parsed = readVideoFilters(new URLSearchParams('vage=9-10&vlevel=L9&vsource=tiktok&vdub=maybe'), '4-5');
     expect(parsed).toEqual(defaultVideoFilters('4-5'));
 
@@ -160,14 +157,14 @@ describe('video filter URL round-trip', () => {
       search: '  farm  '
     });
     expect(query.get('tab')).toBe('videos');
-    expect(query.get('vage')).toBe('4-5');
+    expect(query.has('vage')).toBe(false);
     expect(query.get('vlevel')).toBe('L2');
     expect(query.get('vq')).toBe('farm');
     expect(query.has('vsource')).toBe(false);
     expect(query.has('vfav')).toBe(false);
 
     const cleared = writeVideoFilters(new URLSearchParams('vlevel=L2'), defaultVideoFilters('3-4'));
-    expect(cleared.get('vage')).toBe('3-4');
+    expect(cleared.has('vage')).toBe(false);
     expect(cleared.has('vlevel')).toBe(false);
   });
 });
@@ -175,12 +172,12 @@ describe('video filter URL round-trip', () => {
 describe('series filtering', () => {
   const item = series();
 
-  it('matches the age group and the selected level', () => {
-    expect(seriesMatchesFilters(item, filters({ age: '3-4' }))).toBe(true);
-    expect(seriesMatchesFilters(item, filters({ age: '5-6' }))).toBe(true);
+  it('matches all 5 levels when no level filter is set, and narrows to the selected level', () => {
+    expect(seriesMatchesFilters(item, filters({ level: '' }))).toBe(true);
+    expect(seriesMatchesFilters(series({ level: 'L5' }), filters({ level: '' }))).toBe(true);
     expect(seriesMatchesFilters(item, filters({ level: 'L1' }))).toBe(true);
     expect(seriesMatchesFilters(item, filters({ level: 'L2' }))).toBe(false);
-    expect(seriesMatchesFilters(series({ level: 'L3' }), filters({ age: '4-5' }))).toBe(false);
+    expect(seriesMatchesFilters(series({ level: 'L4' }), filters({ level: 'L4' }))).toBe(true);
   });
 
   it('combines source, dubbing, favorite and search', () => {
