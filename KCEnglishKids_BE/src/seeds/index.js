@@ -743,10 +743,11 @@ async function seedDatabase() {
     class3.students = [childToby._id, ...class3Kids.map(k => k._id)];
     await class3.save();
 
-    // 9.6 Learning Lessons references
+    // 9.6 Learning Lessons references: Leo's class curriculum starts at Unit 1 (School)
+    const schoolLesson = lessonsMapByKey.get('B1_U1_L1');
     const petAnimalsLesson = lessonsMapByKey.get('B1_U5_L1');
-    const b2Lesson = lessonsMapByKey.get('B2_U1_L1') || petAnimalsLesson;
-    const b3Lesson = lessonsMapByKey.get('B3_U1_L1') || petAnimalsLesson;
+    const b2Lesson = lessonsMapByKey.get('B2_U1_L1') || schoolLesson || petAnimalsLesson;
+    const b3Lesson = lessonsMapByKey.get('B3_U1_L1') || schoolLesson || petAnimalsLesson;
 
     const petAnimalsActivities = petAnimalsLesson
       ? await Activity.find({ lesson: petAnimalsLesson._id }).sort({ order: 1 })
@@ -754,7 +755,7 @@ async function seedDatabase() {
 
     const petSession = await LearningSession.create({
       child: childLeo._id,
-      lesson: petAnimalsLesson._id,
+      lesson: (schoolLesson || petAnimalsLesson)._id,
       status: 'COMPLETED',
       score: 100,
       stars: 3,
@@ -764,15 +765,19 @@ async function seedDatabase() {
       lastActivityAt: today
     });
 
-    if (petAnimalsLesson) {
+    // Seed Leo's initial completed progress for Lesson 1 (Things at School)
+    if (schoolLesson) {
       await Progress.create({
         child: childLeo._id,
-        topic: topicsMap.animals._id,
-        lesson: petAnimalsLesson._id,
+        topic: schoolLesson.topic || topicsMap.school?._id || topicsMap.animals._id,
+        lesson: schoolLesson._id,
         completed: true,
         stars: 3,
         highestScore: 100,
-        attempts: 1
+        attempts: 1,
+        stage1Completed: true,
+        stage2Completed: true,
+        stage3Completed: true
       });
     }
 
