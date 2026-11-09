@@ -968,22 +968,24 @@ export const TeacherTeachingSchedule: React.FC = () => {
                             {cId && (
                               <div className="pt-1.5 space-y-1.5">
                                 {isCancelled && matchedSession ? (
-                                  <div className="p-2.5 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 space-y-1">
-                                    <p className="font-extrabold text-[11px] text-amber-900">
-                                      Đã báo nghỉ: <span className="font-black underline">{matchedSession.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
-                                    </p>
+                                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
+                                    <div className="flex items-center justify-between gap-1 flex-wrap text-[11px]">
+                                      <span className="font-extrabold text-amber-900">
+                                        Lý do: <span className="font-black underline">{matchedSession.cancellationReason || 'Nghỉ theo kế hoạch'}</span>
+                                      </span>
+                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200">
+                                        Bảo lưu bài #{effectiveLesson.lessonNumber}
+                                      </span>
+                                    </div>
                                     {matchedSession.cancellationNote && (
-                                      <p className="text-[10px] text-amber-800 italic">"{matchedSession.cancellationNote}"</p>
+                                      <p className="text-[10px] text-amber-800 italic leading-snug">"{matchedSession.cancellationNote}"</p>
                                     )}
-                                    <p className="text-[10px] text-amber-900/80 font-bold">
-                                      ⭐ Bài học #{effectiveLesson.lessonNumber} được tự động bảo lưu sang buổi kế tiếp.
-                                    </p>
                                     <button
                                       type="button"
                                       onClick={() => handleRestoreSession(matchedSession._id)}
-                                      className="w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 text-[11px] font-black transition-colors cursor-pointer mt-1"
+                                      className="w-full text-center rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-400 py-1 text-xs font-black transition-colors cursor-pointer mt-0.5 flex items-center justify-center gap-1 active:scale-95"
                                     >
-                                      ↩ Hủy báo nghỉ (Học bình thường)
+                                      <span>↩ Hủy báo nghỉ</span>
                                     </button>
                                   </div>
                                 ) : day.dateString >= vietnamDate() ? (
@@ -1017,35 +1019,21 @@ export const TeacherTeachingSchedule: React.FC = () => {
                     const cancelledSessions = daySessions.filter((s: any) => s.status === 'CANCELLED');
 
                     return (
-                      <div className="flex-1 space-y-2.5">
+                      <div className="flex-1 space-y-2">
                         <div className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center justify-between">
                           <span>Buổi dạy thực tế ({activeSessions.length}):</span>
-                          {cancelledSessions.length > 0 && (
-                            <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
-                              🚫 {cancelledSessions.length} ca báo nghỉ
-                            </span>
-                          )}
                         </div>
 
                         {activeSessions.length === 0 ? (
-                          cancelledSessions.length > 0 ? (
-                            <div className="h-28 flex flex-col items-center justify-center text-center p-3 text-amber-900 border border-dashed border-amber-300/80 bg-amber-50/50 rounded-xl">
-                              <span className="text-base mb-1">🚫</span>
-                              <span className="text-xs font-black text-amber-950">
-                                Đã báo nghỉ ({cancelledSessions.length} ca)
-                              </span>
-                              <span className="text-[11px] font-semibold text-amber-800 mt-0.5">
-                                Không phát sinh giờ dạy thực tế • Tiến độ được bảo lưu
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="h-28 flex flex-col items-center justify-center text-center p-3 text-slate-400 border border-dashed border-slate-200 rounded-xl">
-                              <Calendar size={20} className="mb-1 opacity-30" />
-                              <span className="text-xs font-medium italic text-slate-500">
-                                {dayFixedSlots.length > 0 ? 'Chưa có buổi dạy thực tế' : 'Chưa ghi nhận buổi dạy'}
-                              </span>
-                            </div>
-                          )
+                          <div className="py-2.5 px-3 text-center rounded-xl bg-slate-50/80 border border-dashed border-slate-200">
+                            <span className="text-xs font-medium italic text-slate-500">
+                              {cancelledSessions.length > 0
+                                ? 'Ca học đã báo nghỉ (tiến độ được bảo lưu)'
+                                : dayFixedSlots.length > 0
+                                ? 'Chưa có buổi dạy thực tế'
+                                : 'Chưa ghi nhận buổi dạy'}
+                            </span>
+                          </div>
                         ) : (
                           activeSessions.map((s: any) => {
                             const lessonTitle = s.lesson?.title || s.title || 'Buổi học tiếng Anh';
