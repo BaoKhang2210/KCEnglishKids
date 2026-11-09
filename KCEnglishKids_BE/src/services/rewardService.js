@@ -225,7 +225,7 @@ const computeRewards = async (childId) => {
     return sum + (reward ? reward.amount || 0 : 0);
   }, 0);
   const badgeProgressStars = legacyEarnedStars + legacyBonusStars + classroomStars + teacherStars + homePracticeStars;
-  const totalStars = (starLedger?.totalStars || 0) + homePracticeStars;
+  const totalStars = (starLedger?.totalStars || 0) + (homePracticeStars || 0) + (classroomStars || 0) + (teacherStars || 0);
   const earnedStars = starLedger?.units?.reduce((sum, unit) => sum + unit.lessonStars, 0) || legacyEarnedStars;
   bonusStars = (starLedger?.units?.reduce((sum, unit) => sum + unit.bonusStars, 0) || 0) + legacyBonusStars;
   const homeStars = earnedStars + bonusStars + (teacherStars || 0) + (homePracticeStars || 0);
@@ -238,10 +238,10 @@ const computeRewards = async (childId) => {
     icon: '🌱',
     minStars: 0,
     maxStars: 50,
-    currentStars: badgeProgressStars,
-    progressPercent: Math.min(100, Math.round((badgeProgressStars / 50) * 100))
+    currentStars: totalStars,
+    progressPercent: Math.min(100, Math.round((totalStars / 50) * 100))
   };
-  if (badgeProgressStars > 300) {
+  if (totalStars > 300) {
     explorerLevel = {
       level: 4,
       title: 'Đại Sứ Anh Ngữ Nhí',
@@ -249,10 +249,10 @@ const computeRewards = async (childId) => {
       icon: '👑',
       minStars: 300,
       maxStars: 500,
-      currentStars: badgeProgressStars,
+      currentStars: totalStars,
       progressPercent: 100
     };
-  } else if (badgeProgressStars > 150) {
+  } else if (totalStars > 150) {
     explorerLevel = {
       level: 3,
       title: 'Bạn Nhỏ Tự Tin',
@@ -260,10 +260,10 @@ const computeRewards = async (childId) => {
       icon: '🦁',
       minStars: 151,
       maxStars: 300,
-      currentStars: badgeProgressStars,
-      progressPercent: Math.min(100, Math.round(((badgeProgressStars - 150) / 150) * 100))
+      currentStars: totalStars,
+      progressPercent: Math.min(100, Math.round(((totalStars - 150) / 150) * 100))
     };
-  } else if (badgeProgressStars > 50) {
+  } else if (totalStars > 50) {
     explorerLevel = {
       level: 2,
       title: 'Thám Hiểm Tí Hon',
@@ -271,8 +271,8 @@ const computeRewards = async (childId) => {
       icon: '🎒',
       minStars: 51,
       maxStars: 150,
-      currentStars: badgeProgressStars,
-      progressPercent: Math.min(100, Math.round(((badgeProgressStars - 50) / 100) * 100))
+      currentStars: totalStars,
+      progressPercent: Math.min(100, Math.round(((totalStars - 50) / 100) * 100))
     };
   }
 

@@ -52,7 +52,7 @@ interface HomeReviewData {
 
 export function MyLearningPage() {
   const { user } = useAuth();
-  const { refresh } = useRewards();
+  const { refresh, rewards } = useRewards();
   const navigate = useNavigate();
   const childId = user?._id || (user as any)?.id || '';
 
@@ -210,7 +210,11 @@ export function MyLearningPage() {
             </div>
             <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-amber-100/90 border border-amber-300 text-amber-950 font-black text-xs sm:text-sm shadow-sm">
               <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-              <span>Phần thưởng hoàn thành: +3 Sao ⭐</span>
+              <span>{rewardClaimed ? 'Đã nhận +3 Sao ⭐' : 'Thưởng hoàn thành: +3 Sao ⭐'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-yellow-300/90 border border-yellow-400 text-amber-950 font-black text-xs sm:text-sm shadow-sm">
+              <Star className="w-4 h-4 text-yellow-600 fill-yellow-500" />
+              <span>{rewards?.totalStars ?? 0} Sao</span>
             </div>
           </div>
         </div>
@@ -540,6 +544,10 @@ export function MyLearningPage() {
                   Bé đã xuất sắc hoàn thành 5 phút ôn tập hôm nay và nhận được{' '}
                   <span className="font-black text-amber-600">3 ngôi sao may mắn</span>!
                 </p>
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 text-amber-950 text-xs sm:text-sm font-black border border-amber-200">
+                  <Star className="w-4 h-4 text-amber-600 fill-amber-500" />
+                  <span>Tổng sao hiện tại của bé: {rewards?.totalStars ?? 0} ⭐</span>
+                </div>
               </div>
 
               {/* 3 GLOWING STARS */}

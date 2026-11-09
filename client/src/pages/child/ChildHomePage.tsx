@@ -274,9 +274,9 @@ export const ChildHomePage: React.FC = () => {
     refreshRewards();
   }, [refreshRewards]);
 
-  // The star ledger is the sole source for displayed journey stars.
+  // The star ledger is the source for journey stars; rewards.totalStars includes home practice & classroom stars.
   const ledger = rewards?.starLedger;
-  const totalStars = ledger?.totalStars ?? 0;
+  const totalStars = rewards?.totalStars ?? (ledger?.totalStars ?? 0);
   const completedLessons = rewards?.completedLessons ?? ledger?.completedLessons ?? 0;
   const totalUnits = ledger?.units.length ?? units.length;
   const completedUnits = rewards?.completedUnits ?? ledger?.completedUnits ?? 0;
@@ -833,7 +833,14 @@ export const ChildHomePage: React.FC = () => {
                   {rewardTab === 'stars' && rewards && <p className="text-sm font-bold text-slate-500">Tổng sao hành trình gồm sao bài học và thưởng Unit. Thưởng lớp và huy hiệu được tính riêng.</p>}
 
                   {rewardTab === 'stars' ? (
-                    <StarCollectionSection ledger={ledger} loading={rewardsLoading} error={rewardsError} onRetry={refreshRewards} />
+                    <StarCollectionSection
+                      ledger={ledger}
+                      totalStars={totalStars}
+                      homePracticeStars={rewards?.homePracticeStars || 0}
+                      loading={rewardsLoading}
+                      error={rewardsError}
+                      onRetry={refreshRewards}
+                    />
                   ) : rewardTab === 'badges' ? (
                     <>
                       {/* Badges Category Pills */}

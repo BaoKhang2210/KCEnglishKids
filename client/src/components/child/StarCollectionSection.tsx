@@ -6,17 +6,19 @@ import { KokoMascot } from './KokoMascot';
 
 interface Props {
   ledger?: StarLedger;
+  totalStars?: number;
+  homePracticeStars?: number;
   loading: boolean;
   error: string | null;
   onRetry: () => void;
 }
 
-export const StarCollectionSection: React.FC<Props> = ({ ledger, loading, error, onRetry }) => {
+export const StarCollectionSection: React.FC<Props> = ({ ledger, totalStars, homePracticeStars = 0, loading, error, onRetry }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [parentMode, setParentMode] = useState(false);
   const holdTimer = useRef<number | undefined>(undefined);
-  const total = ledger?.totalStars ?? 0;
+  const total = totalStars ?? ((ledger?.totalStars ?? 0) + homePracticeStars);
   const max = ledger?.maxStars ?? 0;
   const progress = max ? Math.min(100, total / max * 100) : 0;
 
@@ -28,7 +30,23 @@ export const StarCollectionSection: React.FC<Props> = ({ ledger, loading, error,
   return (
     <section className="space-y-4" aria-label="Sổ sao theo Unit và Lesson">
       <header className="rounded-3xl border-2 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 p-4 text-amber-950 shadow-md sm:p-6">
-        <div className="flex items-center gap-3"><KokoMascot state="celebrating" size="sm" interactive={false}/><div className="min-w-0 flex-1"><h3 className="text-lg font-black sm:text-2xl">Sổ sao của bé</h3><p className="text-3xl font-black sm:text-4xl" aria-label={`Bé đã nhận ${total} ngôi sao`}>{total}<span className="ml-2 text-xl">⭐ đã nhận</span></p><p className="mt-1 text-sm font-bold text-amber-950">Tối đa {max} sao trong hành trình học</p><div className="mt-2 h-3 overflow-hidden rounded-full border border-white/70 bg-white/50" role="progressbar" aria-label="Tiến độ thu thập sao trong hành trình" aria-valuemin={0} aria-valuemax={max} aria-valuenow={total}><div className="h-full rounded-full bg-white transition-[width] duration-500 motion-reduce:transition-none" style={{width:`${progress}%`}}/></div></div></div>
+        <div className="flex items-center gap-3">
+          <KokoMascot state="celebrating" size="sm" interactive={false}/>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-black sm:text-2xl">Sổ sao của bé</h3>
+            <p className="text-3xl font-black sm:text-4xl" aria-label={`Bé đã nhận ${total} ngôi sao`}>
+              {total}<span className="ml-2 text-xl">⭐ đã nhận</span>
+            </p>
+            <p className="mt-1 text-xs sm:text-sm font-bold text-amber-950">
+              {homePracticeStars > 0
+                ? `Gồm ${ledger?.totalStars ?? 0} sao hành trình bài học + ${homePracticeStars} sao ôn tập ở nhà ⚡`
+                : `Tối đa ${max} sao trong hành trình học`}
+            </p>
+            <div className="mt-2 h-3 overflow-hidden rounded-full border border-white/70 bg-white/50" role="progressbar" aria-label="Tiến độ thu thập sao trong hành trình" aria-valuemin={0} aria-valuemax={max} aria-valuenow={total}>
+              <div className="h-full rounded-full bg-white transition-[width] duration-500 motion-reduce:transition-none" style={{width:`${progress}%`}}/>
+            </div>
+          </div>
+        </div>
       </header>
 
       <div className="flex flex-wrap gap-2 px-1 text-xs font-black" aria-label="Chú giải trạng thái bài học">

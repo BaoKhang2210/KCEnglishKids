@@ -10,6 +10,7 @@ import { ParentNotebookModal } from './ParentNotebookModal';
 import { DailyStreakBadge } from './DailyStreakBadge';
 import { DailyStreakModal } from './DailyStreakModal';
 import { streakApi, parentNotificationApi } from '../../services/api';
+import { useRewards } from '../../context/RewardContext';
 import type { ChildStreakData } from '../../types';
 
 interface ChildHeaderProps {
@@ -28,6 +29,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   onStreakUpdate
 }) => {
   const { user, logout } = useAuth();
+  const { rewards } = useRewards();
+  const effectiveTotalStars = rewards?.totalStars ?? totalStars;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -333,7 +336,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
         bookLabel={currentOption.book}
         ageLabel={currentOption.ageLabel}
         ageCode={currentOption.code}
-        totalStars={totalStars}
+        totalStars={effectiveTotalStars}
         completedCount={completedCount}
         streakDays={localStreakData?.streak || 1}
         onOpenBadges={() => setShowBadgesModal(true)}
@@ -355,7 +358,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
       <ChildBadgesModal
         isOpen={showBadgesModal}
         onClose={() => setShowBadgesModal(false)}
-        totalStars={totalStars}
+        totalStars={effectiveTotalStars}
         completedCount={completedCount}
         childName={user?.name || 'Bé'}
       />

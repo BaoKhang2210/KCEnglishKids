@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Map, Compass, Award, Gamepad2, BookMarked, PlayCircle, BookOpenCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useRewards } from '../../context/RewardContext';
 import { sfx } from '../../utils/audio';
 import { ChildBadgesModal } from './ChildBadgesModal';
 
@@ -21,6 +22,8 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { rewards } = useRewards();
+  const effectiveTotalStars = rewards?.totalStars ?? totalStars;
   const [showBadges, setShowBadges] = useState(false);
 
   const handleNav = (path: string, tab?: string) => {
@@ -137,7 +140,7 @@ export const ChildBottomNav: React.FC<ChildBottomNavProps> = ({
       <ChildBadgesModal
         isOpen={showBadges}
         onClose={() => setShowBadges(false)}
-        totalStars={totalStars}
+        totalStars={effectiveTotalStars}
         completedCount={completedCount}
         childName={user?.name || 'Bé'}
       />

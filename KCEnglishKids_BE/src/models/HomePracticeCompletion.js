@@ -11,7 +11,7 @@ const homePracticeCompletionSchema = new mongoose.Schema(
     lesson: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lesson',
-      required: true
+      required: false
     },
     date: {
       type: String, // 'YYYY-MM-DD' in Vietnam timezone

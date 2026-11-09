@@ -280,6 +280,19 @@ async function completeHomeReview(child, lessonId) {
   let completion = null;
   let newlyCompleted = false;
 
+  let validLessonId = undefined;
+  const mongoose = require('mongoose');
+  if (lessonId && mongoose.Types.ObjectId.isValid(lessonId)) {
+    validLessonId = lessonId;
+  } else {
+    try {
+      const review = await getHomeReview(child);
+      if (review?.lessonId && mongoose.Types.ObjectId.isValid(review.lessonId)) {
+        validLessonId = review.lessonId;
+      }
+    } catch (_) {}
+  }
+
   if (M.HomePracticeCompletion) {
     completion = await M.HomePracticeCompletion.findOne({
       child: child._id,
@@ -288,13 +301,14 @@ async function completeHomeReview(child, lessonId) {
 
     if (!completion) {
       try {
-        completion = await M.HomePracticeCompletion.create({
+        const payload = {
           child: child._id,
-          lesson: lessonId,
           date: todayStr,
           stars: 3,
-          completedAt: new Date()
-        });
+          completedAt: new Date(),
+          ...(validLessonId ? { lesson: validLessonId } : {})
+        };
+        completion = await M.HomePracticeCompletion.create(payload);
         newlyCompleted = true;
       } catch (err) {
         if (err.code === 11000) {
@@ -317,6 +331,7 @@ async function completeHomeReview(child, lessonId) {
     newlyCompleted,
     starsAwarded: newlyCompleted ? 3 : 0,
     totalStars: rewardState.totalStars,
+    rewards: rewardState,
     message: newlyCompleted
       ? 'Tuyệt vời! Bé đã xuất sắc hoàn thành 5 phút ôn tập hôm nay và nhận được 3 ngôi sao!'
       : 'Hôm nay bé đã nhận thưởng 3 sao cho bài ôn tập rồi!'
