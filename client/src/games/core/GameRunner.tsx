@@ -196,6 +196,11 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
               {definition.title}
             </div>
             <p className="max-w-lg text-base font-bold text-indigo-100 sm:text-lg">{definition.subtitle}</p>
+            {config.instructions && (
+              <div className="max-w-md rounded-2xl border border-amber-300/40 bg-amber-400/15 px-4 py-2 text-sm font-bold text-amber-100">
+                📝 Nhiệm vụ cô giao: {config.instructions}
+              </div>
+            )}
             <button type="button" onClick={() => setHasStarted(true)} className="mt-2 min-h-16 min-w-48 rounded-3xl border-4 border-amber-100 bg-gradient-to-b from-amber-300 to-orange-400 px-8 text-2xl font-black text-slate-950 shadow-[0_6px_0_#b45309] cursor-pointer active:scale-95 transition-transform">{hasCheckpoint ? "Continue!" : "Let's play!"}</button>
             {hasCheckpoint && <button type="button" onClick={() => { handleRestart(); setHasStarted(true); }} className="min-h-12 rounded-2xl px-6 text-base font-bold text-indigo-100 underline underline-offset-4 cursor-pointer">Start over</button>}
           </div>

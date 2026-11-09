@@ -15,7 +15,8 @@ function gradeStage(stage, payload, words, game, age) {
   }
   const answers = payload.answers;
   if (!Array.isArray(answers) || !answers.length || answers.length > 500) fail('Complete the practice first.', 400);
-  const allowed = new Set((game ? usable(game, words) : words).map(w => String(w._id)));
+  const usableWords = game ? usable(game, words) : words;
+  const allowed = new Set((usableWords.length ? usableWords : words).map(w => String(w._id)));
   if (answers.some(a => !a || !allowed.has(a.wordId) || (a.selectedId !== null && !ids.includes(a.selectedId)))) fail('Invalid practice answers.', 400);
   if (stage === 2) {
     const keys = answers.map(a => a.wordId + ':' + a.round);
@@ -56,7 +57,8 @@ async function completeStage(childId, lessonId, body) {
   let game;
   if (stage === 3) {
     const unit = lesson.curriculumUnits?.length ? await CurriculumUnit.findById(lesson.curriculumUnits[0]) : null;
-    game = (await require('./gameCatalog').configuredGames(words, unit?.unitNumber || 1, lesson.displayOrder || 1)).find(g => g.id === body.gameId);
+    game = (await require('./gameCatalog').configuredGames(words, unit?.unitNumber || 1, lesson.displayOrder || 1)).find(g => g.id === body.gameId)
+      || require('../../../shared/learningGames.json').find(g => g.id === body.gameId);
     if (!game) fail('Game is not available for this lesson.', 400);
   }
   const graded = gradeStage(stage, body, words, game, lesson.ageGroupCode);

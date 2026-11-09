@@ -92,7 +92,7 @@ export const GAME_REGISTRY: Record<GameId, GameDefinition> = {
     gesture: 'drag',
     minVocab: 4,
     supportedWordTypes: ['noun', 'number'],
-    requiresTransparentImage: true,
+    requiresTransparentImage: false,
     instructionPhrase: 'match_the',
     targetCountByAge: { '3-4': 4, '4-5': 5, '5-6': 6 },
     load: () => import('./templates/shadow-puzzle'),
@@ -145,7 +145,7 @@ export const GAME_REGISTRY: Record<GameId, GameDefinition> = {
     gesture: 'drag',
     minVocab: 4,
     supportedWordTypes: ['noun'],
-    requiresImage: true,
+    requiresImage: false,
     instructionPhrase: 'look_at_this',
     targetCountByAge: { '3-4': 4, '4-5': 4, '5-6': 5 },
     load: () => import('./templates/picture-builder'),
@@ -203,4 +203,8 @@ export function getAvailableLessonGames(
     );
     return new Set(usableWords.map(vocabularyMeaning)).size >= game.minVocab;
   }).slice(0, Math.max(4, preferred.length));
+}
+
+export function getAllMinigames(): GameDefinition[] {
+  return Object.values(GAME_REGISTRY);
 }

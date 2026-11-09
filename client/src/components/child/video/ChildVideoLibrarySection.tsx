@@ -187,7 +187,6 @@ const CourseCard: React.FC<{
 }> = ({ series, onOpen, onPlay, onFavorite }) => {
   const skillIcons = series.availableSkills.slice(0, 3);
   const visual = LEVEL_VISUAL[series.level] ?? LEVEL_VISUAL.L1;
-  const levelMeta = VIDEO_LEVEL_META[series.level];
 
   return (
     <article className="group overflow-hidden rounded-[22px] border-2 border-slate-200/80 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-lg">
@@ -250,17 +249,14 @@ const CourseCard: React.FC<{
 
       <div className="p-4">
         <h3 className="text-xl font-black leading-tight text-slate-900 line-clamp-1">{series.title}</h3>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {series.source === 'youtube' && <YouTubeBadge />}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {series.source === 'youtube' && <YouTubeBadge size="sm" />}
           {series.hasDubbing && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-pink-200 bg-pink-50 px-3 py-1 text-xs font-black text-pink-600">
+            <span className="inline-flex items-center gap-1 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-[11px] font-black whitespace-nowrap text-pink-600">
               <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
               Lồng tiếng
             </span>
           )}
-          <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black ${visual.tagClass}`}>
-            {levelMeta?.title || visual.subtitle}
-          </span>
         </div>
 
         <div className="mt-4 border-t-2 border-dashed border-slate-200 pt-3">
@@ -519,6 +515,19 @@ export const ChildVideoLibrarySection: React.FC<ChildVideoLibrarySectionProps> =
               />
             </label>
 
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border-2 border-rose-100 bg-rose-50/70 px-3 py-2.5">
+              <span className="inline-flex items-center gap-1.5 text-sm font-black text-slate-700">
+                <Heart className="h-4 w-4 text-rose-500" aria-hidden="true" />
+                Video yêu thích
+              </span>
+              <ToggleSwitch
+                checked={filters.favorite}
+                onChange={() => patchFilters({ favorite: !filters.favorite })}
+                label="Chỉ hiện video bé yêu thích"
+                onClass="border-rose-500 bg-rose-500"
+              />
+            </div>
+
             <div className="mt-3">
               <button
                 type="button"
@@ -552,7 +561,7 @@ export const ChildVideoLibrarySection: React.FC<ChildVideoLibrarySectionProps> =
                       type="button"
                       aria-pressed={active}
                       onClick={() => selectLevel(active ? '' : level)}
-                      className={`group flex w-full items-center gap-3.5 px-3 py-3 text-left transition-all first:rounded-t-2xl last:rounded-b-2xl cursor-pointer ${
+                      className={`group flex w-full items-center gap-2.5 px-2 py-3 text-left transition-all first:rounded-t-2xl last:rounded-b-2xl cursor-pointer ${
                         active
                           ? visual.activeRowClass
                           : 'hover:bg-slate-50/90'
@@ -564,7 +573,7 @@ export const ChildVideoLibrarySection: React.FC<ChildVideoLibrarySectionProps> =
                         <Icon className={`h-6 w-6 ${visual.iconClass}`} aria-hidden="true" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[15px] font-black leading-snug text-slate-800">
+                        <span className="block text-sm font-black leading-snug text-slate-800">
                           {levelName(level)}: {meta.title}
                         </span>
                         <span className="mt-0.5 block text-xs font-bold text-slate-500">
@@ -616,18 +625,6 @@ export const ChildVideoLibrarySection: React.FC<ChildVideoLibrarySectionProps> =
                 />
               </div>
 
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700">
-                  <Heart className="h-4 w-4 text-rose-500" aria-hidden="true" />
-                  Video yêu thích
-                </span>
-                <ToggleSwitch
-                  checked={filters.favorite}
-                  onChange={() => patchFilters({ favorite: !filters.favorite })}
-                  label="Chỉ hiện video bé yêu thích"
-                  onClass="border-rose-500 bg-rose-500"
-                />
-              </div>
             </div>
 
             {hasNarrowing && (
