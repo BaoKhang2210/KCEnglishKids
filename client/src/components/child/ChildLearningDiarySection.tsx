@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpenCheck,
@@ -76,27 +76,9 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
   const [subTab, setSubTab] = useState<DiarySubTab>('lessons');
   const [lessonFilter, setLessonFilter] = useState<LessonFilter>('all');
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
-  const [unitMenuOpen, setUnitMenuOpen] = useState(false);
-  const unitMenuRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<any>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!unitMenuOpen) return;
-    const closeOnOutsideClick = (event: PointerEvent) => {
-      if (!unitMenuRef.current?.contains(event.target as Node)) setUnitMenuOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setUnitMenuOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsideClick);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideClick);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [unitMenuOpen]);
 
   useEffect(() => {
     let active = true;
@@ -188,17 +170,17 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
         );
         const stage3Completed = Boolean(
           lesson.stages?.stage3?.completed ??
-            (serverProg?.stage3Completed || localCache.s3 || stage3Games.length >= 2)
+          (serverProg?.stage3Completed || localCache.s3 || stage3Games.length >= 2)
         );
         const hasStageData = Boolean(
           lesson.stages ||
-            serverProg?.stage1Completed ||
-            serverProg?.stage2Completed ||
-            serverProg?.stage3Completed ||
-            stage3Games.length > 0 ||
-            localCache.s1 ||
-            localCache.s2 ||
-            localCache.s3
+          serverProg?.stage1Completed ||
+          serverProg?.stage2Completed ||
+          serverProg?.stage3Completed ||
+          stage3Games.length > 0 ||
+          localCache.s1 ||
+          localCache.s2 ||
+          localCache.s3
         );
         const completed = hasStageData
           ? Boolean(stage1Completed && stage2Completed && stage3Completed)
@@ -222,10 +204,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
         const status: 'completed' | 'in_progress' | 'unlocked' | 'locked' = completed
           ? 'completed'
           : isStarted
-          ? 'in_progress'
-          : isLessonUnlocked
-          ? 'unlocked'
-          : 'locked';
+            ? 'in_progress'
+            : isLessonUnlocked
+              ? 'unlocked'
+              : 'locked';
 
         list.push({
           _id: lessonId,
@@ -432,41 +414,37 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               {/* 3-Stage Progress Pills for Current Lesson */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border-2 ${
-                    nextUnlockedLesson.stage1Completed
-                      ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border-2 ${nextUnlockedLesson.stage1Completed
+                    ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                    : 'bg-white border-slate-200 text-slate-600'
+                    }`}
                 >
                   <span>🔍 Chặng 1: Khám phá</span>
                   <span>{nextUnlockedLesson.stage1Completed ? '✓ Đã xong' : '• Đang chờ'}</span>
                 </span>
 
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border-2 ${
-                    nextUnlockedLesson.stage2Completed
-                      ? 'bg-sky-100 border-sky-300 text-sky-900'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border-2 ${nextUnlockedLesson.stage2Completed
+                    ? 'bg-sky-100 border-sky-300 text-sky-900'
+                    : 'bg-white border-slate-200 text-slate-600'
+                    }`}
                 >
                   <span>📖 Chặng 2: Luyện tập</span>
                   <span>
                     {nextUnlockedLesson.stage2Completed
-                      ? `✓ ${
-                          nextUnlockedLesson.stage2Score !== null
-                            ? `${nextUnlockedLesson.stage2Score}% đúng`
-                            : 'Đã xong'
-                        }`
+                      ? `✓ ${nextUnlockedLesson.stage2Score !== null
+                        ? `${nextUnlockedLesson.stage2Score}% đúng`
+                        : 'Đã xong'
+                      }`
                       : '• Đang chờ'}
                   </span>
                 </span>
 
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border-2 ${
-                    nextUnlockedLesson.stage3Completed
-                      ? 'bg-purple-100 border-purple-300 text-purple-900'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border-2 ${nextUnlockedLesson.stage3Completed
+                    ? 'bg-purple-100 border-purple-300 text-purple-900'
+                    : 'bg-white border-slate-200 text-slate-600'
+                    }`}
                 >
                   <span>🎮 Chặng 3: Vui chơi</span>
                   <span>
@@ -503,81 +481,23 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
       <div className="flex flex-wrap items-center justify-start gap-2 bg-white p-2 rounded-2xl border-2 border-amber-200/80 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2">
           {subTab === 'lessons' && (
-            <div ref={unitMenuRef} className="relative z-30">
-              <button
-                type="button"
+            <label className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-100 px-3 shadow-xs">
+              <BookOpenCheck className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+              <span className="text-xs font-black text-amber-900">Chọn Unit</span>
+              <select
                 aria-label="Lọc kết quả theo Unit"
-                aria-haspopup="listbox"
-                aria-expanded={unitMenuOpen}
-                onClick={() => {
-                  sfx.playPop();
-                  setUnitMenuOpen((open) => !open);
-                }}
-                className={`inline-flex min-h-11 max-w-[min(82vw,320px)] items-center gap-2 rounded-xl border-2 px-3 text-left shadow-xs transition-colors ${unitMenuOpen ? 'border-amber-500 bg-amber-100' : 'border-amber-300 bg-amber-50 hover:bg-amber-100'}`}
+                value={selectedUnitFilter}
+                onChange={(e) => setSelectedUnitFilter(e.target.value)}
+                className="max-w-[155px] bg-transparent text-xs font-black text-amber-950 outline-none sm:max-w-[210px]"
               >
-                <BookOpenCheck className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                <span className="shrink-0 text-xs font-black text-amber-900">Chọn Unit</span>
-                <span className="min-w-0 truncate text-xs font-bold text-slate-800">
-                  {selectedUnitFilter === 'all'
-                    ? `Tất cả ${units.length} Unit`
-                    : (() => {
-                        const index = units.findIndex((unit) => String(unit._id) === selectedUnitFilter);
-                        const unit = units[index];
-                        return unit
-                          ? `Unit ${unit.unitNumber || index + 1}: ${unit.topicName || unit.storyTitle}`
-                          : `Tất cả ${units.length} Unit`;
-                      })()}
-                </span>
-                <span className={`ml-1 text-amber-800 transition-transform ${unitMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
-              </button>
-
-              {unitMenuOpen && (
-                <div
-                  role="listbox"
-                  aria-label="Chọn Unit để xem kết quả"
-                  className="absolute left-0 top-full mt-2 max-h-72 w-[min(88vw,320px)] overflow-y-auto rounded-2xl border-2 border-amber-200 bg-white p-2 shadow-xl"
-                >
-                  <p className="px-2 pb-1 pt-1 text-[10px] font-black uppercase tracking-wider text-amber-700">Hành trình học của bé</p>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={selectedUnitFilter === 'all'}
-                    onClick={() => {
-                      setSelectedUnitFilter('all');
-                      setUnitMenuOpen(false);
-                      sfx.playPop();
-                    }}
-                    className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-black transition-colors ${selectedUnitFilter === 'all' ? 'bg-amber-100 text-amber-950' : 'text-slate-700 hover:bg-amber-50'}`}
-                  >
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-200 text-amber-800">✦</span>
-                    <span className="min-w-0 flex-1">Tất cả Unit <span className="text-xs font-bold text-slate-500">({units.length})</span></span>
-                    {selectedUnitFilter === 'all' && <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />}
-                  </button>
-                  {units.map((unit, index) => {
-                    const unitId = String(unit._id);
-                    const selected = selectedUnitFilter === unitId;
-                    return (
-                      <button
-                        key={unitId || index}
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        onClick={() => {
-                          setSelectedUnitFilter(unitId);
-                          setUnitMenuOpen(false);
-                          sfx.playPop();
-                        }}
-                        className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-bold transition-colors ${selected ? 'bg-amber-100 text-amber-950' : 'text-slate-700 hover:bg-amber-50'}`}
-                      >
-                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-black ${selected ? 'bg-amber-300 text-amber-950' : 'bg-sky-100 text-sky-700'}`}>{unit.unitNumber || index + 1}</span>
-                        <span className="min-w-0 flex-1 truncate">{unit.topicName || unit.storyTitle || `Unit ${index + 1}`}</span>
-                        {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                <option value="all">Tất cả {units.length} Unit</option>
+                {units.map((u, idx) => (
+                  <option key={u._id || idx} value={String(u._id)}>
+                    Unit {u.unitNumber || idx + 1}: {u.topicName || u.storyTitle}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
 
           <button
@@ -586,11 +506,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               sfx.playPop();
               setSubTab('lessons');
             }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${
-              subTab === 'lessons'
-                ? 'bg-amber-400 text-amber-950 shadow-xs'
-                : 'text-slate-600 hover:bg-amber-50'
-            }`}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${subTab === 'lessons'
+              ? 'bg-amber-400 text-amber-950 shadow-xs'
+              : 'text-slate-600 hover:bg-amber-50'
+              }`}
           >
             <Trophy className="w-4 h-4" />
             <span>Kết quả từng Bài học ({enrichedLessons.length})</span>
@@ -602,11 +521,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               sfx.playPop();
               setSubTab('timeline');
             }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${
-              subTab === 'timeline'
-                ? 'bg-sky-500 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-sky-50'
-            }`}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${subTab === 'timeline'
+              ? 'bg-sky-500 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-sky-50'
+              }`}
           >
             <Clock className="w-4 h-4" />
             <span>Nhật ký hoạt động gần đây ({recentEvents.length})</span>
@@ -618,11 +536,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               sfx.playPop();
               setSubTab('assignments');
             }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${
-              subTab === 'assignments'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-purple-50'
-            }`}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${subTab === 'assignments'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-purple-50'
+              }`}
           >
             <ClipboardList className="w-4 h-4" />
             <span>Bài tập cô giao ({assignments.length})</span>
@@ -645,23 +562,20 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               { id: 'all', label: `📋 Tất cả (${enrichedLessons.length})` },
               {
                 id: 'completed',
-                label: `✅ Đã hoàn thành (${
-                  enrichedLessons.filter((l) => l.status === 'completed').length
-                })`,
+                label: `✅ Đã hoàn thành (${enrichedLessons.filter((l) => l.status === 'completed').length
+                  })`,
               },
               {
                 id: 'in_progress',
-                label: `🚀 Đang học & Đã mở (${
-                  enrichedLessons.filter(
-                    (l) => l.status === 'in_progress' || l.status === 'unlocked'
-                  ).length
-                })`,
+                label: `🚀 Đang học & Đã mở (${enrichedLessons.filter(
+                  (l) => l.status === 'in_progress' || l.status === 'unlocked'
+                ).length
+                  })`,
               },
               {
                 id: 'needs_review',
-                label: `💡 Có từ cần ôn (${
-                  enrichedLessons.filter((l) => l.weakCount > 0).length
-                })`,
+                label: `💡 Có từ cần ôn (${enrichedLessons.filter((l) => l.weakCount > 0).length
+                  })`,
               },
             ].map((f) => (
               <button
@@ -671,11 +585,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                   sfx.playPop();
                   setLessonFilter(f.id as LessonFilter);
                 }}
-                className={`px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 cursor-pointer transition-all border-2 ${
-                  lessonFilter === f.id
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
-                }`}
+                className={`px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 cursor-pointer transition-all border-2 ${lessonFilter === f.id
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
+                  }`}
               >
                 {f.label}
               </button>
@@ -708,15 +621,14 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                 return (
                   <div
                     key={lesson._id}
-                    className={`rounded-[28px] border-3 p-4 sm:p-5 flex flex-col justify-between gap-4 transition-all ${
-                      isDone
-                        ? 'bg-white border-emerald-300 shadow-sm'
-                        : isInProg
+                    className={`rounded-[28px] border-3 p-4 sm:p-5 flex flex-col justify-between gap-4 transition-all ${isDone
+                      ? 'bg-white border-emerald-300 shadow-sm'
+                      : isInProg
                         ? 'bg-gradient-to-br from-amber-50/90 via-white to-orange-50/70 border-amber-400 shadow-md'
                         : isLocked
-                        ? 'bg-slate-50/80 border-slate-200 opacity-70'
-                        : 'bg-white border-amber-200 shadow-2xs'
-                    }`}
+                          ? 'bg-slate-50/80 border-slate-200 opacity-70'
+                          : 'bg-white border-amber-200 shadow-2xs'
+                      }`}
                   >
                     <div className="space-y-3">
                       {/* Top Row: Unit badge + Stars + Timestamp */}
@@ -753,11 +665,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                           {[1, 2, 3].map((idx) => (
                             <Star
                               key={idx}
-                              className={`w-4 h-4 ${
-                                idx <= lesson.stars
-                                  ? 'text-amber-400 fill-amber-400'
-                                  : 'text-slate-300'
-                              }`}
+                              className={`w-4 h-4 ${idx <= lesson.stars
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-slate-300'
+                                }`}
                             />
                           ))}
                           <span className="ml-1 text-xs font-black text-amber-900">
@@ -789,11 +700,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                       <div className="grid grid-cols-3 gap-2 pt-1">
                         {/* Stage 1 */}
                         <div
-                          className={`rounded-2xl p-2.5 border-2 text-center ${
-                            lesson.stage1Completed
-                              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-                              : 'bg-slate-50 border-slate-200/80 text-slate-400'
-                          }`}
+                          className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage1Completed
+                            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                            : 'bg-slate-50 border-slate-200/80 text-slate-400'
+                            }`}
                         >
                           <div className="text-xs font-black">🔍 Chặng 1</div>
                           <div className="text-[11px] font-bold mt-0.5">
@@ -803,11 +713,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
 
                         {/* Stage 2 */}
                         <div
-                          className={`rounded-2xl p-2.5 border-2 text-center ${
-                            lesson.stage2Completed
-                              ? 'bg-sky-50/80 border-sky-200 text-sky-900'
-                              : 'bg-slate-50 border-slate-200/80 text-slate-400'
-                          }`}
+                          className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage2Completed
+                            ? 'bg-sky-50/80 border-sky-200 text-sky-900'
+                            : 'bg-slate-50 border-slate-200/80 text-slate-400'
+                            }`}
                         >
                           <div className="text-xs font-black">📖 Chặng 2</div>
                           <div className="text-[11px] font-bold mt-0.5">
@@ -821,13 +730,12 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
 
                         {/* Stage 3 */}
                         <div
-                          className={`rounded-2xl p-2.5 border-2 text-center ${
-                            lesson.stage3Completed
-                              ? 'bg-purple-50/80 border-purple-200 text-purple-900'
-                              : lesson.stage3Games.length > 0
+                          className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage3Completed
+                            ? 'bg-purple-50/80 border-purple-200 text-purple-900'
+                            : lesson.stage3Games.length > 0
                               ? 'bg-amber-50 border-amber-200 text-amber-900'
                               : 'bg-slate-50 border-slate-200/80 text-slate-400'
-                          }`}
+                            }`}
                         >
                           <div className="text-xs font-black">🎮 Chặng 3</div>
                           <div className="text-[11px] font-bold mt-0.5">
@@ -883,11 +791,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                                     sfx.playPop();
                                     void playWordAudio(english, word.audioUrl);
                                   }}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black border cursor-pointer transition-transform active:scale-95 ${
-                                    isWeak
-                                      ? 'bg-rose-50 border-rose-300 text-rose-900'
-                                      : 'bg-amber-50/70 hover:bg-amber-100 border-amber-200 text-slate-800'
-                                  }`}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black border cursor-pointer transition-transform active:scale-95 ${isWeak
+                                    ? 'bg-rose-50 border-rose-300 text-rose-900'
+                                    : 'bg-amber-50/70 hover:bg-amber-100 border-amber-200 text-slate-800'
+                                    }`}
                                 >
                                   <Volume2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                   <span className="capitalize">{english}</span>
@@ -910,10 +817,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                         {isDone
                           ? '🎉 Bé đã hoàn thành xuất sắc bài này!'
                           : isInProg
-                          ? '⏳ Bé đang học dở bài này'
-                          : isLocked
-                          ? 'Hoàn thành bài trước để mở khóa'
-                          : 'Bấm để bắt đầu khám phá'}
+                            ? '⏳ Bé đang học dở bài này'
+                            : isLocked
+                              ? 'Hoàn thành bài trước để mở khóa'
+                              : 'Bấm để bắt đầu khám phá'}
                       </span>
 
                       {!isLocked && (
@@ -923,11 +830,10 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                             sfx.playPop();
                             navigate(`/lessons/${lesson._id}`);
                           }}
-                          className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${
-                            isDone
-                              ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
-                              : 'bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-xs'
-                          }`}
+                          className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${isDone
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
+                            : 'bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-xs'
+                            }`}
                         >
                           {isDone ? (
                             <>
@@ -991,13 +897,12 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                   >
                     <div className="flex items-start sm:items-center gap-3.5">
                       <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 border-2 ${
-                          isStage3
-                            ? 'bg-purple-100 border-purple-300'
-                            : isStage1
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 border-2 ${isStage3
+                          ? 'bg-purple-100 border-purple-300'
+                          : isStage1
                             ? 'bg-emerald-100 border-emerald-300'
                             : 'bg-sky-100 border-sky-300'
-                        }`}
+                          }`}
                       >
                         {gameDef?.icon || (isStage3 ? '🎮' : isStage1 ? '🔍' : '📖')}
                       </div>
@@ -1086,20 +991,18 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                 return (
                   <div
                     key={a._id}
-                    className={`rounded-3xl border-3 p-4 sm:p-5 flex flex-col justify-between gap-3 ${
-                      a.isCompleted
-                        ? 'bg-emerald-50/40 border-emerald-300'
-                        : 'bg-purple-50/40 border-purple-300'
-                    }`}
+                    className={`rounded-3xl border-3 p-4 sm:p-5 flex flex-col justify-between gap-3 ${a.isCompleted
+                      ? 'bg-emerald-50/40 border-emerald-300'
+                      : 'bg-purple-50/40 border-purple-300'
+                      }`}
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-black ${
-                            a.isCompleted
-                              ? 'bg-emerald-500 text-white'
-                              : 'bg-amber-400 text-amber-950'
-                          }`}
+                          className={`px-3 py-1 rounded-full text-xs font-black ${a.isCompleted
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-amber-400 text-amber-950'
+                            }`}
                         >
                           {a.isCompleted ? '✓ Bé đã hoàn thành' : '📌 Cần làm'}
                         </span>
