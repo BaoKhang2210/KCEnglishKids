@@ -64,9 +64,8 @@ async function completeStage(childId, lessonId, body) {
   }
   const graded = gradeStage(stage, body, words, game, lesson.ageGroupCode);
   const topologyType = Progress.db.getClient()?.topology?.description?.type;
-  if (topologyType && !/ReplicaSet|Sharded/.test(topologyType)) {
-    fail('Stage star awards require a transaction-capable MongoDB replica set.', 503);
-  }
+  const supportsTransactions = Boolean(topologyType && /ReplicaSet|Sharded/.test(topologyType));
+
   const safePayload = { stage, gameId: game?.id, ...graded, ...(body.durationSeconds !== undefined ? { durationSeconds: body.durationSeconds } : {}) };
   const payloadHash = crypto.createHash('sha256').update(JSON.stringify(safePayload)).digest('hex');
   let event;
@@ -78,42 +77,52 @@ async function completeStage(childId, lessonId, body) {
   }
   if (event.payloadHash !== payloadHash || String(event.lesson) !== String(lessonId)) fail('Submission key already used for different evidence.', 409);
   let progress;
-  const session = await Progress.db.startSession();
-  try {
-    await session.withTransaction(async () => {
-      const current = await Progress.findOne({ child: childId, lesson: lessonId }).session(session);
-      if (stage > 1 && !current?.stage1Completed || stage > 2 && !current?.stage2Completed) fail('Complete previous stages first.', 409);
-      const nextGames = new Set([...(current?.stage3Games || []), ...(stage === 3 ? [game.id] : [])]);
-      const existingStage3Complete = Boolean(current?.stage3Completed) || new Set(current?.stage3Games || []).size >= 2;
-      const completesNow = stage === 1 ? !current?.stage1Completed
-        : stage === 2 ? !current?.stage2Completed
-          : !existingStage3Complete && nextGames.size >= 2;
-      const existingGrant = await StageStarGrant.findOne({ child: childId, lesson: lessonId, stage }).session(session).lean();
-      const stageStarsEarned = earnedForStage(completesNow && !existingGrant);
-      const nextState = {
-        stage1Completed: Boolean(current?.stage1Completed || stage === 1),
-        stage2Completed: Boolean(current?.stage2Completed || stage === 2),
-        stage3Completed: Boolean(current?.stage3Completed || stage === 3 && nextGames.size >= 2),
-        stage3Games: [...nextGames],
-      };
-      const nextStars = Math.max(Number(current?.stars) || 0, completedStageCount(nextState));
-      const set = { topic: lesson.topic, stars: Math.min(3, nextStars), lastActivityAt: event.createdAt };
-      if (stage === 1) set.stage1Completed = true;
-      if (stage === 2) { set.stage2Completed = true; set.stage2Score = Math.max(Number(current?.stage2Score) || 0, graded.score); }
-      if (stage === 3) { set.stage3Games = [...nextGames]; if (nextState.stage3Completed) set.stage3Completed = true; }
-      const fullyComplete = nextState.stage1Completed && nextState.stage2Completed && nextState.stage3Completed;
-      if (fullyComplete) { set.completed = true; set.completionSnapshot = { source: 'STAGES', recordedAt: new Date(), activityIds: [] }; }
-      progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId }, {
-        $set: set,
-        $setOnInsert: { child: childId, lesson: lessonId },
-        $max: { highestScore: stage === 2 ? graded.score : Number(current?.highestScore) || 0 }
-      }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, session });
-      if (stageStarsEarned) {
-        await StageStarGrant.create([{ child: childId, lesson: lessonId, stage, submissionId: body.submissionId, amount: stageStarsEarned }], { session });
-      }
-    });
-  } finally {
-    await session.endSession();
+
+  const applyProgressUpdates = async (session) => {
+    const sessionOpts = session ? { session } : {};
+    const current = await Progress.findOne({ child: childId, lesson: lessonId }, null, sessionOpts);
+    if (stage > 1 && !current?.stage1Completed || stage > 2 && !current?.stage2Completed) fail('Complete previous stages first.', 409);
+    const nextGames = new Set([...(current?.stage3Games || []), ...(stage === 3 ? [game.id] : [])]);
+    const existingStage3Complete = Boolean(current?.stage3Completed) || new Set(current?.stage3Games || []).size >= 2;
+    const completesNow = stage === 1 ? !current?.stage1Completed
+      : stage === 2 ? !current?.stage2Completed
+        : !existingStage3Complete && nextGames.size >= 2;
+    const existingGrant = await StageStarGrant.findOne({ child: childId, lesson: lessonId, stage }, null, sessionOpts).lean();
+    const stageStarsEarned = earnedForStage(completesNow && !existingGrant);
+    const nextState = {
+      stage1Completed: Boolean(current?.stage1Completed || stage === 1),
+      stage2Completed: Boolean(current?.stage2Completed || stage === 2),
+      stage3Completed: Boolean(current?.stage3Completed || stage === 3 && nextGames.size >= 2),
+      stage3Games: [...nextGames],
+    };
+    const nextStars = Math.max(Number(current?.stars) || 0, completedStageCount(nextState));
+    const set = { topic: lesson.topic, stars: Math.min(3, nextStars), lastActivityAt: event.createdAt };
+    if (stage === 1) set.stage1Completed = true;
+    if (stage === 2) { set.stage2Completed = true; set.stage2Score = Math.max(Number(current?.stage2Score) || 0, graded.score); }
+    if (stage === 3) { set.stage3Games = [...nextGames]; if (nextState.stage3Completed) set.stage3Completed = true; }
+    const fullyComplete = nextState.stage1Completed && nextState.stage2Completed && nextState.stage3Completed;
+    if (fullyComplete) { set.completed = true; set.completionSnapshot = { source: 'STAGES', recordedAt: new Date(), activityIds: [] }; }
+    progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId }, {
+      $set: set,
+      $setOnInsert: { child: childId, lesson: lessonId },
+      $max: { highestScore: stage === 2 ? graded.score : Number(current?.highestScore) || 0 }
+    }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, ...sessionOpts });
+    if (stageStarsEarned) {
+      await StageStarGrant.create([{ child: childId, lesson: lessonId, stage, submissionId: body.submissionId, amount: stageStarsEarned }], sessionOpts);
+    }
+  };
+
+  if (supportsTransactions) {
+    const session = await Progress.db.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await applyProgressUpdates(session);
+      });
+    } finally {
+      await session.endSession();
+    }
+  } else {
+    await applyProgressUpdates(null);
   }
   const stageStarGrant = await StageStarGrant.findOne({ child: childId, lesson: lessonId, stage }).lean();
   const stageStarsEarned = stageStarGrant?.submissionId === body.submissionId ? 1 : 0;
