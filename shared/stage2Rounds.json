@@ -1,0 +1,5 @@
+[
+  { "code": 1, "key": "recognition", "name": "Nhận biết" },
+  { "code": 2, "key": "connection", "name": "Kết nối" },
+  { "code": 3, "key": "application", "name": "Ứng dụng" }
+]

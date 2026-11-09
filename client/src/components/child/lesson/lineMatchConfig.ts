@@ -5,12 +5,13 @@
  * the LINE MATCHING activity (draw/tap lines between words and pictures).
  *
  * Difficulty hypotheses to validate with real children (pairs per board by age):
- *   3–4 → 2 pairs, 4–5 → 3 pairs, 5–6 → 4 pairs.
+ *   3–4 → 2 pairs, 4–5 → 3 pairs, 5–6 → 3 pairs.
  * All tunable constants live here; the engine reads them, never hardcodes.
  */
 
 import type { AgeGroupCode, Vocabulary } from '../../../types';
 import { shuffle, type PracticeQuestion } from './buildPracticePlan';
+import { vocabularyMeaning } from '../../../utils/vocabularySemantics';
 
 export type LineMatchAgeGroup = AgeGroupCode;
 
@@ -18,11 +19,29 @@ export type LineMatchAgeGroup = AgeGroupCode;
 export const LINE_MATCH_MAX_PAIRS: Record<LineMatchAgeGroup, number> = {
   '3-4': 2,
   '4-5': 3,
-  '5-6': 4,
+  '5-6': 3,
+};
+
+export const LINE_MATCH_DISTRACTORS: Record<LineMatchAgeGroup, number> = {
+  '3-4': 1,
+  '4-5': 2,
+  '5-6': 2,
+};
+
+export const LINE_MATCH_HINT_ATTEMPTS: Record<LineMatchAgeGroup, number> = {
+  '3-4': 2,
+  '4-5': 3,
+  '5-6': Number.POSITIVE_INFINITY,
+};
+
+export const LINE_MATCH_REVEAL_ATTEMPTS: Record<LineMatchAgeGroup, number> = {
+  '3-4': 3,
+  '4-5': 4,
+  '5-6': 3,
 };
 
 /** One line color per left item index (index = position of the left card). NEVER red. */
-export const LINE_COLORS = ['#FBBF24', '#38BDF8', '#34D399', '#F472B6'] as const;
+export const LINE_COLORS = ['#a00d6fff', '#38f858ff'] as const;
 
 /** Line stroke width in px (main line; a +4px halo is drawn underneath). */
 export function lineWidthForAge(ageGroup: LineMatchAgeGroup): number {
@@ -60,10 +79,8 @@ export const LINE_MATCH_TIMING = {
   idleHint: 8000,
 } as const;
 
-/** Wrong attempts on one word that trigger the pulsing correct-node hint. */
+/** Default hint threshold for any future age group not listed above. */
 export const HINT_ATTEMPTS = 2;
-/** Wrong attempts on one word after which the correct line is auto-drawn (still earns the star). */
-export const REVEAL_ATTEMPTS = 3;
 
 export const LINE_MATCH_PRAISES = ['Great job!', 'Good job!', 'Awesome!'];
 export function randomLineMatchPraise(): string {
@@ -120,18 +137,30 @@ export function partitionRoundTwoBoards(total: number, maxPairs: number): number
     boards.push(Array.from({ length: size }, () => next++));
   }
 
-  // Borrow one word for singleton boards (last item of the largest other board).
-  for (let board = 0; board < boards.length; board += 1) {
-    if (boards[board].length !== 1) continue;
-    let donor = -1;
-    for (let candidate = 0; candidate < boards.length; candidate += 1) {
-      if (candidate === board) continue;
-      if (donor === -1 || boards[candidate].length >= boards[donor].length) donor = candidate;
-    }
-    const donorBoard = donor >= 0 ? boards[donor] : undefined;
-    if (donorBoard && donorBoard.length >= 2) boards[board].push(donorBoard[donorBoard.length - 1]);
-  }
   return boards;
+}
+
+/** Pick unique, visually/semantically distinct choices for a board. */
+export function selectLineMatchDistractors(
+  boardWords: Vocabulary[],
+  candidateWords: Vocabulary[],
+  count: number,
+): Vocabulary[] {
+  const boardIds = new Set(boardWords.map((word) => wordIdOf(word)));
+  const boardMeanings = new Set(boardWords.map(vocabularyMeaning));
+  const boardImages = new Set(boardWords.map((word) => word.imageUrl).filter(Boolean));
+  const seenMeanings = new Set(boardMeanings);
+  const seenImages = new Set(boardImages);
+  const eligible = candidateWords.filter((word) => {
+    const id = wordIdOf(word);
+    const meaning = vocabularyMeaning(word);
+    const image = word.imageUrl;
+    if (!id || boardIds.has(id) || !meaning || seenMeanings.has(meaning) || !image || seenImages.has(image)) return false;
+    seenMeanings.add(meaning);
+    seenImages.add(image);
+    return true;
+  });
+  return shuffle(eligible).slice(0, Math.max(0, count));
 }
 
 /**

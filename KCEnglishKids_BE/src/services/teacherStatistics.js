@@ -1,5 +1,6 @@
 const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, Assignment, LearningEvent, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
+const { resolveLessonStars } = require('./starLedgerService');
 function combineAssessment(sources) {
   const correctAnswers = sources.reduce((n, row) => n + Math.max(0, Number(row?.correctAnswers) || 0), 0);
   const incorrectAnswers = sources.reduce((n, row) => n + Math.max(0, Number(row?.incorrectAnswers) || 0), 0);
@@ -52,7 +53,7 @@ const statsFor = async ids => {
           bonusStars: { $sum: '$rewards.amount' }
       } }
     ]),
-    Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars completionSnapshot').lean(),
+    Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars completionSnapshot stage1Completed stage2Completed stage3Completed stage3Games').lean(),
     LearningEvent.aggregate([
       { $match: { child: { $in: ids } } },
       { $group: { _id: '$child', attempts: { $sum: { $cond: [{ $in: ['$stage', [2, 3]] }, 1, 0] } }, lastActivity: { $max: '$createdAt' },
@@ -104,7 +105,7 @@ const statsFor = async ids => {
       activitiesByLesson.get(lessonId) || [],
       resultsByChildLesson.get(`${childId}:${lessonId}`) || []
     );
-    const stars = progress.completionSnapshot?.source === 'STAGES' ? progress.stars : rating.completed ? rating.stars : (progress.stars || 0);
+    const stars = resolveLessonStars(progress, rating);
     earnedStarsByChild.set(childId, (earnedStarsByChild.get(childId) || 0) + stars);
   }
 

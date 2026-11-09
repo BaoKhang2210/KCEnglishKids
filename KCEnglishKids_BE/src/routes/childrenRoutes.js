@@ -7,7 +7,7 @@ const {
 } = require('../controllers/progressController');
 const vocabMasteryController = require('../controllers/vocabMasteryController');
 const { getChildRewards, revealChildChest } = require('../controllers/rewardController');
-const { protect, ownChildOr403 } = require('../middlewares/authMiddleware');
+const { protect, ownChildOr403, childRewardReadAccess } = require('../middlewares/authMiddleware');
 const early = require('../controllers/earlyLearningController');
 router.get('/:childId/arcade',protect,ownChildOr403(),require('../controllers/arcadeController').library);
 router.get('/:childId/home-practice',protect,ownChildOr403(),require('../controllers/homePracticeController').family);
@@ -42,8 +42,13 @@ router.get('/:childId/vocabulary-mastery', protect, ownChildOr403(), vocabMaster
 router.post('/:childId/vocabulary-mastery', protect, ownChildOr403(), vocabMasteryController.syncMastery);
 router.post('/:childId/vocabulary-mastery/:vocabId/record', protect, ownChildOr403(), vocabMasteryController.recordPractice);
 
+// Vocabulary notebook grouped by Unit → Lesson + Leitner review schedule
+router.get('/:childId/vocabulary-notebook', protect, ownChildOr403(), vocabMasteryController.getNotebook);
+router.get('/:childId/vocabulary-review/due', protect, ownChildOr403(), vocabMasteryController.getDueReview);
+router.post('/:childId/vocabulary-review/:vocabId', protect, ownChildOr403(), vocabMasteryController.recordReview);
+
 // §1.2 — rewards (stars + chests + stickers)
-router.get('/:childId/rewards', protect, ownChildOr403(), getChildRewards);
+router.get('/:childId/rewards', protect, childRewardReadAccess, getChildRewards);
 router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(), revealChildChest);
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)

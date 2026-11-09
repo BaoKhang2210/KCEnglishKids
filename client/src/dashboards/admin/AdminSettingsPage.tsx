@@ -195,7 +195,7 @@ export const AdminSettingsPage: React.FC = () => {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Star size={20} /> Quy tắc sao và đăng nhập</h2>
-          <p className="mt-3 text-slate-600">Mỗi bài học nhận tối đa 3 sao theo mức 50%, 70%, 90%. Hoàn thành một Unit được cộng 5 sao và một nhãn dán. Chơi lại chỉ cải thiện kết quả tốt nhất.</p>
+          <p className="mt-3 text-slate-600">Mỗi Lesson 3 Chặng có tối đa 3 sao: hoàn thành từng Chặng nhận 1 sao; Chặng 3 cần hoàn thành 2 minigame. Sao Chặng 2 không phụ thuộc độ chính xác. Hoàn thành một Unit được cộng 5 sao và một nhãn dán.</p>
           <p className="mt-3 text-slate-600">Học sinh được cấp PIN riêng. PIN mới chỉ hiển thị một lần; có thể đặt lại ở trang Tài khoản.</p>
         </section>
 

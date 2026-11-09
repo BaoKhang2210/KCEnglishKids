@@ -90,4 +90,21 @@ const ownChildOr403 = (paramName = 'childId') => {
   };
 };
 
-module.exports = { protect, optionalProtect, authorize, ownChildOr403 };
+const childRewardReadAccess = async (req, res, next) => {
+  const { childId } = req.params;
+  const role = req.user?.role;
+  if (role === 'CHILD' || role === 'TEACHER' || role === 'ADMIN') return ownChildOr403()(req, res, next);
+  if (role !== 'PARENT') return res.status(403).json({ success: false, message: 'Access denied.' });
+  try {
+    const { User } = require('../models');
+    const parent = req.user;
+    const child = await User.findOne({ _id: childId, role: 'CHILD' }).select('parentContact contact phone').lean();
+    const clean = value => String(value || '').trim().toLowerCase();
+    const parentContacts = new Set([parent.email, parent.phone, parent.contact].map(clean).filter(Boolean));
+    const authorized = [child?.parentContact, child?.contact, child?.phone].map(clean).some(value => value && parentContacts.has(value));
+    if (!authorized) return res.status(403).json({ success: false, message: 'You are not authorized to view this child.' });
+    return next();
+  } catch (error) { return next(error); }
+};
+
+module.exports = { protect, optionalProtect, authorize, ownChildOr403, childRewardReadAccess };

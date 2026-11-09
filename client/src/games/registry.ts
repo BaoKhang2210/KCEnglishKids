@@ -54,3 +54,7 @@ export function getAvailableLessonGames(
   if (allowedGameIds) return [...new Set(allowedGameIds)].filter(id => eligible.includes(id as GameId)).map(id => GAME_REGISTRY[id as GameId]).filter(Boolean);
   return selectGames(pool, eligible, unitNumber, lessonNumber);
 }
+
+export function getAllMinigames(): GameDefinition[] {
+  return Object.values(GAME_REGISTRY);
+}

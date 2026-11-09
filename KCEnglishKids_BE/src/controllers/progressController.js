@@ -1,4 +1,4 @@
-const { Progress, User, ActivityResult } = require('../models');
+const { Progress, User, ActivityResult, Lesson, Vocabulary } = require('../models');
 
 // @desc    Get child learning progress summary and weak words
 // @route   GET /api/children/:childId/progress
@@ -13,20 +13,17 @@ const getChildProgress = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Child not found.' });
     }
 
-    const progressList = await Progress.find({ child: id })
+    const [progressList, starLedger] = await Promise.all([Progress.find({ child: id })
       .populate('topic', 'englishName vietnameseName icon colorCode')
       .populate('lesson', 'title vietnameseTitle difficulty')
-      .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl');
+      .populate('weakVocabulary.vocabulary', 'english vietnamese imageUrl audioUrl')
+      .sort({ lastActivityAt: -1, updatedAt: -1 }),
+    require('../services/starLedgerService').computeStarLedger(id)]);
 
     // Aggregate statistics
-    let totalStars = 0;
-    let completedLessonsCount = 0;
     const weakWordsMap = {};
 
     progressList.forEach(item => {
-      if (item.completed) totalStars += item.stars || 0;
-      if (item.completed) completedLessonsCount++;
-
       if (item.weakVocabulary && item.weakVocabulary.length > 0) {
         item.weakVocabulary.forEach(wv => {
           if (wv.vocabulary) {
@@ -46,19 +43,21 @@ const getChildProgress = async (req, res, next) => {
 
     const recentResults = await ActivityResult.find({ child: id })
       .populate('activity', 'title activityType')
-      .populate('lesson', 'title')
+      .populate('lesson', 'title vietnameseTitle')
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(20);
 
     res.status(200).json({
       success: true,
       data: {
         child,
-        totalStars,
-        completedLessonsCount,
+        totalStars: starLedger.totalStars,
+        completedLessonsCount: starLedger.completedLessons,
+        maxStars: starLedger.maxStars,
+        starLedger,
         progressList,
         weakVocabulary: Object.values(weakWordsMap),
-        recentActivityResults: await require('../services/learningHistory').recentHistory(id,recentResults,5)
+        recentActivityResults: await require('../services/learningHistory').recentHistory(id,recentResults,25)
       }
     });
   } catch (error) {
@@ -73,9 +72,42 @@ const getLessonProgress = async (req, res, next) => {
   try {
     const { childId, lessonId } = req.params;
     const progress = await Progress.findOne({ child: childId, lesson: lessonId }).select(
-      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage2Stars stage3Completed stage3Stars stage3Games'
+      'completed stars highestScore attempts stage1Completed stage2Completed stage2Score stage3Completed stage3Stars stage3Games'
     );
-    res.status(200).json({ success: true, data: progress });
+    if (!progress) return res.status(200).json({ success: true, data: progress });
+    let stage2Report = null;
+    let lesson = null;
+    if (progress.stage2Completed) {
+      lesson = await Lesson.findById(lessonId).select('ageGroupCode vocabularyItems').lean();
+      const LearningEvent = require('../models/LearningEvent');
+      const event = await LearningEvent.findOne({ child: childId, lesson: lessonId, stage: 2 }).sort({ createdAt: -1, _id: -1 }).lean();
+      if (event?.stage2Report) {
+        stage2Report = {
+          ...event.stage2Report,
+          starsBest: Math.min(3, Number(progress.stars) || 0),
+          stageStars: {
+            stage1: Number(Boolean(progress.stage1Completed)),
+            stage2: Number(Boolean(progress.stage2Completed)),
+            stage3: Number(Boolean(progress.stage3Completed || new Set(progress.stage3Games || []).size >= 2)),
+          },
+        };
+      } else if (event?.answers?.length) {
+        const { buildStage2Report } = require('../config/stage2Report');
+        const words = await Vocabulary.find({ _id: { $in: lesson?.vocabularyItems || [] }, status: 'ACTIVE' }).select('english vietnamese imageUrl audioUrl').lean();
+        stage2Report = buildStage2Report(event.answers, words, progress, 0);
+        stage2Report.legacy = true;
+      }
+      if (stage2Report) {
+        const vocabReview = require('../services/vocabReview');
+        const snapshots = await vocabReview.getReviewSnapshots(
+          childId,
+          stage2Report.words.map((word) => word.wordId),
+          lesson?.ageGroupCode || '4-5'
+        );
+        stage2Report = vocabReview.attachReview(stage2Report, snapshots);
+      }
+    }
+    res.status(200).json({ success: true, data: { ...progress.toObject(), stage2Report } });
   } catch (error) {
     next(error);
   }

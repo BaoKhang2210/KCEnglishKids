@@ -1,8 +1,8 @@
-import { StoryBanner } from '../../components/StoryScene';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Check,
+  Droplets,
   LockKeyhole,
   Sparkles,
   Star,
@@ -14,14 +14,17 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { api, learningApi, topicsApi, lessonsApi, vocabularyApi, streakApi } from '../../services/api';
-import type { ProgressSummary, Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
+import { api, topicsApi, lessonsApi, vocabularyApi, streakApi, vocabReviewApi } from '../../services/api';
+import type { Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildRecognitions } from '../../components/child/ChildRecognitions';
 import { ChildBottomNav } from '../../components/child/ChildBottomNav';
 import { KokoMascot } from '../../components/child/KokoMascot';
 import { ChildArcadeSection } from '../../components/child/ChildArcadeSection';
 import { ChildVocabNotebookSection } from '../../components/child/ChildVocabNotebookSection';
+import { ChildVideoLibrarySection } from '../../components/child/video/ChildVideoLibrarySection';
+import { ChildLearningDiarySection } from '../../components/child/ChildLearningDiarySection';
+import { StarCollectionSection } from '../../components/child/StarCollectionSection';
 import { ChestShelfModal, type ShelfUnit } from '../../components/child/ChestShelfModal';
 import { ChestRevealModal } from '../../components/child/ChestRevealModal';
 import { DailyStreakBanner } from '../../components/child/DailyStreakBanner';
@@ -65,7 +68,6 @@ interface CurriculumUnit {
   lessons: CurriculumLesson[];
   totalLessons: number;
   completedLessons: number;
-  totalUnitStars: number;
   isCompleted: boolean;
 }
 
@@ -134,11 +136,11 @@ export const ChildHomePage: React.FC = () => {
   const [units, setUnits] = useState<CurriculumUnit[]>([]);
   const [ageTopics, setAgeTopics] = useState<Topic[]>([]);
   const [vocabularyList, setVocabularyList] = useState<Vocabulary[]>([]);
-  const [progress, setProgress] = useState<ProgressSummary | null>(null);
+  const [dueWordCount, setDueWordCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // §1.2 — Reward chest flow (Màn 1: kệ rương, Màn 2: mở quà)
-  const { rewards, refresh: refreshRewards } = useRewards();
+  const { rewards, loading: rewardsLoading, error: rewardsError, refresh: refreshRewards } = useRewards();
   const [showChestShelf, setShowChestShelf] = useState(false);
   const [revealingChest, setRevealingChest] = useState<RewardChest | null>(null);
 
@@ -152,7 +154,7 @@ export const ChildHomePage: React.FC = () => {
 
   // Badges Category filter state
   const [badgeCategory, setBadgeCategory] = useState<'all' | 'journey' | 'stars' | 'skills'>('all');
-  const [rewardTab, setRewardTab] = useState<'badges' | 'stickers'>('badges');
+  const [rewardTab, setRewardTab] = useState<'badges' | 'stickers' | 'stars'>('stars');
   const [showcaseBadge, setShowcaseBadge] = useState<any>(null);
   const [selectedSticker, setSelectedSticker] = useState<any>(null);
   const [stickerRarityFilter, setStickerRarityFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
@@ -194,12 +196,11 @@ export const ChildHomePage: React.FC = () => {
         setLoading(true);
         const childId = (user as any).id || (user as any)._id;
 
-        // Fetch curriculum path, topics strictly for this child's age group, vocabulary, and progress
-        const [pathRes, topicsRes, vocabRes, progressRes] = await Promise.all([
+        // Fetch curriculum path, topics, and vocabulary for this child's age group.
+        const [pathRes, topicsRes, vocabRes] = await Promise.all([
           lessonsApi.getCurriculumPath(ageCode, childId),
           topicsApi.getTopics(ageCode), // Scoped strictly to child's age
           vocabularyApi.getVocabulary(ageCode), // Scoped strictly to child's age
-          learningApi.getChildProgress(childId),
         ]);
 
         if (pathRes.success && Array.isArray(pathRes.data)) {
@@ -226,8 +227,6 @@ export const ChildHomePage: React.FC = () => {
         }
         if (topicsRes.success) setAgeTopics(topicsRes.data);
         if (vocabRes.success) setVocabularyList(vocabRes.data);
-        if (progressRes.success) setProgress(progressRes.data);
-
         // Fetch daily learning streak
         if (childId) {
           try {
@@ -238,7 +237,6 @@ export const ChildHomePage: React.FC = () => {
           } catch (stErr) {
             console.warn('Could not fetch daily streak:', stErr);
           }
-
           // Fetch 5-minute home review status
           api.get(`/children/${childId}/home-practice`)
             .then((res: any) => {
@@ -252,6 +250,13 @@ export const ChildHomePage: React.FC = () => {
               }
             })
             .catch(() => {});
+
+          try {
+            const dueRes = await vocabReviewApi.getDue(childId, 1);
+            setDueWordCount(Number(dueRes.data?.total) || 0);
+          } catch {
+            /* The notebook shows its own retry state. */
+          }
         }
       } catch (err) {
         console.error('Failed to load child home data:', err);
@@ -269,12 +274,24 @@ export const ChildHomePage: React.FC = () => {
     refreshRewards();
   }, [refreshRewards]);
 
-  // §1.2.18 — server-computed totals win (they include unit bonus stars);
-  // unit-derived values only serve as a first-paint fallback while loading.
-  const totalStars = rewards?.totalStars ?? (progress?.totalStars || units.reduce((acc, u) => acc + (u.totalUnitStars || 0), 0) || 0);
-  const completedLessons = rewards?.completedLessons ?? (progress?.completedLessonsCount || units.reduce((acc, u) => acc + (u.completedLessons || 0), 0) || 0);
-  const totalUnits = units.length || 9;
-  const completedUnits = rewards?.completedUnits ?? (units.filter(u => u.isCompleted).length || 0);
+  // The star ledger is the sole source for displayed journey stars.
+  const ledger = rewards?.starLedger;
+  const totalStars = ledger?.totalStars ?? 0;
+  const completedLessons = rewards?.completedLessons ?? ledger?.completedLessons ?? 0;
+  const totalUnits = ledger?.units.length ?? units.length;
+  const completedUnits = rewards?.completedUnits ?? ledger?.completedUnits ?? 0;
+  const ledgerCompletedUnits = ledger?.completedUnits ?? 0;
+  const ledgerUnitsById = new Map((ledger?.units || []).map(unit => [unit.id, unit]));
+  const displayUnits = units.map(unit => {
+    const starUnit = ledgerUnitsById.get(String(unit._id));
+    if (!starUnit) return { ...unit, lessons: unit.lessons.map(lesson => ({ ...lesson, stars: 0 })) };
+    const lessonsById = new Map(starUnit.lessons.map(lesson => [lesson.id, lesson]));
+    return { ...unit, isCompleted: starUnit.completed,
+      lessons: unit.lessons.map(lesson => {
+        const starLesson = lessonsById.get(String(lesson._id));
+        return starLesson ? { ...lesson, completed: starLesson.completed, stars: starLesson.stars } : lesson;
+      }) };
+  });
 
   // §1.2.16 — stickers are only granted by server chests (+ starter sticker)
   const unlockedStickers = React.useMemo(
@@ -283,7 +300,7 @@ export const ChildHomePage: React.FC = () => {
   );
 
   // Màn 1 — shelf data: every unit becomes a chest
-  const shelfUnits: ShelfUnit[] = units.map(u => ({
+  const shelfUnits: ShelfUnit[] = displayUnits.map(u => ({
     _id: u._id,
     unitNumber: u.unitNumber,
     topicName: u.topicName,
@@ -320,69 +337,73 @@ export const ChildHomePage: React.FC = () => {
         />
       </div>
 
-      <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-        <div className="w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 md:pb-12">
-        {/* 5-MINUTE DAILY HOME PRACTICE HERO BANNER */}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            sfx.playPop();
-            navigate('/my-learning');
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              sfx.playPop();
-              navigate('/my-learning');
-            }
-          }}
-          className="relative mb-4 cursor-pointer overflow-hidden rounded-3xl border-3 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-4 sm:p-5 text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] group"
-        >
-          {/* Playful background decorative shapes */}
-          <div className="absolute -right-6 -bottom-6 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
-          <div className="absolute top-2 right-16 w-20 h-20 rounded-full bg-yellow-200/20 blur-md pointer-events-none" />
+      <main className={`flex-1 min-h-0 ${activeTab === 'vocab' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
+        <div className={activeTab === 'vocab' ? 'flex h-full min-h-0 w-full flex-col px-4 py-3 sm:px-8 lg:px-12' : 'w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12'}>
+        {activeTab !== 'videos' && activeTab !== 'vocab' && activeTab !== 'diary' && activeTab !== 'history' && (
+          <>
+            {/* 5-MINUTE DAILY HOME PRACTICE HERO BANNER */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                sfx.playPop();
+                navigate('/my-learning');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  sfx.playPop();
+                  navigate('/my-learning');
+                }
+              }}
+              className="relative mb-4 cursor-pointer overflow-hidden rounded-3xl border-3 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-4 sm:p-5 text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] group"
+            >
+              {/* Playful background decorative shapes */}
+              <div className="absolute -right-6 -bottom-6 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
+              <div className="absolute top-2 right-16 w-20 h-20 rounded-full bg-yellow-200/20 blur-md pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-white/30 flex-shrink-0 animate-bounce">
-                ⚡
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider bg-white/25 backdrop-blur-md border border-white/30 text-amber-50">
-                    🌱 5 Phút Ôn Tập Ở Nhà Cùng Ba Mẹ
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-yellow-300 text-amber-950 flex items-center gap-1 shadow-sm">
-                    ⭐ Thưởng +3 Sao
-                  </span>
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-white/30 flex-shrink-0 animate-bounce">
+                    ⚡
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider bg-white/25 backdrop-blur-md border border-white/30 text-amber-50">
+                        🌱 5 Phút Ôn Tập Ở Nhà Cùng Ba Mẹ
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-yellow-300 text-amber-950 flex items-center gap-1 shadow-sm">
+                        ⭐ Thưởng +3 Sao
+                      </span>
+                    </div>
+                    <h2 className="text-base sm:text-lg lg:text-xl font-black text-white drop-shadow-sm">
+                      {homeReviewSummary?.lessonVietnameseTitle 
+                        ? `Bài vừa học ở lớp: ${homeReviewSummary.lessonVietnameseTitle} (${homeReviewSummary.lessonTitle})`
+                        : 'Cùng Ba Mẹ ôn lại kiến thức buổi học gần nhất!'}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-amber-100 font-bold">
+                      Bé ôn từ vựng với trò chơi mini & cùng ba mẹ luyện mẫu câu đàm thoại 👨‍👩‍👧
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-base sm:text-lg lg:text-xl font-black text-white drop-shadow-sm">
-                  {homeReviewSummary?.lessonVietnameseTitle 
-                    ? `Bài vừa học ở lớp: ${homeReviewSummary.lessonVietnameseTitle} (${homeReviewSummary.lessonTitle})`
-                    : 'Cùng Ba Mẹ ôn lại kiến thức buổi học gần nhất!'}
-                </h2>
-                <p className="text-xs sm:text-sm text-amber-100 font-bold">
-                  Bé ôn từ vựng với trò chơi mini & cùng ba mẹ luyện mẫu câu đàm thoại 👨‍👩‍👧
-                </p>
+
+                <div className="self-end sm:self-center flex-shrink-0">
+                  {homeReviewSummary?.completedToday ? (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md border border-emerald-300">
+                      <Check className="w-4 h-4 stroke-[3]" /> Đã nhận 3⭐ (Bấm ôn lại)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-orange-600 font-black text-xs sm:text-sm shadow-md hover:bg-yellow-50 group-hover:scale-105 transition-transform">
+                      Bắt đầu ngay <ArrowRight className="w-4 h-4" />
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-
-            <div className="self-end sm:self-center flex-shrink-0">
-              {homeReviewSummary?.completedToday ? (
-                <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md border border-emerald-300">
-                  <Check className="w-4 h-4 stroke-[3]" /> Đã nhận 3⭐ (Bấm ôn lại)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-orange-600 font-black text-xs sm:text-sm shadow-md hover:bg-yellow-50 group-hover:scale-105 transition-transform">
-                  Bắt đầu ngay <ArrowRight className="w-4 h-4" />
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <ChildRecognitions />
+            <ChildRecognitions />
+          </>
+        )}
         {/* COMPACT BANNER */}
-        <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
+        {activeTab !== 'vocab' && activeTab !== 'videos' && activeTab !== 'diary' && activeTab !== 'history' && <section className="relative mb-4 rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-md overflow-hidden">
           <img src="/images/scenes/learning-garden-v1.png" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_62%]" />
           <div className="absolute inset-0 bg-gradient-to-r from-teal-950/85 via-teal-950/55 to-teal-950/15" />
           <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
@@ -397,18 +418,22 @@ export const ChildHomePage: React.FC = () => {
                 <p className="text-amber-100 font-bold text-xs">{getBookBadgeText(ageCode)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
                 <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-                <span>{totalStars} Sao</span>
+                <span>{ledger ? `${totalStars} Sao` : rewardsLoading ? 'Đang tải sao…' : '— Sao'}</span>
               </div>
               <div className="bg-amber-950/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25">
                 <Check className="w-4 h-4 text-emerald-300 stroke-[3]" />
                 <span>{completedLessons} Lesson</span>
               </div>
+              {dueWordCount > 0 && <button type="button" onClick={() => navigate('/?tab=vocab&review=1')} aria-label={`Ôn nhanh ${dueWordCount} từ đến hạn`} className="bg-sky-950/30 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border border-white/25 active:scale-95">
+                <Droplets className="w-4 h-4 text-sky-200" />
+                <span>{dueWordCount} từ cần ôn</span>
+              </button>}
             </div>
           </div>
-        </section>
+        </section>}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -419,7 +444,7 @@ export const ChildHomePage: React.FC = () => {
           <>
             {/* ==================== TAB 1: HÀNH TRÌNH HỌC (CURRICULUM PATH) ==================== */}
             {activeTab === 'path' && (
-              <section className="space-y-10"><StoryBanner scene="adventure" title="Hôm nay mình khám phá gì nhỉ?" eyebrow="CÙNG KOKO HỌC QUA CHƠI"><p>Chọn một chặng, nghe và chạm vào tranh nhé.</p></StoryBanner>
+              <section className="space-y-10">
                 {/* Header */}
                 <div className="flex items-end justify-between flex-wrap gap-2">
                   <div>
@@ -428,7 +453,7 @@ export const ChildHomePage: React.FC = () => {
                       Hành trình khám phá theo Unit
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
-                      Hành trình 9 Unit phiêu lưu
+                      Hành trình khám phá Unit
                     </h2>
                     <p className="text-sm font-bold text-slate-500">
                       {getBookBadgeText(ageCode)}
@@ -437,25 +462,25 @@ export const ChildHomePage: React.FC = () => {
                   <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
                     <Trophy className="w-5 h-5 text-amber-600" />
                     <span className="text-sm font-black text-amber-900">
-                      Đã xong: {completedUnits} / {totalUnits} Unit
+                      Unit hoàn thành: {ledger ? ledgerCompletedUnits : '…'} trên {totalUnits}
                     </span>
                   </div>
                 </div>
 
                 {/* Board-game journey map (2026-11 redesign) */}
-                {units.length > 0 && (
+                {displayUnits.length > 0 && (
                   <JourneyRoadmap
-                    units={units.map((u, i) => ({
+                    units={displayUnits.map((u, i) => ({
                       unitNumber: u.unitNumber,
                       topicName: u.topicName,
                       topicIcon: u.topicIcon,
                       isCompleted: !!u.isCompleted,
-                      accessible: i === 0 || !!units[i - 1]?.isCompleted
+                      accessible: i === 0 || !!displayUnits[i - 1]?.isCompleted || !!u.isCompleted
                     }))}
                     onNodeClick={i => {
-                      const roadmapUnits = units;
+                      const roadmapUnits = displayUnits;
                       const u = roadmapUnits[i];
-                      const unlocked = i === 0 || !!roadmapUnits[i - 1]?.isCompleted;
+                      const unlocked = i === 0 || !!roadmapUnits[i - 1]?.isCompleted || !!u.isCompleted;
                       if (!unlocked) {
                         handleLockedClick(`Bé ơi, hãy hoàn thành Unit ${i} trước để mở khóa Unit ${u.unitNumber} nhé! 🎒✨`);
                         return;
@@ -469,10 +494,11 @@ export const ChildHomePage: React.FC = () => {
 
                 {/* Units 1-9 Overview Cards */}
                 <div className="space-y-4 sm:space-y-5">
-                  {units.map((unit, unitIdx) => {
-                    const isUnitUnlocked = unitIdx === 0 || !!units[unitIdx - 1]?.isCompleted;
+                  {displayUnits.map((unit, unitIdx) => {
+                    const ledgerUnit = ledgerUnitsById.get(String(unit._id));
+                    const isUnitUnlocked = !!ledgerUnit?.unlocked || !!ledgerUnit?.completed || (unitIdx === 0 || !!displayUnits[unitIdx - 1]?.isCompleted);
                     const completedLessonCount = unit.lessons.filter(l => l.completed).length;
-                    const totalLessonCount = unit.lessons.length || 5;
+                    const totalLessonCount = unit.lessons.length;
 
                     const theme = UNIT_THEMES[unitIdx % UNIT_THEMES.length];
 
@@ -555,17 +581,11 @@ export const ChildHomePage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Right: Stars, Progress & Action button */}
+                          {/* Right: lesson completion and action */}
                           <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
-                            <div className="text-right hidden sm:block">
-                              <div className="flex items-center gap-1.5 justify-end">
-                                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                                <span className="text-xs sm:text-sm font-black text-amber-950">
-                                  {unit.totalUnitStars || 0} Stars
-                                </span>
-                              </div>
-                              <span className="text-xs font-bold text-slate-500 mt-0.5 block">
-                                {completedLessonCount} / {totalLessonCount} Lessons Done
+                            <div className="text-right">
+                              <span className="text-xs sm:text-sm font-black text-slate-700 block" aria-label={ledger && totalLessonCount ? `${completedLessonCount} trên ${totalLessonCount} bài học hoàn thành` : undefined}>
+                                {ledger ? totalLessonCount ? `${completedLessonCount}/${totalLessonCount} Lessons` : 'Chưa có Lessons' : rewardsLoading ? 'Đang tải tiến độ bài học…' : 'Chưa có tiến độ bài học'}
                               </span>
                             </div>
 
@@ -676,10 +696,17 @@ export const ChildHomePage: React.FC = () => {
               </section>
             )}
 
+            {/* ==================== TAB: HỌC QUA VIDEO THEO NHÓM TUỔI ==================== */}
+            {activeTab === 'videos' && (
+              <section className="space-y-6">
+                <ChildVideoLibrarySection ageGroupCode={ageCode} />
+              </section>
+            )}
+
             {/* ==================== TAB: SỔ TỪ VỰNG CỦA BÉ ==================== */}
             {activeTab === 'vocab' && (
-              <section className="space-y-6">
-                <ChildVocabNotebookSection onNavigateTab={goTab} />
+              <section className="h-full min-h-0">
+                <ChildVocabNotebookSection onNavigateTab={goTab} autoStartReview={params.get('review') === '1'} />
               </section>
             )}
 
@@ -694,10 +721,22 @@ export const ChildHomePage: React.FC = () => {
               </section>
             )}
 
+            {/* ==================== TAB: NHẬT KÝ & TIẾN ĐỘ HỌC TẬP CỦA BÉ ==================== */}
+            {(activeTab === 'diary' || activeTab === 'history') && (
+              <ChildLearningDiarySection
+                units={displayUnits}
+                ageGroupCode={ageCode}
+                totalStars={totalStars}
+                completedLessons={completedLessons}
+                streakDays={streakData?.streak || 1}
+                onNavigateTab={goTab}
+              />
+            )}
+
             {/* ==================== TAB 4: HUY HIỆU CỦA BÉ ==================== */}
             {activeTab === 'badges' && (() => {
               const badgeProgress = {
-                totalStars,
+                totalStars: rewards?.badgeProgressStars ?? totalStars,
                 completedLessons,
                 completedUnits,
                 perfectLessons: rewards?.perfectLessons ?? 0,
@@ -738,14 +777,6 @@ export const ChildHomePage: React.FC = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="bg-purple-100 border-2 border-purple-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
-                        <Trophy className="w-5 h-5 text-purple-600" />
-                        <span className="text-base font-black text-purple-900">{unlockedCount} Huy hiệu</span>
-                      </div>
-                      <div className="bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xs">
-                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                        <span className="text-base font-black text-amber-900">{totalStars} Sao vàng</span>
-                      </div>
                       <button
                         type="button"
                         onClick={() => {
@@ -761,7 +792,7 @@ export const ChildHomePage: React.FC = () => {
                   </div>
 
                   {/* Badges / Stickers Switcher */}
-                  <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-slate-100 rounded-2xl max-w-md">
+                  <div className="grid grid-cols-1 gap-2.5 p-1.5 bg-slate-100 rounded-2xl max-w-3xl sm:grid-cols-3">
                     <button
                       type="button"
                       onClick={() => {
@@ -775,7 +806,7 @@ export const ChildHomePage: React.FC = () => {
                       }`}
                     >
                       <Trophy className="w-4 h-4 text-purple-600" />
-                      <span>Huy hiệu danh giá ({unlockedCount})</span>
+                      <span>Huy hiệu ({unlockedCount}/{evaluatedBadges.length})</span>
                     </button>
                     <button
                       type="button"
@@ -790,11 +821,20 @@ export const ChildHomePage: React.FC = () => {
                       }`}
                     >
                       <Gift className="w-4 h-4 text-rose-500" />
-                      <span>Bộ sưu tập Sticker ({unlockedStickers.length})</span>
+                      <span>Sticker ({unlockedStickers.length}/{ALL_STICKERS.length})</span>
+                    </button>
+                    <button type="button" onClick={() => { sfx.playPop(); setRewardTab('stars'); }} aria-pressed={rewardTab === 'stars'} className={`min-h-12 rounded-xl px-3 py-2.5 font-black text-xs sm:text-sm flex items-center justify-center gap-2 ${rewardTab === 'stars' ? 'bg-white text-amber-900 shadow-sm ring-2 ring-amber-300' : 'text-slate-500 hover:text-slate-800'}`}>
+                      <Star className="h-4 w-4 text-amber-500" />Sao ({ledger ? totalStars : rewardsLoading ? '…' : '!'})
                     </button>
                   </div>
 
-                  {rewardTab === 'badges' ? (
+                  {rewardTab === 'badges' && <p className="text-sm font-bold text-slate-500">Mỗi huy hiệu có một mốc rõ ràng: sao, bài học hoàn thành hoặc rương đã mở.</p>}
+                  {rewardTab === 'stickers' && <p className="text-sm font-bold text-slate-500">Hoàn thành mọi bài học trong Unit để nhận rương và sticker.</p>}
+                  {rewardTab === 'stars' && rewards && <p className="text-sm font-bold text-slate-500">Tổng sao hành trình gồm sao bài học và thưởng Unit. Thưởng lớp và huy hiệu được tính riêng.</p>}
+
+                  {rewardTab === 'stars' ? (
+                    <StarCollectionSection ledger={ledger} loading={rewardsLoading} error={rewardsError} onRetry={refreshRewards} />
+                  ) : rewardTab === 'badges' ? (
                     <>
                       {/* Badges Category Pills */}
                       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1209,7 +1249,7 @@ export const ChildHomePage: React.FC = () => {
           <BadgeShowcaseModal
             badge={showcaseBadge}
             currentProgress={getBadgeProgress(showcaseBadge, {
-              totalStars,
+              totalStars: rewards?.badgeProgressStars ?? totalStars,
               completedLessons,
               completedUnits,
               perfectLessons: rewards?.perfectLessons ?? 0,

@@ -12,6 +12,9 @@ import { ParentNoteSuggestions } from './ParentNoteSuggestions';
 import { SentenceTeachingPage } from './SentenceTeachingPage';
 import { StudentCompetencyModal } from '../../components/teacher/StudentCompetencyModal';
 import { StudentAvatar } from '../../components/common/StudentAvatar';
+import { GAME_REGISTRY, getAllMinigames } from '../../games/registry';
+import { GameRunner } from '../../games/core/GameRunner';
+import type { GameId } from '../../games/core/types';
 
 const Loader = () => <div className="py-20 text-center text-slate-600"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />Đang tải không gian giảng dạy…</div>;
 const Empty = ({ children }: { children: React.ReactNode }) => <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">{children}</div>;
@@ -366,9 +369,11 @@ export const TeacherAssignments = () => {
     studentId: initialStudent,
     lessonId: initialLesson,
     activityId: '',
+    minigameId: '',
     dueDate: '',
     instructions: ''
   });
+  const [previewMinigame, setPreviewMinigame] = useState<{ gameId: GameId; lesson: any } | null>(null);
 
   const [classStudents, setClassStudents] = useState<any[]>([]);
 
@@ -432,7 +437,8 @@ export const TeacherAssignments = () => {
         assignedToType: form.assignedToType,
         studentId: form.assignedToType === 'STUDENT' ? form.studentId : undefined,
         lessonId: form.lessonId,
-        activityId: form.activityId || undefined,
+        activityId: form.minigameId ? undefined : (form.activityId || undefined),
+        minigameId: form.minigameId || undefined,
         dueDate: form.dueDate || undefined,
         instructions: form.instructions || undefined
       });
@@ -444,6 +450,7 @@ export const TeacherAssignments = () => {
         studentId: '',
         lessonId: '',
         activityId: '',
+        minigameId: '',
         dueDate: '',
         instructions: ''
       });
@@ -577,11 +584,15 @@ export const TeacherAssignments = () => {
                         className="font-black text-slate-900 hover:text-teal-900 hover:underline flex items-center gap-1.5"
                         to={`/teacher/assignments/${a._id}`}
                       >
-                        {a.activity?.title || a.lesson?.title}
+                        {a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
+                          ? `${GAME_REGISTRY[a.minigameId as GameId].icon} ${GAME_REGISTRY[a.minigameId as GameId].title} — ${a.lesson?.title || ''}`
+                          : a.activity?.title || a.lesson?.title}
                         <ChevronRight size={14} className="text-teal-700" />
                       </Link>
                       <span className="mt-1 inline-block text-[11px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
-                        {a.activity?.activityType || 'Toàn bộ bài học'}
+                        {a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
+                          ? `Minigame Chặng 3: ${GAME_REGISTRY[a.minigameId as GameId].title}`
+                          : a.activity?.activityType || 'Toàn bộ bài học'}
                       </span>
                     </td>
                     <td className="p-4">
@@ -665,23 +676,59 @@ export const TeacherAssignments = () => {
             <Select
               label="Chọn bài học (Lesson)"
               value={form.lessonId}
-              onChange={(v: string) => setForm({ ...form, lessonId: v, activityId: '' })}
+              onChange={(v: string) => setForm({ ...form, lessonId: v, activityId: '', minigameId: '' })}
               options={(proposal?.lessons || []).filter((l: any) => !form.classRoomId || !l.ageGroupCode || l.ageGroupCode === classes.find(c => c._id === form.classRoomId)?.ageGroupCode).sort((a: any, b: any) => compareLessons(a, b, content.units)).map((l: any) => ({ value: l._id, label: `[Unit ${lessonPosition(l, content.units).unit} - Lesson ${lessonPosition(l, content.units).lesson}] ${bilingualLessonTitle(l)}` }))}
             />
 
             {form.lessonId && (
-              <Select
-                required={false}
-                label="Chọn hoạt động / Game cụ thể"
-                value={form.activityId}
-                onChange={(v: string) => setForm({ ...form, activityId: v })}
-                options={[
-                  { value: '', label: '📌 Toàn bộ bài học (Tất cả hoạt động)' },
-                  ...content.activities
-                    .filter((a: any) => String(a.lesson) === form.lessonId)
-                    .map((a: any) => ({ value: a._id, label: `🎮 ${a.title} (${a.activityType})` }))
-                ]}
-              />
+              <>
+                <Select
+                  required={false}
+                  label="Chọn hoạt động / Game cụ thể"
+                  value={form.activityId}
+                  onChange={(v: string) => setForm({ ...form, activityId: v, minigameId: v ? '' : form.minigameId })}
+                  options={[
+                    { value: '', label: '📌 Toàn bộ bài học (Hoặc chọn Minigame bên dưới)' },
+                    ...content.activities
+                      .filter((a: any) => String(a.lesson) === form.lessonId)
+                      .map((a: any) => ({ value: a._id, label: `🎮 ${a.title} (${a.activityType})` }))
+                  ]}
+                />
+
+                <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-teal-900">
+                      🕹️ Giao kèm Minigame Chặng 3 (Tùy chọn)
+                    </span>
+                    {form.minigameId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selectedLesson = content.lessons.find((l: any) => l._id === form.lessonId);
+                          if (selectedLesson) {
+                            setPreviewMinigame({ gameId: form.minigameId as GameId, lesson: selectedLesson });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl bg-teal-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-800 cursor-pointer"
+                      >
+                        <Play size={12} className="fill-white" /> Chơi thử Minigame
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    className="w-full rounded-xl border border-teal-200 bg-white p-2.5 text-sm outline-none focus:border-teal-600"
+                    value={form.minigameId}
+                    onChange={(e) => setForm({ ...form, minigameId: e.target.value, activityId: e.target.value ? '' : form.activityId })}
+                  >
+                    <option value="">— Không chỉ định riêng (Theo mặc định bài học) —</option>
+                    {getAllMinigames().map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.icon} {g.title} — {g.subtitle}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
 
             {proposalLoading && <p role="status">Đang đối chiếu bài đã học…</p>}
@@ -735,6 +782,23 @@ export const TeacherAssignments = () => {
             </div>
           </form>
         </Modal>
+      )}
+      {previewMinigame && (
+        <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col">
+          <GameRunner
+            config={{
+              preview: true,
+              unitId: 'preview-unit',
+              lessonId: previewMinigame.lesson._id,
+              gameId: previewMinigame.gameId,
+              vocabularyList: previewMinigame.lesson.vocabularyItems || [],
+              ageGroup: previewMinigame.lesson.ageGroupCode || '4-5',
+              instructions: form.instructions || undefined,
+            }}
+            onExit={() => setPreviewMinigame(null)}
+            onGameComplete={() => {}}
+          />
+        </div>
       )}
     </>
   );
@@ -855,7 +919,11 @@ export const TeacherAssignmentDetail = () => {
   return (
     <>
       <Header
-        title={a.activity?.title || a.lesson?.title}
+        title={
+          a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
+            ? `${GAME_REGISTRY[a.minigameId as GameId].icon} Minigame: ${GAME_REGISTRY[a.minigameId as GameId].title} — ${a.lesson?.title || ''}`
+            : a.activity?.title || a.lesson?.title
+        }
         text={`${a.classRoom?.name || 'Lớp học'} · ${
           a.status === 'ASSIGNED' ? 'Đang giao bài' :
           a.status === 'IN_PROGRESS' ? 'Đang làm bài' :

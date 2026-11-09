@@ -15,6 +15,10 @@ export type ActivityId = 'listen-choose' | 'look-choose-word' | 'match-lines';
 
 export interface RecentAttempt {
   ok: boolean;
+  independent?: boolean;
+  wrongAttempts?: number;
+  submissionId?: string;
+  sessionId?: string;
   type: ActivityType;
   activityId?: ActivityId;
   round?: number;
@@ -93,12 +97,10 @@ export function computeMastery(stats: Partial<WordStats>): { mastery: MasteryLev
   }
 
   const last6 = stats.last6 || [];
-  const wrong = stats.wrong || 0;
-
   // Trouble check
   const last4 = last6.slice(-4);
-  const wrongsInLast4 = last4.filter(a => !a.ok).length;
-  const trouble = wrongsInLast4 >= 2 || wrong >= 3;
+  const wrongsInLast4 = last4.reduce((sum, attempt) => sum + (attempt.wrongAttempts ?? (attempt.ok ? 0 : 1)), 0);
+  const trouble = wrongsInLast4 >= 2;
 
   if (trouble) {
     return { mastery: 'learning', trouble: true };
@@ -109,10 +111,12 @@ export function computeMastery(stats: Partial<WordStats>): { mastery: MasteryLev
   let isKnown = false;
   if (last6.length >= 3) {
     const last3 = last6.slice(-3);
-    const all3Correct = last3.every(a => a.ok);
+    const all3Independent = last3.every(a => a.ok && a.independent !== false);
     const distinctTypes = new Set(last3.map(a => a.type)).size;
-    if (all3Correct && distinctTypes >= 2) {
+    const distinctDays = new Set(last3.map(a => new Date(a.ts).toISOString().slice(0, 10))).size;
+    if (all3Independent && distinctTypes >= 2) {
       isKnown = true;
+      if (distinctDays < 2) return { mastery: 'known', trouble: false };
     }
   }
 
@@ -167,6 +171,9 @@ export const vocabStatsService = {
       ok: boolean;
       isFirstTry: boolean;
       usedHint?: boolean;
+      wrongAttemptCount?: number;
+      sessionId?: string;
+      submissionId?: string;
       chosenDistractorId?: string;
       vocab?: Vocabulary;
     }
@@ -200,8 +207,9 @@ export const vocabStatsService = {
       if (payload.isFirstTry && payload.ok) {
         cur.firstTryCorrect += 1;
       }
-      if (!payload.ok) {
-        cur.wrong += 1;
+      const wrongAttemptCount = payload.wrongAttemptCount ?? (payload.ok ? 0 : 1);
+      if (wrongAttemptCount > 0) {
+        cur.wrong += wrongAttemptCount;
         if (payload.chosenDistractorId) {
           cur.confusions[payload.chosenDistractorId] =
             (cur.confusions[payload.chosenDistractorId] || 0) + 1;
@@ -212,18 +220,23 @@ export const vocabStatsService = {
       if (payload.ok && !cur.typesCorrect.includes(payload.type)) cur.typesCorrect.push(payload.type);
     }
 
-    // append to last6
-    cur.last6 = [
-      ...cur.last6.slice(-5),
-      {
-        ok: payload.ok,
-        type: payload.type,
-        activityId: payload.activityId,
-        round: payload.round,
-        ts: Date.now(),
-        chosenDistractorId: payload.chosenDistractorId,
-      },
-    ];
+    if (payload.affectsMastery !== false) {
+      cur.last6 = [
+        ...cur.last6.slice(-5),
+        {
+          ok: payload.ok,
+          independent: payload.isFirstTry && !payload.usedHint,
+          wrongAttempts: payload.wrongAttemptCount ?? (payload.ok ? 0 : 1),
+          submissionId: payload.submissionId,
+          sessionId: payload.sessionId,
+          type: payload.type,
+          activityId: payload.activityId,
+          round: payload.round,
+          ts: Date.now(),
+          chosenDistractorId: payload.chosenDistractorId,
+        },
+      ];
+    }
 
     // Compute updated mastery
     if (payload.affectsMastery !== false) {
@@ -243,10 +256,19 @@ export const vocabStatsService = {
       console.warn('Failed to save vocab stats:', e);
     }
 
-    // Sync the observed response, not the derived notebook label.
+    // Sync one completed round outcome to the notebook and server, not every wrong tap.
     if (payload.vocab && payload.affectsMastery !== false) {
       vocabMasteryService.registerJourneyWords(childId,[payload.vocab]);
-      vocabMasteryService.recordGameResult(childId,wordId,payload.ok && payload.isFirstTry !== false && !payload.usedHint);
+      vocabMasteryService.recordPracticeOutcome(childId, wordId, {
+        vocab: payload.vocab,
+        isCorrect: payload.ok,
+        independent: payload.isFirstTry && !payload.usedHint,
+        wrongAttempts: payload.wrongAttemptCount ?? (payload.ok ? 0 : 1),
+        mastery: cur.mastery,
+        trouble: cur.trouble,
+        activityType: payload.type,
+        sessionId: payload.sessionId,
+      });
     }
 
     return cur;

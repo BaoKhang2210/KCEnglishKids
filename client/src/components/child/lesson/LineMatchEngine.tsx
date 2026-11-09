@@ -19,23 +19,24 @@
  * Feedback (never red, no layout shift — the feedback row is reserved):
  *  correct → lock line + ping + star pop + word audio + praise;
  *  wrong → reach node, target card shakes 3px, line recoils, "Try again!".
- *  2 wrongs on a word → its correct node pulses; 3 wrongs → auto-draw (still
- *  earns the star, flagged revealed).
+ *  Age-specific wrong-attempt thresholds control the hint and auto-reveal.
  *
  * All tunable numbers live in ./lineMatchConfig.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Volume2, Check } from 'lucide-react';
-import type { AgeGroupCode } from '../../../types';
+import type { AgeGroupCode, Vocabulary } from '../../../types';
 import { playWordAudio, sfx } from '../../../utils/audio';
 import type { PracticeQuestion } from './buildPracticePlan';
+import { wordArt } from '../../../utils/learningArt';
 import {
   LINE_COLORS,
   LINE_MATCH_LAYOUT,
   LINE_MATCH_TIMING,
   HINT_ATTEMPTS,
-  REVEAL_ATTEMPTS,
+  LINE_MATCH_HINT_ATTEMPTS,
+  LINE_MATCH_REVEAL_ATTEMPTS,
   lineWidthForAge,
   magnetRadiusForAge,
   randomLineMatchPraise,
@@ -65,15 +66,17 @@ export const emptyLineMatchState = (): LineMatchRoundState => ({
 interface LineMatchEngineProps {
   /** All Round 2 questions (one per word), in the plan's stable order. */
   questions: PracticeQuestion[];
-  /** Flat question indexes per board (borrow-aware; a word may repeat). */
+  /** Flat question indexes per board; every target appears on exactly one board. */
   boards: number[][];
+  /** Per-board decoy pictures, kept outside the answer set. */
+  distractors: Vocabulary[][];
   boardIndex: number;
   ageGroup: AgeGroupCode;
   /** Restored checkpoint state (already filtered to active words). */
   initialState: LineMatchRoundState | null;
   onStateChange: (state: LineMatchRoundState) => void;
   /** ONE answer per word: fired when a word is completed (matched or revealed). */
-  onWordMatched: (wordId: string, info: { firstTry: boolean; revealed: boolean; chosenWrongWordId?: string }) => void;
+  onWordMatched: (wordId: string, info: { firstTry: boolean; revealed: boolean; wrongAttempts?: number; chosenWrongWordId?: string }) => void;
   /** Fired per wrong link attempt (checkpoint + confusion tracking). */
   onWordWrong: (wordId: string, chosenWrongWordId: string) => void;
   onBoardComplete: (nextBoardIndex: number) => void;
@@ -123,10 +126,12 @@ interface PingRing { id: number; x: number; y: number; color: string }
 interface RecoilLine { id: number; from: Point; to: Point; color: string }
 
 let effectIdCounter = 1;
+const EMPTY_DISTRACTORS: Vocabulary[] = [];
 
 export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
   questions,
   boards,
+  distractors,
   boardIndex,
   ageGroup,
   initialState,
@@ -179,28 +184,38 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
     .map((questionIndex) => questions[questionIndex])
     .filter(Boolean), [boards, boardIndex, questions]);
   const boardWordIds = useMemo(() => boardItems.map(wordIdOf), [boardItems]);
+  const boardDistractors = distractors[boardIndex] || EMPTY_DISTRACTORS;
+  const distractorById = useMemo(() => new Map(boardDistractors.map((word) => [wordIdOf(word), word])), [boardDistractors]);
+  const rightItemIds = useMemo(() => [...boardWordIds, ...boardDistractors.map(wordIdOf)], [boardWordIds, boardDistractors]);
 
   /** Right column order for the current board — stable for the whole board. */
   const rightOrder = useMemo(() => {
     const key = String(boardIndex);
     const saved = stateRef.current.rightOrderByBoard[key];
-    const known = new Set(boardWordIds);
+    const known = new Set(rightItemIds);
     let order = (saved || []).filter((id) => known.has(id));
-    for (const id of boardWordIds) if (!order.includes(id)) order = [...order, id]; // appended new words
-    if (!saved && order.length > 1) order = shuffleRightColumn(boardWordIds);
+    for (const id of rightItemIds) if (!order.includes(id)) order = [...order, id]; // appended choices
+    if (!saved && order.length > 1) order = shuffleRightColumn(rightItemIds);
     return order;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardIndex, boardWordIds.join('\u0000')]);
+  }, [boardIndex, rightItemIds.join('\u0000')]);
 
   // Persist any right-order materialization once per board.
   useEffect(() => {
     const key = String(boardIndex);
-    if (!stateRef.current.rightOrderByBoard[key] && rightOrder.length) {
+    const previousOrder = stateRef.current.rightOrderByBoard[key] || [];
+    if (rightOrder.length && previousOrder.join('\u0000') !== rightOrder.join('\u0000')) {
       stateRef.current.rightOrderByBoard[key] = [...rightOrder];
       onStateChange({ ...stateRef.current, rightOrderByBoard: { ...stateRef.current.rightOrderByBoard } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardIndex, rightOrder.length]);
+  }, [boardIndex, rightOrder.join('\u0000')]);
+
+  const boardKey = boardWordIds.join('\u0000');
+  useEffect(() => {
+    const first = boardItems.find((item) => !stateRef.current.matchedWordIds.includes(wordIdOf(item)));
+    if (first) void playWordAudio(first.targetVocab.english, first.targetVocab.audioUrl);
+  }, [boardIndex, boardItems, boardKey]);
 
   const rowHeight = rowHeightFor(contentHeight, boardItems.length);
   const hitSize = boardSize.w >= LINE_MATCH_LAYOUT.largeScreenMinWidth
@@ -390,7 +405,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
     setStars((prev) => [...prev, { id: effectIdCounter++, x: mid.x, y: mid.y, color }]);
   }, [nodeCenter]);
 
-  const commitMatch = useCallback((wordId: string, opts: { firstTry: boolean; revealed: boolean; chosenWrongWordId?: string }) => {
+  const commitMatch = useCallback((wordId: string, opts: { firstTry: boolean; revealed: boolean; wrongAttempts?: number; chosenWrongWordId?: string }) => {
     const item = boardItems.find((candidate) => wordIdOf(candidate) === wordId);
     const slot = boardItems.findIndex((candidate) => wordIdOf(candidate) === wordId);
     freshMatchRef.current.add(wordId);
@@ -422,13 +437,14 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
   const handleWrong = useCallback((startWordId: string, startSide: Side, targetWordId: string, from: Point, to: Point) => {
     const slot = Math.max(0, boardItems.findIndex((candidate) => wordIdOf(candidate) === startWordId));
     stateRef.current.attemptsByWordId[startWordId] = (stateRef.current.attemptsByWordId[startWordId] || 0) + 1;
-    if (!stateRef.current.firstWrongChoiceByWordId[startWordId]) {
+    const isLessonChoice = boardWordIds.includes(targetWordId);
+    if (isLessonChoice && !stateRef.current.firstWrongChoiceByWordId[startWordId]) {
       stateRef.current.firstWrongChoiceByWordId[startWordId] = targetWordId;
     }
     lastAttemptSideRef.current.set(startWordId, startSide);
     const attempts = stateRef.current.attemptsByWordId[startWordId];
     onStateChange({ ...stateRef.current });
-    onWordWrong(startWordId, targetWordId);
+    onWordWrong(startWordId, isLessonChoice ? targetWordId : '');
     bump();
 
     onFeedback('Try again! You can do it!');
@@ -443,37 +459,45 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
       window.setTimeout(() => setRecoil((current) => (current?.id === id ? null : current)), LINE_MATCH_TIMING.wrongRecoil + 40);
     }
 
-    if (attempts >= REVEAL_ATTEMPTS) {
+    if (attempts >= (LINE_MATCH_REVEAL_ATTEMPTS[ageGroup] ?? 3)) {
       commitMatch(startWordId, {
         firstTry: false,
         revealed: true,
+        wrongAttempts: stateRef.current.attemptsByWordId[startWordId] || 0,
         chosenWrongWordId: stateRef.current.firstWrongChoiceByWordId[startWordId],
       });
-    } else if (attempts >= HINT_ATTEMPTS) {
+    } else if (attempts >= (LINE_MATCH_HINT_ATTEMPTS[ageGroup] ?? HINT_ATTEMPTS)) {
       setHintWordId(startWordId);
       window.setTimeout(() => setHintWordId((current) => (current === startWordId ? null : current)), 1600);
     }
-  }, [boardItems, onStateChange, onWordWrong, onFeedback, reducedMotion, commitMatch, bump]);
+  }, [boardItems, boardWordIds, ageGroup, onStateChange, onWordWrong, onFeedback, reducedMotion, commitMatch, bump]);
 
   // ── Evaluation ───────────────────────────────────────────────────────────────
 
   const evaluate = useCallback((startWordId: string, startSide: Side, endWordId: string, endSide: Side) => {
     if (startSide === endSide) return; // same-side drop: ignore and retract
-    if (stateRef.current.matchedWordIds.includes(startWordId) || stateRef.current.matchedWordIds.includes(endWordId)) return;
+    if ((startSide === 'left' || boardWordIds.includes(startWordId)) && stateRef.current.matchedWordIds.includes(startWordId)) return;
+    if ((endSide === 'left' || boardWordIds.includes(endWordId)) && stateRef.current.matchedWordIds.includes(endWordId)) return;
     const from = nodeCenter(startSide, startWordId);
     const to = nodeCenter(endSide, endWordId);
     if (!from || !to) return;
 
-    if (startWordId === endWordId) {
-      commitMatch(startWordId, {
-        firstTry: (stateRef.current.attemptsByWordId[startWordId] || 0) === 0,
+    const targetWordId = startSide === 'left' ? startWordId : endWordId;
+    const selectedWordId = startSide === 'right' ? startWordId : endWordId;
+    const targetPoint = startSide === 'left' ? from : to;
+    const selectedPoint = startSide === 'right' ? from : to;
+
+    if (targetWordId === selectedWordId) {
+      commitMatch(targetWordId, {
+        firstTry: (stateRef.current.attemptsByWordId[targetWordId] || 0) === 0,
         revealed: false,
-        chosenWrongWordId: stateRef.current.firstWrongChoiceByWordId[startWordId],
+        wrongAttempts: stateRef.current.attemptsByWordId[targetWordId] || 0,
+        chosenWrongWordId: stateRef.current.firstWrongChoiceByWordId[targetWordId],
       });
     } else {
-      handleWrong(startWordId, startSide, endWordId, from, to);
+      handleWrong(targetWordId, 'left', selectedWordId, targetPoint, selectedPoint);
     }
-  }, [commitMatch, handleWrong, nodeCenter]);
+  }, [commitMatch, handleWrong, nodeCenter, boardWordIds]);
 
   const cancelDrag = useCallback(() => {
     activePointerRef.current = null;
@@ -483,7 +507,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
   // ── Selection (tap flow) ─────────────────────────────────────────────────────
 
   const tapSelect = useCallback((wordId: string, side: Side) => {
-    if (stateRef.current.matchedWordIds.includes(wordId) || boardComplete) return;
+    if (((side === 'left' || boardWordIds.includes(wordId)) && stateRef.current.matchedWordIds.includes(wordId)) || boardComplete) return;
     const item = questions.find((candidate) => wordIdOf(candidate) === wordId);
     if (selected && selected.side !== side) {
       // Second tap on the other column → the line animates (300ms), then evaluates.
@@ -512,13 +536,13 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
     if (side === 'left' && item) {
       void playWordAudio(item.targetVocab.english, item.targetVocab.audioUrl);
     }
-  }, [selected, boardComplete, nodeCenter, evaluate, questions, reducedMotion, boardItems]);
+  }, [selected, boardComplete, nodeCenter, evaluate, questions, reducedMotion, boardItems, boardWordIds]);
 
   // ── Pointer handlers (drag flow) ─────────────────────────────────────────────
 
   const handleNodePointerDown = useCallback((event: React.PointerEvent<HTMLSpanElement>, wordId: string, side: Side) => {
     if (boardComplete) return; // taps during the wave just skip it (handled on board)
-    if (stateRef.current.matchedWordIds.includes(wordId)) return;
+    if ((side === 'left' || boardWordIds.includes(wordId)) && stateRef.current.matchedWordIds.includes(wordId)) return;
     if (activePointerRef.current !== null) return; // single active pointer
     event.preventDefault();
     activePointerRef.current = event.pointerId;
@@ -538,7 +562,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
       if (item) void playWordAudio(item.targetVocab.english, item.targetVocab.audioUrl);
     }
     armIdleTimer();
-  }, [boardComplete, nodeCenter, questions, armIdleTimer]);
+  }, [boardComplete, boardWordIds, nodeCenter, questions, armIdleTimer]);
 
   const handleNodePointerMove = useCallback((event: React.PointerEvent<HTMLSpanElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
@@ -560,14 +584,15 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
         centersRef.current.forEach((center, key) => {
           const [side, wordId] = [key.slice(0, key.indexOf(':')) as Side, key.slice(key.indexOf(':') + 1)];
           if (side === current.side) return;
-          if (stateRef.current.matchedWordIds.includes(wordId)) return;
+          if (side === 'left' && stateRef.current.matchedWordIds.includes(wordId)) return;
+          if (side === 'right' && boardWordIds.includes(wordId) && stateRef.current.matchedWordIds.includes(wordId)) return;
           const dist = Math.hypot(center.x - point.x, center.y - point.y);
           if (dist < bestDist) { bestDist = dist; hover = wordId; }
         });
         return { ...current, pos: point, hover };
       });
     });
-  }, [magnetRadius]);
+  }, [magnetRadius, boardWordIds]);
 
   const handleNodePointerUp = useCallback((event: React.PointerEvent<HTMLSpanElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
@@ -668,7 +693,6 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
         {boardWordIds.map((wordId, slot) => {
           const item = leftItemFor(wordId);
           if (!item) return null;
-          const word = item.targetVocab;
           const matched = matchedSet.has(wordId);
           return (
             <button
@@ -676,7 +700,7 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
               type="button"
               role="button"
               aria-pressed={isNodeSelected(wordId, 'left')}
-              aria-label={ageGroup === '3-4' ? `Listen: ${word.english}` : word.english}
+              aria-label="Nghe từ"
               aria-disabled={matched}
               onClick={() => handleCardClick(wordId, 'left')}
               className={`lm-card lm-card-left relative w-full ${matched ? 'lm-card-matched' : ''} ${shakeWordId === wordId ? 'lm-shake' : ''}`}
@@ -685,23 +709,9 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
                 borderColor: matched ? lineColor(slot) : undefined,
               }}
             >
-              {ageGroup === '3-4' && (
-                <span className="lm-card-body">
-                  <Volume2 className="lm-speaker-large" />
-                </span>
-              )}
-              {ageGroup === '4-5' && (
-                <span className="lm-card-body lm-card-row">
-                  <Volume2 className="lm-speaker-medium" />
-                  <span className="lm-word">{word.english.toLowerCase()}</span>
-                </span>
-              )}
-              {ageGroup === '5-6' && (
-                <span className="lm-card-body lm-card-row">
-                  <span className="lm-word">{word.english.toLowerCase()}</span>
-                  <Volume2 className="lm-speaker-small" />
-                </span>
-              )}
+              <span className="lm-card-body">
+                <Volume2 className="lm-speaker-large" />
+              </span>
               {renderNode(wordId, 'left', matched, slot)}
             </button>
           );
@@ -715,20 +725,20 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
       <div className="flex-1 min-w-0 h-full flex flex-col justify-center" style={{ gap: LINE_MATCH_LAYOUT.rowGap }} role="group" aria-label="Pictures to match">
         {rightOrder.map((wordId, orderSlot) => {
           const item = leftItemFor(wordId);
-          if (!item) return null;
-          const word = item.targetVocab;
-          const matched = matchedSet.has(wordId);
+          const word = item?.targetVocab || distractorById.get(wordId);
+          if (!word) return null;
+          const matched = !!item && matchedSet.has(wordId);
           const revealed = matched;
           const leftSlot = Math.max(0, boardWordIds.indexOf(wordId));
           const colorIndex = leftSlot;
-          const textCard = item.type === 'LOOK_WORD' && ageGroup === '5-6';
+          const textCard = matched && !!item && item.type === 'LOOK_WORD' && ageGroup === '5-6';
           return (
             <button
               key={`right-${wordId}-${orderSlot}`}
               type="button"
               role="button"
               aria-pressed={isNodeSelected(wordId, 'right')}
-              aria-label={word.english}
+              aria-label={matched && ageGroup === '5-6' ? word.english : 'Hình lựa chọn'}
               aria-disabled={matched}
               onClick={() => handleCardClick(wordId, 'right')}
               className={`lm-card lm-card-right relative w-full ${matched ? 'lm-card-matched' : ''} ${shakeWordId === wordId ? 'lm-shake' : ''}`}
@@ -740,26 +750,32 @@ export const LineMatchEngine: React.FC<LineMatchEngineProps> = ({
                 </span>
               ) : (
                 <span className="lm-card-body lm-card-picture">
-                  {word.imageUrl ? (
-                    <img
-                      src={word.imageUrl}
-                      alt=""
-                      draggable={false}
-                      className="h-full w-full object-contain select-none pointer-events-none drop-shadow-md"
-                    />
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 opacity-40" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                      <rect x="3" y="5" width="18" height="14" rx="3" />
-                      <circle cx="9" cy="10" r="1.6" />
-                      <path d="M4 17l5-4 4 3 3-2 4 3" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
+                  {(() => {
+                    const cleanArt = wordArt(word.english || '');
+                    const rawUrl = word.imageUrl || '';
+                    const resolvedUrl = (!rawUrl || rawUrl.startsWith('data:image/svg+xml')) && cleanArt?.url
+                      ? cleanArt.url
+                      : rawUrl;
+                    return resolvedUrl ? (
+                      <img
+                        src={resolvedUrl}
+                        alt=""
+                        draggable={false}
+                        className="h-full w-full object-contain select-none pointer-events-none drop-shadow-md"
+                      />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 opacity-40" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="3" />
+                        <circle cx="9" cy="10" r="1.6" />
+                        <path d="M4 17l5-4 4 3 3-2 4 3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    );
+                  })()}
                 </span>
               )}
               {revealed && (
                 <span className="lm-reveal">
-                  <span className="lm-word">{word.english.toLowerCase()}</span>
-                  {word.vietnamese && <span className="lm-gloss">{word.vietnamese}</span>}
+                  {ageGroup === '5-6' && <span className="lm-word">{word.english.toLowerCase()}</span>}
                 </span>
               )}
               {renderNode(wordId, 'right', matched, colorIndex)}

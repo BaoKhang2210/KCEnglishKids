@@ -24,7 +24,8 @@ const assignmentSchema = new mongoose.Schema({
   recipients: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: undefined },
   activitySnapshot: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Activity' }], default: undefined },
   contentSnapshot: { type: [mongoose.Schema.Types.Mixed], default: undefined },
-  completionMode: { type: String, enum: ['LESSON', 'ACTIVITY'], default: 'ACTIVITY' },
+  completionMode: { type: String, enum: ['LESSON', 'ACTIVITY', 'MINIGAME'], default: 'ACTIVITY' },
+  minigameId: { type: String, default: null },
   reviews: [{
     child: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     result: { type: mongoose.Schema.Types.ObjectId, ref: 'ActivityResult' },

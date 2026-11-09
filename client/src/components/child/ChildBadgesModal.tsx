@@ -69,7 +69,7 @@ export const ChildBadgesModal: React.FC<ChildBadgesModalProps> = ({
   if (!isOpen) return null;
 
   const badgeProgress = {
-    totalStars: effectiveTotalStars,
+    totalStars: rewards?.badgeProgressStars ?? effectiveTotalStars,
     completedLessons: effectiveCompletedLessons,
     completedUnits: effectiveCompletedUnits,
     perfectLessons: rewards?.perfectLessons ?? 0,

@@ -24,6 +24,12 @@ const UnitCompletion = require('./UnitCompletion');
 const SystemSetting = require('./SystemSetting');
 const Attendance = require('./Attendance');
 const Schedule = require('./Schedule');
+// Video learning library
+const VideoSeries = require('./VideoSeries');
+const VideoEpisode = require('./VideoEpisode');
+const VideoProgress = require('./VideoProgress');
+const VideoFavorite = require('./VideoFavorite');
+const VideoReport = require('./VideoReport');
 
 module.exports = {
   HomePracticePlan: require('./HomePracticePlan'),
@@ -32,6 +38,7 @@ module.exports = {
   GameCatalogSetting: require('./GameCatalogSetting'),
   SchoolRecognition: require('./SchoolRecognition'),
   LearningEvent: require('./LearningEvent'),
+  StageStarGrant: require('./StageStarGrant'),
   MasteryEvent: require('./MasteryEvent'),
   AgeGroup,
   CurriculumBook,
@@ -56,7 +63,12 @@ module.exports = {
   UnitCompletion,
   SystemSetting,
   Attendance,
-  Schedule
+  Schedule,
+  VideoSeries,
+  VideoEpisode,
+  VideoProgress,
+  VideoFavorite,
+  VideoReport
 };
 
 

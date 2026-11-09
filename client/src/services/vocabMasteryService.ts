@@ -22,6 +22,9 @@ export interface WordMasteryDetail {
   gamesPlayedCount: number;
   gamesCorrectCount: number;
   practiceStreak?: number;
+  lastIndependentPracticeDate?: string;
+  nextReviewAt?: number;
+  recentIndependentResults?: Array<{ date: string; activityType: string }>;
   lastPracticedAt: number;
   masteryScore: number; // 0 - 100%
   source: 'JOURNEY' | 'TOPIC';
@@ -118,12 +121,13 @@ export const vocabMasteryService = {
             audioUrl: v.audioUrl || '',
             exampleSentence: v.exampleSentence || '',
             exampleSentenceVietnamese: v.exampleSentenceVietnamese || '',
-            status: sr.masteryLevel >= 3 ? 'MASTERED' : sr.masteryLevel >= 2 ? 'LEARNING' : 'REVIEW',
+            status: sr.masteryLevel >= 3 ? 'MASTERED' : sr.needsReview ? 'REVIEW' : 'LEARNING',
             rememberCount: sr.correctCount || 0,
             reviewCount: sr.wrongCount || 0,
             gamesPlayedCount: 0,
             gamesCorrectCount: 0,
             lastPracticedAt: sr.lastReviewedAt ? new Date(sr.lastReviewedAt).getTime() : Date.now(),
+            nextReviewAt: sr.nextReviewAt ? new Date(sr.nextReviewAt).getTime() : undefined,
             masteryScore: sr.masteryLevel >= 3 ? 90 : Math.round(((sr.correctCount || 0) / Math.max(1, sr.attemptCount || 1)) * 100),
             source: 'TOPIC'
           };
@@ -204,6 +208,7 @@ export const vocabMasteryService = {
     }
 
     existing.lastPracticedAt = Date.now();
+    existing.nextReviewAt = existing.lastPracticedAt + (action === 'remember' ? 3 : 1) * 86400000;
     existing.masteryScore = calculateScore(existing);
     data.vocabDetails[vId] = existing;
 
@@ -243,6 +248,7 @@ export const vocabMasteryService = {
     }
 
     item.lastPracticedAt = Date.now();
+    item.nextReviewAt = item.lastPracticedAt + (item.status === 'MASTERED' ? 3 : 1) * 86400000;
     item.masteryScore = calculateScore(item);
     data.vocabDetails[vocabId] = item;
     this.saveMastery(childId, data);
@@ -252,29 +258,70 @@ export const vocabMasteryService = {
   /**
    * Record mini-game practice result
    */
-  recordGameResult(childId: string, vocabId: string, isCorrect: boolean): void {
+  recordPracticeOutcome(childId: string, vocabId: string, outcome: {
+    vocab?: Vocabulary;
+    isCorrect: boolean;
+    independent: boolean;
+    wrongAttempts?: number;
+    mastery?: 'new' | 'learning' | 'known' | 'strong';
+    trouble?: boolean;
+    activityType?: string;
+    sessionId?: string;
+    submissionId?: string;
+  }): void {
     const data = this.getMastery(childId);
-    const item = data.vocabDetails[vocabId];
+    const vocab = outcome.vocab;
+    const item = data.vocabDetails[vocabId] || (vocab ? {
+      _id: vocabId, vocabId, english: vocab.english, vietnamese: vocab.vietnamese,
+      pronunciation: vocab.pronunciation, imageUrl: vocab.imageUrl, audioUrl: vocab.audioUrl,
+      exampleSentence: vocab.exampleSentence, exampleSentenceVietnamese: vocab.exampleSentenceVietnamese,
+      category: (vocab as any).category, topicName: (vocab as any).topicName,
+      status: 'LEARNING' as const, rememberCount: 0, reviewCount: 0, gamesPlayedCount: 0,
+      gamesCorrectCount: 0, lastPracticedAt: Date.now(), masteryScore: 0, source: 'JOURNEY' as const,
+    } : undefined);
     if (!item) return;
-
     item.gamesPlayedCount = (item.gamesPlayedCount || 0) + 1;
-    item.practiceStreak = isCorrect ? (item.practiceStreak || 0) + 1 : 0;
-    if (isCorrect) {
-      item.gamesCorrectCount = (item.gamesCorrectCount || 0) + 1;
+    if (outcome.isCorrect) item.gamesCorrectCount = (item.gamesCorrectCount || 0) + 1;
+    item.reviewCount = (item.reviewCount || 0) + (outcome.wrongAttempts || 0);
+    const now = Date.now();
+    const today = new Date(now).toISOString().slice(0, 10);
+    const activityType = outcome.activityType || 'GAME';
+    const recent = item.recentIndependentResults || [];
+    if (outcome.independent) {
+      if (item.lastIndependentPracticeDate !== today) item.practiceStreak = (item.practiceStreak || 0) + 1;
+      item.lastIndependentPracticeDate = today;
+      item.recentIndependentResults = [...recent, { date: today, activityType }].slice(-3);
+    } else {
+      item.practiceStreak = 0;
+      item.recentIndependentResults = [];
     }
-    const attempts=item.rememberCount+item.reviewCount+item.gamesPlayedCount;
-    const correct=item.rememberCount+item.gamesCorrectCount;
-    item.status=item.practiceStreak>=3 || attempts>=5 && correct/attempts>=0.8 ? 'MASTERED' : isCorrect ? 'LEARNING' : 'REVIEW';
+    const spacedResults = item.recentIndependentResults || [];
+    const spacedMastered = spacedResults.length >= 3 && new Set(spacedResults.map(result => result.date)).size >= 2 && new Set(spacedResults.map(result => result.activityType)).size >= 2;
+    item.status = outcome.trouble || !outcome.isCorrect || !outcome.independent ? 'REVIEW'
+      : outcome.mastery === 'strong' || spacedMastered ? 'MASTERED'
+      : 'LEARNING';
     data.masteredIds=data.masteredIds.filter(id=>id!==vocabId);
     data.reviewIds=data.reviewIds.filter(id=>id!==vocabId);
     if(item.status==='MASTERED')data.masteredIds.push(vocabId);
     if(item.status==='REVIEW')data.reviewIds.push(vocabId);
 
-    item.lastPracticedAt = Date.now();
+    item.lastPracticedAt = now;
+    item.nextReviewAt = now + (item.status === 'MASTERED' ? ((item.practiceStreak || 0) >= 6 ? 7 : 3) : 1) * 86400000;
     item.masteryScore = calculateScore(item);
     data.vocabDetails[vocabId] = item;
     this.saveMastery(childId, data);
-    void learningOutbox.enqueueMastery(childId, vocabId, isCorrect).catch(() => {});
+    void learningOutbox.enqueueMastery(childId, vocabId, {
+      isCorrect: outcome.isCorrect,
+      independent: outcome.independent,
+      wrongAttempts: outcome.wrongAttempts || 0,
+      activityType,
+      sessionId: outcome.sessionId,
+      submissionId: outcome.submissionId,
+    }).catch(() => {});
+  },
+
+  recordGameResult(childId: string, vocabId: string, isCorrect: boolean): void {
+    this.recordPracticeOutcome(childId, vocabId, { isCorrect, independent: isCorrect, activityType: 'GAME' });
   },
 
   /**
@@ -345,6 +392,18 @@ export const vocabMasteryService = {
       .filter(v => v.status === 'REVIEW' || data.reviewIds.includes(v.vocabId))
       .map(item => ({ ...item, _id: item._id || item.vocabId }))
       .sort((a, b) => a.lastPracticedAt - b.lastPracticedAt);
+  },
+
+  getDueWords(childId: string, now = Date.now()): WordMasteryDetail[] {
+    const data = this.getMastery(childId);
+    return Object.values(data.vocabDetails)
+      .filter(word => {
+        const fallbackIntervalDays = word.status === 'MASTERED' ? (word.practiceStreak && word.practiceStreak >= 6 ? 7 : 3) : 1;
+        const dueAt = word.nextReviewAt ?? word.lastPracticedAt + fallbackIntervalDays * 86400000;
+        return dueAt <= now;
+      })
+      .map(item => ({ ...item, _id: item._id || item.vocabId }))
+      .sort((a, b) => (a.nextReviewAt || a.lastPracticedAt) - (b.nextReviewAt || b.lastPracticedAt));
   },
 
   isMastered(childId: string, vocabId: string): boolean {

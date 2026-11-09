@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { optionalProtect } = require('../middlewares/authMiddleware');
 const {
   getTopics,
   getTopicById,
@@ -8,6 +9,6 @@ const {
 
 router.get('/', getTopics);
 router.get('/:id', getTopicById);
-router.get('/:id/lessons', getLessonsByTopic);
+router.get('/:id/lessons', optionalProtect, getLessonsByTopic);
 
 module.exports = router;

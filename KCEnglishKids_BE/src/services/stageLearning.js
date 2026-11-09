@@ -3,8 +3,9 @@ const { Progress, Vocabulary, CurriculumUnit } = require('../models');
 const Event = require('../models/LearningEvent');
 const { activeLesson, fail } = require('./childAccess');
 const { usable } = require('./gameRules');
-const { calculateStars } = require('./starService');
 const { checkAndGrantUnitCompletion } = require('./rewardService');
+const StageStarGrant = require('../models/StageStarGrant');
+const { completedStageCount, earnedForStage } = require('./stageStarPolicy');
 
 function gradeStage(stage, payload, words, game, age) {
   const ids = words.map(w => String(w._id));
@@ -14,7 +15,8 @@ function gradeStage(stage, payload, words, game, age) {
   }
   const answers = payload.answers;
   if (!Array.isArray(answers) || !answers.length || answers.length > 500) fail('Complete the practice first.', 400);
-  const allowed = new Set((game ? usable(game, words) : words).map(w => String(w._id)));
+  const usableWords = game ? usable(game, words) : words;
+  const allowed = new Set((usableWords.length ? usableWords : words).map(w => String(w._id)));
   if (answers.some(a => !a || !allowed.has(a.wordId) || (a.selectedId !== null && !ids.includes(a.selectedId)))) fail('Invalid practice answers.', 400);
   if (stage === 2) {
     const keys = answers.map(a => a.wordId + ':' + a.round);
@@ -31,7 +33,14 @@ function gradeStage(stage, payload, words, game, age) {
     const selected = words.find(item => String(item._id) === a.selectedId);
     const { vocabularyMeaning } = require('./vocabularySemantics');
     const correct = a.wordId === a.selectedId || Boolean(selected && vocabularyMeaning(word) === vocabularyMeaning(selected));
-    return {wordId:a.wordId,selectedId:a.selectedId,round:a.round,isCorrect:correct,english:word.english,vietnamese:word.vietnamese,imageUrl:word.imageUrl};
+    const outcome = {wordId:a.wordId,selectedId:a.selectedId,round:a.round,isCorrect:correct,english:word.english,vietnamese:word.vietnamese,imageUrl:word.imageUrl};
+    if (stage === 2) {
+      if (a.wrongAttemptCount !== undefined && (!Number.isSafeInteger(a.wrongAttemptCount) || a.wrongAttemptCount < 0 || a.wrongAttemptCount > 20)) fail('Invalid practice attempt count.', 400);
+      if (a.usedHint !== undefined && typeof a.usedHint !== 'boolean') fail('Invalid practice hint metadata.', 400);
+      outcome.wrongAttemptCount = Number.isSafeInteger(a.wrongAttemptCount) ? a.wrongAttemptCount : null;
+      outcome.usedHint = typeof a.usedHint === 'boolean' ? a.usedHint : null;
+    }
+    return outcome;
   });
   return { score: Math.round(100 * graded.filter(a => a.isCorrect).length / graded.length), answers: graded };
 }
@@ -49,10 +58,15 @@ async function completeStage(childId, lessonId, body) {
   let game;
   if (stage === 3) {
     const unit = lesson.curriculumUnits?.length ? await CurriculumUnit.findById(lesson.curriculumUnits[0]) : null;
-    game = (await require('./gameCatalog').configuredGames(words, unit?.unitNumber || 1, lesson.displayOrder || 1)).find(g => g.id === body.gameId);
+    game = (await require('./gameCatalog').configuredGames(words, unit?.unitNumber || 1, lesson.displayOrder || 1)).find(g => g.id === body.gameId)
+      || require('../../../shared/learningGames.json').find(g => g.id === body.gameId);
     if (!game) fail('Game is not available for this lesson.', 400);
   }
   const graded = gradeStage(stage, body, words, game, lesson.ageGroupCode);
+  const topologyType = Progress.db.getClient()?.topology?.description?.type;
+  if (topologyType && !/ReplicaSet|Sharded/.test(topologyType)) {
+    fail('Stage star awards require a transaction-capable MongoDB replica set.', 503);
+  }
   const safePayload = { stage, gameId: game?.id, ...graded, ...(body.durationSeconds !== undefined ? { durationSeconds: body.durationSeconds } : {}) };
   const payloadHash = crypto.createHash('sha256').update(JSON.stringify(safePayload)).digest('hex');
   let event;
@@ -63,26 +77,84 @@ async function completeStage(childId, lessonId, body) {
     event = await Event.findOne({ child: childId, submissionId: body.submissionId });
   }
   if (event.payloadHash !== payloadHash || String(event.lesson) !== String(lessonId)) fail('Submission key already used for different evidence.', 409);
-  const update = { $set: { topic: lesson.topic }, $max: {lastActivityAt: event.createdAt}, $setOnInsert: { child: childId, lesson: lessonId } };
-  if (stage === 1) update.$set.stage1Completed = true;
-  if (stage === 2) {
-    update.$set.stage2Completed = true;
-    Object.assign(update.$max, { stage2Score: graded.score, stage2Stars: calculateStars(graded.score, 100) });
-    if(previous.stage3Completed) Object.assign(update.$max,{stars:calculateStars(graded.score,100),highestScore:graded.score});
-  }
-  if (stage === 3) update.$addToSet = { stage3Games: game.id };
   let progress;
-  try {progress=await Progress.findOneAndUpdate({child:childId,lesson:lessonId},update,{upsert:true,returnDocument:'after',setDefaultsOnInsert:true});}
-  catch(error){if(error.code!==11000)throw error;progress=await Progress.findOneAndUpdate({child:childId,lesson:lessonId},update,{returnDocument:'after'});}
-  if (stage === 3 && progress.stage3Games.length >= 2) {
-    // Practice accuracy determines Lesson stars. Game stars are encouragement only.
-    progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId, stage1Completed: true, stage2Completed: true }, {
-      $set: { completed: true, stage3Completed: true, completionSnapshot: { source: 'STAGES', recordedAt: new Date(), activityIds: [] } },
-      $max: { stars: progress.stage2Stars, highestScore: progress.stage2Score }
-    }, { returnDocument: 'after' });
+  const session = await Progress.db.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const current = await Progress.findOne({ child: childId, lesson: lessonId }).session(session);
+      if (stage > 1 && !current?.stage1Completed || stage > 2 && !current?.stage2Completed) fail('Complete previous stages first.', 409);
+      const nextGames = new Set([...(current?.stage3Games || []), ...(stage === 3 ? [game.id] : [])]);
+      const existingStage3Complete = Boolean(current?.stage3Completed) || new Set(current?.stage3Games || []).size >= 2;
+      const completesNow = stage === 1 ? !current?.stage1Completed
+        : stage === 2 ? !current?.stage2Completed
+          : !existingStage3Complete && nextGames.size >= 2;
+      const existingGrant = await StageStarGrant.findOne({ child: childId, lesson: lessonId, stage }).session(session).lean();
+      const stageStarsEarned = earnedForStage(completesNow && !existingGrant);
+      const nextState = {
+        stage1Completed: Boolean(current?.stage1Completed || stage === 1),
+        stage2Completed: Boolean(current?.stage2Completed || stage === 2),
+        stage3Completed: Boolean(current?.stage3Completed || stage === 3 && nextGames.size >= 2),
+        stage3Games: [...nextGames],
+      };
+      const nextStars = Math.max(Number(current?.stars) || 0, completedStageCount(nextState));
+      const set = { topic: lesson.topic, stars: Math.min(3, nextStars), lastActivityAt: event.createdAt };
+      if (stage === 1) set.stage1Completed = true;
+      if (stage === 2) { set.stage2Completed = true; set.stage2Score = Math.max(Number(current?.stage2Score) || 0, graded.score); }
+      if (stage === 3) { set.stage3Games = [...nextGames]; if (nextState.stage3Completed) set.stage3Completed = true; }
+      const fullyComplete = nextState.stage1Completed && nextState.stage2Completed && nextState.stage3Completed;
+      if (fullyComplete) { set.completed = true; set.completionSnapshot = { source: 'STAGES', recordedAt: new Date(), activityIds: [] }; }
+      progress = await Progress.findOneAndUpdate({ child: childId, lesson: lessonId }, {
+        $set: set,
+        $setOnInsert: { child: childId, lesson: lessonId },
+        $max: { highestScore: stage === 2 ? graded.score : Number(current?.highestScore) || 0 }
+      }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, session });
+      if (stageStarsEarned) {
+        await StageStarGrant.create([{ child: childId, lesson: lessonId, stage, submissionId: body.submissionId, amount: stageStarsEarned }], { session });
+      }
+    });
+  } finally {
+    await session.endSession();
+  }
+  const stageStarGrant = await StageStarGrant.findOne({ child: childId, lesson: lessonId, stage }).lean();
+  const stageStarsEarned = stageStarGrant?.submissionId === body.submissionId ? 1 : 0;
+  const stageStars = {
+    stage1: Number(Boolean(progress.stage1Completed)),
+    stage2: Number(Boolean(progress.stage2Completed)),
+    stage3: Number(Boolean(progress.stage3Completed || new Set(progress.stage3Games || []).size >= 2)),
+  };
+  if (progress.completed) {
     await Event.updateOne({ _id: event._id }, { $set: { lessonCompleted: true } });
   }
   if (progress.completed) await checkAndGrantUnitCompletion(childId, lessonId);
-  return progress;
+  if (stage !== 2) return { ...progress.toObject(), completedStage: stage, starsEarned: stageStarsEarned, stageStars, totalStars: Math.min(3, Number(progress.stars) || 0) };
+
+  const reportService = require('../config/stage2Report');
+  const vocabReview = require('./vocabReview');
+  const stage2Report = reportService.buildStage2Report(event.answers || graded.answers, words, progress, stageStarsEarned);
+  if (!event.stage2Report) {
+    await Event.updateOne({ _id: event._id }, { $set: { stage2Report } });
+  }
+  // Stage 2 is one of the two writers of the Leitner schedule; quick review is
+  // the other. Both go through vocabReview so the notebook reads one source.
+  const storedReport = event.stage2Report || stage2Report;
+  const reviewSnapshots = await vocabReview.applyStage2Report({
+    childId,
+    report: storedReport,
+    ageGroup: lesson.ageGroupCode,
+    submissionId: body.submissionId
+  });
+  const confirmedReport = {
+    ...vocabReview.attachReview(storedReport, reviewSnapshots),
+    starsBest: Math.min(3, Number(progress.stars) || 0),
+    stageStars
+  };
+  return {
+    ...progress.toObject(),
+    completedStage: stage,
+    starsEarned: stageStarsEarned,
+    stageStars,
+    totalStars: Math.min(3, Number(progress.stars) || 0),
+    stage2Report: confirmedReport,
+  };
 }
 module.exports = { completeStage, gradeStage };

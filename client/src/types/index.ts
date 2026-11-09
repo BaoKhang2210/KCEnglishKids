@@ -147,6 +147,212 @@ export interface Topic {
   featured?: boolean;
 }
 
+// ─── Video learning (library + watch step) ──────────────────────────────────
+export type VideoLevel = 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+export type VideoSource = 'youtube' | 'stored';
+export type VideoSkillKey = 'listen' | 'read' | 'speak' | 'quiz' | 'dub';
+
+export interface VideoLevelMeta {
+  label: string;
+  title?: string;
+  subtitleEn?: string;
+  ageLabel: string;
+  ageMin: number;
+  ageMax: number;
+  blurb: string;
+}
+
+export interface VideoSkill {
+  key: VideoSkillKey;
+  label: string;
+  done: boolean;
+}
+
+export type VideoActivityKey = 'listen' | 'read' | 'speak' | 'dub';
+
+export interface VideoActivity {
+  key: VideoActivityKey;
+  label: string;
+  done: boolean;
+}
+
+export interface VideoEpisodeProgress {
+  episodeId: string;
+  availableSkills: VideoSkillKey[];
+  skills: VideoSkill[];
+  completed: boolean;
+  percent: number;
+  /** The four-part lesson counter shown in the source lesson sidebar. */
+  activities?: VideoActivity[];
+  activityDone?: number;
+  activityTotal?: number;
+  activityPercent?: number;
+  watchedPercent: number;
+  lastPositionSec: number;
+  readIdx?: number[];
+  speakIdx?: number[];
+  quiz: { answers: Array<{ idx: number; firstTryCorrect: boolean }>; score: number; total: number; done: boolean };
+  dubDone: boolean;
+}
+
+export interface VideoCue {
+  idx: number;
+  start: number;
+  end: number;
+  text: string;
+  translationVi?: string;
+}
+
+export interface VideoVocabulary {
+  word: string;
+  meaningVi?: string;
+  audioUrl?: string;
+}
+
+export interface VideoEpisodeSummary {
+  _id: string;
+  number: number;
+  slug: string;
+  lessonCode?: string;
+  title: string;
+  subtitle?: string;
+  source: VideoSource;
+  videoUrl?: string;
+  youtubeId?: string;
+  duration: number;
+  videoStartMs?: number;
+  videoEndMs?: number;
+  clipStart: number;
+  clipEnd: number;
+  dialogueStartSec: number;
+  thumbnail?: string;
+  captionCueCount?: number;
+  canReading?: boolean;
+  canDubbing?: boolean;
+  dubbingVideoUrl?: string;
+  audioUrl?: string;
+  cueUrl?: string;
+  cueProxyAvailable?: boolean;
+  sourceChannelName?: string;
+  learningMode?: string;
+  contentFormat?: string;
+  difficultyLabel?: string;
+  vocabulary?: VideoVocabulary[];
+  cueCount?: number;
+  availableSkills: VideoSkillKey[];
+  progress: VideoEpisodeProgress;
+  cues?: VideoCue[];
+}
+
+export interface VideoContinueTarget {
+  episodeId: string;
+  number: number;
+  slug: string;
+  title: string;
+  thumbnail?: string;
+  lastPositionSec: number;
+  watchedPercent: number;
+  percent: number;
+}
+
+export interface VideoSeriesSummary {
+  _id: string;
+  slug: string;
+  title: string;
+  titleEn?: string;
+  subtitle?: string;
+  description?: string;
+  thumbnail?: string;
+  level: VideoLevel;
+  levelLabel: string;
+  levelTitle?: string;
+  targetAge?: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  ageLabel: string;
+  ageGroups: AgeGroupCode[];
+  topicCode?: string;
+  difficultyLabel?: string;
+  source: VideoSource;
+  sourceLabel: string;
+  hasDubbing: boolean;
+  dubbingCount?: number;
+  order: number;
+  /** Declared catalogue count; the exact seed publishes every lesson. */
+  episodeCount: number;
+  availableEpisodeCount: number;
+  completedEpisodes: number;
+  isFavorite: boolean;
+  availableSkills: VideoSkillKey[];
+  firstEpisode?: { episodeId: string; number: number; slug: string; title: string } | null;
+  progress: {
+    percent: number;
+    completed: boolean;
+    continue: VideoContinueTarget | null;
+  };
+}
+
+export interface VideoSeriesDetail extends VideoSeriesSummary {
+  attribution?: string;
+  episodes: VideoEpisodeSummary[];
+}
+
+export interface VideoSeriesListMeta {
+  ageGroup: AgeGroupCode | null;
+  childAge: AgeGroupCode | null;
+  accessibleAgeGroups: AgeGroupCode[];
+  levels: VideoLevel[];
+  accessibleLevels: VideoLevel[];
+  levelOrder: VideoLevel[];
+  levelMeta: Record<VideoLevel, VideoLevelMeta>;
+  levelAgeGroups: Record<VideoLevel, AgeGroupCode[]>;
+  sourceMeta: Record<VideoSource, { label: string; short: string }>;
+  ageOrder: AgeGroupCode[];
+  catalogue: {
+    total: number;
+    totalEpisodes: number;
+    byLevel: Record<VideoLevel, number>;
+    bySource: Record<VideoSource, number>;
+  };
+  facets: {
+    total: number;
+    totalEpisodes: number;
+    availableEpisodes: number;
+    byAgeGroup: Record<AgeGroupCode, number>;
+    byLevel: Record<VideoLevel, number>;
+    bySource: Record<VideoSource, number>;
+    dubbing: { yes: number; no: number };
+  };
+}
+
+export interface VideoContinueItem {
+  episodeId: string;
+  episodeNumber: number;
+  episodeTitle: string;
+  seriesId: string;
+  seriesSlug: string;
+  seriesTitle: string;
+  thumbnail?: string;
+  level: VideoLevel;
+  levelLabel: string;
+  ageLabel: string;
+  source: VideoSource;
+  lastPositionSec: number;
+  watchedPercent: number;
+  percent: number;
+  availableSkills: VideoSkillKey[];
+  updatedAt?: string;
+}
+
+export type VideoProgressEvent =
+  | { type: 'listen'; watchedPercent: number }
+  | { type: 'heartbeat'; watchedPercent: number; lastPositionSec?: number }
+  | { type: 'position'; lastPositionSec: number }
+  | { type: 'read'; idx: number }
+  | { type: 'speak'; idx: number }
+  | { type: 'quiz_answer'; idx: number; firstTryCorrect: boolean }
+  | { type: 'dub'; done: boolean };
+
 export type VocabWordType = 'noun' | 'verb' | 'number' | 'color' | 'adjective';
 
 export interface Vocabulary {
@@ -311,6 +517,9 @@ export interface StudentCompetencyReport {
 
 export interface RewardSummary {
   totalStars: number;
+  maxStars?: number;
+  badgeProgressStars?: number;
+  starLedger?: StarLedger;
   teacherStars?: number;
   earnedStars: number;
   bonusStars: number;
@@ -326,6 +535,52 @@ export interface RewardSummary {
   grantedStickerIds: string[];
   chests: RewardChest[];
   explorerLevel?: ExplorerLevel;
+}
+
+export interface StarLedgerStage {
+  completed: boolean;
+  unlocked: boolean;
+  stars?: number;
+  completedGames?: number;
+  requiredGames?: number;
+}
+
+export interface StarLedgerLesson {
+  id: string;
+  lessonNumber: number;
+  title: string;
+  stars: number;
+  maxStars: number;
+  completed: boolean;
+  unlocked: boolean;
+  source: 'STAGE2' | 'ACTIVITIES';
+  stages: { stage1: StarLedgerStage; stage2: StarLedgerStage; stage3: StarLedgerStage };
+}
+
+export interface StarLedgerUnit {
+  id: string;
+  bookNumber: number;
+  unitNumber: number;
+  title: string;
+  icon?: string | null;
+  unlocked: boolean;
+  completed: boolean;
+  stars: number;
+  lessonStars: number;
+  bonusStars: number;
+  bonusReceived: boolean;
+  maxStars: number;
+  completedLessons: number;
+  totalLessons: number;
+  lessons: StarLedgerLesson[];
+}
+
+export interface StarLedger {
+  totalStars: number;
+  maxStars: number;
+  completedUnits: number;
+  completedLessons: number;
+  units: StarLedgerUnit[];
 }
 
 export interface RevealedChest {
@@ -431,6 +686,91 @@ export interface MasterySummary {
   practicing: number;
   learning: number;
   notStarted: number;
+}
+
+// ─── Vocabulary review schedule (Leitner, server-owned) ──────────────────────
+
+export type VocabReviewOutcome = 'SECURE' | 'PRACTICE' | 'REVIEW';
+export type VocabReviewStatus = 'LEARNING' | 'PRACTICE' | 'REVIEW' | 'MASTERED';
+
+export interface VocabRoundMark {
+  code?: number | null;
+  key?: string | null;
+  name?: string;
+  rating?: VocabReviewOutcome | null;
+  isCorrect?: boolean;
+  wrongAttemptCount?: number | null;
+  usedHint?: boolean | null;
+}
+
+export interface VocabReviewSnapshot {
+  level: number;
+  maxLevel: number;
+  dueOn: string | null;
+  dueAt: string | null;
+  status: VocabReviewStatus;
+  mastered: boolean;
+  lastOutcome: VocabReviewOutcome | null;
+  lastPromotionOn?: string | null;
+  demotionCount?: number;
+}
+
+export interface VocabReviewWord extends VocabReviewSnapshot {
+  vocabId: string;
+  english: string;
+  vietnamese: string;
+  pronunciation?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  category?: string;
+  exampleSentence?: string;
+  exampleSentenceVietnamese?: string;
+  lastRounds: VocabRoundMark[];
+  lastPracticedOn?: string | null;
+}
+
+export interface VocabNotebookLesson {
+  _id: string;
+  title: string;
+  vietnameseTitle?: string;
+  displayOrder: number;
+  totalWords: number;
+  learnedWords: number;
+  masteredWords: number;
+  dueWords: number;
+  words: VocabReviewWord[];
+}
+
+export interface VocabNotebookUnit {
+  _id: string;
+  unitNumber: number;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  color?: string;
+  locked: boolean;
+  totalWords: number;
+  learnedWords: number;
+  masteredWords: number;
+  dueWords: number;
+  lessons: VocabNotebookLesson[];
+}
+
+export interface VocabNotebook {
+  ageGroup: AgeGroupCode;
+  today: string;
+  summary: { total: number; mastered: number; learning: number; dueToday: number };
+  dueToday: VocabReviewWord[];
+  limits: { dailyDueLimit: number; sessionLimit: number };
+  units: VocabNotebookUnit[];
+}
+
+export interface VocabDueList {
+  ageGroup: AgeGroupCode;
+  today: string;
+  total: number;
+  limit: number;
+  data: VocabReviewWord[];
 }
 
 // ─── Parent Notifications (Phase 2) ───────────────────────────────────────────

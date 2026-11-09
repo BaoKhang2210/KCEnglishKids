@@ -14,6 +14,7 @@ interface ScreenShellProps {
   onStreakUpdate?: (updated: ChildStreakData) => void;
   onTabChange?: (tab: string) => void;
   className?: string;
+  hideBottomNav?: boolean;
 }
 
 export const ScreenShell: React.FC<ScreenShellProps> = ({
@@ -26,7 +27,8 @@ export const ScreenShell: React.FC<ScreenShellProps> = ({
   streakData,
   onStreakUpdate,
   onTabChange,
-  className = ''
+  className = '',
+  hideBottomNav = false
 }) => {
   return (
     <div className={`h-dvh w-full flex flex-col overflow-hidden bg-[#fffaf0] select-none ${className}`}>
@@ -64,14 +66,16 @@ export const ScreenShell: React.FC<ScreenShellProps> = ({
       </main>
 
       {/* 3. In-flow Bottom Nav for tablet/mobile (Section A2: shrink-0, not fixed) */}
-      <div className="shrink-0 md:hidden z-30">
-        <ChildBottomNav
-          totalStars={totalStars}
-          completedCount={completedCount}
-          activeTab={activeTab}
-          onTabChange={onTabChange || (() => {})}
-        />
-      </div>
+      {!hideBottomNav && (
+        <div className="shrink-0 xl:hidden z-30">
+          <ChildBottomNav
+            totalStars={totalStars}
+            completedCount={completedCount}
+            activeTab={activeTab}
+            onTabChange={onTabChange || (() => {})}
+          />
+        </div>
+      )}
     </div>
   );
 };

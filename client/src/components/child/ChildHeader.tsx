@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound } from 'lucide-react';
+import { LogOut, Map, Compass, BookOpen, Gamepad2, Award, BookMarked, KeyRound, PlayCircle, BookOpenCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { ChildBadgesModal } from './ChildBadgesModal';
+import { ChildProfileModal, getChildAvatarEmoji } from './ChildProfileModal';
 import { ParentNotebookModal } from './ParentNotebookModal';
 import { DailyStreakBadge } from './DailyStreakBadge';
 import { DailyStreakModal } from './DailyStreakModal';
 import { streakApi, parentNotificationApi } from '../../services/api';
-import { StudentAvatar } from '../common/StudentAvatar';
 import type { ChildStreakData } from '../../types';
 
 interface ChildHeaderProps {
@@ -32,6 +32,8 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
   const location = useLocation();
 
   const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [avatarImgError, setAvatarImgError] = useState(false);
   const [showParentModal, setShowParentModal] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [localStreakData, setLocalStreakData] = useState<ChildStreakData | null>(propStreakData || null);
@@ -83,12 +85,14 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
   const currentAge = user?.ageGroupCode || '3-4';
   const searchParams = new URLSearchParams(location.search);
-  const currentTab = propActiveTab || searchParams.get('tab') || (location.pathname.startsWith('/topics') ? 'topics' : 'path');
+  const currentTab = propActiveTab || searchParams.get('tab') || (location.pathname.startsWith('/topics') ? 'topics' : location.pathname.startsWith('/videos') ? 'videos' : 'path');
 
-  const isPathActive = currentTab === 'path' && !location.pathname.startsWith('/topics');
+  const isPathActive = currentTab === 'path' && !location.pathname.startsWith('/topics') && !location.pathname.startsWith('/videos');
   const isTopicsActive = currentTab === 'topics' || location.pathname.startsWith('/topics');
+  const isVideosActive = currentTab === 'videos' || location.pathname.startsWith('/videos');
   const isVocabActive = currentTab === 'vocab';
   const isGamesActive = currentTab === 'games' || currentTab === 'arcade';
+  const isDiaryActive = currentTab === 'diary' || currentTab === 'history';
   const isBadgesActive = currentTab === 'badges';
 
   const ageOptions: { code: string; book: string; ageLabel: string; color: string }[] = [
@@ -127,12 +131,12 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
               </div>
             </button>
 
-            {/* Desktop navigation: 5 destinations */}
-            <div className="hidden xl:flex items-center gap-2 2xl:gap-4 ml-4 2xl:ml-6 pl-4 2xl:pl-6 border-l-2 border-amber-200/80 flex-shrink-0">
+            {/* Desktop navigation: 6 destinations */}
+            <div className="hidden xl:flex items-center gap-1 2xl:gap-2 ml-2 2xl:ml-6 pl-2 2xl:pl-6 border-l-2 border-amber-200/80 flex-shrink-0">
               
               <button
                 onClick={() => handleNav('path')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isPathActive
                     ? 'bg-amber-400 text-amber-950 shadow-[inset_0_-3px_0_#b45309]'
                     : 'text-slate-600 hover:bg-amber-100/70 hover:text-amber-900 border-2 border-transparent hover:border-amber-200 shadow-2xs'
@@ -145,7 +149,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
 
               <button
                 onClick={() => handleNav('topics')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isTopicsActive
                     ? 'bg-emerald-500 text-white shadow-[inset_0_-3px_0_#047857]'
                     : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 border-2 border-transparent hover:border-emerald-200 shadow-2xs'
@@ -157,8 +161,21 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
               </button>
 
               <button
+                onClick={() => handleNav('videos')}
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  isVideosActive
+                    ? 'bg-indigo-500 text-white shadow-[inset_0_-3px_0_#4338ca]'
+                    : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-900 border-2 border-transparent hover:border-indigo-200 shadow-2xs'
+                }`}
+                style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+              >
+                <PlayCircle className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isVideosActive ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[14px] 2xl:text-[16px] leading-none">Video</span>
+              </button>
+
+              <button
                 onClick={() => handleNav('vocab')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-4 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isVocabActive
                     ? 'bg-rose-500 text-white shadow-[inset_0_-3px_0_#be123c]'
                     : 'text-slate-600 hover:bg-rose-50 hover:text-rose-900 border-2 border-transparent hover:border-rose-200 shadow-2xs'
@@ -166,12 +183,12 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <BookMarked className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isVocabActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Từ vựng</span>
+<span className="text-[14px] 2xl:text-[16px] leading-none">Sổ từ vựng</span>
               </button>
 
               <button
                 onClick={() => handleNav('games')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isGamesActive
                     ? 'bg-sky-500 text-white shadow-[inset_0_-3px_0_#0369a1]'
                     : 'text-slate-600 hover:bg-sky-50 hover:text-sky-900 border-2 border-transparent hover:border-sky-200 shadow-2xs'
@@ -179,12 +196,25 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Gamepad2 className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isGamesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Trò chơi</span>
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Trò chơi</span>
+              </button>
+
+              <button
+                onClick={() => handleNav('diary')}
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  isDiaryActive
+                    ? 'bg-orange-500 text-white shadow-[inset_0_-3px_0_#c2410c]'
+                    : 'text-slate-600 hover:bg-orange-50 hover:text-orange-900 border-2 border-transparent hover:border-orange-200 shadow-2xs'
+                }`}
+                style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+              >
+                <BookOpenCheck className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isDiaryActive ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Nhật ký</span>
               </button>
 
               <button
                 onClick={() => handleNav('badges')}
-                className={`px-3 2xl:px-5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-2 2xl:px-3.5 py-2 2xl:py-2.5 rounded-[20px] font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                   isBadgesActive
                     ? 'bg-purple-500 text-white shadow-[inset_0_-3px_0_#6d28d9]'
                     : 'text-slate-600 hover:bg-purple-50 hover:text-purple-900 border-2 border-transparent hover:border-purple-200 shadow-2xs'
@@ -192,7 +222,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
               >
                 <Award className={`w-6 h-6 2xl:w-7 2xl:h-7 ${isBadgesActive ? 'text-white' : 'text-slate-500'}`} />
-                <span className="text-[14px] 2xl:text-[16px] leading-none">Bộ sưu tập</span>
+                <span className="text-[14px] 2xl:text-[15px] leading-none">Bộ sưu tập</span>
               </button>
             </div>
           </div>
@@ -211,25 +241,47 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 }}
               />
 
-              {/* Child Profile Pill (Clickable - opens Badges & Stars Modal) */}
-
+              {/* Child Profile Pill (Always visible on navbar: Avatar, Name, Book, Age + opens ChildProfileModal with integrated Change PIN) */}
               {user && (
                 <button
                   onClick={() => {
                     sfx.playPop();
-                    setShowBadgesModal(true);
+                    setShowProfileModal(true);
                   }}
-                  className="hidden lg:flex items-center gap-2 sm:gap-3 bg-amber-50/90 hover:bg-amber-100 border-2 border-amber-200/80 hover:border-amber-300 pl-1.5 pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs"
-                  title={`Hồ sơ của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel}`}
+                  className="flex items-center gap-2 sm:gap-2.5 bg-amber-50/95 hover:bg-amber-100 border-2 border-amber-300/90 hover:border-amber-400 pl-1.5 pr-2.5 sm:pr-3.5 py-1 sm:py-1.5 rounded-[20px] cursor-pointer transition-all shadow-2xs active:scale-95 flex-shrink-0"
+                  title={`Thông tin của ${user.name} · ${currentOption.book} · ${currentOption.ageLabel} (Bấm để xem hồ sơ & đổi mã PIN)`}
                 >
-                  <StudentAvatar student={user as any} size="sm" rounded="rounded-[14px]" />
-                  <span className="flex flex-col items-start leading-tight">
-                    <span className="font-black text-[15px] sm:text-[16px] text-slate-800 whitespace-nowrap" style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}>
+                  <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-[14px] bg-amber-100 border-2 border-amber-300 flex items-center justify-center p-0.5 flex-shrink-0">
+                    {user.avatarUrl && !avatarImgError ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.name}
+                        onError={() => setAvatarImgError(true)}
+                        className="w-full h-full object-contain rounded-[10px]"
+                      />
+                    ) : (
+                      <span className="text-lg sm:text-xl leading-none" aria-hidden="true">
+                        {getChildAvatarEmoji(user.avatar)}
+                      </span>
+                    )}
+                    <span
+                      className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border border-white flex items-center justify-center text-amber-950 shadow-2xs"
+                      aria-hidden="true"
+                    >
+                      <KeyRound className="w-2.5 h-2.5 stroke-[2.5]" />
+                    </span>
+                  </div>
+                  <span className="flex flex-col items-start leading-tight text-left">
+                    <span
+                      className="font-black text-[13px] sm:text-[15px] text-slate-800 whitespace-nowrap max-w-[110px] sm:max-w-[150px] truncate"
+                      style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
+                    >
                       {user.name}
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-700 whitespace-nowrap">
-                      <BookOpen className="h-3 w-3" aria-hidden="true" />
-                      {currentOption.book} <span className="text-amber-100/80">· {currentOption.ageLabel}</span>
+                      <BookOpen className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                      <span>{currentOption.book}</span>
+                      <span className="text-amber-800/80">· {currentOption.ageLabel}</span>
                     </span>
                   </span>
                 </button>
@@ -250,7 +302,7 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                   📒
                 </span>
                 <span 
-                  className="hidden sm:inline font-black text-[13px] sm:text-[14px] text-amber-950 whitespace-nowrap"
+                  className="hidden 2xl:inline font-black text-[13px] sm:text-[14px] text-amber-950 whitespace-nowrap"
                   style={{ fontFamily: "'Quicksand', 'Nunito', sans-serif" }}
                 >
                   Sổ liên lạc
@@ -258,19 +310,6 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
                 {unreadNotifCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 border-2 border-white ring-2 ring-rose-300 animate-pulse" />
                 )}
-              </button>
-
-              {/* Change Password */}
-              <button
-                onClick={() => {
-                  sfx.playPop();
-                  navigate('/child/change-pin');
-                }}
-                title="Đổi mật khẩu của bé"
-                aria-label="Đổi mật khẩu của bé"
-                className="p-2 sm:p-3.5 rounded-[18px] bg-[#211d18] hover:bg-[#332819] text-slate-300 hover:text-amber-200 border border-slate-700 hover:border-amber-700 shadow-sm transition-colors cursor-pointer flex-shrink-0"
-              >
-                <KeyRound className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
               {/* Switch Player / Logout */}
@@ -286,6 +325,19 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Thông tin của bé & Đổi mã PIN Modal */}
+      <ChildProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        bookLabel={currentOption.book}
+        ageLabel={currentOption.ageLabel}
+        ageCode={currentOption.code}
+        totalStars={totalStars}
+        completedCount={completedCount}
+        streakDays={localStreakData?.streak || 1}
+        onOpenBadges={() => setShowBadgesModal(true)}
+      />
 
       {/* Sổ liên lạc Phụ huynh Modal */}
       {showParentModal && user && (

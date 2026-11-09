@@ -27,11 +27,19 @@ exports.createAssignment = wrap(async (req, res) => {
   const lesson = await Lesson.findOne({ _id: b.lessonId, status: 'ACTIVE' });
   if (!lesson) fail('Bài học đã bị ẩn hoặc không tồn tại.');
   if (lesson.ageGroupCode && room.ageGroupCode && lesson.ageGroupCode !== room.ageGroupCode) fail('Bài giao không phù hợp nhóm tuổi của lớp.');
+  const gameCatalogRules = require('../../../shared/learningGames.json');
+  const minigameId = b.minigameId ? String(b.minigameId).trim() : '';
+  if (minigameId && !gameCatalogRules.some(g => g.id === minigameId)) fail('Minigame được chọn không hợp lệ.');
   if (b.activityId && (!validId(b.activityId) || !await Activity.exists({ _id: b.activityId, lesson: b.lessonId, status: 'ACTIVE' }))) fail('Hoạt động không thuộc bài học hoặc đã bị ẩn.');
-  const activitySnapshot = await Activity.find({ lesson: b.lessonId, status: 'ACTIVE', ...(b.activityId ? { _id: b.activityId } : {}) }).distinct('_id');
-  if (!activitySnapshot.length) {
+  const activitySnapshot = minigameId
+    ? []
+    : await Activity.find({ lesson: b.lessonId, status: 'ACTIVE', ...(b.activityId ? { _id: b.activityId } : {}) }).distinct('_id');
+  if (!minigameId && !activitySnapshot.length) {
     if(b.activityId || !lesson.vocabularyItems?.length) fail('Bài học chưa có hoạt động đang mở để giao bài.');
     await require('../services/contentReadiness').assertPublishable(lesson);
+  }
+  if (minigameId && (!lesson.vocabularyItems || lesson.vocabularyItems.length < 2)) {
+    fail('Bài học cần có ít nhất 2 từ vựng để giao Minigame.');
   }
   const target = b.assignedToType || 'CLASS';
   if (target === 'STUDENT' && !room.students.some(s => idOf(s) === b.studentId)) fail('Học sinh không thuộc lớp.');
@@ -40,9 +48,12 @@ exports.createAssignment = wrap(async (req, res) => {
   const child = target === 'STUDENT' ? await access.child(req, b.studentId) : null;
   const studied = await require('../services/homeworkProposal').studiedLessonIds(room, child);
   if (!studied.includes(idOf(lesson))) fail('Chỉ giao ôn bài đã học có buổi dạy, tiến độ hoặc quan sát được ghi nhận.');
-  const contentSnapshot = await Activity.find({ _id: { $in: activitySnapshot } }).lean();
+  const contentSnapshot = activitySnapshot.length ? await Activity.find({ _id: { $in: activitySnapshot } }).lean() : [];
   const item = await Assignment.create({ teacher: req.user._id, classRoom: room._id, assignedToType: target,
-    student: target === 'STUDENT' ? b.studentId : null, recipients, activitySnapshot, contentSnapshot, completionMode: b.activityId ? 'ACTIVITY' : 'LESSON', lesson: b.lessonId, activity: b.activityId || null,
+    student: target === 'STUDENT' ? b.studentId : null, recipients, activitySnapshot, contentSnapshot,
+    completionMode: minigameId ? 'MINIGAME' : (b.activityId ? 'ACTIVITY' : 'LESSON'),
+    minigameId: minigameId || null,
+    lesson: b.lessonId, activity: minigameId ? null : (b.activityId || null),
     ...rules.assignmentDates(b.startDate, b.dueDate), instructions: rules.text(b.instructions) });
   res.status(201).json({ success: true, data: item });
 });

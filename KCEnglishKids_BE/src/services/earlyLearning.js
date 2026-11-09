@@ -2,10 +2,12 @@ const ages = require('../../../shared/earlyLearning.json');
 const { fail, text } = require('./teacherRules');
 const DAY = 86400000;
 function reviewDueAt(record) {
+  if (record.nextReviewAt) return new Date(record.nextReviewAt);
   const last = new Date(record.lastReviewedAt || 0);
   if (!Number.isFinite(last.getTime())) return new Date(0);
   // Configurable teaching heuristic, not a standardized ability assessment.
-  const interval = record.masteryLevel < 3 ? 1 : record.streak >= 6 ? 7 : 3;
+  const spacedStreak = record.masteryAlgorithmVersion >= 2 ? record.practiceDaysCount >= 6 : record.streak >= 6;
+  const interval = record.masteryLevel < 3 ? 1 : spacedStreak ? 7 : 3;
   return new Date(last.getTime() + interval * DAY);
 }
 function lessonGuide(lesson, ageCode) {

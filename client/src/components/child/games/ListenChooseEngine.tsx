@@ -1,6 +1,7 @@
 import React from 'react';
 import { Volume2, Sparkles, Check, HelpCircle } from 'lucide-react';
 import type { ActivityQuestion, ActivityOption } from '../../../types';
+import { wordArt } from '../../../utils/learningArt';
 
 interface ListenChooseEngineProps {
   question: ActivityQuestion;
@@ -26,9 +27,9 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
   textChoiceMode = false,
 }) => {
   return (
-    <div className="practice-a-layout flex h-full min-h-0 flex-col items-center justify-center gap-0 w-full max-w-[1320px] mx-auto">
+    <div className="practice-a-layout flex h-full min-h-0 min-w-0 flex-col items-center gap-[clamp(0.25rem,1.2dvh,0.75rem)] overflow-visible py-1 w-full max-w-[1320px] mx-auto">
       {/* Big Prompt Audio Button */}
-      <div className="practice-a-speaker mb-7 flex shrink-0 flex-col items-center text-center">
+      <div className="practice-a-speaker flex shrink-0 flex-col items-center text-center">
         {!practiceMode && <span className="inline-flex items-center gap-2 bg-sky-200 text-sky-950 font-black px-5 py-2 rounded-full text-lg sm:text-2xl mb-3 border-2 border-sky-300 shadow-sm">
           <Sparkles className="w-5 h-5 text-sky-600" />
           {practiceMode ? 'Listen and choose!' : 'Chạm loa để nghe từ và chọn hình đúng nhé!'}
@@ -37,9 +38,9 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
         <button
           onClick={onPlayPrompt}
           aria-label="Nghe lại từ"
-          className="btn-kid w-[clamp(88px,22vh,120px)] h-[clamp(88px,22vh,120px)] rounded-full bg-gradient-to-tr from-sky-400 via-blue-500 to-indigo-600 hover:from-sky-300 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-sky-200/60"
+          className="btn-kid h-[clamp(56px,11dvh,88px)] w-[clamp(56px,11dvh,88px)] rounded-full bg-gradient-to-tr from-sky-400 via-blue-500 to-indigo-600 hover:from-sky-300 hover:to-indigo-500 text-white flex items-center justify-center shadow-2xl active:scale-95 transition-all cursor-pointer ring-4 ring-sky-200/60 motion-reduce:transform-none"
         >
-          <Volume2 className="w-12 h-12 sm:w-14 sm:h-14" />
+          <Volume2 className="h-[clamp(28px,6dvh,40px)] w-[clamp(28px,6dvh,40px)]" />
         </button>
 
         {!practiceMode && <span className="mt-4 text-2xl sm:text-4xl font-black text-slate-800 bg-white/90 px-6 py-2 rounded-3xl border-2 border-slate-200 shadow-sm tracking-wide">"{question.promptText}"</span>}
@@ -55,23 +56,29 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
           : 'grid-cols-4 max-w-6xl';
 
         return (
-          <div className={`practice-a-choices mt-7 grid ${gridClass} grid-rows-1 gap-3 sm:gap-5 w-full mx-auto px-2 max-h-[min(42vh,280px)]`}>
+          <div className={`practice-a-choices mt-0 grid flex-1 min-h-0 h-full ${gridClass} grid-rows-1 items-stretch gap-[clamp(0.375rem,1.2vw,1.25rem)] w-full mx-auto px-2 py-1`}>
             {question.options.map((opt, optionIndex) => {
               const isSelected = selectedOptionId === opt.id;
               const isRevealed = revealOptionId === opt.id && feedbackState === 'idle';
               let cardStyle = 'border-amber-200 hover:border-amber-400 bg-white hover:scale-103';
 
               if (isRevealed) {
-                cardStyle = 'border-emerald-500 bg-emerald-50 ring-8 ring-emerald-300 animate-pulse';
+                cardStyle = 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 animate-pulse';
               } else if (isSelected) {
                 if (feedbackState === 'correct') {
-                  cardStyle = 'border-emerald-500 bg-emerald-50 ring-8 ring-emerald-300 animate-soft-bounce';
+                  cardStyle = 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-300 animate-soft-bounce';
                 } else if (feedbackState === 'wrong') {
                   cardStyle = practiceMode
-                    ? 'border-amber-500 bg-amber-50 ring-8 ring-amber-300 animate-gentle-wobble'
-                    : 'border-rose-500 bg-rose-50 ring-8 ring-rose-300 animate-gentle-wobble';
+                    ? 'border-amber-500 bg-amber-50 ring-4 ring-amber-300 animate-gentle-wobble'
+                    : 'border-rose-500 bg-rose-50 ring-4 ring-rose-300 animate-gentle-wobble';
                 }
               }
+
+              const cleanArt = wordArt(opt.text || '');
+              const rawImg = opt.imageUrl || '';
+              const resolvedImg = (!rawImg || rawImg.startsWith('data:image/svg+xml')) && cleanArt?.url
+                ? cleanArt.url
+                : rawImg;
 
               return (
                 <button
@@ -79,14 +86,14 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
                   onClick={() => onSelectOption(opt)}
                   disabled={feedbackState !== 'idle' || disabledOptionIds.includes(opt.id)}
                   aria-label={practiceMode && feedbackState === 'idle' && !isRevealed ? `Lựa chọn hình ${optionIndex + 1}` : opt.text || 'Chọn hình'}
-                  className={`btn-kid min-w-0 min-h-[96px] h-full rounded-3xl border-4 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 text-center cursor-pointer shadow-xl hover:shadow-2xl transition-all relative overflow-hidden group ${cardStyle}`}
+                  className={`btn-kid min-w-0 min-h-[96px] h-full rounded-3xl border-4 p-[clamp(0.375rem,1vh,1rem)] flex flex-col items-center justify-center gap-2 text-center cursor-pointer shadow-xl hover:shadow-2xl transition-all relative overflow-visible group motion-reduce:transform-none ${cardStyle}`}
                 >
                   {/* Visual Card Image */}
-                  {!textChoiceMode && <div className="flex-1 min-h-0 w-full max-h-[min(28vh,210px)] aspect-square rounded-3xl bg-amber-50/70 group-hover:bg-amber-100 flex items-center justify-center p-3 transition-colors">
-                    {opt.imageUrl ? (
+                  {!textChoiceMode && <div className="flex-1 min-h-0 w-full max-h-full rounded-3xl bg-amber-50/70 group-hover:bg-amber-100 flex items-center justify-center p-[clamp(0.25rem,1.2vh,0.75rem)] transition-colors">
+                    {resolvedImg ? (
                       <img
-                        src={opt.imageUrl}
-                        alt={practiceMode ? '' : opt.text}
+                        src={resolvedImg}
+                        alt=""
                         className="w-full h-full object-contain filter drop-shadow group-hover:scale-105 transition-transform"
                       />
                     ) : (
@@ -95,9 +102,9 @@ export const ListenChooseEngine: React.FC<ListenChooseEngineProps> = ({
                   </div>}
                   {textChoiceMode && <span className="flex-1 flex items-center justify-center text-3xl font-black text-slate-800 capitalize">{opt.text}</span>}
 
-                  {(!practiceMode || (feedbackState === 'correct' && opt.isCorrect)) && <span className="font-black text-2xl sm:text-3xl lg:text-4xl text-slate-800 capitalize leading-tight">{opt.text}</span>}
+                  {!practiceMode && <span className="font-black text-2xl sm:text-3xl lg:text-4xl text-slate-800 capitalize leading-tight">{opt.text}</span>}
 
-                  {opt.vietnameseText && (!practiceMode || (feedbackState === 'correct' && opt.isCorrect)) && (
+                  {opt.vietnameseText && !practiceMode && (
                     <span className="text-base sm:text-lg font-bold text-slate-500 leading-snug">
                       ({opt.vietnameseText})
                     </span>

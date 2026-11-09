@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Droplets, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { lessonsApi, stageProgressApi, topicsApi } from '../../services/api';
+import { useRewards } from '../../context/RewardContext';
+import { lessonsApi, stageProgressApi, topicsApi, vocabReviewApi } from '../../services/api';
 import type { Lesson, Vocabulary } from '../../types';
-import { sfx } from '../../utils/audio';
+import { sfx, stopWordAudio } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
 import { Stage2PracticeFlow } from '../../components/child/lesson/Stage2PracticeFlow';
+import type { Stage2EvidenceAnswer, Stage2ServerReport } from '../../components/child/lesson/stage2ReportTypes';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { ParentInfoDrawer } from '../../components/child/lesson/ParentInfoDrawer';
 import { GamesTab, REQUIRED_GAMES_TO_COMPLETE } from '../../games/hub/GamesTab';
@@ -18,6 +20,13 @@ import { LockedStageDialog } from '../../components/child/lesson/LockedStageDial
 import { useActiveLearningTime } from '../../hooks/useActiveLearningTime';
 
 const childIdFor = (user: any) => user?._id || user?.id || 'child_guest';
+const friendlySyncError = (message: string) => {
+  if (message.includes('Complete earlier lessons first')) return 'Bé cần hoàn thành bài học trước trong hành trình rồi mới lưu được chặng này.';
+  if (message.includes('Complete previous stages first')) return 'Hãy hoàn thành chặng trước rồi thử đồng bộ lại nhé.';
+  if (message.includes('Kế hoạch luyện tập hết hạn') || message.includes('Kế hoạch không khớp')) return 'Kế hoạch luyện tập đã thay đổi. Hãy mở lại bài khi có mạng và chơi lại chặng này.';
+  if (message.includes('Game targets do not match')) return 'Minigame đã thay đổi nên kết quả cũ chưa thể ghi nhận. Hãy mở lại bài khi có mạng và chơi lại minigame.';
+  return 'Máy chủ chưa nhận được kết quả này. Hãy kết nối mạng, mở lại bài và thử đồng bộ.';
+};
 const cache = {
   getItem(key: string) { try { return localStorage.getItem(key); } catch { return null; } },
   setItem(key: string, value: string) { try { localStorage.setItem(key, value); } catch { /* UI cache only */ } },
@@ -26,10 +35,14 @@ const cache = {
 
 export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const requestedGameParam = searchParams.get('game') as GameId | null;
   const { user } = useAuth();
+  const { refresh: refreshRewards } = useRewards();
   const navigate = useNavigate();
 
   const [plan,setPlan] = useState<any>(null);
+  const [lessonProgress, setLessonProgress] = useState<any>(null);
   const [loadError,setLoadError] = useState('');
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +55,8 @@ export const LessonDetailPage: React.FC = () => {
   const lockedStageTriggerRef = useRef<HTMLElement | null>(null);
   const stageButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [showParentDrawer, setShowParentDrawer] = useState(false);
+  const [warmupDue, setWarmupDue] = useState(0);
+  const [warmupDismissed, setWarmupDismissed] = useState(false);
 
   const childId = user?._id || user?.id || 'child_guest';
   const takeLearningSeconds = useActiveLearningTime(childId + ':' + id, Boolean(lesson && !loading && user?.role === 'CHILD'));
@@ -53,7 +68,8 @@ export const LessonDetailPage: React.FC = () => {
     }
 
     let cancelled = false;
-    setLoading(true); setLesson(null); setPlan(null); setLoadError('');setCompletedGames([]);
+    setLoading(true); setLesson(null); setPlan(null); setLessonProgress(null); setLoadError('');setCompletedGames([]);
+    setWarmupDue(0); setWarmupDismissed(false);
     const fetchLesson = async () => {
       try {
         if (!id) return;
@@ -62,15 +78,21 @@ export const LessonDetailPage: React.FC = () => {
         if (cancelled) return;
         if (res.success) {
           if(user.role==='CHILD'){
-            const response = await stageProgressApi.getPlan(childId, id);
-            const saved = response.data;
-            if(cancelled)return;setPlan(saved);
+            try {
+              const response = await stageProgressApi.getPlan(childId, id);
+              const saved = response?.data;
+              if(cancelled)return;
+              if (saved) setPlan(saved);
+            } catch (err) {
+              if (import.meta.env.DEV) console.warn('[ProgressService] Error fetching plan:', err);
+            }
           }
           setLesson(res.data);
 
           try {
             const progRes = await stageProgressApi.getLessonProgress(childId, id);
             if (cancelled) return;
+            setLessonProgress(progRes.data || null);
             const hasPending = learningOutbox.pending(childId).some(row => row.lessonId === id);
             if (hasPending) setCompletedGames(JSON.parse(cache.getItem(`kc_stage3_games_${childId}_${id}`) || '[]'));
             if (!hasPending && !progRes.data) {
@@ -97,11 +119,21 @@ export const LessonDetailPage: React.FC = () => {
             /* offline fallback */
           }
 
+          try {
+            const dueRes = await vocabReviewApi.getDue(childId, 1);
+            if (!cancelled) setWarmupDue(Number(dueRes.data?.total) || 0);
+          } catch {
+            /* The warm-up is only a suggestion; offline keeps lesson flow intact. */
+          }
+
           const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
           const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
           const savedActive = cache.getItem(`kc_stage_active_${childId}_${id}`);
-          if (savedActive === '3' && savedStage2) {
+          if (requestedGameParam && (savedStage2 || user.role !== 'CHILD')) {
+            setActiveStage(3);
+            setActiveGameId(requestedGameParam);
+          } else if (savedActive === '3' && savedStage2) {
             setActiveStage(3);
           } else if (savedActive === '2' && savedStage1) {
             setActiveStage(2);
@@ -160,9 +192,17 @@ export const LessonDetailPage: React.FC = () => {
     if(user?.role!=='CHILD')return true;
     const scope = childId + ':' + id;
     try {
-      await learningOutbox.enqueue(childId, id, { ...payload, durationSeconds: takeLearningSeconds() });
+      const saved = await learningOutbox.enqueue(childId, id, { ...payload, durationSeconds: takeLearningSeconds() });
       if (activeScope.current !== scope) return false;
-      setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : 'Đã lưu kết quả.');
+      const stagePending = learningOutbox.pending(childId).some(row => row.lessonId === id);
+      if (saved.offline || stagePending) {
+        setSyncNotice('Kết quả đang chờ đồng bộ. Kết nối mạng để ghi nhận sao và mở chặng tiếp theo.');
+        return false;
+      }
+      // Successful progress is already reflected by the lesson UI. Avoid a
+      // persistent success banner over the learning activity.
+      setSyncNotice('');
+      void refreshRewards();
       return true;
     } catch (error: any) {
       if (activeScope.current === scope) setSyncNotice(error.message || 'Chưa lưu được kết quả. Hãy kiểm tra bộ nhớ và thử lại.');
@@ -170,13 +210,41 @@ export const LessonDetailPage: React.FC = () => {
     }
   };
   useEffect(() => {
-    const status = () => { setSyncNotice(learningOutbox.pending(childId).length ? 'Kết quả đang chờ đồng bộ. Hãy kết nối mạng và thử lại.' : ''); refresh(n => n + 1); };
+    const status = () => {
+      const pending = learningOutbox.pending(childId);
+      const rejected = learningOutbox.rejected(childId);
+      setSyncNotice(!pending.length ? '' : rejected
+        ? friendlySyncError(rejected)
+        : 'Kết quả đang chờ đồng bộ. Kết nối mạng để ghi nhận sao và mở chặng tiếp theo.');
+      if (!pending.length && id) {
+        const scope = childId + ':' + id;
+        void stageProgressApi.getLessonProgress(childId, id).then((response) => {
+          if (activeScope.current !== scope || !response?.data) return;
+          const progress = response.data;
+          setLessonProgress(progress);
+          setCompletedGames(progress.stage3Games || []);
+          for (const [stage, completed] of [[1, progress.stage1Completed], [2, progress.stage2Completed], [3, progress.stage3Completed]] as const) {
+            const key = `kc_stage${stage}_${childId}_${id}`;
+            if (completed) cache.setItem(key, 'true');
+            else cache.removeItem(key);
+          }
+        }).catch(() => {});
+      }
+      refresh(n => n + 1);
+    };
     const retry = () => { void learningOutbox.flush(childId); };
     window.addEventListener('online', retry); window.addEventListener('kc_learning_sync', status); status();
     return () => { window.removeEventListener('online', retry); window.removeEventListener('kc_learning_sync', status); };
-  }, [childId]);
+  }, [childId, id]);
   const handleGameCompleted = async (gameId: string, _stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => {
-    if (!await persistStage({stage: 3, gameId, answers,attemptToken:plan?.games.find((game:any)=>game.id===gameId)?.attemptToken})) return;
+    try {
+      const gamePlans = plan?.allGames || plan?.games || [];
+      const saved = await persistStage({stage: 3, gameId, answers,attemptToken:gamePlans.find((game:any)=>game.id===gameId)?.attemptToken});
+      if (!saved) return;
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 3 game:', e);
+      return;
+    }
     const nextCompleted = Array.from(new Set([...completedGames, gameId]));
     setCompletedGames(nextCompleted);
     cache.setItem(`kc_stage3_games_${childId}_${id}`, JSON.stringify(nextCompleted));
@@ -187,8 +255,9 @@ export const LessonDetailPage: React.FC = () => {
     const topicId = typeof lesson?.topic === 'object' ? (lesson.topic as any)?._id : lesson?.topic;
     if (!topicId || !id) return;
     let cancelled = false;
+    const activeChildId = user?.role === 'CHILD' ? childId : undefined;
     topicsApi
-      .getLessonsByTopic(String(topicId), user?.ageGroupCode, childId)
+      .getLessonsByTopic(String(topicId), user?.ageGroupCode, activeChildId)
       .then((res: any) => {
         if (cancelled || !res?.success) return;
         const pool: Vocabulary[] = [];
@@ -202,9 +271,20 @@ export const LessonDetailPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [lesson, id, user?.ageGroupCode, childId]);
+  }, [lesson, id, user?.ageGroupCode, user?.role, childId]);
 
-  const handleStartGame = (gameId: string) => {
+  const handleStartGame = async (gameId: string) => {
+    let activePlan = plan;
+    const hasGamePlan = (p: any) => (p?.allGames || p?.games)?.some((game: any) => game.id === gameId && game.attemptToken && game.targetOrder?.length);
+    if (!hasGamePlan(activePlan)) {
+      try {
+        const response = await stageProgressApi.getPlan(childId, id || '');
+        activePlan = response?.data;
+        if (activePlan) setPlan(activePlan);
+      } catch {
+        activePlan = null;
+      }
+    }
     sfx.playPop();
     setActiveGameId(gameId as GameId);
   };
@@ -226,19 +306,48 @@ export const LessonDetailPage: React.FC = () => {
       return;
     }
     sfx.playPop();
+    stopWordAudio();
+    setActiveGameId(null);
     setLockedStage(null);
     setActiveStage(stage);
     cache.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
   };
 
   const handleCompleteStage1 = async () => {
-    if (!await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)})) return;
-    sfx.playSuccess(); cache.setItem(`kc_stage1_${childId}_${id}`, 'true'); setActiveStage(2);
+    try {
+      const saved = await persistStage({stage: 1, visitedWordIds: (lesson?.vocabularyItems || []).map(word => word._id)});
+      if (!saved) return;
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 1:', e);
+      return;
+    }
+    sfx.playSuccess();
+    cache.setItem(`kc_stage1_${childId}_${id}`, 'true');
+    setActiveStage(2);
   };
-  const handleCompleteStage2 = async (stats?: {score: number; stars: number; answers: Array<{wordId: string; round: number; selectedId: string | null}>}) => {
-    if (isStage2Completed && !stats?.answers.length) { setActiveStage(3); return; }
-    if (!stats?.answers.length || !await persistStage({stage: 2, answers: stats.answers,attemptToken:plan?.stage2Token})) return;
-    sfx.playSuccess(); cache.setItem(`kc_stage2_${childId}_${id}`, 'true'); setActiveStage(3);
+  const handleCompleteStage2 = async (stats?: { answers: Stage2EvidenceAnswer[]; submissionId?: string }): Promise<Stage2ServerReport | null> => {
+    if (isStage2Completed && !stats?.answers.length) {
+      stopWordAudio();
+      setActiveStage(3);
+      return lessonProgress?.stage2Report || null;
+    }
+    if (stats?.answers.length) {
+      try {
+        const saved = await persistStage({stage: 2, answers: stats.answers, attemptToken:plan?.stage2Token, submissionId: stats.submissionId});
+        if (!saved) return null;
+        const progressResponse = await stageProgressApi.getLessonProgress(childId, id || '');
+        const confirmedProgress = progressResponse.data;
+        if (!confirmedProgress?.stage2Completed) return null;
+        setLessonProgress(confirmedProgress);
+        cache.setItem(`kc_stage2_${childId}_${id}`, 'true');
+        sfx.playSuccess();
+        return confirmedProgress.stage2Report || null;
+      } catch (e) {
+        if (import.meta.env.DEV) console.warn('[ProgressService] Error persisting stage 2:', e);
+        return null;
+      }
+    }
+    return null;
   };
 
   const topicIcon = (lesson as any)?.topic?.icon || '🌟';
@@ -275,6 +384,9 @@ export const LessonDetailPage: React.FC = () => {
           <h1 className="text-xs sm:text-sm font-black text-slate-800 truncate leading-tight">
             {lesson?.title || 'Lesson'}
           </h1>
+          <p className="truncate text-[10px] font-bold leading-tight text-indigo-700 sm:text-xs" aria-label={`Đang học Unit ${unitNumber}, Lesson ${lessonNumber}`}>
+            Unit {unitNumber} · Lesson {lessonNumber}
+          </p>
         </div>
       </div>
 
@@ -346,7 +458,7 @@ export const LessonDetailPage: React.FC = () => {
 
   return (
     <>
-    {syncNotice && <div role="status" className="fixed bottom-2 left-2 right-2 z-[200] rounded-xl bg-amber-100 p-2 text-sm text-slate-900 text-center">{syncNotice} <button className="underline font-bold" onClick={() => void learningOutbox.flush(childId)}>Đồng bộ lại</button></div>}
+    {syncNotice && <div role="status" className="fixed right-3 top-16 z-[200] max-w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl border border-amber-300 bg-amber-50/95 p-3 text-sm font-semibold text-slate-900 shadow-lg backdrop-blur-sm">{syncNotice}{learningOutbox.pending(childId).length > 0 && <button className="ml-2 inline-flex min-h-10 items-center rounded-xl bg-amber-200 px-3 font-black underline" onClick={() => void learningOutbox.retryRejected(childId)}>Đồng bộ lại</button>}</div>}
     <ScreenShell
       completedCount={completedCount}
       titleBar={titleBarElement}
@@ -364,6 +476,14 @@ export const LessonDetailPage: React.FC = () => {
         </div>
       ) : (
         <div className="w-full h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+          {user?.role === 'CHILD' && warmupDue > 0 && !warmupDismissed && !isStage1Completed && (
+            <div className="flex shrink-0 items-center gap-2 rounded-2xl border-2 border-sky-200 bg-sky-50 px-2 py-1 text-slate-900">
+              <Droplets className="h-5 w-5 shrink-0 text-sky-600" aria-hidden="true" />
+              <p className="min-w-0 flex-1 truncate text-xs font-black sm:text-sm">Có {warmupDue} từ sắp quên. Ôn nhanh 3 từ trước khi học nhé?</p>
+              <button type="button" onClick={() => navigate('/?tab=vocab&review=1')} className="min-h-9 shrink-0 rounded-xl bg-sky-700 px-2 text-xs font-black text-white">Ôn nhanh</button>
+              <button type="button" onClick={() => setWarmupDismissed(true)} aria-label="Để sau" className="grid min-h-9 min-w-9 shrink-0 place-items-center rounded-xl bg-white text-slate-700"><X className="h-4 w-4" /></button>
+            </div>
+          )}
           {/* ACTIVE STAGE CONTENT — fills all space */}
           <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             {/* STAGE 1: KHÁM PHÁ */}
@@ -381,9 +501,11 @@ export const LessonDetailPage: React.FC = () => {
               <div className="w-full h-full min-h-0 flex flex-col overflow-hidden">
                 <Stage2PracticeFlow key={childId + ':' + id}
                   vocabulary={lesson.vocabularyItems || []}
+                  distractorVocabulary={distractorPool}
                   lessonId={id || ''}
                   stage2Completed={isStage2Completed}
                   ageGroup={user?.ageGroupCode}
+                  stage2Report={lessonProgress?.stage2Report || null}
                   unitNumber={unitNumber}
                   lessonNumber={lessonNumber}
                   onBackToStage1={() => {
@@ -397,24 +519,14 @@ export const LessonDetailPage: React.FC = () => {
 
             {/* STAGE 3: VUI CHƠI */}
             {activeStage === 3 && (
-              <>
-                <GamesTab
-                  allowedGameIds={plan?.games.map((game: any) => game.id)}
-                  vocabularyList={lesson.vocabularyItems || []}
-                  unitNumber={unitNumber}
-                  lessonNumber={lessonNumber}
-                  completedGameIds={completedGames}
-                  isStage3Completed={isStage3Completed}
-                  onSelectGame={handleStartGame}
-                />
-
-                {activeGameId && (
+              <div className="relative flex flex-col flex-1 min-h-0 w-full h-full overflow-hidden">
+                {activeGameId ? (
                   <GameRunner
                     allowedGameIds={plan?.games.map((game: any) => game.id)}
                     key={activeGameId}
                     config={{
-                      targetOrder:plan?.games.find((game:any)=>game.id===activeGameId)?.targetOrder,
-                      attemptToken:plan?.games.find((game:any)=>game.id===activeGameId)?.attemptToken,
+                      targetOrder:(plan?.allGames || plan?.games)?.find((game:any)=>game.id===activeGameId)?.targetOrder,
+                      attemptToken:(plan?.allGames || plan?.games)?.find((game:any)=>game.id===activeGameId)?.attemptToken,
                       unitId: (lesson as any)?.unit?._id
                         || (lesson as any)?.curriculumUnits?.[0]?._id
                         || (lesson as any)?.unitId
@@ -432,8 +544,18 @@ export const LessonDetailPage: React.FC = () => {
                     onGameComplete={handleGameCompleted}
                     onNextGame={(nextId) => setActiveGameId(nextId as GameId)}
                   />
+                ) : (
+                  <GamesTab
+                    allowedGameIds={plan?.games.map((game: any) => game.id)}
+                    vocabularyList={lesson.vocabularyItems || []}
+                    unitNumber={unitNumber}
+                    lessonNumber={lessonNumber}
+                    completedGameIds={completedGames}
+                    isStage3Completed={isStage3Completed}
+                    onSelectGame={handleStartGame}
+                  />
                 )}
-              </>
+              </div>
             )}
 
           </div>

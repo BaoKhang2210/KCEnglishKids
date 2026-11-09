@@ -1,5 +1,6 @@
 const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
+const { computeStarLedger } = require('./starLedgerService');
 
 /**
  * §1.2 — Server-side reward engine.
@@ -131,13 +132,14 @@ const checkAndGrantUnitCompletion = async (childId, lessonId) => {
  *   reveals the already-granted sticker.
  */
 const computeRewards = async (childId) => {
-  const [progressDocs, completions, classroomSessions, homePracticeCompletions] = await Promise.all([
+  const [progressDocs, completions, classroomSessions, homePracticeCompletions, starLedger] = await Promise.all([
     Progress.find({ child: childId }).select('stars completed lesson completionSnapshot'),
     UnitCompletion.find({ child: childId })
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
     ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores'),
-    HomePracticeCompletion.find({ child: childId }).select('stars')
+    HomePracticeCompletion.find({ child: childId }).select('stars'),
+    computeStarLedger(childId)
   ]);
 
   const completedLessonIds = progressDocs.filter((p) => p.completed).map((p) => p.lesson).filter(Boolean);
@@ -165,16 +167,20 @@ const computeRewards = async (childId) => {
     resultsByLesson.get(key).push(result);
   }
 
-  const lessonStarsById = new Map();
-  const earnedStars = progressDocs.reduce((sum, progress) => {
+  // Preserve the existing badge/unlock thresholds independently while the
+  // displayed star total now comes only from the active curriculum ledger.
+  const legacyLessonStarsById = new Map();
+  const legacyEarnedStars = progressDocs.reduce((sum, progress) => {
     if (!progress.completed || !progress.lesson) return sum;
     const key = String(progress.lesson);
     const rating = calculateLessonStars(activitiesByLesson.get(key) || [], resultsByLesson.get(key) || []);
     const stars = progress.completionSnapshot?.source === 'STAGES' ? progress.stars : rating.completed ? rating.stars : (progress.stars || 0);
-    lessonStarsById.set(key, stars);
+    legacyLessonStarsById.set(key, stars);
     return sum + stars;
   }, 0);
-  const completedLessons = progressDocs.filter((p) => p.completed).length;
+  // Keep the badge counters' historical behavior; the active-curriculum
+  // completion counts live under starLedger for the journey UI.
+  const completedLessons = progressDocs.filter(progress => progress.completed).length;
 
   let classroomStars = 0;
   for (const cs of classroomSessions) {
@@ -214,9 +220,16 @@ const computeRewards = async (childId) => {
   const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
     .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
   const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
+  const legacyBonusStars = completions.reduce((sum, completion) => {
+    const reward = (completion.rewards || []).find(item => item.type === 'STAR');
+    return sum + (reward ? reward.amount || 0 : 0);
+  }, 0);
+  const badgeProgressStars = legacyEarnedStars + legacyBonusStars + classroomStars + teacherStars + homePracticeStars;
+  const totalStars = (starLedger?.totalStars || 0) + homePracticeStars;
+  const earnedStars = starLedger?.units?.reduce((sum, unit) => sum + unit.lessonStars, 0) || legacyEarnedStars;
+  bonusStars = (starLedger?.units?.reduce((sum, unit) => sum + unit.bonusStars, 0) || 0) + legacyBonusStars;
   const homeStars = earnedStars + bonusStars + (teacherStars || 0) + (homePracticeStars || 0);
   const classStars = classroomStars;
-  const totalStars = homeStars + classStars;
 
   let explorerLevel = {
     level: 1,
@@ -225,10 +238,10 @@ const computeRewards = async (childId) => {
     icon: '🌱',
     minStars: 0,
     maxStars: 50,
-    currentStars: totalStars,
-    progressPercent: Math.min(100, Math.round((totalStars / 50) * 100))
+    currentStars: badgeProgressStars,
+    progressPercent: Math.min(100, Math.round((badgeProgressStars / 50) * 100))
   };
-  if (totalStars > 300) {
+  if (badgeProgressStars > 300) {
     explorerLevel = {
       level: 4,
       title: 'Đại Sứ Anh Ngữ Nhí',
@@ -236,10 +249,10 @@ const computeRewards = async (childId) => {
       icon: '👑',
       minStars: 300,
       maxStars: 500,
-      currentStars: totalStars,
+      currentStars: badgeProgressStars,
       progressPercent: 100
     };
-  } else if (totalStars > 150) {
+  } else if (badgeProgressStars > 150) {
     explorerLevel = {
       level: 3,
       title: 'Bạn Nhỏ Tự Tin',
@@ -247,10 +260,10 @@ const computeRewards = async (childId) => {
       icon: '🦁',
       minStars: 151,
       maxStars: 300,
-      currentStars: totalStars,
-      progressPercent: Math.min(100, Math.round(((totalStars - 150) / 150) * 100))
+      currentStars: badgeProgressStars,
+      progressPercent: Math.min(100, Math.round(((badgeProgressStars - 150) / 150) * 100))
     };
-  } else if (totalStars > 50) {
+  } else if (badgeProgressStars > 50) {
     explorerLevel = {
       level: 2,
       title: 'Thám Hiểm Tí Hon',
@@ -258,13 +271,16 @@ const computeRewards = async (childId) => {
       icon: '🎒',
       minStars: 51,
       maxStars: 150,
-      currentStars: totalStars,
-      progressPercent: Math.min(100, Math.round(((totalStars - 50) / 100) * 100))
+      currentStars: badgeProgressStars,
+      progressPercent: Math.min(100, Math.round(((badgeProgressStars - 50) / 100) * 100))
     };
   }
 
   return {
     totalStars,
+    maxStars: starLedger?.maxStars || 150,
+    starLedger,
+    badgeProgressStars,
     homePracticeStars,
     homeStars,
     classStars,
@@ -274,7 +290,7 @@ const computeRewards = async (childId) => {
     classroomStars,
     completedUnits: completions.length,
     completedLessons,
-    perfectLessons: progressDocs.filter((p) => p.completed && lessonStarsById.get(String(p.lesson)) >= 3).length,
+    perfectLessons: progressDocs.filter((p) => p.completed && legacyLessonStarsById.get(String(p.lesson)) >= 3).length,
     totalLessonsAttempted: progressDocs.length,
     openedChests,
     grantedStickerIds,
