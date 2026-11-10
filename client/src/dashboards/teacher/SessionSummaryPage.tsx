@@ -105,17 +105,28 @@ export const SessionSummaryPage: React.FC = () => {
         <p className="mt-2 text-inherit text-lg">
           {session.title}
         </p>
-        <div className="mt-3 inline-flex items-center gap-2 bg-black/10 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold text-inherit">
+        <div className="mt-3 inline-flex flex-wrap items-center justify-center gap-2 bg-black/10 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold text-inherit">
           <span>🏫 Lớp: {(session.classroom as any)?.name || 'Chưa xác định'}</span>
           {(session.classroom as any)?.ageGroupCode && (
             <span className="bg-black/10 px-2.5 py-0.5 rounded-full text-xs font-black">
               {(session.classroom as any)?.ageGroupCode} tuổi
             </span>
           )}
+          {Boolean(session.plannedDuration) && (
+            <span className="bg-black/10 px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
+              ⏱ Kế hoạch: {session.plannedDuration} phút
+            </span>
+          )}
         </div>
         <p className="text-sm text-inherit mt-2">
           {fmt(session.startedAt)}
-          {session.endedAt && ` · ${duration} phút`}
+          {session.endedAt && (
+            <span>
+              {' · '}
+              Thực dạy: {duration} phút
+              {session.plannedDuration ? ` (kế hoạch: ${session.plannedDuration} phút)` : ''}
+            </span>
+          )}
         </p>
       </div>
 
@@ -145,6 +156,7 @@ export const SessionSummaryPage: React.FC = () => {
             icon={<Clock size={22} className="text-violet-800" />}
             label="Thời lượng"
             value={`${duration} phút`}
+            sublabel={session.plannedDuration ? `Kế hoạch: ${session.plannedDuration} phút` : undefined}
             bg="bg-violet-50"
           />
         </div>
@@ -325,17 +337,24 @@ const MetricCard = ({
   icon,
   label,
   value,
+  sublabel,
   bg
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  sublabel?: string;
   bg: string;
 }) => (
-  <div className={`rounded-2xl border border-slate-200 bg-white p-5 ${bg} border-0`}>
-    <div className="mb-2">{icon}</div>
-    <p className="text-2xl font-black text-slate-900">{value}</p>
-    <p className="text-xs text-slate-600 mt-1">{label}</p>
+  <div className={`rounded-2xl border border-slate-200 bg-white p-5 ${bg} border-0 flex flex-col justify-between`}>
+    <div>
+      <div className="mb-2">{icon}</div>
+      <p className="text-2xl font-black text-slate-900">{value}</p>
+    </div>
+    <div className="mt-1">
+      <p className="text-xs text-slate-600 font-medium">{label}</p>
+      {sublabel && <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{sublabel}</p>}
+    </div>
   </div>
 );
 
