@@ -3532,23 +3532,23 @@ export const LiveSessionPage: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-label="Ghi nhận nội dung và kết thúc buổi học"
-            className="relative w-full max-w-xl max-h-[96dvh] bg-slate-900 border-2 border-white/20 rounded-3xl p-4 sm:p-5 text-white space-y-3 animate-pop-in shadow-2xl"
+            className="relative w-full max-w-2xl max-h-[96dvh] bg-slate-900 border-2 border-white/20 rounded-3xl p-5 sm:p-6 text-white space-y-4 animate-pop-in shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl shrink-0">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl sm:text-2xl shrink-0">
                   🛑
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg font-black text-white truncate">Kết Thúc Hoặc Tạm Dừng Buổi Học</h3>
-                  <p className="text-xs text-slate-400 font-medium truncate">Chọn trạng thái để lưu kết quả và kết thúc buổi dạy</p>
+                  <h3 className="text-base sm:text-lg font-black text-white">Kết Thúc Hoặc Tạm Dừng Buổi Học</h3>
+                  <p className="text-xs sm:text-sm text-slate-400 font-medium">Chọn trạng thái để lưu kết quả và kết thúc buổi dạy</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsExitModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 transition-colors cursor-pointer shrink-0"
+                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
               >
                 ✕
               </button>
@@ -3558,20 +3558,20 @@ export const LiveSessionPage: React.FC = () => {
             <SessionClosureForm guide={session.teachingGuide} coverage={coverage} onCoverage={setCoverage} />
 
             {/* Action Options in 2 Columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Option 1: Complete and view summary */}
               <button
                 type="button"
                 onClick={handleCompleteAndExit}
                 disabled={ending}
-                className="flex flex-col justify-between p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 border-2 border-emerald-500/50 transition-all cursor-pointer group active:scale-[0.99] disabled:opacity-50 text-left"
+                className="flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 border-2 border-emerald-500/50 transition-all cursor-pointer group active:scale-[0.99] disabled:opacity-50 text-left"
               >
                 <div>
-                  <div className="flex items-center gap-2 text-emerald-300 font-black text-sm mb-1">
-                    <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                    <span>{ending ? 'Đang lưu tổng kết…' : 'Kết Thúc & Xem Tổng Kết'}</span>
+                  <div className="flex items-center gap-2 text-emerald-300 font-black text-sm sm:text-base mb-1.5">
+                    <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                    <span className="whitespace-nowrap">{ending ? 'Đang lưu tổng kết…' : 'Kết Thúc & Xem Tổng Kết'}</span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-snug">
+                  <p className="text-xs sm:text-[13px] text-slate-300 leading-snug">
                     Lưu số sao và tiến độ buổi dạy, chuyển sang màn hình tổng kết để gửi phụ huynh.
                   </p>
                 </div>
@@ -3581,14 +3581,14 @@ export const LiveSessionPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePauseAndExit}
-                className="flex flex-col justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border-2 border-white/15 hover:border-amber-400/50 transition-all cursor-pointer group active:scale-[0.99] text-left"
+                className="flex flex-col justify-between p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border-2 border-white/15 hover:border-amber-400/50 transition-all cursor-pointer group active:scale-[0.99] text-left"
               >
                 <div>
-                  <div className="flex items-center gap-2 text-amber-300 font-black text-sm mb-1">
-                    <Clock size={16} className="text-amber-400 shrink-0" />
-                    <span>Tạm Dừng & Thoát Ra</span>
+                  <div className="flex items-center gap-2 text-amber-300 font-black text-sm sm:text-base mb-1.5">
+                    <Clock size={18} className="text-amber-400 shrink-0" />
+                    <span className="whitespace-nowrap">Tạm Dừng & Thoát Ra</span>
                   </div>
-                  <p className="text-xs text-slate-400 leading-snug">
+                  <p className="text-xs sm:text-[13px] text-slate-400 leading-snug">
                     Lưu điểm số hiện tại và thoát ra ngoài. Bạn có thể mở lại tiếp tục dạy bất cứ lúc nào.
                   </p>
                 </div>
@@ -3596,12 +3596,12 @@ export const LiveSessionPage: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">💡 Điểm số và sao của bé đều đã được tự động lưu.</span>
+            <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <span className="text-xs text-slate-400">💡 Điểm số và sao của bé đều đã được tự động lưu.</span>
               <button
                 type="button"
                 onClick={() => setIsExitModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer whitespace-nowrap text-center"
               >
                 Tiếp tục ở lại dạy học
               </button>
