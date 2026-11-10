@@ -154,17 +154,15 @@ export const ClassroomSessionSetup: React.FC = () => {
     if (!activeClassId) return;
     let cancelled = false;
     setError('');
-    const todayStr = attendanceDate || vietnamDate();
     setLoadingAttendance(true);
 
     Promise.all([
       teacherApi.getClassDetail(activeClassId),
       teacherApi.getContent(),
       classroomSessionApi.getSessions({ classroomId: activeClassId }),
-      teacherApi.getClassAttendance(activeClassId, todayStr),
       teacherApi.getMySchedule()
     ])
-      .then(([cls, cnt, prevSess, attRes, schedRes]) => {
+      .then(([cls, cnt, prevSess, schedRes]) => {
         if (cancelled) return;
         const classData = cls.data;
         setClassroom(classData);
@@ -235,22 +233,15 @@ export const ClassroomSessionSetup: React.FC = () => {
           }
         }
 
-        // Populate attendance records from today's saved records or initialize with PRESENT
+        // Initialize fresh attendance records for new session: all students start as PRESENT (Có mặt)
         const classroomStudents = classData?.students || [];
-        const existingRecords = attRes?.data?.records || [];
-        const existingMap = new Map(existingRecords.map((r: any) => [String(r.student?._id || r.student), r]));
-
-        const merged = classroomStudents.map((st: any) => {
-          const sId = String(st._id || st);
-          const found = existingMap.get(sId) as any;
-          return {
-            student: st,
-            status: found?.status || 'PRESENT',
-            note: found?.note || ''
-          };
-        });
+        const merged = classroomStudents.map((st: any) => ({
+          student: st,
+          status: 'PRESENT',
+          note: ''
+        }));
         setAttendanceRecords(merged);
-        if (attRes?.data?.note) setAttendanceNote(attRes.data.note);
+        setAttendanceNote('');
       })
       .catch((e) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoadingAttendance(false); });
@@ -746,7 +737,7 @@ export const ClassroomSessionSetup: React.FC = () => {
               <p className="text-sm text-slate-700 mt-1 font-medium">
                 {scheduleLiveTiming.nextSlotText ? (
                   <span>
-                  Ca dạy tiếp theo: <strong className="text-amber-950">{scheduleLiveTiming.nextSlotText}</strong>.
+                    Ca dạy tiếp theo: <strong className="text-amber-950">{scheduleLiveTiming.nextSlotText}</strong>.
                   </span>
                 ) : (
                   <span>{scheduleLiveTiming.reason}</span>

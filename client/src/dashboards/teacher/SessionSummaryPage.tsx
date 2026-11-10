@@ -131,7 +131,7 @@ export const SessionSummaryPage: React.FC = () => {
       </div>
 
       <div className="mx-auto w-full max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 py-8">
-        {session.teachingOutcome && <section className="portfolio-card mb-6"><h2 className="font-bold text-xl">Nội dung buổi học</h2><p className="mt-2">{({COMPLETE:'Đã tổ chức đủ mục tiêu bài',CONTINUE:'Cần dạy tiếp ở buổi sau',REVIEW:'Buổi ôn tập, giữ tiến độ hiện tại'})[session.teachingOutcome.coverage]}</p><p className="mt-2">{session.teachingOutcome.reflection}</p><p className="text-sm mt-2 text-slate-600">Đây là ghi nhận nội dung đã dạy; mức tự làm của từng bé được lưu trong hồ sơ quan sát.</p></section>}
+        {session.teachingOutcome && <section className="portfolio-card mb-6"><h2 className="font-bold text-xl">Nội dung buổi học</h2><p className="mt-2">{({ COMPLETE: 'Đã tổ chức đủ mục tiêu bài', CONTINUE: 'Cần dạy tiếp ở buổi sau', REVIEW: 'Buổi ôn tập, giữ tiến độ hiện tại' })[session.teachingOutcome.coverage]}</p><p className="mt-2">{session.teachingOutcome.reflection}</p><p className="text-sm mt-2 text-slate-600">Đây là ghi nhận nội dung đã dạy; mức tự làm của từng bé được lưu trong hồ sơ quan sát.</p></section>}
         {/* ── Metrics ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
           <MetricCard
@@ -159,6 +159,7 @@ export const SessionSummaryPage: React.FC = () => {
             sublabel={session.plannedDuration ? `Kế hoạch: ${session.plannedDuration} phút` : undefined}
             bg="bg-violet-50"
           />
+
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -228,7 +229,7 @@ export const SessionSummaryPage: React.FC = () => {
                           <span className="whitespace-nowrap">⭐ {sc.stars}</span>
                         </td>
                         <td className="py-3">
-                          {['ABSENT','EXCUSED'].includes(sc.attendance || '') ? <span className="text-slate-500">Vắng mặt</span> : ans === 0 ? <span className="text-slate-500">Chưa ghi nhận câu trả lời</span> : <StatusBadge status={sc.status} />}
+                          {['ABSENT', 'EXCUSED'].includes(sc.attendance || '') ? <span className="text-slate-500">Vắng mặt</span> : ans === 0 ? <span className="text-slate-500">Chưa ghi nhận câu trả lời</span> : <StatusBadge status={sc.status} />}
                         </td>
                       </tr>
                     );
