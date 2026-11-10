@@ -233,7 +233,7 @@ export const ClassroomSessionSetup: React.FC = () => {
           }
         }
 
-        // Initialize fresh attendance records for new session: all students start as PRESENT (Có mặt)
+        // Initialize fresh attendance records for new session: all students start as PRESENT
         const classroomStudents = classData?.students || [];
         const merged = classroomStudents.map((st: any) => ({
           student: st,
@@ -378,7 +378,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     );
   };
 
-  const setStudentStatus = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE') => {
+  const setStudentStatus = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') => {
     setAttendanceRecords((prev) =>
       prev.map((r) => {
         const sId = String(r.student?._id || r.student);
@@ -396,7 +396,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     );
   };
 
-  const markAllStatus = (status: 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE') => {
+  const markAllStatus = (status: 'PRESENT' | 'ABSENT' | 'EXCUSED') => {
     setAttendanceRecords((prev) => prev.map((r) => ({ ...r, status })));
   };
 
@@ -1182,7 +1182,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                   <span>Sĩ số: {attendanceRecords.length} học sinh</span>
                   <span>•</span>
                   <span className="text-emerald-800">
-                    {attendanceRecords.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length} có mặt
+                    {attendanceRecords.filter((r) => r.status === 'PRESENT').length} có mặt
                   </span>
                   <span>•</span>
                   <span className="text-rose-800">
@@ -1220,11 +1220,9 @@ export const ClassroomSessionSetup: React.FC = () => {
                       key={sId}
                       className={`rounded-2xl border-2 p-4 transition-all ${r.status === 'PRESENT'
                         ? 'border-emerald-300 bg-emerald-50/50'
-                        : r.status === 'LATE'
-                          ? 'border-amber-300 bg-amber-50/50'
-                          : r.status === 'EXCUSED'
-                            ? 'border-sky-300 bg-sky-50/50'
-                            : 'border-rose-300 bg-rose-50/50'
+                        : r.status === 'EXCUSED'
+                          ? 'border-sky-300 bg-sky-50/50'
+                          : 'border-rose-300 bg-rose-50/50'
                         }`}
                     >
                       <div className="flex items-center gap-3 mb-3">
@@ -1236,8 +1234,8 @@ export const ClassroomSessionSetup: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* 4 Status Pill Buttons */}
-                      <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                      {/* 3 Status Pill Buttons */}
+                      <div className="grid grid-cols-3 gap-2 mb-2.5">
                         <button
                           type="button"
                           onClick={() => setStudentStatus(sId, 'PRESENT')}
@@ -1247,16 +1245,6 @@ export const ClassroomSessionSetup: React.FC = () => {
                             }`}
                         >
                           Có mặt
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStudentStatus(sId, 'LATE')}
-                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${r.status === 'LATE'
-                            ? 'bg-amber-700 text-white'
-                            : 'bg-white text-slate-700 hover:bg-amber-50 border border-slate-200'
-                            }`}
-                        >
-                          Muộn
                         </button>
                         <button
                           type="button"
@@ -1327,7 +1315,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-600 font-semibold">Sĩ số có mặt hôm nay:</span>
                   <span className="font-black text-emerald-800 text-base">
-                    {attendanceRecords.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length} / {attendanceRecords.length} học sinh
+                    {attendanceRecords.filter((r) => r.status === 'PRESENT').length} / {attendanceRecords.length} học sinh
                   </span>
                 </div>
               </div>
