@@ -154,7 +154,7 @@ export const SessionSummaryPage: React.FC = () => {
           />
           <MetricCard
             icon={<Clock size={22} className="text-violet-800" />}
-            label="Thời lượng"
+            label="Thời lượng:"
             value={`${duration} phút`}
             sublabel={session.plannedDuration ? `Kế hoạch: ${session.plannedDuration} phút` : undefined}
             bg="bg-violet-50"
