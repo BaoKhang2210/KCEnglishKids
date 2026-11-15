@@ -63,21 +63,33 @@ router.post('/:childId/parent-notifications/:id/feedback', protect, ownChildOr40
 router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, next) => {
   try {
     const { childId } = req.params;
-    const child = await User.findById(childId).select('assignedClass');
+    const child = await User.findById(childId).select('assignedClass assignedClasses');
     if (!child) return res.status(404).json({ success: false, message: 'Child not found' });
+
+    const enrolledRooms = await ClassRoom.find({ students: childId }).distinct('_id');
+    const classIds = Array.from(new Set([
+      ...(child.assignedClass ? [String(child.assignedClass)] : []),
+      ...((child.assignedClasses || []).map(String)),
+      ...enrolledRooms.map(String)
+    ])).map(id => new (require('mongoose').Types.ObjectId)(id));
+
     const q = {
       status: { $in: ['ASSIGNED', 'IN_PROGRESS'] },
-      classRoom: child.assignedClass || null,
+      $or: [
+        { classRoom: { $in: classIds } },
+        { student: childId },
+        { recipients: childId }
+      ],
       $and: [
         { $or: [{ student: childId }, { assignedToType: 'CLASS' }] },
-        { $or: [{ recipients: { $exists: false } }, { recipients: childId }] },
+        { $or: [{ recipients: { $exists: false } }, { recipients: { $size: 0 } }, { recipients: childId }] },
         { $or: [{ startDate: null }, { startDate: { $lte: new Date() } }] }
       ]
     };
     const assignments = await Assignment.find(q)
-      .populate({ path: 'lesson', select: 'title vietnameseTitle', match: { status: 'ACTIVE' } })
+      .populate({ path: 'lesson', select: 'title vietnameseTitle vocabularyItems status displayOrder' })
       .populate('activity', 'title activityType instructions passingScore maxScore')
-      .populate('teacher', 'name')
+      .populate('teacher', 'name avatar')
       .sort({ createdAt: -1 });
 
     const dataWithStatus = await Promise.all(assignments.filter(a => a.lesson).map(async a => {

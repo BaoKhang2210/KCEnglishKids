@@ -1072,14 +1072,14 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                             sfx.playPop();
                             navigate(
                               a.minigameId
-                                ? `/lessons/${lessonId}?game=${a.minigameId}`
-                                : `/lessons/${lessonId}`
+                                ? `/lessons/${lessonId}?game=${a.minigameId}&stage=3&from=assignment`
+                                : `/lessons/${lessonId}?stage=3&from=assignment`
                             );
                           }}
-                          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-transform"
                         >
                           <Play className="w-3.5 h-3.5 fill-white" />
-                          <span>{a.isCompleted ? 'Làm lại' : 'Làm bài ngay'}</span>
+                          <span>{a.minigameId ? 'Chơi Minigame ôn tập' : a.isCompleted ? 'Chơi lại trò chơi' : 'Vào chơi bài tập'}</span>
                         </button>
                       )}
                     </div>

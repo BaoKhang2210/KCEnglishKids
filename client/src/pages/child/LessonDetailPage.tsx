@@ -89,10 +89,12 @@ export const LessonDetailPage: React.FC = () => {
           }
           setLesson(res.data);
 
+          let progData: any = null;
           try {
             const progRes = await stageProgressApi.getLessonProgress(childId, id);
             if (cancelled) return;
-            setLessonProgress(progRes.data || null);
+            progData = progRes?.data || null;
+            setLessonProgress(progData);
             const hasPending = learningOutbox.pending(childId).some(row => row.lessonId === id);
             if (hasPending) setCompletedGames(JSON.parse(cache.getItem(`kc_stage3_games_${childId}_${id}`) || '[]'));
             if (!hasPending && !progRes.data) {
@@ -126,18 +128,28 @@ export const LessonDetailPage: React.FC = () => {
             /* The warm-up is only a suggestion; offline keeps lesson flow intact. */
           }
 
-          const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
-          const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+          const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true' || Boolean(progData?.stage1Completed) || Boolean(progData?.completed);
+          const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true' || Boolean(progData?.stage2Completed) || Boolean(progData?.completed);
+          const isStudied = Boolean(progData?.completed || progData?.stage3Completed || (progData?.stage1Completed && progData?.stage2Completed));
 
           const savedActive = cache.getItem(`kc_stage_active_${childId}_${id}`);
-          if (requestedGameParam && (savedStage2 || user.role !== 'CHILD')) {
+          const requestedStage = searchParams.get('stage');
+          const isFromAssignment = searchParams.get('from') === 'assignment';
+
+          if (requestedGameParam && (savedStage2 || isStudied || user.role !== 'CHILD')) {
             setActiveStage(3);
             setActiveGameId(requestedGameParam);
-          } else if (savedActive === '3' && savedStage2) {
+          } else if (requestedStage === '3' || (isFromAssignment && (savedStage2 || isStudied))) {
             setActiveStage(3);
-          } else if (savedActive === '2' && savedStage1) {
+          } else if (requestedStage === '2' && (savedStage1 || isStudied)) {
             setActiveStage(2);
-          } else if (savedStage2) {
+          } else if (requestedStage === '1') {
+            setActiveStage(1);
+          } else if (savedActive === '3' && (savedStage2 || isStudied)) {
+            setActiveStage(3);
+          } else if (savedActive === '2' && (savedStage1 || isStudied)) {
+            setActiveStage(2);
+          } else if (savedStage2 || isStudied) {
             setActiveStage(3);
           } else if (savedStage1) {
             setActiveStage(2);
@@ -177,15 +189,27 @@ export const LessonDetailPage: React.FC = () => {
     }
   });
 
+  const isLessonLearned = Boolean(
+    lessonProgress?.completed ||
+    lessonProgress?.stage3Completed ||
+    (lessonProgress?.stage1Completed && lessonProgress?.stage2Completed)
+  );
+
   const isStage1Completed =
-    cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage1_${childId}_${id}`) === 'true' ||
+    Boolean(lessonProgress?.stage1Completed) ||
+    isLessonLearned;
 
   const isStage2Completed =
-    cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage2_${childId}_${id}`) === 'true' ||
+    Boolean(lessonProgress?.stage2Completed) ||
+    isLessonLearned;
 
   const isStage3Completed =
     completedGames.length >= REQUIRED_GAMES_TO_COMPLETE ||
-    cache.getItem(`kc_stage3_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage3_${childId}_${id}`) === 'true' ||
+    Boolean(lessonProgress?.stage3Completed) ||
+    isLessonLearned;
 
   const persistStage = async (payload: Record<string, unknown>) => {
     if (!id) return false;

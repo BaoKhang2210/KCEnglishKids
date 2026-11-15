@@ -25,6 +25,7 @@ router.post('/classes/:id/students', c.addStudents);
 router.delete('/classes/:id/students/:studentId', c.removeStudent);
 router.get('/classes/:id/attendance', c.getClassAttendance);
 router.post('/classes/:id/attendance', c.saveClassAttendance);
+router.get('/classes/:id/curriculum-progress', require('../controllers/adminController').getClassroomCurriculumProgress);
 
 router.get('/content', c.getContent);
 router.get('/curriculum-options', c.getCurriculumOptions);

@@ -690,6 +690,7 @@ export const teacherApi = {
   getDashboard: () => api.get('/teacher/dashboard'),
   getClasses: () => api.get('/teacher/classes'),
   getClassDetail: (id: string) => api.get(`/teacher/classes/${id}`),
+  getClassCurriculumProgress: (id: string) => api.get(`/teacher/classes/${id}/curriculum-progress`),
   updateClass: (id: string, data: any) => api.put(`/teacher/classes/${id}`, data),
   getEligibleStudents: (id: string, search?: string) => api.get(`/teacher/classes/${id}/eligible-students${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   addStudents: (id: string, studentIds: string[]) => api.post(`/teacher/classes/${id}/students`, { studentIds }),

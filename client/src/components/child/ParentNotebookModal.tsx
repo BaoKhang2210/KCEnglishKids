@@ -215,7 +215,11 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
     if (assignment.activity?._id) {
       navigate(`/activities/${assignment.activity._id}`);
     } else if (assignment.lesson?._id) {
-      navigate(`/lessons/${assignment.lesson._id}`);
+      navigate(
+        assignment.minigameId
+          ? `/lessons/${assignment.lesson._id}?game=${assignment.minigameId}&stage=3&from=assignment`
+          : `/lessons/${assignment.lesson._id}?stage=3&from=assignment`
+      );
     }
   };
 

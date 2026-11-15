@@ -59,15 +59,17 @@ export const ChildHeader: React.FC<ChildHeaderProps> = ({
           console.error('Failed to load streak in header:', err);
         });
 
-      parentNotificationApi.getChildNotificationsForParent(childId)
-        .then((res) => {
-          const list = res.data || [];
-          const unread = list.filter((n: any) => !n.readAt).length;
-          setUnreadNotifCount(unread);
-        })
-        .catch(() => {
-          setUnreadNotifCount(0);
-        });
+      Promise.all([
+        parentNotificationApi.getChildNotificationsForParent(childId).catch(() => ({ data: [] })),
+        parentNotificationApi.getChildAssignments(childId).catch(() => ({ data: [] }))
+      ]).then(([notifRes, assignRes]) => {
+        const list = notifRes.data || [];
+        const unread = list.filter((n: any) => !n.readAt).length;
+        const uncompletedAssign = (assignRes.data || []).filter((a: any) => !a.isCompleted).length;
+        setUnreadNotifCount(unread + uncompletedAssign);
+      }).catch(() => {
+        setUnreadNotifCount(0);
+      });
     }
   }, [propStreakData, user]);
 

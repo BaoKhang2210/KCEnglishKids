@@ -1866,6 +1866,10 @@ const getClassroomFullDetail = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
 
+    if (req.user && req.user.role === 'TEACHER' && String(classroom.teacher?._id || classroom.teacher) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Bạn không phụ trách lớp học này.' });
+    }
+
     const bookNumber = classroom.ageGroupCode === '3-4' ? 1 : classroom.ageGroupCode === '4-5' ? 2 : 3;
     const [schedules, units, recentSessions, attendanceRecords] = await Promise.all([
       Schedule.find({ classroom: id }).populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder').sort({ createdAt: -1 }).lean(),
@@ -2978,6 +2982,10 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
 
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
+    }
+
+    if (req.user && req.user.role === 'TEACHER' && String(classroom.teacher?._id || classroom.teacher) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Bạn không phụ trách lớp học này.' });
     }
 
     const bookNumber = classroom.ageGroupCode === '3-4' ? 1 : classroom.ageGroupCode === '4-5' ? 2 : 3;

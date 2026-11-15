@@ -189,6 +189,7 @@ export const LiveSessionPage: React.FC = () => {
 
   // Late Attendance Modal
   const [isLateAttendanceModalOpen, setIsLateAttendanceModalOpen] = useState(false);
+  const [attendanceModalTab, setAttendanceModalTab] = useState<'ABSENT' | 'ATTENDING'>('ABSENT');
 
   // Mini-game in classroom state (7 Trò chơi tương tác Koko)
   const [gamesCategory, setGamesCategory] = useState<'curriculum' | 'interactive'>('curriculum');
@@ -612,7 +613,7 @@ export const LiveSessionPage: React.FC = () => {
   };
 
   // ── Per-student scoring with Joyous Celebration & Instant Real-time Feedback ──────
-    const handleMarkAttendance = async (studentId: string, attendanceStatus: 'PRESENT' | 'LATE' = 'LATE') => {
+    const handleMarkAttendance = async (studentId: string, attendanceStatus: 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED' = 'LATE') => {
     try {
       await classroomSessionApi.updateStudentAttendance(sessionId, studentId, attendanceStatus);
       const matches = (row: StudentSessionScore) => (typeof row.student === 'string' ? row.student : row.student._id) === studentId;
@@ -623,7 +624,11 @@ export const LiveSessionPage: React.FC = () => {
       const row = session?.studentScores.find(matches);
       const name = row && typeof row.student === 'object' ? row.student.name : 'bé';
       sfx.playPop();
-      showToast(`Đã điểm danh cho ${name} vào lớp (${attendanceStatus === 'LATE' ? 'Đến trễ' : 'Có mặt'})! 🎉`);
+      if (attendanceStatus === 'ABSENT') {
+        showToast(`Đã chuyển ${name} về trạng thái VẮNG mặt (Hoàn tác thành công).`);
+      } else {
+        showToast(`Đã điểm danh cho ${name} vào lớp (${attendanceStatus === 'LATE' ? 'Đến trễ' : 'Có mặt'})! 🎉`);
+      }
     } catch (e: any) {
       showToast(e?.message || 'Không thể cập nhật điểm danh. Vui lòng thử lại.');
     }
@@ -825,17 +830,19 @@ export const LiveSessionPage: React.FC = () => {
               <span>{totalStars} sao</span>
             </span>
 
-            {absentScores.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setIsLateAttendanceModalOpen(true)}
-                className="flex items-center gap-1 rounded-xl bg-rose-500/25 hover:bg-rose-500/35 border border-rose-400/50 px-2 py-0.5 text-xs font-black text-rose-300 cursor-pointer active:scale-95 transition-all animate-pulse"
-                title="Có học sinh vắng. Nhấn để điểm danh cho bé đến trễ vào lớp"
-              >
-                <UserCheck size={13} className="text-rose-400" />
-                <span>{absentScores.length} vắng • Vào lớp</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsLateAttendanceModalOpen(true)}
+              className={`flex items-center gap-1 rounded-xl px-2.5 py-0.5 text-xs font-black cursor-pointer active:scale-95 transition-all ${
+                absentScores.length > 0
+                  ? 'bg-rose-500/25 hover:bg-rose-500/35 border border-rose-400/50 text-rose-300 animate-pulse'
+                  : 'bg-white/10 hover:bg-white/20 border border-white/20 text-slate-300'
+              }`}
+              title="Điểm danh và xử lý bé đến trễ / vắng mặt"
+            >
+              <UserCheck size={13} className={absentScores.length > 0 ? 'text-rose-400' : 'text-emerald-400'} />
+              <span>{absentScores.length > 0 ? `${absentScores.length} vắng • Điểm danh` : 'Điểm danh lớp'}</span>
+            </button>
           </div>
         </div>
 
@@ -3610,18 +3617,18 @@ export const LiveSessionPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Late Attendance Modal (Cho bé đến trễ vào lớp) ───────────── */}
+      {/* ── Late Attendance Modal (Cho bé đến trễ vào lớp & Xử lý bấm nhầm) ───────────── */}
       {isLateAttendanceModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-emerald-400/50 p-6 shadow-2xl text-white">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border-2 border-emerald-400/50 p-6 shadow-2xl text-white">
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <UserCheck size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Điểm Danh Bé Đến Trễ</h3>
-                  <p className="text-xs text-slate-400 font-medium">Bấm vào tên để cho bé vào lớp học ngay</p>
+                  <h3 className="text-base font-black text-white">Điểm Danh & Học Sinh Vào Trễ</h3>
+                  <p className="text-xs text-slate-400 font-medium">Cho bé vào lớp hoặc hoàn tác đánh dấu vắng nếu bấm nhầm</p>
                 </div>
               </div>
               <button
@@ -3633,49 +3640,133 @@ export const LiveSessionPage: React.FC = () => {
               </button>
             </div>
 
-            {absentScores.length === 0 ? (
-              <div className="py-8 text-center text-slate-400">
-                <CheckCircle2 size={40} className="mx-auto mb-2 text-emerald-400" />
-                <p className="font-bold text-white">Cả lớp đã có mặt đầy đủ!</p>
-                <p className="text-xs mt-1">Không còn bé nào vắng mặt trong buổi học này.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {absentScores.map((sc) => {
-                  const stu = sc.student as User;
-                  const sId = typeof sc.student === 'string' ? sc.student : stu?._id || '';
-                  const sName = stu?.name || 'Học sinh';
-                  return (
-                    <div
-                      key={sId}
-                      className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-400/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <StudentAvatar student={stu} size="sm" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-extrabold text-white truncate">{sName}</p>
-                          <span className="text-[10px] font-bold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">
-                            Đang ghi nhận: Vắng
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleMarkAttendance(sId, 'PRESENT');
-                        }}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
+            {/* Sub-tabs: Absent vs Attending */}
+            <div className="flex rounded-xl bg-white/10 p-1 mb-4 gap-1">
+              <button
+                type="button"
+                onClick={() => setAttendanceModalTab('ABSENT')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  attendanceModalTab === 'ABSENT'
+                    ? 'bg-rose-500/80 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>Chưa vào lớp</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/30">
+                  {absentScores.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAttendanceModalTab('ATTENDING')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  attendanceModalTab === 'ATTENDING'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>Đang trong lớp</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/30">
+                  {scores.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Tab 1: Absent Students */}
+            {attendanceModalTab === 'ABSENT' && (
+              absentScores.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <CheckCircle2 size={40} className="mx-auto mb-2 text-emerald-400" />
+                  <p className="font-bold text-white">Tất cả các bé đều đã có mặt!</p>
+                  <p className="text-xs mt-1">Không còn bé nào vắng mặt trong buổi học này.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {absentScores.map((sc) => {
+                    const stu = sc.student as User;
+                    const sId = typeof sc.student === 'string' ? sc.student : stu?._id || '';
+                    const sName = stu?.name || 'Học sinh';
+                    return (
+                      <div
+                        key={sId}
+                        className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-400/40 transition-colors"
                       >
-                        <UserCheck size={14} />
-                        <span>Vào lớp</span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <StudentAvatar student={stu} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-white truncate">{sName}</p>
+                            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">
+                              Đang ghi nhận: Vắng
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleMarkAttendance(sId, 'PRESENT');
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
+                        >
+                          <UserCheck size={14} />
+                          <span>Cho vào lớp</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
             )}
 
-            <div className="mt-5 pt-3 border-t border-white/10 flex justify-end">
+            {/* Tab 2: Attending Students (Allows Undo if Clicked by Mistake) */}
+            {attendanceModalTab === 'ATTENDING' && (
+              scores.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <p className="font-bold text-white">Chưa có bé nào vào lớp.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {scores.map((sc) => {
+                    const stu = sc.student as User;
+                    const sId = typeof sc.student === 'string' ? sc.student : stu?._id || '';
+                    const sName = stu?.name || 'Học sinh';
+                    return (
+                      <div
+                        key={sId}
+                        className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <StudentAvatar student={stu} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-white truncate">{sName}</p>
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                              {sc.attendance === 'LATE' ? 'Đến trễ' : 'Có mặt'}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Bạn có chắc muốn chuyển bé "${sName}" về trạng thái VẮNG (xử lý bấm nhầm)?`)) {
+                              void handleMarkAttendance(sId, 'ABSENT');
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-300 hover:text-white font-extrabold text-xs active:scale-95 cursor-pointer transition-all shrink-0"
+                          title="Bấm để hoàn tác nếu bạn lỡ bấm nhầm bé vào học"
+                        >
+                          <X size={13} />
+                          <span>Bấm nhầm: Đánh dấu vắng</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 font-medium">
+                💡 Thay đổi trạng thái sẽ đồng bộ ngay lập tức.
+              </span>
               <button
                 type="button"
                 onClick={() => setIsLateAttendanceModalOpen(false)}

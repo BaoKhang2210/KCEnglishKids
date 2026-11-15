@@ -5,7 +5,7 @@ import { compareLessons, lessonPosition, bilingualLessonTitle } from '../../util
 import React, { useEffect, useMemo, useState } from 'react';
 import { ObservationPortfolio } from '../../components/teacher/ObservationPortfolio';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, ArrowUpDown, Send, Brain } from 'lucide-react';
+import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, ArrowUpDown, Send, Brain, UserCheck } from 'lucide-react';
 import { api, teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
 import { ParentNoteSuggestions } from './ParentNoteSuggestions';
@@ -1412,6 +1412,26 @@ export const TeacherStudents = () => {
   const [quickSubject, setQuickSubject] = useState('Nhận xét học tập');
   const [sendingNote, setSendingNote] = useState(false);
 
+  // Class attendance modal state
+  const [classAttendanceModal, setClassAttendanceModal] = useState<any>(null);
+  const [classAttendanceData, setClassAttendanceData] = useState<any>(null);
+  const [loadingClassAttendance, setLoadingClassAttendance] = useState(false);
+  const [attendanceFilter, setAttendanceFilter] = useState<'ALL' | 'ABSENT_ONLY' | 'PERFECT_ONLY'>('ALL');
+
+  const handleOpenClassAttendance = async (c: any) => {
+    setClassAttendanceModal(c);
+    setLoadingClassAttendance(true);
+    setAttendanceFilter('ALL');
+    try {
+      const res = await teacherApi.getClassCurriculumProgress(c._id);
+      setClassAttendanceData(res.data);
+    } catch (e: any) {
+      console.error('Error fetching class curriculum progress:', e);
+    } finally {
+      setLoadingClassAttendance(false);
+    }
+  };
+
   const quickReviewChips = [
     '🌟 Bé học rất chăm chỉ và hăng hái phát biểu.',
     '👏 Bé phát âm rất to, rõ ràng và chuẩn ngữ điệu.',
@@ -1615,6 +1635,15 @@ export const TeacherStudents = () => {
                       <Play size={13} className="fill-white" /> Dạy lớp này
                     </Link>
 
+                    <button
+                      type="button"
+                      onClick={() => handleOpenClassAttendance(classInfo)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3.5 py-2 text-xs font-bold text-purple-900 transition-all cursor-pointer"
+                      title="Xem tổng hợp tỷ lệ chuyên cần và số buổi đi học của học sinh trong lớp"
+                    >
+                      <UserCheck size={13} className="text-purple-700" /> Chuyên cần lớp
+                    </button>
+
                     <Link
                       to={`/teacher/schedule?classroomId=${classInfo._id}`}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-800 transition-all cursor-pointer"
@@ -1692,6 +1721,25 @@ export const TeacherStudents = () => {
                                 <b className="text-indigo-950 font-black text-sm">{lessons}</b>
                               </div>
                             </div>
+
+                            {/* Chuyên cần */}
+                            {s.attendance && (
+                              <div className="mt-2.5 flex items-center justify-between text-xs bg-slate-50 border border-slate-200/70 px-2.5 py-1.5 rounded-xl">
+                                <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                                  <UserCheck size={12} className={s.attendance.attendanceRate >= 90 ? 'text-emerald-600' : 'text-amber-600'} />
+                                  <span>Chuyên cần:</span>
+                                </span>
+                                <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${
+                                  s.attendance.attendanceRate >= 90
+                                    ? 'bg-emerald-100 text-emerald-950'
+                                    : s.attendance.attendanceRate >= 80
+                                    ? 'bg-teal-100 text-teal-950'
+                                    : 'bg-rose-100 text-rose-950'
+                                }`}>
+                                  {s.attendance.attendanceRate}% ({s.attendance.present + s.attendance.late}/{s.attendance.totalSessions || (s.attendance.present + s.attendance.late + s.attendance.absent + s.attendance.excused)} buổi)
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Action Buttons */}
@@ -1864,6 +1912,175 @@ export const TeacherStudents = () => {
           competencyReport={competencyStudent.competencyReport}
         />
       )}
+
+      {/* Modal: Bảng Chuyên Cần Lớp Học */}
+      {classAttendanceModal && (
+        <Modal
+          title={`Bảng Chuyên Cần — Lớp ${classAttendanceModal.name}`}
+          maxWidth="max-w-4xl"
+          close={() => {
+            setClassAttendanceModal(null);
+            setClassAttendanceData(null);
+          }}
+        >
+          <div className="space-y-4">
+            {loadingClassAttendance ? (
+              <div className="py-12 text-center text-slate-500">
+                <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
+                Đang tổng hợp dữ liệu chuyên cần của lớp...
+              </div>
+            ) : (() => {
+              const studentsList = classAttendanceData?.studentAttendanceSummary || [];
+              const totalSessions = classAttendanceData?.recentSessions?.length || 0;
+              const perfectCount = studentsList.filter((s: any) => (s.attendanceRate || 100) >= 95).length;
+              const hasAbsenceCount = studentsList.filter((s: any) => (s.absent || 0) > 0 || (s.excused || 0) > 0).length;
+
+              const filteredList = studentsList.filter((item: any) => {
+                if (attendanceFilter === 'ABSENT_ONLY') {
+                  return (item.absent || 0) > 0 || (item.excused || 0) > 0;
+                }
+                if (attendanceFilter === 'PERFECT_ONLY') {
+                  return (item.attendanceRate || 100) >= 95;
+                }
+                return true;
+              });
+
+              return (
+                <div className="space-y-4">
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-3.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-purple-700">Sĩ số lớp</p>
+                      <p className="text-2xl font-black text-purple-950 mt-0.5">{studentsList.length} bé</p>
+                      <p className="text-xs font-semibold text-purple-700 mt-1">Đã tổ chức {totalSessions} buổi học</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Chuyên cần 100%</p>
+                      <p className="text-2xl font-black text-emerald-950 mt-0.5">{perfectCount} bé</p>
+                      <p className="text-xs font-semibold text-emerald-700 mt-1">Không nghỉ buổi nào</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Có buổi vắng / nghỉ</p>
+                      <p className="text-2xl font-black text-amber-950 mt-0.5">{hasAbsenceCount} bé</p>
+                      <p className="text-xs font-semibold text-amber-700 mt-1">Cần theo dõi & động viên</p>
+                    </div>
+                  </div>
+
+                  {/* Filter Toolbar */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceFilter('ALL')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                          attendanceFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Tất cả ({studentsList.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceFilter('ABSENT_ONLY')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                          attendanceFilter === 'ABSENT_ONLY' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Có vắng ({hasAbsenceCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceFilter('PERFECT_ONLY')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                          attendanceFilter === 'PERFECT_ONLY' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Đi đủ 100% ({perfectCount})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Attendance Table */}
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-700 font-black border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                        <tr>
+                          <th className="py-3 px-3.5">Học sinh</th>
+                          <th className="py-3 px-2.5 text-center">Có mặt</th>
+                          <th className="py-3 px-2.5 text-center">Đến trễ</th>
+                          <th className="py-3 px-2.5 text-center">Nghỉ phép</th>
+                          <th className="py-3 px-2.5 text-center">Vắng</th>
+                          <th className="py-3 px-3 text-center">Tỷ lệ chuyên cần</th>
+                          <th className="py-3 px-3 text-right">Chi tiết</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredList.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-8 text-center text-slate-500 font-semibold">
+                              Không có học sinh nào phù hợp bộ lọc.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredList.map((item: any) => {
+                            const st = item.student || {};
+                            const rate = item.attendanceRate ?? 100;
+                            return (
+                              <tr key={st._id || item.studentId} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="py-2.5 px-3.5">
+                                  <div className="flex items-center gap-2.5">
+                                    <Avatar student={st} size="sm" />
+                                    <div>
+                                      <p className="font-black text-slate-900">{st.name}</p>
+                                      <p className="text-[10px] text-slate-500">{st.username || ''}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-2.5 text-center font-bold text-emerald-700">
+                                  {item.present || 0}
+                                </td>
+                                <td className="py-2.5 px-2.5 text-center font-bold text-amber-700">
+                                  {item.late || 0}
+                                </td>
+                                <td className="py-2.5 px-2.5 text-center font-bold text-blue-700">
+                                  {item.excused || 0}
+                                </td>
+                                <td className="py-2.5 px-2.5 text-center font-bold text-rose-700">
+                                  {item.absent || 0}
+                                </td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-black ${
+                                    rate >= 90
+                                      ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                                      : rate >= 80
+                                      ? 'bg-teal-100 text-teal-950 border border-teal-300'
+                                      : 'bg-rose-100 text-rose-950 border border-rose-300'
+                                  }`}>
+                                    {rate}%
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <Link
+                                    to={`/teacher/students/${st._id}`}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-950 hover:underline"
+                                  >
+                                    Xem hồ sơ →
+                                  </Link>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </Modal>
+      )}
     </>
   );
 };
@@ -1920,7 +2137,7 @@ export const TeacherStudentDetail = () => {
 
       {observationParams.get('unitId')&&<Link className="teacher-button mt-5" to={`/teacher/analytics?unitId=${encodeURIComponent(observationParams.get('unitId')!)}&classroomId=${encodeURIComponent(observationParams.get('classroomId') || data.student?.assignedClass?._id || data.student?.assignedClass || '')}`}>← Quay lại quan sát Unit đang chọn</Link>}
       <ObservationPortfolio studentId={studentId} initialLessonId={observationParams.get("lessonId")||""} unitId={observationParams.get("unitId")||undefined} ageGroup={student.ageGroupCode}/>
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-6">
         <div
           onClick={() => setShowCompetencyModal(true)}
           className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 cursor-pointer transition-all group col-span-2 sm:col-span-1"
@@ -1938,13 +2155,14 @@ export const TeacherStudentDetail = () => {
             <Brain size={12} /> Xem hồ sơ năng lực →
           </div>
         </div>
+        <Metric label="Chuyên cần" value={`${data?.attendanceSummary?.attendanceRate ?? 100}%`} icon={<UserCheck size={16} className="text-emerald-700" />} />
         <Metric label="Từ vựng tích lũy" value={`${data?.competencyReport?.vocabularyCompetency?.masteredCount ?? 0} từ vựng`} icon={<BookOpen size={16} />} />
         <Metric label="Bài đã hoàn thành" value={stats.completedLessons} icon={<CheckCircle2 size={16} />} />
         <Metric label="Số sao Koko" value={`⭐ ${stats.totalStars}`} icon={<Star size={16} className="text-amber-800 fill-amber-400" />} />
         <Metric label="Thời gian học đã ghi nhận" value={studyTimeLabel(stats.learningTime, stats.hasLearningTime)} icon={<Clock size={16} />} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <section className="rounded-2xl border bg-white p-6">
           <h3 className="mb-3 font-bold">Lịch sử học tập</h3>
           {data.recentActivities.length ? (
@@ -1962,6 +2180,73 @@ export const TeacherStudentDetail = () => {
           ) : (
             <p className="text-sm text-slate-600">Chưa có hoạt động học nào.</p>
           )}
+        </section>
+
+        {/* Chuyên cần & Điểm danh */}
+        <section className="rounded-2xl border bg-white p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <UserCheck size={18} className="text-teal-700" />
+              <span>Chuyên cần & Điểm danh</span>
+            </h3>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+              (data?.attendanceSummary?.attendanceRate ?? 100) >= 90
+                ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                : 'bg-amber-100 text-amber-950 border border-amber-300'
+            }`}>
+              {data?.attendanceSummary?.attendanceRate ?? 100}%
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5 text-center mb-3">
+            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+              <span className="block text-[10px] font-bold text-emerald-800">Có mặt</span>
+              <strong className="text-sm font-black text-emerald-950">{data?.attendanceSummary?.present || 0}</strong>
+            </div>
+            <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
+              <span className="block text-[10px] font-bold text-amber-800">Đến trễ</span>
+              <strong className="text-sm font-black text-amber-950">{data?.attendanceSummary?.late || 0}</strong>
+            </div>
+            <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
+              <span className="block text-[10px] font-bold text-blue-800">Nghỉ phép</span>
+              <strong className="text-sm font-black text-blue-950">{data?.attendanceSummary?.excused || 0}</strong>
+            </div>
+            <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
+              <span className="block text-[10px] font-bold text-rose-800">Vắng</span>
+              <strong className="text-sm font-black text-rose-950">{data?.attendanceSummary?.absent || 0}</strong>
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {data?.attendanceSummary?.history?.length ? (
+              data.attendanceSummary.history.map((h: any, idx: number) => {
+                const isPresent = h.attendance === 'PRESENT';
+                const isLate = h.attendance === 'LATE';
+                const isExcused = h.attendance === 'EXCUSED';
+                return (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-800 block truncate">{h.title}</span>
+                      <span className="text-[10px] text-slate-500">{date(h.date)}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-md font-bold text-[11px] shrink-0 ${
+                      isPresent
+                        ? 'bg-emerald-100 text-emerald-900'
+                        : isLate
+                        ? 'bg-amber-100 text-amber-900'
+                        : isExcused
+                        ? 'bg-blue-100 text-blue-900'
+                        : 'bg-rose-100 text-rose-900'
+                    }`}>
+                      {isPresent ? 'Có mặt' : isLate ? 'Đến trễ' : isExcused ? 'Nghỉ phép' : 'Vắng mặt'}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-slate-500 italic text-center py-4">Chưa có lịch sử điểm danh.</p>
+            )}
+          </div>
         </section>
 
         <section className="rounded-2xl border bg-white p-6">

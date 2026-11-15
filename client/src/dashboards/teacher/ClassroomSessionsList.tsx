@@ -7,7 +7,6 @@ import {
   Calendar,
   LayoutGrid,
   ChevronRight,
-  Plus,
   Loader2,
   Search,
   BookOpen,
@@ -147,14 +146,6 @@ export const ClassroomSessionsList: React.FC = () => {
             Xem lại lịch sử mọi buổi học đã diễn ra, tổng kết kết quả của học sinh và kế hoạch bài giảng.
           </p>
         </div>
-
-        <Link
-          to="/teacher/classroom-sessions/new"
-          className="inline-flex items-center gap-2 rounded-2xl bg-teal-700 hover:bg-teal-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white  transition self-start sm:self-auto shrink-0 cursor-pointer"
-        >
-          <Plus size={16} />
-          <span>Tạo buổi dạy mới</span>
-        </Link>
       </div>
 
       {/* Filter toolbar */}
