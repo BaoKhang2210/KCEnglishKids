@@ -185,6 +185,7 @@ const getDashboardStats = async (req, res, next) => {
           activeTopics,
           activeLessons,
           totalActivities,
+          totalGames: 12,
           totalVocabulary,
           totalCurriculumUnits,
           totalSessions,

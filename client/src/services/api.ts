@@ -682,7 +682,12 @@ export const adminApi = {
   createActivity: (data: any) => api.post('/admin/activities', data),
   updateActivity: (id: string, data: any) => api.put(`/admin/activities/${id}`, data),
   deleteActivity: (id: string) => api.delete(`/admin/activities/${id}`),
-  toggleActivityStatus: (id: string) => api.patch(`/admin/activities/${id}/status`)
+  toggleActivityStatus: (id: string) => api.patch(`/admin/activities/${id}/status`),
+  getGameCatalog: () => api.get('/admin/game-catalog'),
+  getGameCatalogPreview: (lessonId: string) => api.get(`/admin/game-catalog/preview?lessonId=${lessonId}`),
+  updateGameCatalog: (data: { revision: number; games: Array<{ gameId: string; enabled: boolean; displayOrder: number }> }) => api.put('/admin/game-catalog', data),
+  getGameAnalytics: () => api.get('/admin/game-catalog/analytics'),
+  getGameReadiness: () => api.get('/admin/game-catalog/readiness')
 };
 
 // Teacher API

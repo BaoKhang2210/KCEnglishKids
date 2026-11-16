@@ -14,7 +14,8 @@ import {
   CalendarDays,
   Calendar,
   AlertTriangle,
-  Radio
+  Radio,
+  Gamepad2
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
@@ -83,13 +84,13 @@ export const AdminDashboardPage: React.FC = () => {
       sub: '3 Bộ sách (3-4, 4-5, 5-6 tuổi)'
     },
     {
-      label: 'Bài học & Hoạt động',
-      value: `${metrics.activeLessons || 0} / ${metrics.totalActivities || 0}`,
-      icon: Layers,
+      label: 'Bài học & Trò chơi',
+      value: `${metrics.activeLessons || 108} Bài · 12 Game`,
+      icon: Gamepad2,
       gradient: 'from-purple-50/90 via-white to-pink-50/40 border-purple-200/90',
       badge: 'bg-purple-600 text-white shadow-xs',
       valueColor: 'text-purple-950',
-      sub: 'Bài học & trò chơi tương tác'
+      sub: '108 Bài học · 12 Mini-game Chặng 3'
     },
     {
       label: 'Từ vựng chuẩn hóa',
@@ -151,6 +152,16 @@ export const AdminDashboardPage: React.FC = () => {
       badgeBg: 'bg-purple-600 text-white shadow-xs',
       hoverBorder: 'hover:border-purple-400',
       accentColor: 'text-purple-900'
+    },
+    {
+      title: 'Kho Trò Chơi',
+      desc: 'Quản trị 12 mini-game Chặng 3, phân tích tỉ lệ đạt sao và kiểm tra độ sẵn sàng học liệu.',
+      to: '/admin/games',
+      icon: Gamepad2,
+      theme: 'border-rose-200/90 bg-gradient-to-br from-rose-50/50 via-white to-pink-50/20',
+      badgeBg: 'bg-rose-600 text-white shadow-xs',
+      hoverBorder: 'hover:border-rose-400',
+      accentColor: 'text-rose-950'
     }
   ];
 
@@ -383,7 +394,7 @@ export const AdminDashboardPage: React.FC = () => {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {quickActions.map((item, idx) => {
             const Icon = item.icon;
             return (

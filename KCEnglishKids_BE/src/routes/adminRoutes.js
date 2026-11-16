@@ -245,6 +245,8 @@ router.post('/curriculum/ai-apply', protect, authorize('ADMIN'), async (req, res
 // Activity & Games Management (Kho Trò chơi & Hoạt động)
 router.get('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').get);
 router.get('/game-catalog/preview', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').preview);
+router.get('/game-catalog/analytics', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').analytics);
+router.get('/game-catalog/readiness', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').readiness);
 router.put('/game-catalog', protect, authorize('ADMIN'), require('../controllers/gameCatalogController').update);
 router.get('/activities', protect, authorize('ADMIN'), getAdminActivities);
 router.get('/activities/:id', protect, authorize('ADMIN'), getAdminActivityById);
