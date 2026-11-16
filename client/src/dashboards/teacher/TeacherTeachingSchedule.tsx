@@ -665,7 +665,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
               )}
               {classes.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name} ({c.ageGroupCode} tuổi) {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
+                  {c.name} {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
                 </option>
               ))}
             </select>

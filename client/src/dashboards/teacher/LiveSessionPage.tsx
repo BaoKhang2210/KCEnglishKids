@@ -1,4 +1,3 @@
-import { SessionClosureForm, type Coverage } from '../../components/teacher/SessionClosureForm';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -22,7 +21,6 @@ import {
   MessageSquare,
   HelpCircle,
   EyeOff,
-  ExternalLink,
   Flame,
   Play,
   RotateCcw,
@@ -44,11 +42,6 @@ import type { SentencePattern } from './SentenceTeachingPage';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
 import { getPreschoolTprGesture } from '../../utils/tprGestures';
 import { compareLessons } from '../../utils/curriculumLessons';
-
-const elapsedMin = (startedAt?: string) => {
-  if (!startedAt) return 0;
-  return Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
-};
 
 type AnswerMap = Record<string, 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED'>;
 type ViewTab = 'warmup' | 'presentation' | 'sentences' | 'games' | 'wrapup';
@@ -107,6 +100,7 @@ export const LiveSessionPage: React.FC = () => {
   const [spotlightPromptOverride, setSpotlightPromptOverride] = useState<string | null>(null);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showWarn, setShowWarn] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasSetInitialTabRef = useRef(false);
@@ -124,9 +118,9 @@ export const LiveSessionPage: React.FC = () => {
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
   const [overtimeSnoozeUntil, setOvertimeSnoozeUntil] = useState<number>(0);
 
-  // Exit / End Session Modal state
+  // Exit & Finish Session Modal states
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
-  const [coverage, setCoverage] = useState<Coverage>('CONTINUE');
+  const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
 
   // Classroom teaching views
   const [activeTab, setActiveTab] = useState<ViewTab>('presentation');
@@ -293,6 +287,13 @@ export const LiveSessionPage: React.FC = () => {
       const s: ClassroomSession = res.data;
       setPageError('');
       if (s.status === 'COMPLETED') { navigate(`/teacher/classroom-sessions/${sessionId}/summary`, { replace: true }); return; }
+      if (s.status === 'SCHEDULED') {
+        try {
+          await classroomSessionApi.startSession(sessionId);
+          s.status = 'LIVE';
+          s.startedAt = new Date().toISOString();
+        } catch (_) {}
+      }
       setSession(s);
 
       // Auto-activate warm-up tab on initial start if configured
@@ -415,13 +416,35 @@ export const LiveSessionPage: React.FC = () => {
   }, [load]);
 
 
-  // Elapsed timer
+  // Live elapsed timer ticking every 1 second
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setElapsed(elapsedMin(session?.startedAt));
-    }, 30000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [session?.startedAt]);
+    if (!session || session.status === 'COMPLETED') return;
+
+    const getElapsedSeconds = (startedAt?: string | null, createdAt?: string) => {
+      const start = startedAt ? new Date(startedAt).getTime() : createdAt ? new Date(createdAt).getTime() : 0;
+      if (!start) return 0;
+      return Math.max(0, Math.floor((Date.now() - start) / 1000));
+    };
+
+    const updateElapsed = () => {
+      const secs = getElapsedSeconds(session.startedAt, session.createdAt);
+      setElapsedSeconds(secs);
+      setElapsed(Math.floor(secs / 60));
+    };
+
+    updateElapsed();
+    timerRef.current = setInterval(updateElapsed, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [session?.startedAt, session?.createdAt, session?.status]);
+
+  const formatTimer = (totalSecs: number) => {
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   // Check if session has exceeded planned duration
   useEffect(() => {
@@ -456,7 +479,6 @@ export const LiveSessionPage: React.FC = () => {
   const currentWarmupVocab = warmupVocabList[currentWarmupIndex] || warmupVocabList[0];
   const activeWarmupPatterns = warmupPatterns;
   const currentWarmupPattern = activeWarmupPatterns[currentWarmupPatternIndex] || activeWarmupPatterns[0];
-  const currentLessonId = typeof session?.lesson === 'object' ? (session?.lesson as any)?._id : session?.lesson;
 
   // Current Vocabulary TPR Physical Mime Action from Lesson Plan or Rich Preschool TPR Map
   const currentTprGesture = useMemo(() => {
@@ -725,9 +747,14 @@ export const LiveSessionPage: React.FC = () => {
     });
   };
 
-  // ── Mở modal tùy chọn kết thúc hoặc thoát buổi dạy ────────────────────────
-  const handleEnd = () => {
+  // ── Mở modal thoát buổi dạy ────────────────────────
+  const handleOpenExit = () => {
     setIsExitModalOpen(true);
+  };
+
+  // ── Mở modal kết thúc buổi dạy ─────────────────────
+  const handleOpenFinish = () => {
+    setIsFinishModalOpen(true);
   };
 
   // ── 1. Hoàn tất tiết học & Xuất báo cáo (chuyển sang trang summary) ────────
@@ -736,14 +763,12 @@ export const LiveSessionPage: React.FC = () => {
     setEnding(true);
     try {
       const allGoalKeys = (session?.teachingGuide?.goals || []).map((g: any) => g.key);
-      const effectiveGoals = coverage === 'COMPLETE' ? allGoalKeys : [];
-
       await classroomSessionApi.endSession(sessionId, {
-        coverage,
-        goalsCovered: effectiveGoals,
+        coverage: 'COMPLETE',
+        goalsCovered: allGoalKeys,
         reflection: ''
       });
-      setIsExitModalOpen(false);
+      setIsFinishModalOpen(false);
       navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
     } catch (e: any) {
       showToast(e.message || 'Chưa lưu được tổng kết. Vui lòng thử lại.');
@@ -761,7 +786,7 @@ export const LiveSessionPage: React.FC = () => {
   const handleOvertimeClosure = () => {
     setIsOvertimeModalOpen(false);
     setOvertimeSnoozeUntil(Date.now() + 15 * 60 * 1000);
-    setIsExitModalOpen(true);
+    setIsFinishModalOpen(true);
   };
 
   if (pageError && !session) return <div className="min-h-screen p-8"><div className="teacher-error" role="alert">{pageError}<button onClick={() => void load()}>Thử lại</button></div><Link to="/teacher/classroom-sessions" className="teacher-button mt-5">Về nhật ký buổi dạy</Link></div>;
@@ -774,8 +799,6 @@ export const LiveSessionPage: React.FC = () => {
       </div>
     );
   }
-
-  if (session.status === 'SCHEDULED') return <div className="min-h-screen bg-slate-50 p-8"><div className="teacher-panel mx-auto max-w-xl"><p className="teacher-eyebrow">KẾ HOẠCH ĐÃ LƯU</p><h1 className="text-2xl font-bold">{session.title}</h1><p className="my-4">Buổi học chưa bắt đầu. Hãy kiểm tra danh sách trước khi mở lớp.</p><p className="text-sm text-slate-500 mb-5">{session.studentScores.length} học sinh · {session.plannedDuration} phút</p>{pageError && <p role="alert" className="text-red-700 mb-4">{pageError}</p>}<div className="flex flex-wrap gap-3"><button className="teacher-button primary" disabled={ending} onClick={async () => { setEnding(true); try { await classroomSessionApi.startSession(sessionId); await load(); } catch(e: any) { setPageError(e.message); } finally { setEnding(false); } }}>Bắt đầu buổi dạy</button><Link className="teacher-button" to="/teacher/classroom-sessions">Về nhật ký</Link></div></div></div>;
 
   const scores = (session.studentScores || []).filter(row => !['ABSENT', 'EXCUSED'].includes(row.attendance || ''));
   const absentScores = (session.studentScores || []).filter(row => ['ABSENT', 'EXCUSED'].includes(row.attendance || ''));
@@ -817,9 +840,9 @@ export const LiveSessionPage: React.FC = () => {
 
           {/* Prominent Live Stats Bar (Phút · Đúng · Sao) */}
           <div className="flex items-center gap-1.5 rounded-2xl border border-amber-400/30 bg-slate-950/90 px-2.5 py-1 shadow-inner">
-            <span className="flex items-center gap-1 rounded-xl bg-sky-500/20 border border-sky-400/30 px-2.5 py-0.5 text-xs font-black text-sky-300" title="Thời gian buổi học đã diễn ra">
-              <Clock size={13} className="text-sky-400" />
-              <span>{elapsed > 0 ? `${elapsed} phút` : '0 phút'}</span>
+            <span className="flex items-center gap-1 rounded-xl bg-sky-500/20 border border-sky-400/30 px-2.5 py-0.5 text-xs font-black text-sky-300" title="Thời gian buổi học đang diễn ra">
+              <Clock size={13} className="text-sky-400 animate-pulse" />
+              <span className="font-mono text-xs sm:text-[13px] tracking-wide">{formatTimer(elapsedSeconds)}</span>
             </span>
             <span className="flex items-center gap-1 rounded-xl bg-emerald-500/20 border border-emerald-400/40 px-2.5 py-0.5 text-xs font-black text-emerald-300" title="Tổng số lượt trả lời đúng">
               <CheckCircle2 size={13} className="text-emerald-400" />
@@ -917,9 +940,9 @@ export const LiveSessionPage: React.FC = () => {
         <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
           <button
             type="button"
-            onClick={() => setIsExitModalOpen(true)}
+            onClick={handleOpenExit}
             className="flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs sm:text-sm font-black text-slate-200 border border-white/15 transition-all cursor-pointer active:scale-95"
-            title="Thoát hoặc tạm dừng buổi dạy"
+            title="Thoát ra danh sách buổi dạy (Điểm số vẫn được lưu tự động)"
           >
             <LogOut size={15} className="text-amber-300" />
             <span>Thoát</span>
@@ -927,10 +950,10 @@ export const LiveSessionPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={handleEnd}
+            onClick={handleOpenFinish}
             disabled={ending}
-            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3.5 py-1.5 text-xs sm:text-sm font-black text-white active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-            title="Kết thúc hoặc dừng buổi dạy"
+            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3.5 py-1.5 text-xs sm:text-sm font-black text-white active:scale-95 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+            title="Hoàn thành bài học và kết thúc buổi dạy"
           >
             <StopCircle size={15} />
             <span>{ending ? 'Đang hoàn tất…' : 'Kết thúc'}</span>
@@ -1763,19 +1786,6 @@ export const LiveSessionPage: React.FC = () => {
                 </span>
 
                 <div className="flex items-center gap-1.5">
-                  {currentLessonId && (
-                    <a
-                      href={`/teacher/sentences?lessonId=${currentLessonId}&mode=classroom`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-400/30 text-xs font-bold transition-all cursor-pointer"
-                      title="Mở màn hình học mẫu câu độc lập ở tab mới"
-                    >
-                      <ExternalLink size={13} />
-                      <span className="hidden sm:inline">Học mẫu câu ↗</span>
-                    </a>
-                  )}
-
                   <button
                     onClick={() => {
                       sfx.playPop();
@@ -3365,7 +3375,7 @@ export const LiveSessionPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={handleEnd}
+                    onClick={handleOpenFinish}
                     disabled={ending}
                     className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 text-slate-950 font-black text-sm sm:text-base px-6 py-3 rounded-2xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                   >
@@ -3532,85 +3542,98 @@ export const LiveSessionPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Modal Xác Nhận Kết Thúc Hoặc Thoát Buổi Học ────────────────── */}
+      {/* ── Modal Xác Nhận Thoát Buổi Học ────────────────── */}
       {isExitModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Ghi nhận nội dung và kết thúc buổi học"
-            className="relative w-full max-w-2xl max-h-[96dvh] bg-slate-900 border-2 border-white/20 rounded-3xl p-5 sm:p-6 text-white space-y-4 animate-pop-in shadow-2xl"
+            aria-label="Xác nhận thoát buổi học"
+            className="relative w-full max-w-md bg-slate-900 border-2 border-white/20 rounded-3xl p-5 sm:p-6 text-white space-y-4 animate-pop-in shadow-2xl"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl sm:text-2xl shrink-0">
-                  🛑
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg font-black text-white">Kết Thúc Hoặc Tạm Dừng Buổi Học</h3>
-                  <p className="text-xs sm:text-sm text-slate-400 font-medium">Chọn trạng thái để lưu kết quả và kết thúc buổi dạy</p>
-                </div>
+            <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl shrink-0">
+                🚪
               </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-white">Bạn có muốn thoát ra ngoài?</h3>
+                <p className="text-xs text-slate-400 font-medium">Toàn bộ điểm số và sao đã được tự động lưu</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Bạn có thể thoát ra ngoài xem các lớp học khác hoặc thời khóa biểu. Buổi học này vẫn được giữ ở trạng thái đang diễn ra và bạn có thể mở lại tiếp tục dạy bất cứ lúc nào.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setIsExitModalOpen(false)}
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer text-center"
               >
-                ✕
+                Ở lại dạy tiếp
+              </button>
+              <button
+                type="button"
+                onClick={handlePauseAndExit}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm transition-colors cursor-pointer text-center shadow-md shadow-amber-500/20"
+              >
+                Xác nhận thoát
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Session Progress Selection */}
-            <SessionClosureForm guide={session.teachingGuide} coverage={coverage} onCoverage={setCoverage} />
+      {/* ── Modal Xác Nhận Kết Thúc Buổi Học ────────────────── */}
+      {isFinishModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xác nhận kết thúc buổi học"
+            className="relative w-full max-w-md bg-slate-900 border-2 border-emerald-500/30 rounded-3xl p-5 sm:p-6 text-white space-y-4 animate-pop-in shadow-2xl"
+          >
+            <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-xl shrink-0">
+                🏁
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-white">Kết Thúc & Hoàn Thành Buổi Học</h3>
+                <p className="text-xs text-slate-400 font-medium">Hoàn thành bài giảng và chuyển sang tổng kết</p>
+              </div>
+            </div>
 
-            {/* Action Options in 2 Columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Option 1: Complete and view summary */}
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Bạn có chắc chắn muốn kết thúc buổi dạy? Hệ thống sẽ ghi nhận <span className="font-black text-emerald-400">hoàn thành trọn vẹn bài học</span>, chốt số sao đạt được của học sinh và chuyển sang màn hình tổng kết để gửi báo cáo phụ huynh.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsFinishModalOpen(false)}
+                disabled={ending}
+                className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer text-center disabled:opacity-50"
+              >
+                Ở lại dạy tiếp
+              </button>
               <button
                 type="button"
                 onClick={handleCompleteAndExit}
                 disabled={ending}
-                className="flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 border-2 border-emerald-500/50 transition-all cursor-pointer group active:scale-[0.99] disabled:opacity-50 text-left"
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm transition-all cursor-pointer text-center shadow-lg shadow-emerald-600/30 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <div>
-                  <div className="flex items-center gap-2 text-emerald-300 font-black text-sm sm:text-base mb-1.5">
-                    <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-                    <span className="whitespace-nowrap">{ending ? 'Đang lưu tổng kết…' : 'Kết Thúc & Xem Tổng Kết'}</span>
-                  </div>
-                  <p className="text-xs sm:text-[13px] text-slate-300 leading-snug">
-                    Lưu số sao và tiến độ buổi dạy, chuyển sang màn hình tổng kết để gửi phụ huynh.
-                  </p>
-                </div>
-              </button>
-
-              {/* Option 2: Pause and exit to sessions */}
-              <button
-                type="button"
-                onClick={handlePauseAndExit}
-                className="flex flex-col justify-between p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border-2 border-white/15 hover:border-amber-400/50 transition-all cursor-pointer group active:scale-[0.99] text-left"
-              >
-                <div>
-                  <div className="flex items-center gap-2 text-amber-300 font-black text-sm sm:text-base mb-1.5">
-                    <Clock size={18} className="text-amber-400 shrink-0" />
-                    <span className="whitespace-nowrap">Tạm Dừng & Thoát Ra</span>
-                  </div>
-                  <p className="text-xs sm:text-[13px] text-slate-400 leading-snug">
-                    Lưu điểm số hiện tại và thoát ra ngoài. Bạn có thể mở lại tiếp tục dạy bất cứ lúc nào.
-                  </p>
-                </div>
-              </button>
-            </div>
-
-            {/* Footer */}
-            <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">💡 Điểm số và sao của bé đều đã được tự động lưu.</span>
-              <button
-                type="button"
-                onClick={() => setIsExitModalOpen(false)}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer whitespace-nowrap text-center"
-              >
-                Tiếp tục ở lại dạy học
+                {ending ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span>Đang hoàn tất…</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={16} />
+                    <span>Xác nhận kết thúc</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -16,6 +16,7 @@ import {
   Flame,
   Sparkles,
   Lock,
+  Clock,
   AlertTriangle,
   X
 } from 'lucide-react';
@@ -122,7 +123,6 @@ export const ClassroomSessionSetup: React.FC = () => {
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('ALL');
 
   const [creating, setCreating] = useState(false);
-  const [createdDraftId, setCreatedDraftId] = useState('');
   const [error, setError] = useState('');
   const [showPrintPreview, setShowPrintPreview] = useState(false);
 
@@ -352,8 +352,19 @@ export const ClassroomSessionSetup: React.FC = () => {
   const scheduledLessonId = isSlotLessonAlreadyCompleted ? '' : rawScheduledLessonId;
   const lessonMismatch = !!scheduledLessonId && !!selectedLessonId && scheduledLessonId !== selectedLessonId;
   const canStartSession = scheduleLiveTiming.canTeachNow && !loadingAttendance
-    && attendanceDate === vietnamDate() && (!lessonMismatch || !!createdDraftId);
-  const [draftSavedSuccess, setDraftSavedSuccess] = useState(false);
+    && attendanceDate === vietnamDate() && !lessonMismatch;
+
+  // Auto-sync duration with timetable slot
+  useEffect(() => {
+    if (scheduleLiveTiming.activeSlot) {
+      const [sH, sM] = (scheduleLiveTiming.activeSlot.startTime || '00:00').split(':').map(Number);
+      const [eH, eM] = (scheduleLiveTiming.activeSlot.endTime || '00:00').split(':').map(Number);
+      const slotDuration = (eH * 60 + eM) - (sH * 60 + sM);
+      if (slotDuration > 0) {
+        setDuration(slotDuration);
+      }
+    }
+  }, [scheduleLiveTiming.activeSlot]);
 
   // When a lesson is chosen, update title and fetch activities
   useEffect(() => {
@@ -400,11 +411,26 @@ export const ClassroomSessionSetup: React.FC = () => {
     setAttendanceRecords((prev) => prev.map((r) => ({ ...r, status })));
   };
 
-  const handleSaveDraftOnly = async () => {
+  const handleCreate = async () => {
     if (!activeClassId || loadingAttendance || creating) return;
+
+    // Strict timetable verification
+    if (!scheduleLiveTiming.canTeachNow) {
+      setError(scheduleLiveTiming.reason);
+      return;
+    }
+    if (lessonMismatch) {
+      const scheduledLesson = content?.lessons?.find((item: any) => String(item._id) === scheduledLessonId);
+      setError(`Bài đã chọn khác bài được phân trong thời khóa biểu${scheduledLesson ? `: ${scheduledLesson.title}` : ''}. Hãy chọn đúng bài để bắt đầu.`);
+      return;
+    }
+    if (attendanceDate !== vietnamDate()) {
+      setError('Điểm danh phải là ngày hôm nay để bắt đầu buổi dạy. Vui lòng chọn lại ngày hôm nay.');
+      return;
+    }
+
     setCreating(true);
     setError('');
-    setDraftSavedSuccess(false);
     try {
       const res = await classroomSessionApi.createSession({
         classroomId: activeClassId,
@@ -419,60 +445,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         attendanceDate,
         attendanceNote
       });
-      setCreatedDraftId(res.data._id);
-      setDraftSavedSuccess(true);
-    } catch (e: any) {
-      setError(e.message || 'Không thể lưu kế hoạch buổi dạy');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!activeClassId || loadingAttendance || creating) return;
-
-    // Strict timetable verification
-    if (!scheduleLiveTiming.canTeachNow) {
-      setError(scheduleLiveTiming.reason);
-      return;
-    }
-    if (lessonMismatch && !createdDraftId) {
-      const scheduledLesson = content?.lessons?.find((item: any) => String(item._id) === scheduledLessonId);
-      setError(`Bài đã chọn khác bài được phân trong thời khóa biểu${scheduledLesson ? `: ${scheduledLesson.title}` : ''}. Hãy chọn đúng bài để bắt đầu.`);
-      return;
-    }
-    if (attendanceDate !== vietnamDate()) {
-      setError('Điểm danh phải là ngày hôm nay để bắt đầu buổi dạy. Vui lòng chọn lại ngày hôm nay.');
-      return;
-    }
-
-    setCreating(true);
-    setError('');
-    try {
-      let sessionId = createdDraftId;
-      if (!sessionId) {
-        const res = await classroomSessionApi.createSession({
-          classroomId: activeClassId,
-          lessonId: selectedLessonId || undefined,
-          title: title || `Buổi ${sessionNumber}: ${selectedLesson?.title || 'Buổi dạy trên lớp'}`,
-          activityIds: selectedActivityIds,
-          plannedDuration: duration,
-          sessionNumber: Number(sessionNumber) || 1,
-          includeWarmup,
-          lessonPlan: preparedPlan,
-          attendanceRecords,
-          attendanceDate,
-          attendanceNote
-        });
-        sessionId = res.data._id;
-        setCreatedDraftId(sessionId);
-      } else {
-        await teacherApi.saveClassAttendance(activeClassId, {
-          date: attendanceDate,
-          records: attendanceRecords,
-          note: attendanceNote
-        });
-      }
+      const sessionId = res.data._id;
       await classroomSessionApi.startSession(sessionId);
       navigate(`/teacher/classroom-sessions/${sessionId}/live`);
     } catch (e: any) {
@@ -793,7 +766,6 @@ export const ClassroomSessionSetup: React.FC = () => {
           <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border-2 border-rose-200 flex items-center gap-3">
             <AlertTriangle size={20} className="text-rose-800 shrink-0" />
             <span>{error}</span>
-            {createdDraftId && <button type="button" className="teacher-button" onClick={handleCreate}>Thử bắt đầu lại</button>}
           </div>
         )}
 
@@ -1116,11 +1088,15 @@ export const ClassroomSessionSetup: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
-              <label htmlFor="session-duration" className="text-sm font-bold text-slate-700">Thời lượng buổi học</label>
-              <select id="session-duration" value={duration} onChange={e => setDuration(Number(e.target.value))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                {[15, 20, 25, 30, 35, 45, 60].map(d => <option key={d} value={d}>{d} phút</option>)}
-              </select>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5 bg-slate-50/80 p-4 rounded-2xl border border-slate-200">
+              <div>
+                <span className="block text-sm font-black text-slate-800">Thời lượng buổi học</span>
+                <p className="text-xs text-slate-500 font-medium">Mặc định theo đúng khung giờ Admin xếp trong thời khóa biểu</p>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-100/90 border border-teal-300 text-teal-950 font-black text-sm shadow-2xs">
+                <Clock size={16} className="text-teal-700" />
+                <span>{duration} phút (Cố định theo TKB)</span>
+              </div>
             </div>
 
 
@@ -1333,7 +1309,7 @@ export const ClassroomSessionSetup: React.FC = () => {
                 </div>
               )}
 
-              {lessonMismatch && !createdDraftId && (
+              {lessonMismatch && (
                 <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950">
                   Bài đang chọn không khớp bài được phân trong thời khóa biểu.
                   <button type="button" onClick={() => { setSelectedLessonId(scheduledLessonId); setStep(1); }} className="ml-2 font-black underline">Chọn bài theo lịch</button>
@@ -1341,19 +1317,6 @@ export const ClassroomSessionSetup: React.FC = () => {
               )}
               {attendanceDate !== vietnamDate() && (
                 <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-bold text-amber-950">Chọn ngày điểm danh hôm nay để bắt đầu buổi dạy.</p>
-              )}
-
-              {draftSavedSuccess && createdDraftId && (
-                <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-4 text-sm font-bold text-emerald-950 flex flex-wrap items-center justify-between gap-3">
-                  <span>✅ Đã lưu kế hoạch buổi dạy! Khi đến giờ trên thời khóa biểu, cô có thể mở lớp ngay lập tức.</span>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/teacher/schedule')}
-                    className="rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-black cursor-pointer"
-                  >
-                    Về Lịch dạy
-                  </button>
-                </div>
               )}
 
               {/* Launch Actions */}
@@ -1366,37 +1329,20 @@ export const ClassroomSessionSetup: React.FC = () => {
                   <ArrowLeft size={16} /> Quay lại bước 2
                 </button>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                  {!createdDraftId && (
-                    <button
-                      type="button"
-                      onClick={handleSaveDraftOnly}
-                      disabled={creating || loadingAttendance}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl border-2 border-teal-600 bg-teal-50 hover:bg-teal-100 text-teal-900 px-6 py-3.5 text-sm font-black transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Calendar size={18} />
-                      <span>Lưu kế hoạch dạy trước</span>
-                    </button>
-                  )}
-
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={handleCreate}
                     disabled={creating || !canStartSession}
                     className={`w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl px-9 py-4 text-base font-black transition-all ${canStartSession
-                      ? 'bg-emerald-700 hover:bg-emerald-700 text-white  active:scale-95 cursor-pointer animate-pulse'
-                      : 'bg-slate-200 text-inherit cursor-not-allowed border border-slate-300'
+                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white active:scale-95 cursor-pointer shadow-lg shadow-emerald-700/25'
+                      : 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
                       }`}
                   >
                     {creating ? (
                       <>
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
-                        <span>Đang lưu điểm danh & khởi tạo phòng học…</span>
-                      </>
-                    ) : createdDraftId && scheduleLiveTiming.canTeachNow ? (
-                      <>
-                        <Play size={20} className="fill-white" />
-                        <span>Bắt đầu buổi dạy đã lưu</span>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        <span>Đang khởi tạo phòng học trực tiếp…</span>
                       </>
                     ) : !scheduleLiveTiming.canTeachNow ? (
                       <>

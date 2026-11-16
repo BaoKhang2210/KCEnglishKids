@@ -4,7 +4,6 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   Clock,
   Play,
-  Calendar,
   LayoutGrid,
   ChevronRight,
   Loader2,
@@ -19,7 +18,6 @@ import { classroomSessionApi, teacherApi } from '../../services/api';
 import type { ClassroomSession } from '../../types';
 
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
-  SCHEDULED: { label: 'Đã lên lịch', color: 'bg-blue-100 text-blue-800', dot: 'bg-blue-700' },
   LIVE: { label: '● Đang dạy', color: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-700 animate-pulse' },
   COMPLETED: { label: 'Đã kết thúc', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
   CANCELLED: { label: '🚫 Đã báo nghỉ', color: 'bg-amber-100 text-amber-900 border border-amber-300', dot: 'bg-amber-600' }
@@ -48,7 +46,7 @@ export const ClassroomSessionsList: React.FC = () => {
 
   const [search, setSearch] = useState(initialSearch);
   const [selectedClassFilter, setSelectedClassFilter] = useState(initialClassId);
-  const [selectedStatusTab, setSelectedStatusTab] = useState<'ALL' | 'LIVE' | 'COMPLETED' | 'SCHEDULED' | 'CANCELLED'>('ALL');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<'ALL' | 'LIVE' | 'COMPLETED' | 'CANCELLED'>('ALL');
 
   useEffect(() => {
     const cId = classId || searchParams.get('classroomId') || '';
@@ -118,7 +116,6 @@ export const ClassroomSessionsList: React.FC = () => {
 
   const live = filteredSessions.filter((s) => s.status === 'LIVE');
   const past = filteredSessions.filter((s) => s.status === 'COMPLETED');
-  const upcoming = filteredSessions.filter((s) => s.status === 'SCHEDULED');
 
   if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div>;
   if (loading) {
@@ -149,23 +146,24 @@ export const ClassroomSessionsList: React.FC = () => {
       </div>
 
       {/* Filter toolbar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3.5 shadow-xs">
+        {/* Row 1: Search & Class Filter */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Search Input */}
-          <div className="md:col-span-6 relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
+          <div className="md:col-span-7 relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Tìm theo tên bài học, lớp học, buổi dạy..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+              className="w-full pl-10 pr-8 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 <X size={14} />
               </button>
@@ -173,7 +171,7 @@ export const ClassroomSessionsList: React.FC = () => {
           </div>
 
           {/* Class Filter */}
-          <div className="md:col-span-3">
+          <div className="md:col-span-5">
             <select
               value={selectedClassFilter}
               onChange={(e) => {
@@ -184,64 +182,77 @@ export const ClassroomSessionsList: React.FC = () => {
                 else nextParams.delete('classroomId');
                 setSearchParams(nextParams);
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+              className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 bg-slate-50/50 cursor-pointer"
             >
               <option value="">🏢 Tất cả lớp học</option>
               {classes.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name} ({c.ageGroupCode} tuổi)
+                  {c.name}
                 </option>
               ))}
             </select>
           </div>
+        </div>
 
-          {/* Status Tab Filter */}
-          <div className="md:col-span-3 flex items-center justify-end gap-1">
-            <button
-              type="button"
-              onClick={() => setSelectedStatusTab('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                selectedStatusTab === 'ALL'
-                  ? 'bg-teal-700 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Tất cả ({sessions.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedStatusTab('COMPLETED')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                selectedStatusTab === 'COMPLETED'
-                  ? 'bg-teal-700 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Đã dạy
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedStatusTab('LIVE')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                selectedStatusTab === 'LIVE'
-                  ? 'bg-emerald-700 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Live
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedStatusTab('CANCELLED')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                selectedStatusTab === 'CANCELLED'
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Báo nghỉ
-            </button>
-          </div>
+        {/* Row 2: Status Tab Filter - Evenly spread across 4 columns */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setSelectedStatusTab('ALL')}
+            className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              selectedStatusTab === 'ALL'
+                ? 'bg-teal-700 text-white shadow-xs'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+            }`}
+          >
+            <span>Tất cả</span>
+            <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'ALL' ? 'bg-teal-800 text-teal-100' : 'bg-slate-200/70 text-slate-600'}`}>
+              {sessions.filter(s => s.status !== 'SCHEDULED').length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedStatusTab('COMPLETED')}
+            className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              selectedStatusTab === 'COMPLETED'
+                ? 'bg-teal-700 text-white shadow-xs'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+            }`}
+          >
+            <span>Đã kết thúc</span>
+            <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'COMPLETED' ? 'bg-teal-800 text-teal-100' : 'bg-slate-200/70 text-slate-600'}`}>
+              {past.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedStatusTab('LIVE')}
+            className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              selectedStatusTab === 'LIVE'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Đang diễn ra</span>
+            <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'LIVE' ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-200/70 text-slate-600'}`}>
+              {live.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedStatusTab('CANCELLED')}
+            className={`w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              selectedStatusTab === 'CANCELLED'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+            }`}
+          >
+            <span>Đã báo nghỉ</span>
+            <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'CANCELLED' ? 'bg-amber-700 text-amber-100' : 'bg-slate-200/70 text-slate-600'}`}>
+              {sessions.filter(s => s.status === 'CANCELLED').length}
+            </span>
+          </button>
         </div>
 
         {/* Search & Class match banner if came from another page with query */}
@@ -303,21 +314,6 @@ export const ClassroomSessionsList: React.FC = () => {
           <div className="space-y-3">
             {past.map((s) => (
               <SessionCard key={s._id} session={s} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Upcoming / Scheduled sessions */}
-      {upcoming.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-base font-black text-blue-800">
-            <Calendar size={18} className="text-blue-800" />
-            <span>Đã lên lịch ({upcoming.length})</span>
-          </h2>
-          <div className="space-y-3">
-            {upcoming.map((s) => (
-              <div key={s._id} className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><SessionCard session={s} /></div><button className="teacher-button text-rose-700" onClick={async () => { if (!window.confirm('Xóa kế hoạch chưa bắt đầu này?')) return; try { await classroomSessionApi.deleteDraft(s._id); setSessions(items => items.filter(item => item._id !== s._id)); } catch(e: any) { alert(e.message); } }}>Xóa kế hoạch</button></div>
             ))}
           </div>
         </section>
@@ -390,8 +386,6 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
               ? 'bg-amber-100 text-amber-900 border border-amber-300'
               : s.status === 'LIVE'
               ? 'bg-emerald-100 text-emerald-800'
-              : s.status === 'SCHEDULED'
-              ? 'bg-blue-100 text-blue-800'
               : 'bg-teal-50 text-teal-800'
           }`}
         >
@@ -399,8 +393,6 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
             <span className="text-xl">🚫</span>
           ) : s.status === 'LIVE' ? (
             <Play size={20} className="fill-emerald-600" />
-          ) : s.status === 'SCHEDULED' ? (
-            <Calendar size={20} />
           ) : (
             <BookOpen size={20} />
           )}
@@ -444,7 +436,7 @@ const SessionCard = ({ session: s }: { session: ClassroomSession }) => {
         )}
 
         <div className={`flex items-center gap-1.5 text-xs font-bold group-hover:translate-x-0.5 transition-transform ${isCancelled ? 'text-amber-900' : 'text-teal-800'}`}>
-          <span>{isCancelled ? 'Xem trên TKB' : s.status === 'LIVE' ? 'Tiếp tục dạy' : s.status === 'SCHEDULED' ? 'Mở kế hoạch' : 'Xem tổng kết'}</span>
+          <span>{isCancelled ? 'Xem trên TKB' : s.status === 'LIVE' ? 'Tiếp tục dạy' : 'Xem tổng kết'}</span>
           <ChevronRight size={15} />
         </div>
       </div>
