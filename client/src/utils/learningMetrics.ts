@@ -2,7 +2,15 @@ export function studyTimeLabel(seconds?: number, _measured?: boolean) {
   const value = Math.max(0, Number(seconds) || 0);
   if (value <= 0) return 'Chưa ghi nhận thời lượng';
   if (value < 60) return 'Dưới 1 phút';
-  return `${Math.floor(value / 60)} phút`;
+
+  const totalMinutes = Math.floor(value / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
+  }
+  return `${minutes} phút`;
 }
 
 export function practiceMetrics(stats: any) {

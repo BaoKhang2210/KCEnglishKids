@@ -10,6 +10,9 @@ describe('learning evidence presentation', () => {
     expect(studyTimeLabel(20, true)).toBe('Dưới 1 phút');
     expect(studyTimeLabel(0, false)).toBe('Chưa ghi nhận thời lượng');
     expect(studyTimeLabel(1800, true)).toBe('30 phút');
+    expect(studyTimeLabel(3600, true)).toBe('1 giờ');
+    expect(studyTimeLabel(5400, true)).toBe('1 giờ 30 phút');
+    expect(studyTimeLabel(6066, true)).toBe('1 giờ 41 phút');
   });
   it('classroom 100% cannot become independent-practice 100%', () => {
     expect(practiceMetrics({ averageScore: 100, classroomAccuracy: 100 }).accuracy).toBeNull();
