@@ -1658,13 +1658,6 @@ export const TeacherStudents = () => {
                       </span>
                     </div>
 
-                    <Link
-                      to={`/teacher/classroom-sessions/new?classroomId=${classInfo._id}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition-all shadow-xs cursor-pointer"
-                    >
-                      <Play size={13} className="fill-white" /> Dạy lớp này
-                    </Link>
-
                     <button
                       type="button"
                       onClick={() => handleOpenClassAttendance(classInfo)}
