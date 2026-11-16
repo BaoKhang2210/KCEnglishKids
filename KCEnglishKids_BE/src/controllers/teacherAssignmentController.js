@@ -41,16 +41,14 @@ exports.createAssignment = wrap(async (req, res) => {
   if (minigameId && (!lesson.vocabularyItems || lesson.vocabularyItems.length < 2)) {
     fail('Bài học cần có ít nhất 2 từ vựng để giao Minigame.');
   }
-  const target = b.assignedToType || 'CLASS';
-  if (target === 'STUDENT' && !room.students.some(s => idOf(s) === b.studentId)) fail('Học sinh không thuộc lớp.');
-  const recipients = target === 'STUDENT' ? [b.studentId] : room.students;
+  const target = 'CLASS';
+  const recipients = room.students;
   if (!recipients.length) fail('Lớp chưa có học sinh để giao bài.');
-  const child = target === 'STUDENT' ? await access.child(req, b.studentId) : null;
-  const studied = await require('../services/homeworkProposal').studiedLessonIds(room, child);
+  const studied = await require('../services/homeworkProposal').studiedLessonIds(room);
   if (!studied.includes(idOf(lesson))) fail('Chỉ giao ôn bài đã học có buổi dạy, tiến độ hoặc quan sát được ghi nhận.');
   const contentSnapshot = activitySnapshot.length ? await Activity.find({ _id: { $in: activitySnapshot } }).lean() : [];
   const item = await Assignment.create({ teacher: req.user._id, classRoom: room._id, assignedToType: target,
-    student: target === 'STUDENT' ? b.studentId : null, recipients, activitySnapshot, contentSnapshot,
+    student: null, recipients, activitySnapshot, contentSnapshot,
     completionMode: minigameId ? 'MINIGAME' : (b.activityId ? 'ACTIVITY' : 'LESSON'),
     minigameId: minigameId || null,
     lesson: b.lessonId, activity: minigameId ? null : (b.activityId || null),

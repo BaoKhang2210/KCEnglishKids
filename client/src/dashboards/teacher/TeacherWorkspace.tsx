@@ -365,8 +365,8 @@ export const TeacherAssignments = () => {
   // Form State
   const [form, setForm] = useState({
     classRoomId: initialClass,
-    assignedToType: initialStudent ? 'STUDENT' : 'CLASS',
-    studentId: initialStudent,
+    assignedToType: 'CLASS',
+    studentId: '',
     lessonId: initialLesson,
     activityId: '',
     minigameId: '',
@@ -410,10 +410,9 @@ export const TeacherAssignments = () => {
 
   useEffect(() => {
     setProposal(undefined); setProposalError('');
-    if (!create || !form.classRoomId || (form.assignedToType === 'STUDENT' && !form.studentId)) { setProposalLoading(false); return; }
+    if (!create || !form.classRoomId) { setProposalLoading(false); return; }
     const abort = new AbortController(); setProposalLoading(true);
     const params = new URLSearchParams({ classRoomId: form.classRoomId });
-    if (form.assignedToType === 'STUDENT') params.set('studentId', form.studentId);
     if (form.lessonId) params.set('lessonId', form.lessonId);
     api.get('/teacher/assignments/proposal?' + params, abort.signal).then(result => {
       if (abort.signal.aborted) return;
@@ -422,7 +421,7 @@ export const TeacherAssignments = () => {
     }).catch(error => { if (!abort.signal.aborted) setProposalError(error.message); })
       .finally(() => { if (!abort.signal.aborted) setProposalLoading(false); });
     return () => abort.abort();
-  }, [create, form.classRoomId, form.assignedToType, form.studentId, form.lessonId]);
+  }, [create, form.classRoomId, form.lessonId]);
 
   if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div>;
   if (!items || !content) return <Loader />;
@@ -434,8 +433,7 @@ export const TeacherAssignments = () => {
     try {
       await teacherApi.createAssignment({
         classRoomId: form.classRoomId,
-        assignedToType: form.assignedToType,
-        studentId: form.assignedToType === 'STUDENT' ? form.studentId : undefined,
+        assignedToType: 'CLASS',
         lessonId: form.lessonId,
         activityId: form.minigameId ? undefined : (form.activityId || undefined),
         minigameId: form.minigameId || undefined,
@@ -668,8 +666,13 @@ export const TeacherAssignments = () => {
             />
 
             {form.classRoomId && <>
-              <Select label="Đối tượng nhận bài" value={form.assignedToType} onChange={(v: string) => setForm({ ...form, assignedToType: v, studentId: '' })} options={[{ value: 'CLASS', label: 'Toàn bộ học sinh trong lớp' }, { value: 'STUDENT', label: 'Một học sinh cần ôn tập riêng' }]} />
-              {form.assignedToType === 'STUDENT' && <Select label="Chọn học sinh" value={form.studentId} onChange={(v: string) => setForm({ ...form, studentId: v })} options={classStudents.map(s => ({ value: s._id, label: s.name }))} />}
+              <div className="space-y-1">
+                <span className="block text-xs font-black text-slate-700 uppercase">Đối tượng nhận bài</span>
+                <div className="w-full bg-teal-50 border border-teal-200/80 rounded-2xl px-4 py-2.5 font-bold text-sm text-teal-900 flex items-center gap-2">
+                  <span>👥</span>
+                  <span>Toàn bộ học sinh trong lớp ({classStudents.length} học sinh)</span>
+                </div>
+              </div>
               <p className="text-sm text-slate-500">Ưu tiên hoạt động ngắn, vui và phù hợp với nội dung bé vừa học.</p>
             </>}
 

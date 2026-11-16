@@ -67,8 +67,6 @@ export const TeacherDashboardPage: React.FC = () => {
 
   // Form: Create Assignment
   const [assignClassId, setAssignClassId] = useState('');
-  const [assignType, setAssignType] = useState<'CLASS' | 'STUDENT'>('CLASS');
-  const [assignStudentId, setAssignStudentId] = useState('');
   const [assignUnitId, setAssignUnitId] = useState('');
   const [assignLessonId, setAssignLessonId] = useState('');
   const [assignActivityId, setAssignActivityId] = useState('');
@@ -86,8 +84,6 @@ export const TeacherDashboardPage: React.FC = () => {
   const classFilterSelectId = useId();
   const teachingLessonSelectId = useId();
   const assignClassSelectId = useId();
-  const assignTargetSelectId = useId();
-  const assignStudentSelectId = useId();
   const assignUnitSelectId = useId();
   const assignLessonSelectId = useId();
   const assignActivitySelectId = useId();
@@ -230,8 +226,7 @@ export const TeacherDashboardPage: React.FC = () => {
       setSubmittingAssignment(true);
       const res = await teacherApi.createAssignment({
         classRoomId: assignClassId,
-        assignedToType: assignType,
-        studentId: assignType === 'STUDENT' ? assignStudentId : undefined,
+        assignedToType: 'CLASS',
         lessonId: assignLessonId,
         activityId: assignActivityId || undefined,
         dueDate: assignDueDate || undefined,
@@ -1219,43 +1214,14 @@ export const TeacherDashboardPage: React.FC = () => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor={assignTargetSelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                    Đối tượng giao *
-                  </label>
-                  <select
-                    id={assignTargetSelectId}
-                    value={assignType}
-                    onChange={e => setAssignType(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
-                  >
-                    <option value="CLASS">Cả lớp</option>
-                    <option value="STUDENT">Từng học sinh</option>
-                  </select>
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase mb-1">
+                  Đối tượng giao
+                </label>
+                <div className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm text-slate-700 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-teal-700" />
+                  <span>Toàn bộ học sinh trong lớp ({selectedClass?.students?.length || 0} học sinh)</span>
                 </div>
-
-                {assignType === 'STUDENT' && (
-                  <div>
-                    <label htmlFor={assignStudentSelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                      Chọn học sinh *
-                    </label>
-                    <select
-                      id={assignStudentSelectId}
-                      value={assignStudentId}
-                      onChange={e => setAssignStudentId(e.target.value)}
-                      required={assignType === 'STUDENT'}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
-                    >
-                      <option value="">-- Chọn bé --</option>
-                      {selectedClass?.students?.map((s: any) => (
-                        <option key={s._id} value={s._id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
 
               {/* Curriculum Selector */}
