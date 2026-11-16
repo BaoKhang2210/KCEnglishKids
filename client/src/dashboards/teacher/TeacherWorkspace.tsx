@@ -2371,36 +2371,52 @@ export const TeacherStudentDetail = () => {
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {data.recentActivities.length ? (
                 (showAllActivities ? data.recentActivities : data.recentActivities.slice(0, 5)).map((r: any) => (
-                  <div key={r._id} className="p-3 rounded-2xl bg-slate-50/80 hover:bg-slate-100/90 border border-slate-100 transition-all flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-slate-900 text-xs truncate max-w-[180px]">{r.lesson?.title || 'Bài học'}</span>
-                        <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
-                          {r.activity?.title || 'Hoạt động'}
+                  <div key={r._id} className="p-3 rounded-2xl bg-slate-50/90 hover:bg-slate-100/90 border border-slate-200/70 transition-all space-y-2">
+                    {/* Hàng 1: Tên bài học và Điểm số + Sao */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-slate-900 text-xs block truncate" title={r.lesson?.title}>
+                          {r.lesson?.title || 'Bài học'}
+                        </span>
+                        <div className="mt-1">
+                          <span
+                            className="inline-block max-w-full text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded-md border border-indigo-100 truncate"
+                            title={r.activity?.title}
+                          >
+                            {r.activity?.title || 'Hoạt động tự luyện'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
+                        <span className={`px-2 py-0.5 rounded-lg text-xs font-black shrink-0 ${
+                          r.score == null
+                            ? 'bg-slate-100 text-slate-600'
+                            : r.score >= 80
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : r.score >= 60
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : 'bg-rose-100 text-rose-800 border border-rose-200'
+                        }`}>
+                          {r.score == null ? 'Chưa chấm' : `${r.score}%`}
+                        </span>
+                        <span className="text-xs font-black text-amber-600 flex items-center gap-0.5 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200">
+                          <Star size={11} className="fill-amber-400 text-amber-500" />
+                          <span>{r.stars || 0}</span>
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-slate-500 font-medium">
-                        <Clock size={12} className="shrink-0 text-slate-400" />
-                        <span>{date(r.createdAt)}</span>
-                      </div>
                     </div>
-                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                      <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
-                        r.score == null
-                          ? 'bg-slate-100 text-slate-600'
-                          : r.score >= 80
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : r.score >= 60
-                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                          : 'bg-rose-100 text-rose-800 border border-rose-200'
-                      }`}>
-                        {r.score == null ? 'Chưa chấm' : `${r.score}%`}
+
+                    {/* Hàng 2: Thời gian và Trạng thái hoàn thành */}
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/50 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1 font-medium text-slate-500">
+                        <Clock size={11} className="text-slate-400 shrink-0" />
+                        <span>{date(r.createdAt)}</span>
                       </span>
-                      <span className="text-[11px] font-bold text-amber-600 flex items-center gap-0.5">
-                        <Star size={12} className="fill-amber-400 text-amber-500" /> {r.stars || 0}★
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        Đã hoàn thành
                       </span>
                     </div>
                   </div>
