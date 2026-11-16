@@ -146,14 +146,6 @@ export const TeacherAnalytics = () => {
             </p>
           </div>
         </div>
-
-        <Link
-          to="/teacher/assignments"
-          className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs sm:text-sm transition-all shadow-2xs flex items-center gap-2 self-start sm:self-auto shrink-0"
-        >
-          <span>Giao bài &amp; Nhận xét</span>
-          <ArrowUpRight size={16} />
-        </Link>
       </div>
 
       {/* ── 4 COLORFUL KPI STAT CARDS ────────────────────────────────────────── */}
