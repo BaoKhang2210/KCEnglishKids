@@ -5,7 +5,7 @@ import { compareLessons, lessonPosition, bilingualLessonTitle } from '../../util
 import React, { useEffect, useMemo, useState } from 'react';
 import { ObservationPortfolio } from '../../components/teacher/ObservationPortfolio';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, ArrowUpDown, Send, Brain, UserCheck } from 'lucide-react';
+import { BookOpen, CheckCircle2, ClipboardList, MessageSquare, Play, Plus, Search, Star, Users, X, Mail, Calendar, ChevronRight, Clock, Sparkles, Trash2, Award, ArrowUpDown, Send, Brain, UserCheck, Eye } from 'lucide-react';
 import { api, teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
 import { ParentNoteSuggestions } from './ParentNoteSuggestions';
@@ -342,6 +342,28 @@ export const TeacherContent = () => {
   );
 };
 
+const formatActivityName = (type?: string) => {
+  if (!type) return 'Toàn bộ bài học';
+  const map: Record<string, string> = {
+    LISTEN_CHOOSE: 'Nghe & Chọn tranh',
+    LOOK_CHOOSE: 'Nhìn hình & Chọn từ',
+    LISTEN_TAP: 'Nghe & Chạm nhanh',
+    MATCH_LINES: 'Nối từ & Tranh',
+    WORD_SCRAMBLE: 'Ghép chữ thành từ',
+    SPEAKING: 'Luyện phát âm',
+    COLOR_RECOGNITION: 'Nhận biết màu sắc',
+    BUBBLE_POP: 'Bắn bong bóng',
+    MEMORY_CARD: 'Lật thẻ trí nhớ',
+    STAR_CATCHER: 'Hứng sao từ vựng',
+    FIND_OBJECT: 'Tìm đồ vật',
+    COUNT_OBJECTS: 'Đếm đồ vật',
+    FLASHCARD: 'Thẻ từ vựng',
+    SHADOW_PUZZLE: 'Ghép bóng hình',
+    PICTURE_BUILDER: 'Ghép tranh'
+  };
+  return map[type] || type.replace(/_/g, ' ');
+};
+
 export const TeacherAssignments = () => {
   const [assignmentSearch, setAssignmentSearch] = useSearchParams();
   const initialLesson = assignmentSearch.get('lesson') || assignmentSearch.get('lessonId') || '';
@@ -561,15 +583,15 @@ export const TeacherAssignments = () => {
 
       {filtered.length ? (
         <div className="overflow-x-auto rounded-3xl border border-slate-200/90 bg-white shadow-xs">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-700 font-bold text-xs border-b border-slate-200">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50/90 text-slate-700 font-bold text-xs border-b border-slate-200/80">
               <tr>
-                <th className="p-4">Nội dung bài tập</th>
-                <th className="p-4">Lớp áp dụng</th>
-                <th className="p-4">Đối tượng</th>
-                <th className="p-4">Hạn hoàn thành</th>
-                <th className="p-4">Trạng thái</th>
-                <th className="p-4 text-right">Thao tác</th>
+                <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider">Nội dung bài tập</th>
+                <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Lớp áp dụng</th>
+                <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Đối tượng</th>
+                <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Hạn hoàn thành</th>
+                <th className="py-3.5 px-4 text-center font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Trạng thái</th>
+                <th className="py-3.5 px-4 text-right font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -577,46 +599,56 @@ export const TeacherAssignments = () => {
                 const isOverdue = a.dueDate && new Date(a.dueDate) < new Date() && a.status !== 'COMPLETED';
                 return (
                   <tr key={a._id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4">
-                      <Link
-                        className="font-black text-slate-900 hover:text-teal-900 hover:underline flex items-center gap-1.5"
-                        to={`/teacher/assignments/${a._id}`}
-                      >
-                        {a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
-                          ? `${GAME_REGISTRY[a.minigameId as GameId].icon} ${GAME_REGISTRY[a.minigameId as GameId].title} — ${a.lesson?.title || ''}`
-                          : a.activity?.title || a.lesson?.title}
-                        <ChevronRight size={14} className="text-teal-700" />
-                      </Link>
-                      <span className="mt-1 inline-block text-[11px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
-                        {a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
-                          ? `Minigame Chặng 3: ${GAME_REGISTRY[a.minigameId as GameId].title}`
-                          : a.activity?.activityType || 'Toàn bộ bài học'}
-                      </span>
+                    <td className="py-4 px-4 align-middle">
+                      <div className="flex flex-col gap-1 min-w-[220px] max-w-sm">
+                        <Link
+                          className="font-black text-slate-900 hover:text-teal-900 hover:underline inline-flex items-center gap-1 leading-snug group text-sm"
+                          to={`/teacher/assignments/${a._id}`}
+                        >
+                          <span className="line-clamp-2">
+                            {a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
+                              ? `${GAME_REGISTRY[a.minigameId as GameId].icon} ${GAME_REGISTRY[a.minigameId as GameId].title} — ${a.lesson?.title || ''}`
+                              : a.activity?.title || a.lesson?.title}
+                          </span>
+                          <ChevronRight size={14} className="text-teal-700 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                        </Link>
+                        <div>
+                          <span className="inline-flex items-center text-[11px] font-bold text-indigo-950 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md">
+                            {a.minigameId && GAME_REGISTRY[a.minigameId as GameId]
+                              ? `Minigame: ${GAME_REGISTRY[a.minigameId as GameId].title}`
+                              : formatActivityName(a.activity?.activityType)}
+                          </span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1 font-bold text-indigo-900 bg-indigo-50/70 border border-indigo-100 px-2.5 py-1 rounded-full text-xs">
+                    <td className="py-4 px-4 align-middle whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 font-bold text-indigo-950 bg-indigo-50/80 border border-indigo-200/80 px-3 py-1 rounded-full text-xs shadow-2xs">
                         {a.classRoom?.name || '—'}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1.5 font-bold text-teal-900 bg-teal-50 border border-teal-200/80 px-2.5 py-1 rounded-full text-xs">
-                        <Users size={13} className="text-teal-700" />
-                        Cả lớp ({a.classRoom?.students?.length || 0} bé)
+                    <td className="py-4 px-4 align-middle whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 font-bold text-teal-950 bg-teal-50 border border-teal-200/80 px-3 py-1 rounded-full text-xs shadow-2xs">
+                        <Users size={13} className="text-teal-700 shrink-0" />
+                        <span>Cả lớp ({a.classRoom?.students?.length || 0} bé)</span>
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="py-4 px-4 align-middle whitespace-nowrap">
                       {a.dueDate ? (
-                        <span className={`inline-flex items-center gap-1 text-xs font-bold ${isOverdue ? 'text-rose-900 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg' : 'text-slate-700'}`}>
-                          <Calendar size={13} />
-                          {date(a.dueDate)}
-                          {isOverdue && ' (Hết hạn)'}
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-xl border ${
+                          isOverdue 
+                            ? 'text-rose-950 bg-rose-50 border-rose-200' 
+                            : 'text-slate-800 bg-slate-100/80 border-slate-200/80'
+                        }`}>
+                          <Calendar size={13} className={isOverdue ? 'text-rose-600 shrink-0' : 'text-slate-500 shrink-0'} />
+                          <span>{date(a.dueDate)}</span>
+                          {isOverdue && <span className="text-[10px] font-black text-rose-700 bg-rose-100 px-1 py-0.5 rounded">(Hết hạn)</span>}
                         </span>
                       ) : (
-                        <span className="text-slate-500 text-xs font-medium">Không giới hạn</span>
+                        <span className="text-slate-400 text-xs font-medium italic">Không giới hạn</span>
                       )}
                     </td>
-                    <td className="p-4">
-                      <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black border ${
+                    <td className="py-4 px-4 align-middle text-center whitespace-nowrap">
+                      <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-black border shadow-2xs ${
                         a.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' :
                         a.status === 'CANCELLED' ? 'bg-rose-100 text-rose-950 border-rose-300' :
                         a.status === 'IN_PROGRESS' ? 'bg-sky-100 text-sky-950 border-sky-300' :
@@ -628,20 +660,21 @@ export const TeacherAssignments = () => {
                          a.status === 'CANCELLED' ? 'Đã hủy' : a.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="py-4 px-4 align-middle text-right whitespace-nowrap">
+                      <div className="inline-flex items-center justify-end gap-2">
                         <Link
                           to={`/teacher/assignments/${a._id}`}
-                          className="rounded-xl bg-teal-700 hover:bg-teal-800 px-3.5 py-1.5 text-xs font-bold text-white transition-all shadow-2xs"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 active:scale-[0.98] px-3.5 py-2 text-xs font-black text-white transition-all shadow-xs whitespace-nowrap cursor-pointer"
                         >
-                          Chi tiết & Chấm bài
+                          <Eye size={13} className="shrink-0" />
+                          <span>Chi tiết & Chấm bài</span>
                         </Link>
                         <button
                           onClick={e => handleDelete(a._id, e)}
                           title="Hủy bài giao, giữ lịch sử"
-                          className="p-1.5 text-slate-400 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shrink-0"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>
