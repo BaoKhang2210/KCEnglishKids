@@ -376,8 +376,13 @@ export const ClassroomSessionSetup: React.FC = () => {
       setTitle(`Buổi ${sessionNumber}: ${lesson.title} - ${lesson.vietnameseTitle || ''}`);
     }
 
+    // Exclude activities that are already featured in Koko Interactive Minigames
+    // (Listen & Choose, True/False, Missing Object, Bubble Pop)
+    const KOKO_OVERLAPS = new Set(['LISTEN_CHOOSE', 'TRUE_FALSE', 'MISSING_OBJECT', 'BUBBLE_POP']);
     const acts = content.activities.filter(
-      (a: any) => String(a.lesson?._id || a.lesson) === selectedLessonId
+      (a: any) =>
+        String(a.lesson?._id || a.lesson) === selectedLessonId &&
+        !KOKO_OVERLAPS.has(a.activityType)
     );
     setLessonActivities(acts);
     setSelectedActivityIds(acts.map((a: any) => String(a._id)));
@@ -1029,10 +1034,16 @@ export const ClassroomSessionSetup: React.FC = () => {
 
             {/* Activities list */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                  Trò chơi tương tác · {selectedActivityIds.length}/{lessonActivities.length}
-                </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span>🎯</span>
+                    <span>Trò chơi theo bài học · {selectedActivityIds.length}/{lessonActivities.length}</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    Các trò tương tác tập thể (Hộp quà, Nghe chọn, Đúng sai, Đập bóng...) được điều khiển riêng trong mục Trò Chơi Koko.
+                  </p>
+                </div>
                 <div className="flex items-center gap-3"><button
                   type="button"
                   onClick={() =>

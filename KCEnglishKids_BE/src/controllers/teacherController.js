@@ -451,7 +451,7 @@ exports.getContent = async (req, res, next) => { try {
   if (req.query.lessonId) lq._id = req.query.lessonId;
   if (req.query.difficulty) lq.difficulty = Number(req.query.difficulty);
   const lessons = await Lesson.find(lq).populate('topic', 'englishName vietnameseName').populate('vocabularyItems', 'english vietnamese imageUrl audioUrl status wordType visualType isTransparent').populate({ path: 'languageContents', match: { status: 'ACTIVE' } }).sort({ displayOrder: 1 }).lean();
-  const aq = { status: 'ACTIVE', lesson: { $in: lessons.map(x => x._id) } };
+  const aq = { status: 'ACTIVE', lesson: { $in: lessons.map(x => x._id) }, activityType: { $nin: ['LISTEN_CHOOSE', 'TRUE_FALSE', 'MISSING_OBJECT', 'BUBBLE_POP'] } };
   if (req.query.activityType) aq.activityType = req.query.activityType;
   const activities = await Activity.find(aq).select('title vietnameseTitle lesson activityType difficulty questionCount pointsPerQuestion instructions starConfig ageGroupCode').lean();
   const books = await CurriculumBook.find({ active: true, ...(req.user.role === 'ADMIN' ? {} : { _id: { $in: units.map(unit => unit.book?._id || unit.book).filter(Boolean) } }) }).sort({ bookNumber: 1 });
