@@ -1759,9 +1759,9 @@ export const TeacherStudents = () => {
                             <div className="student-card-actions-secondary flex items-center gap-1">
                               <Link
                                 to={`/teacher/students/${s._id}`}
-                                className="text-xs font-bold text-indigo-900 hover:text-indigo-950 flex items-center gap-0.5 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/80 px-2.5 py-1.5 rounded-xl transition-all shadow-2xs"
+                                className="text-xs font-bold text-amber-950 hover:text-amber-900 flex items-center gap-0.5 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 px-2.5 py-1.5 rounded-xl transition-all shadow-2xs"
                               >
-                                Chi tiết <ChevronRight size={13} className="text-indigo-700" />
+                                Chi tiết <ChevronRight size={13} className="text-amber-700" />
                               </Link>
 
                               <button
@@ -1772,10 +1772,10 @@ export const TeacherStudents = () => {
                                     s.stats?.hasAssessment ? `Bé ${s.name} đã hoàn thành ${lessons} bài học, độ đúng qua các câu trả lời đạt ${avg}% và tích lũy được ${stars} sao.` : `Gia đình cùng bé ${s.name} ôn lại nội dung đã học bằng một hoạt động ngắn, vui vẻ nhé.`
                                   );
                                 }}
-                                className="text-xs font-bold text-amber-950 hover:text-amber-900 flex items-center gap-1 cursor-pointer bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 px-2.5 py-1.5 rounded-xl transition-all shadow-2xs"
+                                className="text-xs font-bold text-indigo-900 hover:text-indigo-950 flex items-center gap-1 cursor-pointer bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/80 px-2.5 py-1.5 rounded-xl transition-all shadow-2xs"
                                 title="Gửi nhận xét phụ huynh"
                               >
-                                <Send size={12} className="text-amber-700" /> Nhận xét
+                                <Send size={12} className="text-indigo-700" /> Nhận xét
                               </button>
                             </div>
                           </div>
