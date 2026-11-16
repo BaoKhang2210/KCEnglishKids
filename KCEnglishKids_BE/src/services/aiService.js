@@ -24,11 +24,11 @@ function templateOptions(facts) {
   const lesson = cleanLabel(facts.recentLesson, 120);
   const greeting = `Chào gia đình bé ${name}!`;
   const accuracy = facts.averageAccuracy == null ? ''
-    : ` Độ đúng trên các câu đã ghi nhận ${facts.scope === 'assignment' ? 'trong lượt làm này' : 'trung bình toàn quá trình'} là ${facts.averageAccuracy}%.`;
+    : ` Độ đúng trên các câu đã ghi nhận trung bình toàn quá trình là ${facts.averageAccuracy}%.`;
   const totals = ` Trong toàn bộ hành trình, bé đã hoàn thành ${facts.completedLessons} bài và có ${facts.totalStars} sao được ghi nhận.`;
   const streak = facts.streak ? ` Chuỗi hoạt động gần nhất là ${facts.streak} ngày.` : '';
-  const recent = lesson ? ` Bài ${facts.scope === 'assignment' ? 'đang xem' : 'được ghi nhận gần nhất'} là “${lesson}”.` : '';
-  const stars = facts.scope === 'assignment' ? [3, 2, 1] : [5, 4, 3];
+  const recent = lesson ? ` Bài được ghi nhận gần nhất là “${lesson}”.` : '';
+  const stars = [5, 4, 3];
   return [
     {
       id: 'praise', type: 'praise', badge: 'Ghi nhận cố gắng', title: 'Niềm vui nhỏ của bé', suggestedStars: stars[0],
@@ -59,7 +59,7 @@ function validOptions(value, scope) {
       typeof option[key] === 'string' && option[key].trim().length > 0 &&
       option[key].length <= (key === 'content' ? 1200 : 100) && !/[<>\p{Cc}]/u.test(option[key])) &&
       Number.isInteger(option.suggestedStars) && option.suggestedStars >= 1 &&
-      option.suggestedStars <= (scope === 'assignment' ? 3 : 5);
+      option.suggestedStars <= 5;
   });
 }
 

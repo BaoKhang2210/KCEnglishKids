@@ -27,7 +27,6 @@ const {
   Schedule,
   LearningObservation,
   HomePracticePlan,
-  Assignment,
   LearningEvent,
   MasteryEvent,
   TeacherNote,
@@ -176,7 +175,6 @@ async function seedDatabase() {
       Schedule.deleteMany({}),
       LearningObservation.deleteMany({}),
       HomePracticePlan.deleteMany({}),
-      Assignment.deleteMany({}),
       LearningEvent.deleteMany({}),
       MasteryEvent.deleteMany({}),
       TeacherNote.deleteMany({}),
@@ -1354,19 +1352,6 @@ async function seedDatabase() {
           nextStep: obsLeo.nextStep
         }
       ]
-    });
-
-    // 9.13 Homework Assignments
-    await Assignment.create({
-      teacher: teacher1._id,
-      classRoom: class1._id,
-      lesson: petAnimalsLesson._id,
-      activity: petAnimalsActivities[0]?._id || null,
-      assignedToType: 'CLASS',
-      completionMode: 'ACTIVITY',
-      dueDate: new Date(Date.now() + 7 * 86400000),
-      startDate: new Date(),
-      status: 'ASSIGNED'
     });
 
     // 9.14 Parent Notifications

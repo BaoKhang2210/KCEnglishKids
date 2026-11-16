@@ -1,4 +1,4 @@
-const { Vocabulary, CurriculumUnit, Topic, Assignment, ActivityResult, LanguageContent } = require('../models');
+const { Vocabulary, CurriculumUnit, Topic, ActivityResult, LanguageContent } = require('../models');
 const { auditLessonAgeAppropriateness } = require('./aiService');
 const fail = message => { throw Object.assign(new Error(message), {statusCode:409}); };
 const safeMedia = value => typeof value === 'string' && (value.startsWith('/') && !value.startsWith('//') || /^https:\/\//i.test(value));
@@ -44,6 +44,6 @@ async function lessonReadiness(lesson) {
   };
 }
 async function assertPublishable(lesson){const report=await lessonReadiness(lesson);if(!report.ready)fail(report.issues.join(' '));return report;}
-async function assertNotAssigned(query){if(await Assignment.exists({status:{$in:['ASSIGNED','IN_PROGRESS']},...query}))fail('Nội dung đang được giao. Hủy/đóng bài giao trước khi ẩn hoặc sửa; tạo bản mới để giữ lịch sử.');}
-async function assertActivityEditable(id){await assertNotAssigned({$or:[{activity:id},{activitySnapshot:id}]});if(await ActivityResult.exists({activity:id}))fail('Hoạt động đã có kết quả. Hãy tạo phiên bản mới.');}
+async function assertNotAssigned(){ /* Assignments removed */ }
+async function assertActivityEditable(id){if(await ActivityResult.exists({activity:id}))fail('Hoạt động đã có kết quả. Hãy tạo phiên bản mới.');}
 module.exports={lessonReadiness,assertPublishable,assertNotAssigned,assertActivityEditable,safeMedia};

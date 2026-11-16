@@ -1,4 +1,4 @@
-const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment, HomePracticeCompletion } = require('../models');
+const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 const { computeStarLedger } = require('./starLedgerService');
 
@@ -216,9 +216,7 @@ const computeRewards = async (childId) => {
     });
   }
 
-  const reviewedAssignments = await Assignment.find({ 'reviews.child': childId }).select('reviews');
-  const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
-    .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
+  const teacherStars = 0;
   const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
   const legacyBonusStars = completions.reduce((sum, completion) => {
     const reward = (completion.rewards || []).find(item => item.type === 'STAR');

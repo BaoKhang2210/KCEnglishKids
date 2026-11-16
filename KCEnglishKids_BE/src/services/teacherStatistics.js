@@ -1,4 +1,4 @@
-const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, Assignment, LearningEvent, HomePracticeCompletion } = require('../models');
+const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, LearningEvent, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 const { resolveLessonStars } = require('./starLedgerService');
 function combineAssessment(sources) {
@@ -113,12 +113,7 @@ const statsFor = async ids => {
   const progressMap = new Map(progressStats.map(x => [String(x._id), x]));
   const classroomMap = new Map(classroomStats.map(x => [String(x._id), x]));
   const unitMap = new Map(unitStats.map(x => [String(x._id), x]));
-  const reviews = await Assignment.find({ 'reviews.child': { $in: ids } }).select('reviews').lean();
   const teacherStarsByChild = new Map();
-  for (const assignment of reviews) for (const review of assignment.reviews || []) {
-    const id = String(review.child);
-    teacherStarsByChild.set(id, (teacherStarsByChild.get(id) || 0) + (review.bonusStars || 0));
-  }
 
   const eventMap = new Map(eventStats.map(row => [String(row._id), row]));
   const homePracticeMap = new Map((homePracticeStats || []).map(row => [String(row._id), row]));

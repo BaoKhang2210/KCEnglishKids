@@ -88,7 +88,6 @@ exports.getClassDetail = async (req, res, next) => { try {
         stats: map.get(String(x._id)) || { ...EMPTY_STATS },
         attendance: attMap.get(String(x._id)) || { present: 0, excused: 0, absent: 0, late: 0, totalSessions: 0, attendanceRate: 100 }
       })),
-      assignments: [],
       recentSessions,
       studentAttendanceSummary
     }
@@ -412,8 +411,7 @@ exports.getStudentOverview = async (req, res, next) => {
         progressList,
         recentActivities: await require('../services/learningHistory').recentHistory(student._id,recentActivities),
         sessions,
-        notes,
-        assignments: []
+        notes
       }
     });
   } catch (e) {
