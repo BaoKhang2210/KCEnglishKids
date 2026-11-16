@@ -28,7 +28,11 @@ import {
   Database,
   CalendarDays,
   Clock,
-  KeyRound
+  KeyRound,
+  Phone,
+  User,
+  Info,
+  ArrowRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminApi } from '../../services/api';
@@ -78,7 +82,7 @@ export const AdminClassroomsPage: React.FC = () => {
   const [createExcelFileName, setCreateExcelFileName] = useState('');
 
   // Single individual student admission form (Thêm lẻ học sinh từ tài khoản có sẵn trong hệ thống)
-  const [singleStudentTab, setSingleStudentTab] = useState<'excel' | 'single'>('single');
+  const [singleStudentTab, setSingleStudentTab] = useState<'existing' | 'single' | 'excel'>('existing');
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [availableStudentsLoading, setAvailableStudentsLoading] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
@@ -297,7 +301,7 @@ export const AdminClassroomsPage: React.FC = () => {
   const handleOpenManageStudents = async (c: any) => {
     try {
       setManageStudentsModal(c);
-      setSingleStudentTab('single');
+      setSingleStudentTab('existing');
       setExcelImportRows([]);
       setExcelFileName('');
       setStudentSearchTerm('');
@@ -1458,40 +1462,53 @@ export const AdminClassroomsPage: React.FC = () => {
               {/* CỘT TRÁI (6/12): TIẾP NHẬN & THÊM HỌC SINH */}
               <div className="lg:col-span-6 flex flex-col min-h-0 border-b lg:border-b-0 lg:border-r border-slate-200 lg:pr-7 pb-4 lg:pb-0">
                 {/* Tabs */}
-                <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 shrink-0 mb-3">
+                <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-slate-100 shrink-0 mb-3.5">
                   <button
                     type="button"
-                    onClick={() => setSingleStudentTab('single')}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      singleStudentTab === 'single'
-                        ? 'bg-white text-indigo-800 shadow-2xs'
+                    onClick={() => setSingleStudentTab('existing')}
+                    className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      singleStudentTab === 'existing'
+                        ? 'bg-white text-indigo-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <UserCheck size={16} />
-                    <span>Thêm Lẻ Học Sinh</span>
+                    <Users size={15} />
+                    <span className="truncate">Chọn Có Sẵn</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSingleStudentTab('single')}
+                    className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      singleStudentTab === 'single'
+                        ? 'bg-white text-indigo-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <UserPlus size={15} />
+                    <span className="truncate">Thêm Lẻ Mới</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setSingleStudentTab('excel')}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       singleStudentTab === 'excel'
-                        ? 'bg-white text-indigo-800 shadow-2xs'
+                        ? 'bg-white text-indigo-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <FileSpreadsheet size={16} />
-                    <span>Nạp Từ File Excel</span>
+                    <FileSpreadsheet size={15} />
+                    <span className="truncate">Nạp Từ Excel</span>
                   </button>
                 </div>
 
-                {/* TAB 1: THÊM LẺ HỌC SINH CÓ SẴN */}
-                {singleStudentTab === 'single' && (
+                {/* TAB 1: CHỌN TỪ TÀI KHOẢN CÓ SẴN TRÊN HỆ THỐNG */}
+                {singleStudentTab === 'existing' && (
                   <div className="flex-1 flex flex-col min-h-0 space-y-3">
                     {/* Filter buttons */}
                     <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
-                      <span className="text-xs font-black uppercase tracking-wider text-slate-600">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
                         Chọn tài khoản có sẵn
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -1554,7 +1571,7 @@ export const AdminClassroomsPage: React.FC = () => {
                     </div>
 
                     {/* List of existing students (Scrollable) */}
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[140px]">
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px]">
                       {availableStudentsLoading ? (
                         <div className="py-8 text-center text-xs font-bold text-slate-600">
                           <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -1586,7 +1603,7 @@ export const AdminClassroomsPage: React.FC = () => {
                               }`}
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <StudentAvatar student={st} size="sm" />
+                                <StudentAvatar student={st} size="md" />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
                                   <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-600 mt-1">
@@ -1666,79 +1683,125 @@ export const AdminClassroomsPage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Collapsible Manual Add Fallback */}
-                    <div className="pt-2 border-t border-slate-200 shrink-0">
+                    {/* Bottom Helper */}
+                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">
+                      <span>Chưa có tài khoản trên hệ thống?</span>
                       <button
                         type="button"
-                        onClick={() => setShowManualCreateFallback(!showManualCreateFallback)}
-                        className="text-xs font-bold text-slate-700 hover:text-indigo-800 flex items-center gap-1 transition-colors cursor-pointer"
+                        onClick={() => setSingleStudentTab('single')}
+                        className="text-indigo-700 hover:text-indigo-900 font-bold flex items-center gap-1 cursor-pointer"
                       >
-                        {showManualCreateFallback ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        <span>Hoặc tạo nhanh học sinh mới chưa có trên hệ thống</span>
+                        <span>+ Thêm lẻ học sinh mới</span>
+                        <ArrowRight size={13} />
                       </button>
-
-                      {showManualCreateFallback && (
-                        <form onSubmit={handleAddSingleStudent} className="pt-3 space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-2">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            <div>
-                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
-                                Họ Và Tên *
-                              </label>
-                              <input
-                                type="text"
-                                required
-                                value={singleStudentForm.name}
-                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, name: e.target.value })}
-                                placeholder="Ví dụ: Hoàng Bảo Nam"
-                                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-bold focus:outline-none focus:border-indigo-600"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
-                                Ngày Sinh
-                              </label>
-                              <input
-                                type="date"
-                                value={singleStudentForm.dob}
-                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, dob: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-semibold focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1">
-                                SĐT Phụ Huynh
-                              </label>
-                              <input
-                                type="text"
-                                value={singleStudentForm.contact}
-                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, contact: e.target.value })}
-                                placeholder="0912345678"
-                                className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-semibold focus:outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[11px] text-slate-600 font-semibold italic">
-                              Học sinh mới sẽ tự động nhận nhóm {manageStudentsModal.ageGroupCode} tuổi theo lớp.
-                            </span>
-                            <button
-                              type="submit"
-                              disabled={singleStudentSubmitting}
-                              className="py-1.5 px-4 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-black text-xs cursor-pointer"
-                            >
-                              {singleStudentSubmitting ? 'Đang tạo...' : '+ Tạo & Thêm Vào Lớp'}
-                            </button>
-                          </div>
-                        </form>
-                      )}
                     </div>
                   </div>
                 )}
 
-                {/* TAB 2: IMPORT TỪ EXCEL */}
+                {/* TAB 2: THÊM LẺ HỌC SINH MỚI (TẠO TÀI KHOẢN NHANH VÀO LỚP) */}
+                {singleStudentTab === 'single' && (
+                  <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
+                    <form onSubmit={handleAddSingleStudent} className="space-y-4 p-5 rounded-2xl bg-slate-50/80 border border-slate-200">
+                      <div className="flex items-center gap-3 pb-3 border-b border-slate-200/80">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                          <UserPlus size={20} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900">Thêm Lẻ Tài Khoản Học Sinh Mới</h3>
+                          <p className="text-xs text-slate-500 font-medium">
+                            Tạo nhanh tài khoản và tự động thêm bé vào lớp {manageStudentsModal.name} ({manageStudentsModal.ageGroupCode} tuổi)
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                            Họ và tên học sinh <span className="text-rose-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="text"
+                              required
+                              value={singleStudentForm.name}
+                              onChange={(e) => setSingleStudentForm({ ...singleStudentForm, name: e.target.value })}
+                              placeholder="Ví dụ: Hoàng Bảo Nam"
+                              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                              Ngày sinh của bé
+                            </label>
+                            <input
+                              type="date"
+                              value={singleStudentForm.dob}
+                              onChange={(e) => setSingleStudentForm({ ...singleStudentForm, dob: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                              Số điện thoại phụ huynh
+                            </label>
+                            <div className="relative">
+                              <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="tel"
+                                value={singleStudentForm.contact}
+                                onChange={(e) => setSingleStudentForm({ ...singleStudentForm, contact: e.target.value })}
+                                placeholder="0912 345 678"
+                                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-900 font-medium flex items-start gap-2">
+                          <Info size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+                          <span>
+                            Học sinh mới sẽ được hệ thống tự động cấp mã tài khoản, mã PIN đăng nhập 4 số và gán nhóm <b>{manageStudentsModal.ageGroupCode} tuổi</b> theo độ tuổi của lớp.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSingleStudentTab('existing')}
+                          className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                        >
+                          ← Quay lại chọn có sẵn
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={singleStudentSubmitting}
+                          className="py-2.5 px-5 rounded-xl bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-black text-xs sm:text-sm shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                          {singleStudentSubmitting ? (
+                            <>
+                              <div className="h-4 w-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
+                              <span>Đang tạo tài khoản...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus size={16} />
+                              <span>+ Tạo &amp; Thêm Vào Lớp</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* TAB 3: IMPORT TỪ EXCEL */}
                 {singleStudentTab === 'excel' && (
                   <div className="flex-1 flex flex-col justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                     <div className="space-y-2">
@@ -1801,7 +1864,7 @@ export const AdminClassroomsPage: React.FC = () => {
               <div className="lg:col-span-6 flex flex-col min-h-0 space-y-3">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-700 px-1 shrink-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-900 font-extrabold text-sm">Học sinh trong lớp</span>
+                    <span className="text-slate-900 font-black text-sm">Học sinh trong lớp</span>
                     <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 font-black text-xs">
                       {manageStudentsModal.students?.length || 0} em
                     </span>
@@ -1809,9 +1872,9 @@ export const AdminClassroomsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleExportRoster(manageStudentsModal)}
-                    className="text-indigo-700 hover:text-indigo-900 hover:underline flex items-center gap-1.5 font-bold text-xs normal-case cursor-pointer"
+                    className="py-1.5 px-3 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 font-bold text-xs border border-indigo-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    <Download size={14} />
+                    <Download size={13} />
                     <span>Xuất file Excel</span>
                   </button>
                 </div>
@@ -1874,48 +1937,59 @@ export const AdminClassroomsPage: React.FC = () => {
                         className="p-3 sm:p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between gap-3 hover:border-indigo-300 hover:shadow-xs transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <span className="h-7 w-7 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-800 font-black text-xs flex items-center justify-center shrink-0">
+                          <span className="h-8 w-8 rounded-xl bg-slate-100 border border-slate-200/80 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
                             {idx + 1}
                           </span>
 
-                          <StudentAvatar student={st} size="sm" />
+                          <StudentAvatar student={st} size="md" />
 
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-600 mt-1">
-                              <span className="font-mono text-indigo-900 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-[10px] font-bold">
-                                Mã: {st.username || 'N/A'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setResetPinTarget(st);
-                                  setNewPinValue('');
-                                }}
-                                className="font-mono text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Đặt lại mã PIN đăng nhập cho bé"
-                              >
-                                <KeyRound size={11} />
-                                <span>Đổi PIN</span>
-                              </button>
-                              {st.contact && (
-                                <span className="text-[11px] text-slate-600 truncate max-w-[140px] font-medium">
-                                  📞 {st.contact}
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
+                              {st.ageGroupCode && (
+                                <span className="px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px] shrink-0">
+                                  {st.ageGroupCode} tuổi
                                 </span>
                               )}
+                            </div>
+
+                            <div className="flex items-center gap-3 text-xs text-slate-500 font-medium mt-1">
+                              <span className="font-mono text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded text-[10px] font-bold shrink-0">
+                                Mã: {st.username || 'N/A'}
+                              </span>
+                              <span className="flex items-center gap-1 truncate text-[11px] text-slate-600">
+                                <Phone size={12} className="text-slate-400 shrink-0" />
+                                <span className="font-medium truncate">{st.contact || 'Chưa có SĐT'}</span>
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveStudent(st._id, st.name)}
-                          className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 border border-rose-200/70"
-                          title="Xóa học sinh ra khỏi lớp"
-                        >
-                          <UserMinus size={14} />
-                          <span>Xóa khỏi lớp</span>
-                        </button>
+                        {/* Aligned Action Buttons Group */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetPinTarget(st);
+                              setNewPinValue('');
+                            }}
+                            className="py-1.5 px-3 rounded-xl bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                            title="Đặt lại mã PIN đăng nhập cho bé"
+                          >
+                            <KeyRound size={13} className="text-indigo-600" />
+                            <span>Đổi PIN</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveStudent(st._id, st.name)}
+                            className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1.5 border border-rose-200/80 shadow-2xs transition-all cursor-pointer"
+                            title="Xóa học sinh ra khỏi lớp"
+                          >
+                            <UserMinus size={13} />
+                            <span>Xóa khỏi lớp</span>
+                          </button>
+                        </div>
                       </div>
                     ));
                   })()}
