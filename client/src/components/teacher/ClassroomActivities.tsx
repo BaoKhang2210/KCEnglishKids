@@ -170,21 +170,21 @@ function buildSynthesizedActivities(existingActivities: Activity[], lessonVocab:
     return enrichedExisting;
   }
 
-  const existingTypes = new Set(enrichedExisting.map(a => a.activityType));
+  // Filter out types that are already featured in Koko Interactive Minigames (Nghe & Chọn, Đúng Sai, Đồ vật biến mất, Đập bóng)
+  // to avoid duplication between "Trò chơi theo bài" and "Trò chơi tương tác Koko"
+  const KOKO_INTERACTIVE_OVERLAPS = new Set(['LISTEN_CHOOSE', 'TRUE_FALSE', 'MISSING_OBJECT', 'BUBBLE_POP']);
+  const filteredExisting = enrichedExisting.filter(a => !KOKO_INTERACTIVE_OVERLAPS.has(a.activityType));
+  const existingTypes = new Set(filteredExisting.map(a => a.activityType));
+
   const desiredCatalogue: Array<{ type: string; titleVi: string; instructions: string }> = [
-    { type: 'LISTEN_CHOOSE', titleVi: `Nghe & Chọn Tranh: ${lessonTitle}`, instructions: 'Nghe phát âm và chạm vào bức tranh đúng nhất!' },
-    { type: 'IMAGE_WORD_MATCH', titleVi: `Nhìn Tranh Chọn Từ: ${lessonTitle}`, instructions: 'Quan sát bức tranh và chọn từ tiếng Anh tương ứng!' },
     { type: 'MEMORY_CARD', titleVi: `Lật Thẻ Trí Nhớ: ${lessonTitle}`, instructions: 'Lật mở 2 thẻ để tìm cặp Hình ảnh và Từ vựng trùng khớp!' },
-    { type: 'TRUE_FALSE', titleVi: `Đúng Hay Sai (Yes/No): ${lessonTitle}`, instructions: 'Nhìn tranh và chọn câu nói bên dưới là Đúng hay Sai!' },
+    { type: 'IMAGE_WORD_MATCH', titleVi: `Nhìn Tranh Chọn Từ: ${lessonTitle}`, instructions: 'Quan sát bức tranh và chọn từ tiếng Anh tương ứng!' },
     { type: 'COUNT_OBJECTS', titleVi: `Đếm Số Lượng: ${lessonTitle}`, instructions: 'Chạm vào từng hình để đếm to tiếng Anh rồi chọn con số đúng!' },
-    { type: 'MISSING_OBJECT', titleVi: `Đồ Vật Biến Mất: ${lessonTitle}`, instructions: 'Ghi nhớ các hình trên bàn và tìm ra hình vừa biến mất!' },
-    { type: 'BUBBLE_POP', titleVi: `Đập Bong Bóng: ${lessonTitle}`, instructions: 'Chạm làm nổ quả bong bóng mang từ vựng được yêu cầu!' },
-    { type: 'FEED_ANIMAL', titleVi: `Cùng Gấu Koko: ${lessonTitle}`, instructions: 'Chọn đúng hình bạn Gấu Koko đang cần nhé!' },
-    { type: 'STAR_CATCHER', titleVi: `Hứng Sao Từ Vựng: ${lessonTitle}`, instructions: 'Chạm thu hoạch ngôi sao mang đúng từ vựng vào giỏ!' },
-    { type: 'LISTEN_REPEAT', titleVi: `Nghe & Đọc Theo Koko: ${lessonTitle}`, instructions: 'Nghe phát âm mẫu và đọc to rõ ràng cùng Koko!' }
+    { type: 'DRAG_DROP', titleVi: `Hộp Đích Từ Vựng: ${lessonTitle}`, instructions: 'Chạm chọn hình đúng để đặt vào hộp đích!' },
+    { type: 'LISTEN_REPEAT', titleVi: `Luyện Phát Âm Cùng Koko: ${lessonTitle}`, instructions: 'Nghe phát âm mẫu và đọc to rõ ràng cùng Koko!' }
   ];
 
-  const synthesized: Activity[] = [...enrichedExisting];
+  const synthesized: Activity[] = [...filteredExisting];
 
   for (const spec of desiredCatalogue) {
     if (existingTypes.has(spec.type as any)) continue;

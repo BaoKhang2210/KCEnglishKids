@@ -480,6 +480,63 @@ export const LiveSessionPage: React.FC = () => {
   const activeWarmupPatterns = warmupPatterns;
   const currentWarmupPattern = activeWarmupPatterns[currentWarmupPatternIndex] || activeWarmupPatterns[0];
 
+  // Split dialogue question and answers cleanly for Warmup Pattern presentation
+  const warmupDialogueData = useMemo(() => {
+    if (!currentWarmupPattern) return null;
+    let questionEn = currentWarmupPattern.english || '';
+    let questionVi = currentWarmupPattern.vietnamese || '';
+    let answers: Array<{ english: string; vietnamese?: string; audioUrl?: string | null; imageUrl?: string | null }> = [];
+
+    if (currentWarmupPattern.answers && currentWarmupPattern.answers.length > 0) {
+      answers = currentWarmupPattern.answers.map((a: any) => ({
+        english: a.english || '',
+        vietnamese: a.vietnamese || '',
+        audioUrl: a.audioUrl || null,
+        imageUrl: a.imageUrl || null
+      })).filter((a: any) => Boolean(a.english));
+    }
+
+    // If no answers array but english has a question mark with trailing response (e.g. "Is it big? Yes, it is.")
+    if (answers.length === 0 && questionEn.includes('?')) {
+      const parts = questionEn.split('?');
+      if (parts.length > 1 && parts[1].trim()) {
+        questionEn = parts[0].trim() + '?';
+        const ansText = parts.slice(1).join('?').trim();
+        let ansVi = '';
+        if (questionVi.includes('?')) {
+          const viParts = questionVi.split('?');
+          questionVi = viParts[0].trim() + '?';
+          ansVi = viParts.slice(1).join('?').trim();
+        }
+        answers.push({
+          english: ansText,
+          vietnamese: ansVi,
+          audioUrl: null,
+          imageUrl: null
+        });
+      }
+    }
+
+    // Preschool scaffolding: If it's a question without answer, provide the standard preschool response
+    if (answers.length === 0 && (questionEn.includes('?') || /^(what|how|who|where|is|are|can|do)\b/i.test(questionEn))) {
+      if (/^is\s/i.test(questionEn) || /^are\s/i.test(questionEn)) {
+        answers.push({ english: 'Yes, it is! / No, it isn\'t.', vietnamese: 'Vâng, đúng rồi! / Không phải đâu.' });
+      } else if (/^what\s+is\s+this/i.test(questionEn) || /^what's\s+this/i.test(questionEn)) {
+        answers.push({ english: 'It is a...', vietnamese: 'Đó là một...' });
+      } else if (/^what\s+color/i.test(questionEn)) {
+        answers.push({ english: 'It is...', vietnamese: 'Nó có màu...' });
+      } else if (/^how\s+many/i.test(questionEn)) {
+        answers.push({ english: 'There are...', vietnamese: 'Có...' });
+      } else if (/^can\s+you/i.test(questionEn)) {
+        answers.push({ english: 'Yes, I can!', vietnamese: 'Có, mình làm được!' });
+      } else {
+        answers.push({ english: 'Listen and answer together!', vietnamese: 'Cùng nghe và trả lời nhé!' });
+      }
+    }
+
+    return { questionEn, questionVi, answers };
+  }, [currentWarmupPattern]);
+
   // Current Vocabulary TPR Physical Mime Action from Lesson Plan or Rich Preschool TPR Map
   const currentTprGesture = useMemo(() => {
     if (!currentVocab) return '';
@@ -1226,99 +1283,156 @@ export const LiveSessionPage: React.FC = () => {
               )}
 
               {/* Main Flashcard for Warm-up: Sentence Patterns */}
-              {warmupSection === 'patterns' && currentWarmupPattern && (
-                <div className="flex flex-col items-center text-center my-auto w-full">
-                  {/* Pattern Illustration Frame */}
-                  <div className="relative mb-2 flex h-[clamp(6.5rem,18vh,11.5rem)] w-[clamp(6.5rem,18vh,11.5rem)] items-center justify-center rounded-3xl border-4 border-amber-400/60 bg-white/10 p-2.5">
-                    <img src={getSentenceIllustration(currentWarmupPattern.english)} alt="" className="w-full h-full object-contain" />
-                    <button
-                      onClick={() => {
-                        sfx.playPop();
-                        const qText = currentWarmupPattern.english;
-                        const ansList = currentWarmupPattern.answers && currentWarmupPattern.answers.length > 0
-                          ? currentWarmupPattern.answers
-                          : [];
-                        void playDialogueAudio(
-                          qText,
-                          ansList,
-                          currentWarmupPattern.audioUrl || undefined
-                        );
-                      }}
-                      className="absolute -bottom-2.5 -right-2.5 w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 hover:from-amber-400 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-4 ring-amber-300/40"
-                      title="Phát âm cả câu hỏi và tất cả câu trả lời"
-                    >
-                      <Volume2 size={20} />
-                    </button>
+              {warmupSection === 'patterns' && currentWarmupPattern && warmupDialogueData && (
+                <div className="flex flex-col items-center my-auto w-full max-w-3xl space-y-3">
+                  {/* ── CARD 1: CÂU HỎI (QUESTION CARD) ── */}
+                  <div className="w-full rounded-3xl bg-white/10 border-2 border-amber-400/50 p-4 sm:p-5 backdrop-blur-xs shadow-lg relative">
+                    <div className="flex items-center justify-between mb-3 border-b border-amber-400/20 pb-2.5">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/80 px-3 py-1 rounded-full border border-amber-400/40 flex items-center gap-1.5">
+                        <span>❓</span>
+                        <span>CÂU HỎI ÔN TẬP</span>
+                      </span>
+
+                      {/* Question Audio Controls */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playPop();
+                            playWordAudio(warmupDialogueData.questionEn, currentWarmupPattern.audioUrl || undefined);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 text-xs font-bold transition-all cursor-pointer"
+                          title="Chỉ phát âm câu hỏi"
+                        >
+                          <Volume2 size={14} />
+                          <span>Chỉ câu hỏi</span>
+                        </button>
+
+                        {warmupDialogueData.answers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playPop();
+                              void playDialogueAudio(
+                                warmupDialogueData.questionEn,
+                                warmupDialogueData.answers,
+                                currentWarmupPattern.audioUrl || undefined
+                              );
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer active:scale-95 transition-all"
+                            title="Nghe lần lượt câu hỏi và tất cả câu trả lời"
+                          >
+                            <Volume2 size={15} />
+                            <span>Đọc cả Hỏi &amp; Đáp 💬</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                      {/* Question Illustration Frame */}
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-2 border-3 border-amber-400/70 shrink-0 shadow-md flex items-center justify-center">
+                        <img
+                          src={getSentenceIllustration(warmupDialogueData.questionEn, currentWarmupPattern.imageUrl, false)}
+                          alt={warmupDialogueData.questionEn}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+
+                      <div className="text-center sm:text-left flex-1 min-w-0">
+                        {/* Question English Text */}
+                        <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-amber-300 font-display tracking-wide mb-1.5 leading-snug">
+                          &ldquo;{warmupDialogueData.questionEn}&rdquo;
+                        </h2>
+
+                        {/* Pronunciation & Vietnamese Meaning */}
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm font-semibold">
+                          {warmupDialogueData.questionVi && (
+                            <span className="text-amber-100 bg-amber-900/60 px-3 py-0.5 rounded-lg border border-amber-400/30">
+                              {warmupDialogueData.questionVi}
+                            </span>
+                          )}
+                          {currentWarmupPattern.pronunciation && (
+                            <span className="text-slate-300 font-mono text-xs bg-white/10 px-2.5 py-0.5 rounded-lg">
+                              /{currentWarmupPattern.pronunciation}/
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Sentence English Text */}
-                  <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-amber-300 font-display tracking-wide uppercase mb-1 max-w-2xl">
-                    &ldquo;{currentWarmupPattern.english}&rdquo;
-                  </h2>
-
-                  {/* Dual Audio Actions */}
-                  {currentWarmupPattern.answers && currentWarmupPattern.answers.length > 0 && (
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playPop();
-                          const qText = currentWarmupPattern.english;
-                          const ansList = currentWarmupPattern.answers;
-                          void playDialogueAudio(
-                            qText,
-                            ansList,
-                            currentWarmupPattern.audioUrl || undefined
-                          );
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs active:scale-95 transition-all cursor-pointer shadow-sm"
-                        title="Nghe lần lượt câu hỏi và tất cả câu trả lời"
-                      >
-                        <Volume2 size={14} />
-                        <span>
-                          {currentWarmupPattern.answers.length > 1
-                            ? `Đọc cả Hỏi & ${currentWarmupPattern.answers.length} Đáp 💬`
-                            : 'Đọc cả Hỏi & Đáp 💬'}
+                  {/* ── CARD 2: CÂU TRẢ LỜI (ANSWER CARD - TÁCH BIỆT RÕ RÀNG) ── */}
+                  {warmupDialogueData.answers.length > 0 && (
+                    <div className="w-full rounded-3xl bg-gradient-to-r from-emerald-950/70 via-teal-900/60 to-emerald-950/70 border-2 border-emerald-400/80 p-4 sm:p-5 backdrop-blur-xs shadow-lg animate-fade-in">
+                      <div className="flex items-center justify-between mb-3 border-b border-emerald-400/20 pb-2.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-400/40 flex items-center gap-1.5">
+                          <span>✨</span>
+                          <span>CÂU TRẢ LỜI CỦA BÉ</span>
                         </span>
-                      </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playPop();
+                            void playDialogueAudio('', warmupDialogueData.answers);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md cursor-pointer active:scale-90 transition-transform"
+                          title="Phát âm câu trả lời"
+                        >
+                          <Volume2 size={14} />
+                          <span>Nghe câu trả lời</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {warmupDialogueData.answers.map((ans, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 rounded-2xl p-3 border border-emerald-400/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white p-1 border-2 border-emerald-400 shrink-0 flex items-center justify-center shadow-xs">
+                                <img
+                                  src={getSentenceIllustration(ans.english, ans.imageUrl, true)}
+                                  alt={ans.english}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+
+                              <div className="text-left min-w-0">
+                                <p className="text-base sm:text-xl font-black text-white tracking-wide">
+                                  {ans.english}
+                                </p>
+                                {ans.vietnamese && (
+                                  <p className="text-xs text-emerald-200 font-semibold mt-0.5">
+                                    {ans.vietnamese}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sfx.playPop();
+                                playWordAudio(ans.english, ans.audioUrl || undefined);
+                              }}
+                              className="p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-400/40 active:scale-90 transition-transform cursor-pointer shrink-0"
+                              title="Nghe câu trả lời này"
+                            >
+                              <Volume2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* Pronunciation & Vietnamese Meaning */}
-                  <div className="flex flex-col items-center justify-center gap-1.5 mb-2.5">
-                    {currentWarmupPattern.pronunciation && (
-                      <span className="text-xs text-slate-300 font-mono bg-white/10 px-3 py-0.5 rounded-full">
-                        {currentWarmupPattern.pronunciation}
-                      </span>
-                    )}
-
-                    {isWarmupPatternRevealed ? (
-                      <div className="flex items-center gap-2 bg-white/15 px-3.5 py-1 rounded-2xl text-sm sm:text-base font-bold text-white border border-white/20 animate-fade-in">
-                        <span>{currentWarmupPattern.vietnamese}</span>
-                        <button
-                          onClick={() => setIsWarmupPatternRevealed(false)}
-                          className="ml-1 text-xs text-slate-400 hover:text-white"
-                        >
-                          <EyeOff size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          sfx.playPop();
-                          setIsWarmupPatternRevealed(true);
-                        }}
-                        className="flex items-center gap-1.5 px-3.5 py-1 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 text-xs font-bold hover:bg-amber-500/30 cursor-pointer transition-all"
-                      >
-                        <Sparkles size={14} /> Đố bé mẫu câu này nghĩa là gì? (Bấm để xem)
-                      </button>
-                    )}
-                  </div>
-
                   {/* Practice speaking Sentence with Koko */}
-                  <div className="flex items-center justify-center w-full max-w-xl">
+                  <div className="flex items-center justify-center w-full max-w-xl pt-1">
                     <KokoSpeakingCoach
-                      targetWord={currentWarmupPattern.english}
+                      targetWord={warmupDialogueData.answers[0]?.english || warmupDialogueData.questionEn}
                       audioUrl={currentWarmupPattern.audioUrl || undefined}
                       ageGroup={session.ageGroup}
                       contextKey={`${sessionId}:warmup-pattern:${currentWarmupPatternIndex}`}
