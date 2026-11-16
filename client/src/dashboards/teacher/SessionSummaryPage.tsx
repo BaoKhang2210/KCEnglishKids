@@ -95,6 +95,8 @@ export const SessionSummaryPage: React.FC = () => {
   const absentCount = scores.filter((sc) => (sc as any).attendance === 'ABSENT').length;
   const excusedCount = scores.filter((sc) => (sc as any).attendance === 'EXCUSED').length;
   const lateCount = scores.filter((sc) => (sc as any).attendance === 'LATE').length;
+  const attendedCount = scores.filter((sc) => !['ABSENT', 'EXCUSED'].includes((sc as any).attendance)).length;
+  const participationCount = (s?.participationCount !== undefined && s.participationCount > 0) ? s.participationCount : attendedCount;
 
   return (
     <div className="staff-workspace min-h-screen bg-slate-50 text-slate-700">
@@ -137,7 +139,7 @@ export const SessionSummaryPage: React.FC = () => {
           <MetricCard
             icon={<Users size={22} className="text-blue-800" />}
             label="Số bé tham gia"
-            value={`${s?.participationCount || 0} / ${scores.length}`}
+            value={`${participationCount} / ${scores.length}`}
             bg="bg-blue-50"
           />
           <MetricCard

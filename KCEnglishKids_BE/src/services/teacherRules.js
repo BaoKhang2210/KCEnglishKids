@@ -63,7 +63,7 @@ function summarize(session) {
     row.status = value === null ? 'ACTIVE' : value < 50 ? 'NEEDS_PRACTICE' : value >= 80 ? 'COMPLETED' : 'ACTIVE';
   }
   session.summary = {
-    participationCount: observed.length,
+    participationCount: rows.length,
     averageAccuracy: total ? Math.round(100 * observed.reduce((n, row) => n + row.correctCount, 0) / total) : 0,
     totalStars: rows.reduce((n, row) => n + row.stars, 0),
     totalPoints: rows.reduce((n, row) => n + row.points, 0),

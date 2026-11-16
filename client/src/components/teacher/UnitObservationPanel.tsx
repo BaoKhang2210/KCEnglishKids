@@ -124,6 +124,29 @@ export function UnitObservationPanel({ classId, initialUnitId = '' }: { classId:
         </p>
       )}
 
+      {data && data.isUnitCompleted && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs text-xl">
+              🏆
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-black uppercase mb-1">
+                <span>Unit đã hoàn thành trên lớp</span>
+              </div>
+              <h4 className="text-sm sm:text-base font-black text-amber-950">
+                Lớp đã học xong tất cả {data.totalLessonsCount} bài học của Unit {data.unit?.unitNumber}: {data.unit?.bigQuestion}!
+              </h4>
+              <p className="text-xs text-amber-900 font-medium mt-0.5">
+                {data.unassessedCount > 0
+                  ? `Hiện còn ${data.unassessedCount} bé chưa được đánh giá đủ 3 kỹ năng quan sát. Cô hãy hoàn tất đánh giá và ghi nhận xét cho các bé bên dưới.`
+                  : '🎉 Tuyệt vời! Tất cả các bé trong lớp đều đã được cô ghi nhận quan sát năng lực cho Unit này.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {data && (
         <div className="rounded-2xl border border-slate-200 overflow-hidden">
           <table className="w-full text-left text-xs sm:text-sm border-collapse">
@@ -135,7 +158,7 @@ export function UnitObservationPanel({ classId, initialUnitId = '' }: { classId:
                     {label}
                   </th>
                 ))}
-                <th className="py-3 px-3 text-center min-w-[110px]">Ghi Nhận</th>
+                <th className="py-3 px-3 text-center min-w-[120px]">Ghi Nhận</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold">
@@ -146,59 +169,73 @@ export function UnitObservationPanel({ classId, initialUnitId = '' }: { classId:
                   </td>
                 </tr>
               ) : (
-                data.roster.map((row: any) => (
-                  <tr key={row.child._id} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Tên Học Sinh */}
-                    <td className="py-3 px-3.5">
-                      <p className="font-black text-slate-900 text-sm">{row.child.name}</p>
-                    </td>
+                data.roster.map((row: any) => {
+                  const isFullyAssessed = Boolean(row.latest?.LISTEN_POINT && row.latest?.EXPRESS && row.latest?.PARTICIPATE);
+                  return (
+                    <tr key={row.child._id} className={`hover:bg-slate-50/80 transition-colors ${!isFullyAssessed && data.isUnitCompleted ? 'bg-amber-50/40' : ''}`}>
+                      {/* Tên Học Sinh */}
+                      <td className="py-3 px-3.5">
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-slate-900 text-sm">{row.child.name}</p>
+                          {!isFullyAssessed && data.isUnitCompleted && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-black shrink-0">
+                              Cần nhận xét
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
-                    {/* Kỹ năng 1, 2, 3 */}
-                    {skills.map(([key]) => {
-                      const record = row.latest?.[key];
-                      if (!record) {
+                      {/* Kỹ năng 1, 2, 3 */}
+                      {skills.map(([key]) => {
+                        const record = row.latest?.[key];
+                        if (!record) {
+                          return (
+                            <td key={key} className="py-3 px-3 text-center">
+                              <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-400 text-[11px] font-semibold">
+                                Chưa quan sát
+                              </span>
+                            </td>
+                          );
+                        }
+                        const badge = levelBadges[record.level] || {
+                          label: record.level,
+                          cls: 'bg-slate-100 text-slate-700'
+                        };
                         return (
                           <td key={key} className="py-3 px-3 text-center">
-                            <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-400 text-[11px] font-semibold">
-                              Chưa quan sát
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-md text-[11px] font-black border ${badge.cls}`}
+                            >
+                              {badge.label}
                             </span>
+                            {record.evidence && (
+                              <p className="text-[11px] text-slate-500 font-normal mt-1 max-w-[180px] mx-auto line-clamp-2">
+                                {record.evidence}
+                              </p>
+                            )}
                           </td>
                         );
-                      }
-                      const badge = levelBadges[record.level] || {
-                        label: record.level,
-                        cls: 'bg-slate-100 text-slate-700'
-                      };
-                      return (
-                        <td key={key} className="py-3 px-3 text-center">
-                          <span
-                            className={`inline-block px-2.5 py-0.5 rounded-md text-[11px] font-black border ${badge.cls}`}
-                          >
-                            {badge.label}
-                          </span>
-                          {record.evidence && (
-                            <p className="text-[11px] text-slate-500 font-normal mt-1 max-w-[180px] mx-auto line-clamp-2">
-                              {record.evidence}
-                            </p>
-                          )}
-                        </td>
-                      );
-                    })}
+                      })}
 
-                    {/* Nút Ghi Nhận */}
-                    <td className="py-3 px-3 text-center">
-                      <Link
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors cursor-pointer"
-                        to={`/teacher/students/${row.child._id}?unitId=${unitId}&classroomId=${classId}&lessonId=${
-                          data.lessons.at(-1)?._id || ''
-                        }`}
-                      >
-                        <span>Ghi nhận</span>
-                        <ArrowUpRight size={13} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))
+                      {/* Nút Ghi Nhận */}
+                      <td className="py-3 px-3 text-center">
+                        <Link
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+                            !isFullyAssessed && data.isUnitCompleted
+                              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-2xs'
+                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'
+                          }`}
+                          to={`/teacher/students/${row.child._id}?unitId=${unitId}&classroomId=${classId}&lessonId=${
+                            data.lessons.at(-1)?._id || ''
+                          }`}
+                        >
+                          <span>{!isFullyAssessed && data.isUnitCompleted ? 'Đánh giá & Nhận xét' : 'Ghi nhận'}</span>
+                          <ArrowUpRight size={13} />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

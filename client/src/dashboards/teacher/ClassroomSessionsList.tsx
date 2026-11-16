@@ -72,8 +72,8 @@ export const ClassroomSessionsList: React.FC = () => {
     return () => { cancelled = true; };
   }, [selectedClassFilter]);
 
-  const filteredSessions = useMemo(() => {
-    let result = [...sessions];
+  const baseSessions = useMemo(() => {
+    let result = sessions.filter(s => s.status !== 'SCHEDULED');
 
     if (selectedClassFilter) {
       result = result.filter((s) => {
@@ -82,16 +82,11 @@ export const ClassroomSessionsList: React.FC = () => {
       });
     }
 
-    if (selectedStatusTab !== 'ALL') {
-      result = result.filter((s) => s.status === selectedStatusTab);
-    }
-
     if (initialLessonId) {
-      const matchLesson = result.filter((s) => {
+      result = result.filter((s) => {
         const lId = String(typeof s.lesson === 'object' ? (s.lesson as any)?._id : s.lesson);
         return lId === initialLessonId;
       });
-      result = matchLesson;
     }
 
     if (search.trim()) {
@@ -104,6 +99,23 @@ export const ClassroomSessionsList: React.FC = () => {
       });
     }
 
+    return result;
+  }, [sessions, selectedClassFilter, initialLessonId, search]);
+
+  const counts = useMemo(() => ({
+    all: baseSessions.length,
+    completed: baseSessions.filter(s => s.status === 'COMPLETED').length,
+    live: baseSessions.filter(s => s.status === 'LIVE').length,
+    cancelled: baseSessions.filter(s => s.status === 'CANCELLED').length
+  }), [baseSessions]);
+
+  const filteredSessions = useMemo(() => {
+    let result = baseSessions;
+
+    if (selectedStatusTab !== 'ALL') {
+      result = result.filter((s) => s.status === selectedStatusTab);
+    }
+
     // Sort: Live first, then newest completed/scheduled
     return result.sort((a, b) => {
       if (a.status === 'LIVE' && b.status !== 'LIVE') return -1;
@@ -112,10 +124,10 @@ export const ClassroomSessionsList: React.FC = () => {
       const dateB = new Date(b.startedAt || b.createdAt || '').getTime();
       return dateB - dateA;
     });
-  }, [sessions, selectedStatusTab, search, initialLessonId, selectedClassFilter]);
+  }, [baseSessions, selectedStatusTab]);
 
-  const live = filteredSessions.filter((s) => s.status === 'LIVE');
-  const past = filteredSessions.filter((s) => s.status === 'COMPLETED');
+  const live = useMemo(() => filteredSessions.filter((s) => s.status === 'LIVE'), [filteredSessions]);
+  const past = useMemo(() => filteredSessions.filter((s) => s.status === 'COMPLETED'), [filteredSessions]);
 
   if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => window.location.reload()}>Thử lại</button></div>;
   if (loading) {
@@ -207,7 +219,7 @@ export const ClassroomSessionsList: React.FC = () => {
           >
             <span>Tất cả</span>
             <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'ALL' ? 'bg-teal-800 text-teal-100' : 'bg-slate-200/70 text-slate-600'}`}>
-              {sessions.filter(s => s.status !== 'SCHEDULED').length}
+              {counts.all}
             </span>
           </button>
           <button
@@ -221,7 +233,7 @@ export const ClassroomSessionsList: React.FC = () => {
           >
             <span>Đã kết thúc</span>
             <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'COMPLETED' ? 'bg-teal-800 text-teal-100' : 'bg-slate-200/70 text-slate-600'}`}>
-              {past.length}
+              {counts.completed}
             </span>
           </button>
           <button
@@ -236,7 +248,7 @@ export const ClassroomSessionsList: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Đang diễn ra</span>
             <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'LIVE' ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-200/70 text-slate-600'}`}>
-              {live.length}
+              {counts.live}
             </span>
           </button>
           <button
@@ -250,7 +262,7 @@ export const ClassroomSessionsList: React.FC = () => {
           >
             <span>Đã báo nghỉ</span>
             <span className={`px-2 py-0.5 rounded-md text-[11px] ${selectedStatusTab === 'CANCELLED' ? 'bg-amber-700 text-amber-100' : 'bg-slate-200/70 text-slate-600'}`}>
-              {sessions.filter(s => s.status === 'CANCELLED').length}
+              {counts.cancelled}
             </span>
           </button>
         </div>

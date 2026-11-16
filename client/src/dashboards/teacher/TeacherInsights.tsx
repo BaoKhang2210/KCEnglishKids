@@ -38,6 +38,7 @@ export const TeacherAnalytics = () => {
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'EXCELLENT' | 'SUPPORT' | 'UNASSESSED'>('ALL');
+  const [curriculumData, setCurriculumData] = useState<any>(null);
 
   const load = async () => {
     setError('');
@@ -59,6 +60,31 @@ export const TeacherAnalytics = () => {
       ? classId
       : String(data.classes[0]._id);
   }, [data, classId]);
+
+  useEffect(() => {
+    if (!selectedClassId) {
+      setCurriculumData(null);
+      return;
+    }
+    let active = true;
+    teacherApi.getClassCurriculumProgress(selectedClassId)
+      .then((res: any) => {
+        if (active) setCurriculumData(res.data);
+      })
+      .catch(() => {
+        if (active) setCurriculumData(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedClassId]);
+
+  const completedUnits = useMemo(() => {
+    if (!curriculumData?.units?.length) return [];
+    return curriculumData.units.filter((u: any) =>
+      u.lessons && u.lessons.length > 0 && u.lessons.every((l: any) => l.isCompleted)
+    );
+  }, [curriculumData]);
 
   const members = useMemo(() => {
     if (!data?.students) return [];
@@ -206,6 +232,50 @@ export const TeacherAnalytics = () => {
           </div>
         </div>
       </div>
+
+      {/* ── BANNER NHẮC NHỞ ĐÁNH GIÁ KHI HOÀN THÀNH UNIT ────────────────────── */}
+      {completedUnits.length > 0 && (
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-100/50 border-2 border-amber-300 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md ring-4 ring-amber-100 text-2xl">
+              🎓
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300 text-[11px] font-black uppercase tracking-wider mb-1">
+                <Sparkles size={12} className="text-amber-700" />
+                <span>Nhắc nhở giáo viên đánh giá Unit</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-amber-950">
+                {completedUnits.length === 1
+                  ? `Lớp đã hoàn thành xong Unit ${completedUnits[0].unitNumber}: ${completedUnits[0].bigQuestion || ''}`
+                  : `Lớp đã hoàn thành xong ${completedUnits.length} Unit trong chương trình!`}
+              </h3>
+              <p className="text-xs sm:text-sm text-amber-900/90 font-medium mt-0.5 max-w-3xl leading-relaxed">
+                Tất cả các bài học trong Unit đã được giảng dạy hoàn tất. Cô hãy đưa ra đánh giá năng lực (Nghe, Phát âm, Tương tác) và ghi nhận xét cho các bé để lưu lại hành trình tiến bộ và cập nhật cho phụ huynh.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0 self-end lg:self-center">
+            {completedUnits.map((u: any) => (
+              <button
+                key={u._id}
+                type="button"
+                onClick={() => {
+                  const next = new URLSearchParams(params);
+                  next.set('unitId', u._id);
+                  setParams(next);
+                  setView('UNIT');
+                }}
+                className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Đánh giá &amp; Nhận xét Unit {u.unitNumber}</span>
+                <ArrowUpRight size={15} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── CHÚ GIẢI SƯ PHẠM THÂN THIỆN ─────────────────────────────────────── */}
       <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 flex items-start gap-3 shadow-2xs">
