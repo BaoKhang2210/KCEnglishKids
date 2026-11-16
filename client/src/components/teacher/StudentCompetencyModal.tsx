@@ -167,8 +167,20 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
           </p>
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl">
-                {report.explorerLevel.icon}
+              <div className="w-12 h-12 rounded-2xl bg-white border border-amber-300 shadow-xs flex items-center justify-center p-1.5 shrink-0">
+                <img
+                  src={
+                    report.explorerLevel.level === 4
+                      ? '/images/rewards/fluent-3d/crown_3d.png'
+                      : report.explorerLevel.level === 3
+                      ? '/images/rewards/fluent-3d/lion_3d.png'
+                      : report.explorerLevel.level === 2
+                      ? '/images/rewards/fluent-3d/backpack_3d.png'
+                      : '/images/rewards/fluent-3d/deciduous_tree_3d.png'
+                  }
+                  alt={report.explorerLevel.title}
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
                 <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest block">

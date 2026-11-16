@@ -2108,6 +2108,37 @@ export const TeacherStudents = () => {
   );
 };
 
+const EXPLORER_LEVEL_MEDIA: Record<number, { img: string; emoji: string; color: string; bg: string; border: string }> = {
+  1: {
+    img: '/images/rewards/fluent-3d/deciduous_tree_3d.png',
+    emoji: '🌱',
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200'
+  },
+  2: {
+    img: '/images/rewards/fluent-3d/backpack_3d.png',
+    emoji: '🎒',
+    color: 'text-sky-700',
+    bg: 'bg-sky-50',
+    border: 'border-sky-200'
+  },
+  3: {
+    img: '/images/rewards/fluent-3d/lion_3d.png',
+    emoji: '🦁',
+    color: 'text-amber-700',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200'
+  },
+  4: {
+    img: '/images/rewards/fluent-3d/crown_3d.png',
+    emoji: '👑',
+    color: 'text-purple-700',
+    bg: 'bg-purple-50',
+    border: 'border-purple-200'
+  }
+};
+
 export const TeacherStudentDetail = () => {
   const [observationParams]=useSearchParams();
   const { studentId = '' } = useParams();
@@ -2151,6 +2182,13 @@ export const TeacherStudentDetail = () => {
     catch(e: any) { setError(e.message); } finally { setSaving(false); }
   };
 
+  const explorerLevel = data?.competencyReport?.explorerLevel || {
+    level: 1,
+    title: 'Mầm Nhí Khám Phá',
+    icon: '🌱'
+  };
+  const levelMedia = EXPLORER_LEVEL_MEDIA[explorerLevel.level] || EXPLORER_LEVEL_MEDIA[1];
+
   return (
     <>
       {error && <div className="teacher-error mb-4" role="alert">{error}</div>}
@@ -2158,6 +2196,33 @@ export const TeacherStudentDetail = () => {
         avatar={<StudentAvatar student={student} size="xl" />}
         title={student.name}
         text={`Độ tuổi ${student.ageGroupCode || '—'} · ${(typeof student.assignedClass === 'object' ? student.assignedClass?.name : student.assignedClass) || 'Chưa phân lớp'}`}
+        action={
+          <div
+            onClick={() => setShowCompetencyModal(true)}
+            className="cursor-pointer group p-2.5 px-4 rounded-2xl bg-gradient-to-r from-teal-50 via-emerald-50/70 to-white border border-teal-200 hover:border-teal-400 hover:shadow-md transition-all flex items-center gap-3 shrink-0"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-white border border-teal-200 shadow-xs flex items-center justify-center shrink-0 p-1 group-hover:scale-105 transition-transform">
+              <img
+                src={levelMedia.img}
+                alt={explorerLevel.title}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-black uppercase tracking-wider">
+                  Level {explorerLevel.level}
+                </span>
+                <span className="text-sm font-black text-slate-900">
+                  {explorerLevel.title}
+                </span>
+              </div>
+              <p className="text-[11px] text-teal-800 font-bold mt-0.5 flex items-center gap-1 group-hover:underline">
+                <Brain size={12} /> Xem hồ sơ năng lực 3 trụ cột →
+              </p>
+            </div>
+          </div>
+        }
       />
 
       {observationParams.get('unitId')&&<Link className="teacher-button mt-5" to={`/teacher/analytics?unitId=${encodeURIComponent(observationParams.get('unitId')!)}&classroomId=${encodeURIComponent(observationParams.get('classroomId') || data.student?.assignedClass?._id || data.student?.assignedClass || '')}`}>← Quay lại quan sát Unit đang chọn</Link>}
@@ -2170,17 +2235,31 @@ export const TeacherStudentDetail = () => {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">Cấp độ bé</span>
-            <div className="w-8 h-8 rounded-xl bg-teal-100/90 text-teal-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Brain size={16} />
+            <span className="px-2 py-0.5 rounded-md bg-teal-600 text-white text-[10px] font-black uppercase shadow-2xs">
+              Level {explorerLevel.level}
+            </span>
+          </div>
+
+          <div className="my-1.5 flex items-center gap-2.5">
+            <div className="w-11 h-11 rounded-2xl bg-white border border-teal-200/90 shadow-2xs flex items-center justify-center shrink-0 p-1 group-hover:scale-110 transition-transform">
+              <img
+                src={levelMedia.img}
+                alt={explorerLevel.title}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-black text-teal-950 leading-snug break-words">
+                {explorerLevel.title}
+              </div>
+              <div className="text-[10px] font-bold text-teal-700 mt-0.5">
+                {stats.totalStars} ⭐ tích lũy
+              </div>
             </div>
           </div>
-          <div className="my-1.5">
-            <div className="text-base sm:text-lg font-black text-teal-950 flex items-center gap-1 truncate">
-              <span>{data?.competencyReport?.explorerLevel?.icon || '🌱'}</span>
-              <span className="truncate">{data?.competencyReport?.explorerLevel?.title || 'Mầm Nhí Khám Phá'}</span>
-            </div>
-          </div>
-          <div className="text-[11px] text-teal-700 font-bold flex items-center gap-1 group-hover:underline">
+
+          <div className="text-[11px] text-teal-800 font-bold flex items-center gap-1 group-hover:underline">
+            <Brain size={12} />
             <span>Hồ sơ năng lực →</span>
           </div>
         </div>
