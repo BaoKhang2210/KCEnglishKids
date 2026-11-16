@@ -195,8 +195,14 @@ exports.publish = async (req, res, next) => {
     let published = await ClassRecognition.findOne(key).lean();
     if (!published) {
       const ranking = await calculate(classroom, period);
-      const winners = ranking.filter(row => row.winner).map(({ child, name, stars, totalStars }) => ({ child, name, stars: stars || totalStars }));
-      if (!winners.length) return fail(res, 400, 'Kỳ này chưa có sao hợp lệ để vinh danh.');
+      const winners = ranking.map(({ child, name, stars, totalStars, awardTitle, awardSymbol }) => ({
+        child,
+        name,
+        stars: stars || totalStars || 0,
+        awardTitle: awardTitle || 'Bé Chăm Ngoan',
+        awardSymbol: awardSymbol || '⭐'
+      }));
+      if (!winners.length) return fail(res, 400, 'Kỳ này chưa có học sinh hợp lệ để vinh danh.');
       try {
         published = await ClassRecognition.create({
           ...key, periodEnd: period.end, className: classroom.name, publishedBy: req.user._id,
@@ -223,7 +229,13 @@ exports.childInbox = async (req, res, next) => {
       return {
         _id: doc._id, className: doc.className, kind: doc.kind,
         periodStart: doc.periodStart, periodEnd: doc.periodEnd, publishedAt: doc.publishedAt,
-        reward: doc.reward, name: own.name, stars: own.stars, readAt: own.readAt
+        reward: {
+          ...doc.reward,
+          title: own?.awardTitle || doc.reward?.title || 'Bé Chăm Ngoan',
+          symbol: own?.awardSymbol || doc.reward?.symbol || '⭐'
+        },
+        name: own?.name, stars: own?.stars, readAt: own?.readAt,
+        awardTitle: own?.awardTitle, awardSymbol: own?.awardSymbol
       };
     });
     res.json({ success: true, data });

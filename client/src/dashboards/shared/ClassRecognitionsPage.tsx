@@ -140,8 +140,8 @@ export function ClassRecognitionsPage() {
     const studentClass = isSchool
       ? (student.className ? `Lớp ${student.className}` : 'Học sinh toàn trường')
       : `Lớp ${data.className}`;
-    const awardTitle = data.reward.title;
-    const awardSymbol = data.reward.symbol;
+    const awardTitle = student.awardTitle || data.reward.title;
+    const awardSymbol = student.awardSymbol || data.reward.symbol;
     const totalStars = student.stars;
     const classStars = student.classStars ?? student.stars;
     const homeStars = student.homeStars ?? 0;
@@ -741,7 +741,7 @@ export function ClassRecognitionsPage() {
                           <StudentAvatar student={winner} size="lg" className="ring-4 ring-amber-200/70 shadow-xs" />
                           <div className="min-w-0 pr-6">
                             <span className="px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 text-[10px] font-black uppercase tracking-wider">
-                              Quán Quân Xuất Sắc
+                              {winner.awardTitle || 'Quán Quân Xuất Sắc'}
                             </span>
                             <h3 className="text-base font-black text-slate-900 truncate mt-0.5">{winner.name}</h3>
                             {isSchool && winner.className && (
@@ -800,7 +800,7 @@ export function ClassRecognitionsPage() {
                     >
                       <div className="absolute top-3 right-3">
                         <span className="h-8 w-8 rounded-full bg-slate-200 text-slate-800 font-black text-sm flex items-center justify-center">
-                          🥈
+                          {runnerUp.awardSymbol || '🥈'}
                         </span>
                       </div>
 
@@ -808,8 +808,8 @@ export function ClassRecognitionsPage() {
                         <div className="flex items-center gap-3">
                           <StudentAvatar student={runnerUp} size="lg" className="ring-4 ring-slate-200 shadow-xs" />
                           <div className="min-w-0 pr-6">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider">
-                              Á Quân
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-black uppercase tracking-wider">
+                              {runnerUp.awardTitle || 'Đại Sứ Chuyên Cần'}
                             </span>
                             <h3 className="text-base font-black text-slate-900 truncate mt-0.5">{runnerUp.name}</h3>
                             {isSchool && runnerUp.className && (
@@ -868,7 +868,7 @@ export function ClassRecognitionsPage() {
                     >
                       <div className="absolute top-3 right-3">
                         <span className="h-8 w-8 rounded-full bg-orange-200 text-orange-900 font-black text-sm flex items-center justify-center">
-                          🥉
+                          {third.awardSymbol || '🥉'}
                         </span>
                       </div>
 
@@ -876,8 +876,8 @@ export function ClassRecognitionsPage() {
                         <div className="flex items-center gap-3">
                           <StudentAvatar student={third} size="lg" className="ring-4 ring-orange-200 shadow-xs" />
                           <div className="min-w-0 pr-6">
-                            <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-900 text-[10px] font-black uppercase tracking-wider">
-                              Hạng Ba
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200 text-[10px] font-black uppercase tracking-wider">
+                              {third.awardTitle || 'Ong Vàng Chăm Chỉ'}
                             </span>
                             <h3 className="text-base font-black text-slate-900 truncate mt-0.5">{third.name}</h3>
                             {isSchool && third.className && (
@@ -1050,11 +1050,15 @@ export function ClassRecognitionsPage() {
                               : 'hover:bg-slate-50/80'
                           }`}
                         >
-                          {/* 1. Hạng */}
+                          {/* 1. Hạng / Huy hiệu */}
                           <td className="py-2.5 px-3 text-center">
-                            {isGold ? (
-                              <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-amber-400 text-amber-950 font-black text-xs shadow-2xs">
+                            {row.winner ? (
+                              <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-amber-400 text-amber-950 font-black text-xs shadow-2xs" title={row.awardTitle || 'Ngôi Sao Tỏa Sáng'}>
                                 🥇
+                              </span>
+                            ) : row.awardSymbol ? (
+                              <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 text-slate-800 font-black text-xs border border-slate-200 shadow-2xs" title={row.awardTitle || `Hạng ${row.rank || idx + 1}`}>
+                                {row.awardSymbol}
                               </span>
                             ) : isSilver ? (
                               <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-slate-200 text-slate-800 font-black text-xs">
@@ -1119,9 +1123,24 @@ export function ClassRecognitionsPage() {
                             {row.totalStars ?? row.stars} ⭐
                           </td>
 
-                          {/* 8. Danh Hiệu */}
-                          <td className="py-2.5 px-3 text-center">
-                            {isGold ? (
+                          {/* 8. Danh Hiệu Mầm Non */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {row.awardTitle ? (
+                              <span className={`px-2.5 py-1 rounded-lg font-black text-[11px] shadow-2xs inline-flex items-center gap-1.5 ${
+                                row.winner || row.awardCategory === 'CHAMPION'
+                                  ? 'bg-amber-400 text-amber-950 shadow-xs'
+                                  : row.awardCategory === 'ATTENDANCE' || row.isPerfectAttendance
+                                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                  : row.awardCategory === 'HOME'
+                                  ? 'bg-indigo-100 text-indigo-900 border border-indigo-200'
+                                  : row.awardCategory === 'LEARNER'
+                                  ? 'bg-sky-100 text-sky-900 border border-sky-200'
+                                  : 'bg-teal-50 text-teal-800 border border-teal-200'
+                              }`}>
+                                <span>{row.awardSymbol}</span>
+                                <span>{row.awardTitle}</span>
+                              </span>
+                            ) : isGold ? (
                               <span className="px-2 py-0.5 rounded-lg bg-amber-400 text-amber-950 font-black text-[11px] shadow-2xs inline-flex items-center gap-1">
                                 <Sparkles size={11} />
                                 <span>Quán Quân</span>
@@ -1135,7 +1154,9 @@ export function ClassRecognitionsPage() {
                                 Hạng Ba
                               </span>
                             ) : (
-                              <span className="text-slate-400 text-xs">—</span>
+                              <span className="px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 font-bold text-[11px]">
+                                ⭐ Bé Chăm Ngoan
+                              </span>
                             )}
                           </td>
 
@@ -1231,7 +1252,7 @@ export function ClassRecognitionsPage() {
               {/* Achievement Summary Card */}
               <div className="max-w-xl mx-auto p-4 rounded-xl bg-white/90 border border-[#D4AF37]/40 text-slate-800 space-y-1 shadow-2xs relative z-10">
                 <p className="font-black text-amber-900 text-sm sm:text-base">
-                  Đạt danh hiệu: {data.reward.title} {data.reward.symbol}
+                  Đạt danh hiệu: {selectedCertificateStudent.awardTitle || data.reward.title} {selectedCertificateStudent.awardSymbol || data.reward.symbol}
                 </p>
                 <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
                   Thành tích xuất sắc đạt <b>{selectedCertificateStudent.stars} ⭐ ngôi sao trong kỳ</b>. Trong đó đạt <b>{selectedCertificateStudent.classStars ?? selectedCertificateStudent.stars} ⭐</b> trên lớp và <b>{selectedCertificateStudent.homeStars ?? 0} ⭐</b> tự học ở nhà.

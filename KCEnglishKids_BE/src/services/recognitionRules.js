@@ -41,6 +41,69 @@ function rewardFor(kind) {
       };
 }
 
+function determinePreschoolAward(row, totalSessions, maxStars) {
+  const isTopStar = maxStars > 0 && row.stars === maxStars;
+  const isPerfect = totalSessions > 0 && row.sessions >= totalSessions;
+
+  // 1. Bé đạt điểm sao cao nhất kỳ
+  if (isTopStar) {
+    return {
+      awardTitle: 'Ngôi Sao Tỏa Sáng',
+      awardSymbol: '👑',
+      awardBadge: 'star-champion',
+      awardTier: 'GOLD',
+      awardCategory: 'CHAMPION',
+      awardDescription: 'Thành tích xuất sắc nhất kỳ'
+    };
+  }
+
+  // 2. Bé đi học chuyên cần 100%
+  if (isPerfect) {
+    return {
+      awardTitle: 'Đại Sứ Chuyên Cần',
+      awardSymbol: '🏆',
+      awardBadge: 'perfect-attendance',
+      awardTier: 'SILVER',
+      awardCategory: 'ATTENDANCE',
+      awardDescription: 'Đi học chuyên cần đầy đủ 100%'
+    };
+  }
+
+  // 3. Bé tự giác làm bài tập ở nhà
+  if (row.homeStars >= 3) {
+    return {
+      awardTitle: 'Ong Vàng Chăm Chỉ',
+      awardSymbol: '🐝',
+      awardBadge: 'home-explorer',
+      awardTier: 'BRONZE',
+      awardCategory: 'HOME',
+      awardDescription: 'Tự giác hoàn thành bài ôn tập ở nhà'
+    };
+  }
+
+  // 4. Bé tích lũy tốt hoặc đạt điểm khá
+  if (row.totalStars >= 10 || row.stars >= 6) {
+    return {
+      awardTitle: 'Bé Chăm Ngoan',
+      awardSymbol: '⭐',
+      awardBadge: 'active-learner',
+      awardTier: 'HONOR',
+      awardCategory: 'LEARNER',
+      awardDescription: 'Chăm ngoan và tích cực học tập'
+    };
+  }
+
+  // 5. Bé đang nỗ lực tiến bộ
+  return {
+    awardTitle: 'Hạt Giống Tiến Bộ',
+    awardSymbol: '🌱',
+    awardBadge: 'rising-star',
+    awardTier: 'ENCOURAGE',
+    awardCategory: 'PROGRESS',
+    awardDescription: 'Nỗ lực học tập và tiến bộ mỗi ngày'
+  };
+}
+
 function rankClassroomStars(students, sessions) {
   const totals = new Map(students.map(student => [String(student._id), {
     child: String(student._id),
@@ -90,15 +153,17 @@ function rankClassroomStars(students, sessions) {
 
   return ranking.map((row, idx, arr) => {
     if (idx > 0 && row.stars < arr[idx - 1].stars) {
-      currentRank = idx + 1;
+      currentRank += 1;
     }
     const hasStars = row.stars > 0 && (row.sessions > 0 || row.homeStars > 0);
     const isWinner = maximum > 0 && row.stars === maximum && hasStars;
+    const award = determinePreschoolAward(row, totalSessions, maximum);
+
     return {
       ...row,
       rank: hasStars ? currentRank : null,
       winner: isWinner,
-      awardTier: isWinner ? 'GOLD' : (currentRank === 2 && hasStars ? 'SILVER' : (currentRank === 3 && hasStars ? 'BRONZE' : null))
+      ...award
     };
   });
 }
@@ -123,14 +188,16 @@ function rankSchoolStars(students, sessions, minimumSessions = 0) {
 
   return rows.map((row, idx, arr) => {
     if (idx > 0 && row.stars < arr[idx - 1].stars) {
-      currentRank = idx + 1;
+      currentRank += 1;
     }
     const isWinner = bestStars > 0 && row.eligible && row.stars === bestStars;
+    const award = determinePreschoolAward(row, 0, bestStars);
+
     return {
       ...row,
       rank: row.eligible ? currentRank : null,
       winner: isWinner,
-      awardTier: isWinner ? 'GOLD' : (currentRank === 2 && row.eligible ? 'SILVER' : (currentRank === 3 && row.eligible ? 'BRONZE' : null))
+      ...award
     };
   });
 }

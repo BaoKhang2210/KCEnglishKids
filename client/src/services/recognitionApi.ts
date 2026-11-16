@@ -16,7 +16,12 @@ export interface RecognitionRow {
   rank?: number | null;
   totalStars?: number;
   className?: string;
-  awardTier?: 'GOLD' | 'SILVER' | 'BRONZE' | null;
+  awardTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'HONOR' | 'ENCOURAGE' | string | null;
+  awardTitle?: string;
+  awardSymbol?: string;
+  awardBadge?: string;
+  awardDescription?: string;
+  awardCategory?: string;
   isPerfectAttendance?: boolean;
 }
 export interface RecognitionPreview {
