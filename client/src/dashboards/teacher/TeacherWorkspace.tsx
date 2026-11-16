@@ -5,7 +5,7 @@ import { compareLessons, lessonPosition, bilingualLessonTitle } from '../../util
 import React, { useEffect, useMemo, useState } from 'react';
 import { ObservationPortfolio } from '../../components/teacher/ObservationPortfolio';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, MessageSquare, Search, Star, X, Mail, Calendar, ChevronRight, Clock, Sparkles, ArrowUpDown, Send, Brain, UserCheck } from 'lucide-react';
+import { BookOpen, CheckCircle2, MessageSquare, Search, Star, X, Mail, Calendar, ChevronRight, Clock, Sparkles, ArrowUpDown, Send, Brain, UserCheck, Users, Check, AlertCircle, School, Phone } from 'lucide-react';
 import { teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
 import { ParentNoteSuggestions } from './ParentNoteSuggestions';
@@ -60,16 +60,24 @@ const Avatar = ({ name, avatar, avatarUrl, student, className, size = 'md' }: an
   );
 };
 
-const Modal = ({ title, close, children, maxWidth = 'max-w-lg' }: any) => (
-  <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-2 sm:p-4">
-    <div role="dialog" aria-modal="true" aria-label={title} className={`w-full ${maxWidth} rounded-2xl bg-white p-4 sm:p-5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col shadow-2xl`}>
-      <div className="mb-3 flex items-center justify-between pb-2.5 border-b border-slate-100">
-        <h3 className="font-bold text-slate-900 text-base sm:text-lg">{title}</h3>
-        <button onClick={close} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors">
+const Modal = ({ title, close, children, maxWidth = 'max-w-lg', className = '' }: any) => (
+  <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/65 p-2 sm:p-4 backdrop-blur-xs">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={typeof title === 'string' ? title : 'Modal'}
+      className={`w-full ${maxWidth} rounded-3xl bg-white p-4 sm:p-6 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col shadow-2xl ${className}`}
+    >
+      <div className="mb-4 flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="font-bold text-slate-900 text-base sm:text-lg">{title}</div>
+        <button
+          onClick={close}
+          className="p-2 rounded-2xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+        >
           <X size={20} />
         </button>
       </div>
-      <div className="overflow-y-auto flex-1">{children}</div>
+      <div className="overflow-y-auto flex-1 pr-1">{children}</div>
     </div>
   </div>
 );
@@ -341,11 +349,15 @@ export const TeacherStudents = () => {
   const [classAttendanceData, setClassAttendanceData] = useState<any>(null);
   const [loadingClassAttendance, setLoadingClassAttendance] = useState(false);
   const [attendanceFilter, setAttendanceFilter] = useState<'ALL' | 'ABSENT_ONLY' | 'PERFECT_ONLY'>('ALL');
+  const [classAttendanceTab, setClassAttendanceTab] = useState<'students' | 'sessions'>('students');
+  const [classAttendanceSearch, setClassAttendanceSearch] = useState('');
 
   const handleOpenClassAttendance = async (c: any) => {
     setClassAttendanceModal(c);
     setLoadingClassAttendance(true);
     setAttendanceFilter('ALL');
+    setClassAttendanceTab('students');
+    setClassAttendanceSearch('');
     try {
       const res = await teacherApi.getClassCurriculumProgress(c._id);
       setClassAttendanceData(res.data);
@@ -833,28 +845,74 @@ export const TeacherStudents = () => {
       {/* Modal: Bảng Chuyên Cần Lớp Học */}
       {classAttendanceModal && (
         <Modal
-          title={`Bảng Chuyên Cần — Lớp ${classAttendanceModal.name}`}
-          maxWidth="max-w-4xl"
+          title={
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-purple-100 text-purple-700 font-black text-2xl shrink-0 shadow-2xs">
+                🏫
+              </span>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-black text-slate-900 text-lg sm:text-xl">
+                    Bảng Chuyên Cần — Lớp {classAttendanceModal.name}
+                  </h3>
+                  <span className="rounded-full bg-teal-100/80 px-2.5 py-0.5 text-xs font-black text-teal-950 border border-teal-200">
+                    {classAttendanceModal.ageGroupCode === '3-4'
+                      ? '📘 Book 1 (3–4 tuổi)'
+                      : classAttendanceModal.ageGroupCode === '4-5'
+                      ? '📗 Book 2 (4–5 tuổi)'
+                      : '📙 Book 3 (5–6 tuổi)'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  Thống kê tỷ lệ tham gia lớp học, số buổi đi học và chi tiết điểm danh từng bé
+                </p>
+              </div>
+            </div>
+          }
+          maxWidth="w-[96vw] max-w-[1700px] h-[92vh] max-h-[92vh]"
           close={() => {
             setClassAttendanceModal(null);
             setClassAttendanceData(null);
           }}
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
             {loadingClassAttendance ? (
-              <div className="py-12 text-center text-slate-500">
-                <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
-                Đang tổng hợp dữ liệu chuyên cần của lớp...
+              <div className="py-24 text-center text-slate-500">
+                <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
+                <p className="font-bold text-slate-700">Đang tổng hợp dữ liệu chuyên cần của lớp...</p>
+                <p className="text-xs text-slate-400 mt-1">Vui lòng chờ trong giây lát</p>
               </div>
             ) : (() => {
               const studentsList = classAttendanceData?.studentAttendanceSummary || [];
-              const totalSessions = classAttendanceData?.recentSessions?.length || 0;
+              const recentSessions = classAttendanceData?.recentSessions || [];
+              const totalSessions = classAttendanceData?.sessionCounts?.COMPLETED ?? recentSessions.filter((s: any) => s.status === 'COMPLETED').length ?? recentSessions.length;
+
+              let totalPresent = 0;
+              let totalLate = 0;
+              let totalExcused = 0;
+              let totalAbsent = 0;
+
+              studentsList.forEach((item: any) => {
+                totalPresent += item.present || 0;
+                totalLate += item.late || 0;
+                totalExcused += item.excused || 0;
+                totalAbsent += item.absent || 0;
+              });
+
+              const totalSlots = totalPresent + totalLate + totalExcused + totalAbsent;
+              const classAvgRate = totalSlots > 0 ? Math.round(((totalPresent + totalLate) / totalSlots) * 100) : 100;
+
               const perfectCount = studentsList.filter((s: any) => (s.attendanceRate || 100) >= 95).length;
-              const hasAbsenceCount = studentsList.filter((s: any) => (s.absent || 0) > 0 || (s.excused || 0) > 0).length;
+              const hasAbsenceCount = studentsList.filter((s: any) => (s.absent || 0) > 0 || (s.excused || 0) > 0 || (s.late || 0) > 0).length;
 
               const filteredList = studentsList.filter((item: any) => {
+                const st = item.student || {};
+                const sName = (st.name || '').toLowerCase();
+                const q = classAttendanceSearch.toLowerCase().trim();
+                if (q && !sName.includes(q)) return false;
+
                 if (attendanceFilter === 'ABSENT_ONLY') {
-                  return (item.absent || 0) > 0 || (item.excused || 0) > 0;
+                  return (item.absent || 0) > 0 || (item.excused || 0) > 0 || (item.late || 0) > 0;
                 }
                 if (attendanceFilter === 'PERFECT_ONLY') {
                   return (item.attendanceRate || 100) >= 95;
@@ -863,135 +921,379 @@ export const TeacherStudents = () => {
               });
 
               return (
-                <div className="space-y-4">
-                  {/* Summary Metric Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-3.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-purple-700">Sĩ số lớp</p>
-                      <p className="text-2xl font-black text-purple-950 mt-0.5">{studentsList.length} bé</p>
-                      <p className="text-xs font-semibold text-purple-700 mt-1">Đã tổ chức {totalSessions} buổi học</p>
+                <div className="space-y-5">
+                  {/* Summary Metric Cards (5 Cards Across Top) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
+                    <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-purple-50/40 to-white p-3.5 sm:p-4 shadow-2xs">
+                      <p className="text-[11px] font-black uppercase tracking-wider text-purple-700">Sĩ số lớp</p>
+                      <p className="text-2xl sm:text-3xl font-black text-purple-950 mt-1">{studentsList.length} bé</p>
+                      <p className="text-xs font-semibold text-purple-700/80 mt-0.5">Trong danh sách lớp</p>
                     </div>
 
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Chuyên cần 100%</p>
-                      <p className="text-2xl font-black text-emerald-950 mt-0.5">{perfectCount} bé</p>
-                      <p className="text-xs font-semibold text-emerald-700 mt-1">Không nghỉ buổi nào</p>
+                    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-emerald-50/40 to-white p-3.5 sm:p-4 shadow-2xs">
+                      <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800">Tỷ lệ chuyên cần TB</p>
+                      <p className="text-2xl sm:text-3xl font-black text-emerald-950 mt-1">{classAvgRate}%</p>
+                      <p className="text-xs font-semibold text-emerald-700 mt-0.5">Mức độ tham gia lớp</p>
                     </div>
 
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Có buổi vắng / nghỉ</p>
-                      <p className="text-2xl font-black text-amber-950 mt-0.5">{hasAbsenceCount} bé</p>
-                      <p className="text-xs font-semibold text-amber-700 mt-1">Cần theo dõi & động viên</p>
+                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-sky-50/40 to-white p-3.5 sm:p-4 shadow-2xs">
+                      <p className="text-[11px] font-black uppercase tracking-wider text-sky-800">Buổi đã tổ chức</p>
+                      <p className="text-2xl sm:text-3xl font-black text-sky-950 mt-1">{totalSessions} buổi</p>
+                      <p className="text-xs font-semibold text-sky-700 mt-0.5">Đã hoàn thành trên lớp</p>
                     </div>
-                  </div>
 
-                  {/* Filter Toolbar */}
-                  <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => setAttendanceFilter('ALL')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
-                          attendanceFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Tất cả ({studentsList.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAttendanceFilter('ABSENT_ONLY')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
-                          attendanceFilter === 'ABSENT_ONLY' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Có vắng ({hasAbsenceCount})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAttendanceFilter('PERFECT_ONLY')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
-                          attendanceFilter === 'PERFECT_ONLY' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Đi đủ 100% ({perfectCount})
-                      </button>
+                    <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 via-teal-50/40 to-white p-3.5 sm:p-4 shadow-2xs">
+                      <p className="text-[11px] font-black uppercase tracking-wider text-teal-800">Chuyên cần 100%</p>
+                      <p className="text-2xl sm:text-3xl font-black text-teal-950 mt-1">{perfectCount} bé</p>
+                      <p className="text-xs font-semibold text-teal-700 mt-0.5">Không nghỉ buổi nào</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-amber-50/40 to-white p-3.5 sm:p-4 shadow-2xs col-span-2 sm:col-span-1">
+                      <p className="text-[11px] font-black uppercase tracking-wider text-amber-800">Có vắng / trễ / nghỉ</p>
+                      <p className="text-2xl sm:text-3xl font-black text-amber-950 mt-1">{hasAbsenceCount} bé</p>
+                      <p className="text-xs font-semibold text-amber-800 mt-0.5">Cần nhắc nhở & động viên</p>
                     </div>
                   </div>
 
-                  {/* Attendance Table */}
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-slate-700 font-black border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                        <tr>
-                          <th className="py-3 px-3.5">Học sinh</th>
-                          <th className="py-3 px-2.5 text-center">Có mặt</th>
-                          <th className="py-3 px-2.5 text-center">Đến trễ</th>
-                          <th className="py-3 px-2.5 text-center">Nghỉ phép</th>
-                          <th className="py-3 px-2.5 text-center">Vắng</th>
-                          <th className="py-3 px-3 text-center">Tỷ lệ chuyên cần</th>
-                          <th className="py-3 px-3 text-right">Chi tiết</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredList.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className="py-8 text-center text-slate-500 font-semibold">
-                              Không có học sinh nào phù hợp bộ lọc.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredList.map((item: any) => {
-                            const st = item.student || {};
-                            const rate = item.attendanceRate ?? 100;
-                            return (
-                              <tr key={st._id || item.studentId} className="hover:bg-slate-50/80 transition-colors">
-                                <td className="py-2.5 px-3.5">
-                                  <div className="flex items-center gap-2.5">
-                                    <Avatar student={st} size="sm" />
-                                    <div>
-                                      <p className="font-black text-slate-900">{st.name}</p>
-                                      <p className="text-[10px] text-slate-500">{st.username || ''}</p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="py-2.5 px-2.5 text-center font-bold text-emerald-700">
-                                  {item.present || 0}
-                                </td>
-                                <td className="py-2.5 px-2.5 text-center font-bold text-amber-700">
-                                  {item.late || 0}
-                                </td>
-                                <td className="py-2.5 px-2.5 text-center font-bold text-blue-700">
-                                  {item.excused || 0}
-                                </td>
-                                <td className="py-2.5 px-2.5 text-center font-bold text-rose-700">
-                                  {item.absent || 0}
-                                </td>
-                                <td className="py-2.5 px-3 text-center">
-                                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-black ${
-                                    rate >= 90
-                                      ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-                                      : rate >= 80
-                                      ? 'bg-teal-100 text-teal-950 border border-teal-300'
-                                      : 'bg-rose-100 text-rose-950 border border-rose-300'
-                                  }`}>
-                                    {rate}%
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3 text-right">
-                                  <Link
-                                    to={`/teacher/students/${st._id}`}
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-950 hover:underline"
-                                  >
-                                    Xem hồ sơ →
-                                  </Link>
+                  {/* View Tabs: Students List vs Session History */}
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setClassAttendanceTab('students')}
+                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 border ${
+                          classAttendanceTab === 'students'
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                        }`}
+                      >
+                        <Users size={16} />
+                        <span>Thống kê từng bé ({studentsList.length})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setClassAttendanceTab('sessions')}
+                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 border ${
+                          classAttendanceTab === 'sessions'
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                        }`}
+                      >
+                        <Calendar size={16} />
+                        <span>Lịch sử các buổi dạy ({recentSessions.length})</span>
+                      </button>
+                    </div>
+
+                    {classAttendanceTab === 'students' && (
+                      <span className="text-xs font-semibold text-slate-500">
+                        Hiển thị {filteredList.length} / {studentsList.length} học sinh
+                      </span>
+                    )}
+                  </div>
+
+                  {/* TAB 1: THỐNG KÊ TỪNG BÉ */}
+                  {classAttendanceTab === 'students' && (
+                    <div className="space-y-3.5">
+                      {/* Filter & Search Bar */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/80">
+                        {/* Search Input */}
+                        <div className="relative flex-1 max-w-sm">
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Tìm kiếm theo tên học sinh..."
+                            value={classAttendanceSearch}
+                            onChange={(e) => setClassAttendanceSearch(e.target.value)}
+                            className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-500 bg-white shadow-2xs"
+                          />
+                          {classAttendanceSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setClassAttendanceSearch('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Status Filter Buttons */}
+                        <div className="flex items-center gap-1.5 bg-slate-200/60 p-1 rounded-xl shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setAttendanceFilter('ALL')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                              attendanceFilter === 'ALL'
+                                ? 'bg-white text-slate-900 shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Tất cả ({studentsList.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAttendanceFilter('ABSENT_ONLY')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                              attendanceFilter === 'ABSENT_ONLY'
+                                ? 'bg-amber-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Có vắng/nghỉ ({hasAbsenceCount})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAttendanceFilter('PERFECT_ONLY')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                              attendanceFilter === 'PERFECT_ONLY'
+                                ? 'bg-emerald-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Đi đủ 100% ({perfectCount})
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Attendance Table - Responsive, Full Width, No Horizontal Scroll Needed */}
+                      <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead className="bg-slate-50 text-slate-700 font-black border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                            <tr>
+                              <th className="py-3 px-4 w-[28%]">Học sinh</th>
+                              <th className="py-3 px-2 text-center w-[10%]">Có mặt</th>
+                              <th className="py-3 px-2 text-center w-[10%]">Đến trễ</th>
+                              <th className="py-3 px-2 text-center w-[10%]">Nghỉ phép</th>
+                              <th className="py-3 px-2 text-center w-[10%]">Vắng</th>
+                              <th className="py-3 px-3 text-center w-[18%]">Tỷ lệ chuyên cần</th>
+                              <th className="py-3 px-4 text-center w-[14%]">Thao tác</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {filteredList.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} className="py-12 text-center text-slate-500 font-semibold">
+                                  Không tìm thấy học sinh nào phù hợp bộ lọc đã chọn.
                                 </td>
                               </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                            ) : (
+                              filteredList.map((item: any) => {
+                                const st = item.student || {};
+                                const rate = item.attendanceRate ?? 100;
+                                const contactPhone = st.parentContact || st.contact;
+
+                                return (
+                                  <tr key={st._id || item.studentId} className="hover:bg-slate-50/80 transition-colors">
+                                    {/* Student Name & Avatar */}
+                                    <td className="py-3 px-4">
+                                      <div className="flex items-center gap-3">
+                                        <Avatar student={st} size="md" />
+                                        <div className="min-w-0">
+                                          <p className="font-black text-slate-900 text-xs sm:text-sm truncate">
+                                            {st.name}
+                                          </p>
+                                          {contactPhone && (
+                                            <p className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
+                                              <Phone size={10} className="text-slate-400" />
+                                              <span>{contactPhone}</span>
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Present Count */}
+                                    <td className="py-3 px-2 text-center">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                                        <Check size={12} className="text-emerald-600" />
+                                        {item.present || 0}
+                                      </span>
+                                    </td>
+
+                                    {/* Late Count */}
+                                    <td className="py-3 px-2 text-center">
+                                      <span
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black ${
+                                          (item.late || 0) > 0
+                                            ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                                            : 'bg-slate-50 text-slate-400 border border-slate-200/60'
+                                        }`}
+                                      >
+                                        <Clock size={12} className={(item.late || 0) > 0 ? 'text-amber-600' : 'text-slate-400'} />
+                                        {item.late || 0}
+                                      </span>
+                                    </td>
+
+                                    {/* Excused Count */}
+                                    <td className="py-3 px-2 text-center">
+                                      <span
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black ${
+                                          (item.excused || 0) > 0
+                                            ? 'bg-sky-50 text-sky-900 border border-sky-200'
+                                            : 'bg-slate-50 text-slate-400 border border-slate-200/60'
+                                        }`}
+                                      >
+                                        <Mail size={12} className={(item.excused || 0) > 0 ? 'text-sky-600' : 'text-slate-400'} />
+                                        {item.excused || 0}
+                                      </span>
+                                    </td>
+
+                                    {/* Absent Count */}
+                                    <td className="py-3 px-2 text-center">
+                                      <span
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black ${
+                                          (item.absent || 0) > 0
+                                            ? 'bg-rose-50 text-rose-900 border border-rose-200 font-black'
+                                            : 'bg-slate-50 text-slate-400 border border-slate-200/60'
+                                        }`}
+                                      >
+                                        <X size={12} className={(item.absent || 0) > 0 ? 'text-rose-600' : 'text-slate-400'} />
+                                        {item.absent || 0}
+                                      </span>
+                                    </td>
+
+                                    {/* Attendance Rate with Mini Progress Bar */}
+                                    <td className="py-3 px-3 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <span
+                                          className={`inline-block px-3 py-0.5 rounded-full text-xs font-black ${
+                                            rate >= 90
+                                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                                              : rate >= 80
+                                              ? 'bg-teal-100 text-teal-950 border border-teal-300'
+                                              : 'bg-rose-100 text-rose-950 border border-rose-300'
+                                          }`}
+                                        >
+                                          {rate}%
+                                        </span>
+                                        <div className="w-24 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full ${
+                                              rate >= 90 ? 'bg-emerald-500' : rate >= 80 ? 'bg-teal-500' : 'bg-rose-500'
+                                            }`}
+                                            style={{ width: `${Math.min(100, rate)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Actions */}
+                                    <td className="py-3 px-4 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Link
+                                          to={`/teacher/students/${st._id}`}
+                                          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-teal-800 text-xs font-bold transition-all shadow-2xs"
+                                        >
+                                          Hồ sơ bé →
+                                        </Link>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setClassAttendanceModal(null);
+                                            setQuickStudent(st);
+                                            setQuickSubject(`Nhận xét chuyên cần — Bé ${st.name}`);
+                                          }}
+                                          className="p-1.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-all cursor-pointer"
+                                          title="Gửi nhận xét tới phụ huynh"
+                                        >
+                                          <Mail size={14} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: LỊCH SỬ CÁC BUỔI DẠY */}
+                  {classAttendanceTab === 'sessions' && (
+                    <div className="space-y-3">
+                      {recentSessions.length === 0 ? (
+                        <div className="py-16 text-center text-slate-500 font-semibold bg-slate-50 rounded-2xl border border-slate-200">
+                          Chưa có buổi học nào được ghi nhận cho lớp này.
+                        </div>
+                      ) : (
+                        recentSessions.map((session: any) => {
+                          const isCompleted = session.status === 'COMPLETED';
+                          const isLive = session.status === 'LIVE';
+                          const scores = session.studentScores || [];
+                          const presentCount = scores.filter((s: any) => !['ABSENT', 'EXCUSED'].includes(s.attendance)).length;
+                          const absentStudents = scores.filter((s: any) => ['ABSENT', 'EXCUSED'].includes(s.attendance));
+
+                          return (
+                            <div
+                              key={session._id}
+                              className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-purple-300 transition-all shadow-2xs"
+                            >
+                              <div className="space-y-1.5 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-black ${
+                                      isLive
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                    }`}
+                                  >
+                                    {isLive ? '● Đang dạy' : '✓ Đã kết thúc'}
+                                  </span>
+                                  <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
+                                    <Calendar size={13} className="text-slate-400" />
+                                    {date(session.startedAt || session.createdAt)}
+                                  </span>
+                                </div>
+                                <h4 className="font-black text-slate-900 text-sm sm:text-base truncate">
+                                  {session.title || 'Buổi học'}
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
+                                  <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                    👥 {presentCount}/{scores.length} bé có mặt
+                                  </span>
+                                  {absentStudents.length > 0 ? (
+                                    <div className="flex items-center gap-1.5 text-rose-700 flex-wrap">
+                                      <span className="font-bold">Vắng ({absentStudents.length}):</span>
+                                      {absentStudents.map((abs: any, idx: number) => {
+                                        const stName = typeof abs.student === 'object' ? abs.student?.name : 'Bé';
+                                        return (
+                                          <span
+                                            key={idx}
+                                            className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] font-semibold"
+                                          >
+                                            {stName} ({abs.attendance === 'EXCUSED' ? 'Phép' : 'Vắng'})
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="text-emerald-700 font-bold">✨ Đi đủ 100%</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="shrink-0">
+                                <Link
+                                  to={
+                                    isLive
+                                      ? `/teacher/classroom-sessions/${session._id}/live`
+                                      : `/teacher/classroom-sessions/${session._id}/summary`
+                                  }
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100 text-xs font-bold transition-all"
+                                >
+                                  <span>{isLive ? 'Vào lớp dạy' : 'Xem tổng kết buổi học'}</span>
+                                  <ChevronRight size={14} />
+                                </Link>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}
