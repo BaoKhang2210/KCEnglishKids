@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { api, topicsApi, lessonsApi, vocabularyApi, streakApi, vocabReviewApi, parentNotificationApi } from '../../services/api';
+import { api, topicsApi, lessonsApi, vocabularyApi, streakApi, vocabReviewApi } from '../../services/api';
 import type { Topic, Vocabulary, RewardChest, ChildStreakData } from '../../types';
 import { ChildHeader } from '../../components/child/ChildHeader';
 import { ChildRecognitions } from '../../components/child/ChildRecognitions';
@@ -170,9 +170,6 @@ export const ChildHomePage: React.FC = () => {
     completedToday?: boolean;
   } | null>(null);
 
-  // Child assignments from teacher
-  const [assignments, setAssignments] = useState<any[]>([]);
-
   // Friendly Sequential Gatekeeper Toast State
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -260,15 +257,6 @@ export const ChildHomePage: React.FC = () => {
           } catch {
             /* The notebook shows its own retry state. */
           }
-
-          try {
-            const assignRes = await parentNotificationApi.getChildAssignments(childId);
-            if (assignRes?.success && Array.isArray(assignRes.data)) {
-              setAssignments(assignRes.data);
-            }
-          } catch {
-            /* Offline fallback */
-          }
         }
       } catch (err) {
         console.error('Failed to load child home data:', err);
@@ -285,19 +273,6 @@ export const ChildHomePage: React.FC = () => {
   useEffect(() => {
     refreshRewards();
   }, [refreshRewards]);
-
-  // Congratulate child if returning from a completed assignment
-  useEffect(() => {
-    if (sessionStorage.getItem('kc_assignment_completed') === 'true') {
-      sessionStorage.removeItem('kc_assignment_completed');
-      try { sfx.playSuccess(); } catch {}
-      setToastMessage('🎉 Bé đã hoàn thành xuất sắc bài tập cô giao! Giỏi lắm!');
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = setTimeout(() => {
-        setToastMessage(null);
-      }, 4500);
-    }
-  }, []);
 
   // The star ledger is the source for journey stars; rewards.totalStars includes home practice & classroom stars.
   const ledger = rewards?.starLedger;
@@ -470,99 +445,6 @@ export const ChildHomePage: React.FC = () => {
             {/* ==================== TAB 1: HÀNH TRÌNH HỌC (CURRICULUM PATH) ==================== */}
             {activeTab === 'path' && (
               <section className="space-y-10">
-                {/* BÀI TẬP CÔ GIÁO GIAO (HOMEWORK CARD) */}
-                {assignments && assignments.length > 0 && (
-                  <div className="rounded-3xl border-3 border-purple-300 bg-gradient-to-r from-purple-50 via-pink-50 to-amber-50 p-5 sm:p-6 shadow-md">
-                    <div className="flex items-center justify-between gap-3 flex-wrap mb-4 pb-3 border-b border-purple-200/80">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-2xl animate-bounce-gentle">📝</span>
-                        <div>
-                          <h3 className="text-base sm:text-lg font-black text-purple-950 flex items-center gap-2">
-                            Bài Tập Cô Giáo Giao Cho Bé
-                            {assignments.some(a => !a.isCompleted) && (
-                              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500 text-white animate-pulse">
-                                {assignments.filter(a => !a.isCompleted).length} bài mới
-                              </span>
-                            )}
-                          </h3>
-                          <p className="text-xs font-bold text-purple-700">
-                            Cô giáo giao bài ôn tập và minigame để bé luyện thêm ở nhà!
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/?tab=diary&subTab=assignments')}
-                        className="text-xs font-black text-purple-700 hover:text-purple-900 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-purple-200 shadow-2xs transition cursor-pointer"
-                      >
-                        Xem tất cả ({assignments.length}) →
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {assignments.slice(0, 2).map((a: any) => {
-                        const lessonId = String(a.lesson?._id || a.lesson || '');
-                        const lessonTitle = a.lesson?.vietnameseTitle || a.lesson?.title || 'Bài ôn tập';
-                        return (
-                          <div
-                            key={a._id}
-                            className={`rounded-2xl p-4 border-2 flex flex-col justify-between gap-3 transition-all ${
-                              a.isCompleted
-                                ? 'bg-emerald-50/80 border-emerald-300 shadow-2xs'
-                                : 'bg-white border-purple-300 shadow-sm hover:border-purple-400'
-                            }`}
-                          >
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
-                                  a.isCompleted ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-amber-950'
-                                }`}>
-                                  {a.isCompleted ? '✓ Đã hoàn thành' : '📌 Bé cần làm'}
-                                </span>
-                                {a.dueDate && (
-                                  <span className="text-[11px] font-bold text-slate-500">
-                                    Hạn: {new Date(a.dueDate).toLocaleDateString('vi-VN')}
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className="text-sm sm:text-base font-black text-slate-900">
-                                {a.minigameId ? `🎮 Trò chơi: ${a.lesson?.title || ''}` : `📖 ${lessonTitle}`}
-                              </h4>
-                              {a.instructions && (
-                                <p className="text-xs font-bold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                  💬 Cô dặn: &ldquo;{a.instructions}&rdquo;
-                                </p>
-                              )}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                sfx.playPop();
-                                if (a.activity?._id) {
-                                  navigate(`/activities/${a.activity._id}`);
-                                } else if (lessonId) {
-                                  navigate(
-                                    a.minigameId
-                                      ? `/lessons/${lessonId}?game=${a.minigameId}&stage=3&from=assignment`
-                                      : `/lessons/${lessonId}?stage=3&from=assignment`
-                                  );
-                                }
-                              }}
-                              className={`w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 transition ${
-                                a.isCompleted
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
-                              }`}
-                            >
-                              <span>{a.minigameId ? '🎮 Chơi Minigame ôn tập' : a.isCompleted ? '🔄 Chơi lại trò chơi ôn tập' : '🚀 Vào chơi bài tập ngay'}</span>
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
                 {/* Header */}
                 <div className="flex items-end justify-between flex-wrap gap-2">
                   <div>

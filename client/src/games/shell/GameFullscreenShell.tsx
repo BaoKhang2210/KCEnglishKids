@@ -11,7 +11,6 @@ interface GameFullscreenShellProps {
   onBack: () => void;
   onReplayAudio?: () => void;
   children: React.ReactNode;
-  isFromAssignment?: boolean;
 }
 
 /**
@@ -27,7 +26,6 @@ export const GameFullscreenShell: React.FC<GameFullscreenShellProps> = ({
   onBack,
   onReplayAudio,
   children,
-  isFromAssignment = false,
 }) => {
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
@@ -57,13 +55,13 @@ export const GameFullscreenShell: React.FC<GameFullscreenShellProps> = ({
         <button
           onClick={handleBack}
           type="button"
-          aria-label={isFromAssignment ? "Quay về trang chủ" : "Quay lại danh sách trò chơi"}
-          title={isFromAssignment ? "Quay về trang chủ" : "Quay lại danh sách game"}
+          aria-label="Quay lại danh sách trò chơi"
+          title="Quay lại danh sách game"
           className="min-w-[48px] min-h-[48px] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-black cursor-pointer active:scale-95 transition-all"
         >
           <ArrowLeft className="w-5 h-5 text-amber-300 stroke-[3]" />
           <span className="text-xs font-black text-amber-200 hidden sm:inline">
-            {isFromAssignment ? 'Về trang chủ' : 'Danh sách game'}
+            Danh sách game
           </span>
         </button>
 

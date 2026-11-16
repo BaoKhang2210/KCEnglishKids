@@ -4,7 +4,7 @@ const ClassroomSession = require('../models/ClassroomSession');
 const User = require('../models/User');
 const ClassRecognition = require('../models/ClassRecognition');
 const SchoolRecognition = require('../models/SchoolRecognition');
-const { HomePracticeCompletion, UnitCompletion, Progress, Assignment } = require('../models');
+const { HomePracticeCompletion, UnitCompletion, Progress } = require('../models');
 const { recognitionPeriod, rewardFor, rankClassroomStars, rankSchoolStars } = require('../services/recognitionRules');
 const { statsFor } = require('../services/teacherStatistics');
 
@@ -30,7 +30,7 @@ const keyFor = (classroom, period) => ({ classroom: classroom._id, kind: period.
 async function periodHomeStars(studentIds, period) {
   if (!studentIds || !studentIds.length) return new Map();
 
-  const [homePractices, unitCompletions, progressDocs, assignmentReviews] = await Promise.all([
+  const [homePractices, unitCompletions, progressDocs] = await Promise.all([
     HomePracticeCompletion && typeof HomePracticeCompletion.aggregate === 'function'
       ? HomePracticeCompletion.aggregate([
           {
@@ -80,26 +80,6 @@ async function periodHomeStars(studentIds, period) {
             { updatedAt: { $gte: period.start, $lt: period.end } }
           ]
         }).select('child stars').lean()
-      : Promise.resolve([]),
-
-    Assignment && typeof Assignment.aggregate === 'function'
-      ? Assignment.aggregate([
-          { $match: { 'reviews.child': { $in: studentIds } } },
-          { $unwind: '$reviews' },
-          {
-            $match: {
-              'reviews.child': { $in: studentIds },
-              'reviews.reviewedAt': { $gte: period.start, $lt: period.end },
-              'reviews.bonusStars': { $gt: 0 }
-            }
-          },
-          {
-            $group: {
-              _id: '$reviews.child',
-              stars: { $sum: '$reviews.bonusStars' }
-            }
-          }
-        ])
       : Promise.resolve([])
   ]);
 
@@ -126,13 +106,6 @@ async function periodHomeStars(studentIds, period) {
     const cid = String(p.child);
     if (map.has(cid)) {
       map.set(cid, map.get(cid) + (Number(p.stars) || 0));
-    }
-  }
-
-  for (const ar of assignmentReviews || []) {
-    const cid = String(ar._id || ar.child);
-    if (map.has(cid)) {
-      map.set(cid, map.get(cid) + (Number(ar.stars) || 0));
     }
   }
 

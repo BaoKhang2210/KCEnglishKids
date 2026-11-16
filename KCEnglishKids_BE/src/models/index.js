@@ -13,7 +13,6 @@ const LearningSession = require('./LearningSession');
 const ActivityResult = require('./ActivityResult');
 const Progress = require('./Progress');
 const AuditLog = require('./AuditLog');
-const Assignment = require('./Assignment');
 const TeacherNote = require('./TeacherNote');
 // Phase 2 — new models
 const ClassroomSession = require('./ClassroomSession');
@@ -56,7 +55,6 @@ module.exports = {
   ActivityResult,
   Progress,
   AuditLog,
-  Assignment,
   TeacherNote,
   ClassroomSession,
   VocabularyMastery,

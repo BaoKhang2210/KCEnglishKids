@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardList, History, KeyRound, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react';
+import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, History, KeyRound, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { TeacherChangePasswordModal } from '../../components/teacher/TeacherChangePasswordModal';
 import '../../styles/teacher.css';
@@ -13,7 +13,6 @@ const groups = [
   ] },
   { title: 'Chuẩn bị & tổ chức', links: [
     { to: 'content', label: 'Giáo trình', icon: BookOpen },
-    { to: 'assignments', label: 'Bài tập', icon: ClipboardList },
     { to: 'classroom-sessions', label: 'Nhật ký buổi dạy', icon: History }
   ] },
   { title: 'Đồng hành cùng học sinh', links: [

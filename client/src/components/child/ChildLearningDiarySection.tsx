@@ -10,12 +10,10 @@ import {
   Star,
   Trophy,
   Volume2,
-  ClipboardList,
-  Calendar,
   ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { learningApi, parentNotificationApi } from '../../services/api';
+import { learningApi } from '../../services/api';
 import { playWordAudio, sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { GAME_REGISTRY } from '../../games/registry';
@@ -30,7 +28,7 @@ interface ChildLearningDiarySectionProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-type DiarySubTab = 'lessons' | 'timeline' | 'assignments';
+type DiarySubTab = 'lessons' | 'timeline';
 type LessonFilter = 'all' | 'completed' | 'in_progress' | 'needs_review';
 
 function formatVnDateTime(value?: string | Date): string {
@@ -78,23 +76,19 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<any>(null);
-  const [assignments, setAssignments] = useState<any[]>([]);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([
-      learningApi.getChildProgress(childId).catch(() => ({ success: false, data: null })),
-      parentNotificationApi.getChildAssignments(childId).catch(() => ({ success: false, data: [] })),
-    ])
-      .then(([progRes, assignRes]) => {
+    learningApi.getChildProgress(childId)
+      .then((progRes) => {
         if (!active) return;
         if (progRes?.success && progRes.data) {
           setProgressData(progRes.data);
         }
-        if (assignRes?.success && Array.isArray(assignRes.data)) {
-          setAssignments(assignRes.data);
-        }
+      })
+      .catch(() => {
+        if (active) setProgressData(null);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -510,27 +504,6 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
           >
             <Clock className="w-4 h-4" />
             <span>Nhật ký hoạt động gần đây ({recentEvents.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              sfx.playPop();
-              setSubTab('assignments');
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-all ${
-              subTab === 'assignments'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-purple-50'
-            }`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            <span>Bài tập cô giao ({assignments.length})</span>
-            {assignments.some((a) => !a.isCompleted) && (
-              <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">
-                {assignments.filter((a) => !a.isCompleted).length} mới
-              </span>
-            )}
           </button>
         </div>
 
@@ -964,125 +937,6 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                         Mở lại bài →
                       </button>
                     )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── SUB-TAB 3: BÀI TẬP CÔ GIÁO GIAO & NHẬN XÉT ── */}
-      {subTab === 'assignments' && (
-        <div className="rounded-[28px] border-3 border-purple-200 bg-white p-5 sm:p-6 space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-lg sm:text-xl font-black text-slate-900">
-              📝 Bài Tập Cô Giáo Giao & Lời Khen
-            </h3>
-            <p className="text-xs sm:text-sm font-bold text-slate-500">
-              Các bài học và Minigame cô giáo giao riêng cho lớp hoặc cho bé kèm nhận xét chấm bài.
-            </p>
-          </div>
-
-          {assignments.length === 0 ? (
-            <div className="py-12 text-center space-y-2">
-              <p className="text-base font-black text-slate-700">
-                Hiện tại cô giáo chưa giao bài tập mới
-              </p>
-              <p className="text-xs sm:text-sm font-bold text-slate-500">
-                Bé có thể tự do học tiếp trên Hành trình hoặc ôn tập từ vựng nhé!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {assignments.map((a: any) => {
-                const mgDef = a.minigameId ? GAME_REGISTRY[a.minigameId as GameId] : null;
-                const lessonId = String(a.lesson?._id || a.lesson || '');
-                const feedback = a.result?.teacherFeedback;
-
-                return (
-                  <div
-                    key={a._id}
-                    className={`rounded-3xl border-3 p-4 sm:p-5 flex flex-col justify-between gap-3 ${
-                      a.isCompleted
-                        ? 'bg-emerald-50/40 border-emerald-300'
-                        : 'bg-purple-50/40 border-purple-300'
-                    }`}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-black ${
-                            a.isCompleted
-                              ? 'bg-emerald-500 text-white'
-                              : 'bg-amber-400 text-amber-950'
-                          }`}
-                        >
-                          {a.isCompleted ? '✓ Bé đã hoàn thành' : '📌 Cần làm'}
-                        </span>
-
-                        {a.dueDate && (
-                          <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" /> Hạn:{' '}
-                            {new Date(a.dueDate).toLocaleDateString('vi-VN')}
-                          </span>
-                        )}
-                      </div>
-
-                      <h4 className="text-lg font-black text-slate-900">
-                        {mgDef
-                          ? `${mgDef.icon} Minigame: ${mgDef.title} — ${a.lesson?.title || ''}`
-                          : a.activity?.title || a.lesson?.title || 'Bài tập về nhà'}
-                      </h4>
-
-                      {a.instructions && (
-                        <p className="text-xs sm:text-sm font-bold text-slate-700 bg-white/80 rounded-xl p-2.5 border border-slate-200">
-                          💬 Lời cô dặn: &ldquo;{a.instructions}&rdquo;
-                        </p>
-                      )}
-
-                      {feedback?.comment && (
-                        <div className="rounded-2xl bg-amber-100/90 border-2 border-amber-300 p-3 space-y-1">
-                          <div className="text-xs font-black text-amber-950 flex items-center justify-between">
-                            <span>🏅 Nhận xét của cô giáo:</span>
-                            {feedback.bonusStars > 0 && (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-300 text-amber-950">
-                                +{feedback.bonusStars} ⭐ Sao thưởng
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs sm:text-sm font-bold text-slate-800">
-                            &ldquo;{feedback.comment}&rdquo;
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-500">
-                        {a.result?.score !== undefined
-                          ? `Điểm đạt được: ${a.result.score}%`
-                          : 'Bấm để mở bài học'}
-                      </span>
-
-                      {lessonId && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sfx.playPop();
-                            navigate(
-                              a.minigameId
-                                ? `/lessons/${lessonId}?game=${a.minigameId}&stage=3&from=assignment`
-                                : `/lessons/${lessonId}?stage=3&from=assignment`
-                            );
-                          }}
-                          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-transform"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-white" />
-                          <span>{a.minigameId ? 'Chơi Minigame ôn tập' : a.isCompleted ? 'Chơi lại trò chơi' : 'Vào chơi bài tập'}</span>
-                        </button>
-                      )}
-                    </div>
                   </div>
                 );
               })}

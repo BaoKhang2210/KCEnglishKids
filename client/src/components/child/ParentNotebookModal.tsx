@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   X,
   Mail,
@@ -8,9 +7,7 @@ import {
   MessageCircle,
   Heart,
   Loader2,
-  ClipboardList,
   Calendar,
-  Play,
   Sparkles,
   Clock,
   MapPin,
@@ -118,13 +115,10 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
   childName,
   onClose
 }) => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'NOTIFICATIONS' | 'ASSIGNMENTS' | 'SCHEDULE'>('NOTIFICATIONS');
+  const [activeTab, setActiveTab] = useState<'NOTIFICATIONS' | 'SCHEDULE'>('NOTIFICATIONS');
   const [items, setItems] = useState<ParentNotificationItem[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
   const [submittingFeedback, setSubmittingFeedback] = useState<Record<string, boolean>>({});
@@ -179,18 +173,6 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
     }
   };
 
-  const loadAssignments = async () => {
-    setLoadingAssignments(true);
-    try {
-      const res = await parentNotificationApi.getChildAssignments(childId);
-      setAssignments(res.data || []);
-    } catch (e) {
-      console.error('Failed to load child assignments:', e);
-    } finally {
-      setLoadingAssignments(false);
-    }
-  };
-
   const loadSchedule = async () => {
     setLoadingSchedule(true);
     try {
@@ -205,23 +187,8 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
 
   useEffect(() => {
     void loadNotifications();
-    void loadAssignments();
     void loadSchedule();
   }, [childId]);
-
-  const handleStartAssignment = (assignment: any) => {
-    sfx.playPop();
-    onClose();
-    if (assignment.activity?._id) {
-      navigate(`/activities/${assignment.activity._id}`);
-    } else if (assignment.lesson?._id) {
-      navigate(
-        assignment.minigameId
-          ? `/lessons/${assignment.lesson._id}?game=${assignment.minigameId}&stage=3&from=assignment`
-          : `/lessons/${assignment.lesson._id}?stage=3&from=assignment`
-      );
-    }
-  };
 
   // Determine today's day of week: 0=CN, 1=T2, ... 6=T7
   const todayDayOfWeek = new Date().getDay();
@@ -266,8 +233,8 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             </button>
           </div>
 
-          {/* Navigation Tabs (3 tabs: Lời nhắn, Bài tập, Thời khóa biểu) */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          {/* Navigation Tabs (2 tabs: Lời nhắn, Thời khóa biểu) */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               onClick={() => {
                 sfx.playPop();
@@ -281,21 +248,6 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             >
               <MessageCircle size={15} />
               <span className="truncate">Lời nhắn ({items.length})</span>
-            </button>
-
-            <button
-              onClick={() => {
-                sfx.playPop();
-                setActiveTab('ASSIGNMENTS');
-              }}
-              className={`py-2 px-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'ASSIGNMENTS'
-                  ? 'bg-white text-teal-900 shadow-md scale-102 font-black'
-                  : 'bg-amber-500/40 text-amber-950 hover:bg-amber-500/60'
-              }`}
-            >
-              <ClipboardList size={15} />
-              <span className="truncate">Bài tập ({assignments.length})</span>
             </button>
 
             <button
@@ -450,128 +402,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
             )
           )}
 
-          {/* TAB 2: CHILD ASSIGNMENTS (BÀI CÔ GIAO) */}
-          {activeTab === 'ASSIGNMENTS' && (
-            loadingAssignments ? (
-              <div className="py-20 flex flex-col items-center justify-center text-slate-400 text-sm font-bold">
-                <Loader2 className="w-8 h-8 animate-spin text-teal-600 mb-2" />
-                Đang tải bài tập được giao…
-              </div>
-            ) : assignments.length === 0 ? (
-              <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8">
-                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl">
-                  📚
-                </div>
-                <p className="text-base font-black text-slate-700">Chưa có bài tập nào cần hoàn thành</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                  Hiện tại cô giáo chưa giao thêm bài tập mới cho bé. Bé hãy ôn luyện các chủ đề yêu thích nhé!
-                </p>
-              </div>
-            ) : (
-              assignments.map((item) => {
-                const title = item.activity?.title || item.lesson?.title;
-                const isOverdue = item.dueDate && new Date(item.dueDate) < new Date() && !item.isCompleted;
-                const teacherFeedback = item.result?.teacherFeedback;
-
-                return (
-                  <div
-                    key={item._id}
-                    className="rounded-2xl border-2 border-teal-200/80 bg-white shadow-xs overflow-hidden"
-                  >
-                    {/* Header */}
-                    <div className="bg-teal-50 px-4 py-3 border-b border-teal-100 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-800">
-                          {title}
-                        </span>
-                        <span className="text-xs bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-full">
-                          {item.activity?.activityType || 'Bài học'}
-                        </span>
-                      </div>
-
-                      {item.dueDate ? (
-                        <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
-                          isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'
-                        }`}>
-                          <Calendar size={13} />
-                          Hạn chót: {new Date(item.dueDate).toLocaleDateString('vi-VN')}
-                          {isOverdue && ' (Đã quá hạn)'}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">Không giới hạn thời gian</span>
-                      )}
-                    </div>
-
-                    {/* Content Body */}
-                    <div className="p-4 space-y-3">
-                      {/* Teacher instructions */}
-                      {item.instructions && (
-                        <div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs text-amber-900 leading-relaxed font-medium">
-                          <b>👩‍🏫 Lời cô dặn:</b> {item.instructions}
-                        </div>
-                      )}
-
-                      {/* Status / Results */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                        <div>
-                          {item.isCompleted ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                                <CheckCircle2 size={14} /> Bé đã hoàn thành
-                              </span>
-                              <span className="font-bold text-xs text-slate-700">
-                                Đạt {item.result?.score || 0}% · <Star size={14} className="fill-amber-400 text-amber-400 inline" /> {item.result?.stars || 0}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
-                              <Clock size={14} /> Chưa làm bài
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Action: Replay or Start */}
-                        <button
-                          onClick={() => handleStartAssignment(item)}
-                          className={`rounded-xl px-4 py-2 text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
-                            item.isCompleted
-                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                              : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white scale-102'
-                          }`}
-                        >
-                          <Play size={14} />
-                          <span>{item.isCompleted ? 'Chơi lại ôn tập' : 'Bé làm bài ngay 🚀'}</span>
-                        </button>
-                      </div>
-
-                      {/* Teacher's Review on Assignment */}
-                      {teacherFeedback && teacherFeedback.comment && (
-                        <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                              <Sparkles size={14} className="text-amber-500" />
-                              Cô giáo nhận xét bài làm:
-                            </span>
-                            {teacherFeedback.bonusStars > 0 && (
-                              <span className="text-xs font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Star size={12} className="fill-amber-400" />
-                                Cô thưởng +{teacherFeedback.bonusStars} sao
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-emerald-950 font-medium leading-relaxed italic">
-                            "{teacherFeedback.comment}"
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )
-          )}
-
-          {/* TAB 3: CLASS SCHEDULE (THỜI KHÓA BIỂU TRÊN LỚP) */}
+          {/* TAB 2: CLASS SCHEDULE (THỜI KHÓA BIỂU TRÊN LỚP) */}
           {activeTab === 'SCHEDULE' && (
             loadingSchedule ? (
               <div className="py-20 flex flex-col items-center justify-center text-slate-400 text-sm font-bold">

@@ -1,4 +1,4 @@
-const { ClassRoom, User, Progress, ActivityResult, LearningSession, Assignment, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion, Schedule, VocabularyMastery, Attendance, ParentNotification } = require('../models');
+const { ClassRoom, User, Progress, ActivityResult, LearningSession, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion, Schedule, VocabularyMastery, Attendance, ParentNotification } = require('../models');
 
 const rules = require('../services/teacherRules');
 const access = require('../services/teacherAccess');
@@ -19,10 +19,8 @@ const ownClassOr403 = async (req, res, id) => { if (!validId(id)) { invalid(res,
 exports.getDashboard = async (req, res, next) => { try {
   const classes = await ClassRoom.find({ ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('students name status');
   const ids = [...new Map(classes.flatMap(c => c.students).map(id => [String(id), id])).values()];
-  const assignmentQuery = { ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: { $in: classes.map(c => c._id) } };
-  const [recentAssignments, allAssignments, resultStats, recentSessions, parentFeedback] = await Promise.all([
-    Assignment.find(assignmentQuery).sort({ createdAt: -1 }).limit(6).populate('classRoom', 'name').populate('lesson', 'title').populate('activity', 'title activityType'),
-    Assignment.find(assignmentQuery).select('status'), statsFor(ids),
+  const [resultStats, recentSessions, parentFeedback] = await Promise.all([
+    statsFor(ids),
     LearningSession.find({ child: { $in: ids } }).sort({ lastActivityAt: -1 }).limit(8).populate('child', 'name avatar avatarUrl').populate('lesson', 'title'),
     ParentNotification.find({
       ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }),
@@ -35,11 +33,9 @@ exports.getDashboard = async (req, res, next) => { try {
   ]);
   const assessed = resultStats.filter(s => s.hasAssessment);
   res.json({ success: true, data: { metrics: { classes: classes.length, students: ids.length,
-    activeAssignments: allAssignments.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length,
-    completedAssignments: allAssignments.filter(a => a.status === 'COMPLETED').length,
     needingAttention: resultStats.filter(s => !s.hasAssessment || s.averageScore < 60).length, unassessedStudents: ids.length - assessed.length,
     activeLearners: assessed.length, averageScore: assessed.length ? Math.round(100 * assessed.reduce((n,s) => n+s.correctAnswers, 0) / assessed.reduce((n,s) => n+s.answeredCount, 0)) : null,
-    stars: resultStats.reduce((n,s) => n+s.stars, 0) }, recentAssignments, recentSessions, parentFeedback } });
+    stars: resultStats.reduce((n,s) => n+s.stars, 0) }, recentSessions, parentFeedback } });
 } catch(e) { next(e); } };
 
 exports.getTeacherClasses = async (req, res, next) => { try {
@@ -54,9 +50,8 @@ exports.getClassDetail = async (req, res, next) => { try {
   await classRoom.populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin createdAt contact parentContact status assignedClass', options: { sort: { name: 1 } } });
   // §1.1.2 — Mongo sorts by code point; re-sort with Vietnamese locale so accented names order correctly
   classRoom.students.sort(byNameVi);
-  const [resultStats, assignments, recentSessions] = await Promise.all([
+  const [resultStats, recentSessions] = await Promise.all([
     statsFor(classRoom.students.map(x => x._id)),
-    Assignment.find({ classRoom: classRoom._id, teacher: req.user._id }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
     ClassroomSession.find({ classroom: classRoom._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).lean()
   ]);
   const map = new Map(resultStats.map(x => [String(x._id), x]));
@@ -93,7 +88,7 @@ exports.getClassDetail = async (req, res, next) => { try {
         stats: map.get(String(x._id)) || { ...EMPTY_STATS },
         attendance: attMap.get(String(x._id)) || { present: 0, excused: 0, absent: 0, late: 0, totalSessions: 0, attendanceRate: 100 }
       })),
-      assignments,
+      assignments: [],
       recentSessions,
       studentAttendanceSummary
     }
@@ -211,12 +206,11 @@ exports.getStudentOverview = async (req, res, next) => {
     const student = await getStudent(req, req.params.studentId);
     if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
     const notesQuery = { student: student._id };
-    const [progressList, recentActivities, sessions, notes, assignments, [overallStat], masteryList, listeningResults, attSessions] = await Promise.all([
+    const [progressList, recentActivities, sessions, notes, [overallStat], masteryList, listeningResults, attSessions] = await Promise.all([
       Progress.find({ child: student._id }).populate('lesson', 'title ageGroupCode').populate('topic', 'englishName vietnameseName').sort({ lastActivityAt: -1 }),
       ActivityResult.find({ child: student._id }).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }).limit(30),
       LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15),
       TeacherNote.find(notesQuery).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 }),
-      Assignment.find({ ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: student.assignedClass, $and: [{ $or: [{ student: student._id }, { assignedToType: 'CLASS' }] }, { $or: [{ recipients: { $exists: false } }, { recipients: student._id }] }] }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
       statsFor([student._id]),
       VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean(),
       ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity score stars duration').lean(),
@@ -419,7 +413,7 @@ exports.getStudentOverview = async (req, res, next) => {
         recentActivities: await require('../services/learningHistory').recentHistory(student._id,recentActivities),
         sessions,
         notes,
-        assignments
+        assignments: []
       }
     });
   } catch (e) {
@@ -467,20 +461,6 @@ exports.getContent = async (req, res, next) => { try {
 } catch (e) { next(e); } };
 exports.getLesson = async (req, res, next) => { try { if (!validId(req.params.id)) return invalid(res, 'Invalid lesson id.'); const lesson = await Lesson.findOne({ _id: req.params.id, status: 'ACTIVE' }).populate('topic').populate('vocabularyItems').populate({ path: 'languageContents', match: { status: 'ACTIVE' } }).populate('curriculumUnits'); if (!lesson) return res.status(404).json({ success: false, message: 'Lesson not found.' }); const activities = await Activity.find({ lesson: lesson._id, status: 'ACTIVE' }); res.json({ success: true, data: { ...lesson.toObject(), activities } }); } catch (e) { next(e); } };
 exports.getActivity = async (req, res, next) => { try { if (!validId(req.params.id)) return invalid(res, 'Invalid activity id.'); const data = await Activity.findOne({ _id: req.params.id, status: 'ACTIVE' }).populate({ path: 'lesson', populate: ['topic', 'vocabularyItems'] }); if (!data || data.lesson?.status !== 'ACTIVE') return res.status(404).json({ success: false, message: 'Activity not found or lesson inactive.' }); res.json({ success: true, data }); } catch (e) { next(e); } };
-
-exports.createAssignment = require('./teacherAssignmentController').createAssignment;
-
-exports.getAssignments = require('./teacherAssignmentController').getAssignments;
-
-exports.getAssignment = require('./teacherAssignmentController').getAssignment;
-
-exports.reviewAssignmentSubmission = require('./teacherAssignmentController').reviewAssignmentSubmission;
-
-exports.deleteAssignment = require('./teacherAssignmentController').deleteAssignment;
-
-exports.updateAssignment = require('./teacherAssignmentController').updateAssignment;
-
-exports.updateAssignmentStatus = require('./teacherAssignmentController').updateAssignmentStatus;
 
 exports.createTeacherNote = async (req, res, next) => {
   try {

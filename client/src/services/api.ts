@@ -716,32 +716,6 @@ export const teacherApi = {
   getStudentNotes: (studentId: string) => api.get(`/teacher/students/${studentId}/notes`),
   createTeacherNote: (data: { studentId: string; lessonId?: string; noteType: string; content: string }) =>
     api.post('/teacher/notes', data),
-  getAssignments: (classRoomId?: string, status?: string) => {
-    const params = new URLSearchParams();
-    if (classRoomId) params.append('classRoomId', classRoomId);
-    if (status) params.append('status', status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return api.get(`/teacher/assignments${query}`);
-  },
-  getAssignment: (id: string) => api.get(`/teacher/assignments/${id}`),
-  updateAssignment: (id: string, data: any) => api.put(`/teacher/assignments/${id}`, data),
-  createAssignment: (data: {
-    classRoomId: string;
-    assignedToType?: string;
-    studentId?: string;
-    lessonId: string;
-    activityId?: string;
-    minigameId?: string;
-    dueDate?: string;
-    instructions?: string;
-  }) => api.post('/teacher/assignments', data),
-  updateAssignmentStatus: (id: string, status: string) =>
-    api.patch(`/teacher/assignments/${id}/status`, { status }),
-  cancelAssignment: (id: string) =>
-    api.patch(`/teacher/assignments/${id}/status`, { status: 'CANCELLED' }),
-  deleteAssignment: (id: string) => api.delete(`/teacher/assignments/${id}`),
-  reviewSubmission: (assignmentId: string, childId: string, data: { comment?: string; bonusStars?: number; notifyParent?: boolean }) =>
-    api.post(`/teacher/assignments/${assignmentId}/submissions/${childId}/review`, data),
   getCurriculumOptions: (ageGroupCode?: string) => {
     const query = ageGroupCode ? `?ageGroupCode=${ageGroupCode}` : '';
     return api.get(`/teacher/curriculum-options${query}`);
@@ -941,8 +915,6 @@ export const parentNotificationApi = {
     api.post(`/children/${childId}/parent-notifications/${id}/feedback`, data),
   getParentFeedback: () =>
     api.get('/teacher/parent-feedback'),
-  getChildAssignments: (childId: string) =>
-    api.get(`/children/${childId}/assignments`),
   getChildSchedule: (childId: string) =>
     api.get(`/children/${childId}/schedule`)
 };

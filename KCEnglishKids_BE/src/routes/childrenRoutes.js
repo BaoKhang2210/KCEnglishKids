@@ -53,58 +53,11 @@ router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(),
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');
-const { Assignment, User, ClassRoom, Schedule } = require('../models');
+const { User, ClassRoom, Schedule } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
 router.patch('/:childId/parent-notifications/:id/read', protect, ownChildOr403(), pn.markAsReadByParent);
 router.post('/:childId/parent-notifications/:id/feedback', protect, ownChildOr403(), pn.sendParentFeedback);
-
-// Child assignments (Bài cô giáo giao)
-router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, next) => {
-  try {
-    const { childId } = req.params;
-    const child = await User.findById(childId).select('assignedClass assignedClasses');
-    if (!child) return res.status(404).json({ success: false, message: 'Child not found' });
-
-    const enrolledRooms = await ClassRoom.find({ students: childId }).distinct('_id');
-    const classIds = Array.from(new Set([
-      ...(child.assignedClass ? [String(child.assignedClass)] : []),
-      ...((child.assignedClasses || []).map(String)),
-      ...enrolledRooms.map(String)
-    ])).map(id => new (require('mongoose').Types.ObjectId)(id));
-
-    const q = {
-      status: { $in: ['ASSIGNED', 'IN_PROGRESS'] },
-      $or: [
-        { classRoom: { $in: classIds } },
-        { student: childId },
-        { recipients: childId }
-      ],
-      $and: [
-        { $or: [{ student: childId }, { assignedToType: 'CLASS' }] },
-        { $or: [{ recipients: { $exists: false } }, { recipients: { $size: 0 } }, { recipients: childId }] },
-        { $or: [{ startDate: null }, { startDate: { $lte: new Date() } }] }
-      ]
-    };
-    const assignments = await Assignment.find(q)
-      .populate({ path: 'lesson', select: 'title vietnameseTitle vocabularyItems status displayOrder' })
-      .populate('activity', 'title activityType instructions passingScore maxScore')
-      .populate('teacher', 'name avatar')
-      .sort({ createdAt: -1 });
-
-    const dataWithStatus = await Promise.all(assignments.filter(a => a.lesson).map(async a => {
-      const aObj = a.toObject();
-      const { data } = await require('../services/teacherAssignments').submissions(a, [{ _id: childId }]);
-      aObj.isCompleted = data[0]?.hasSubmitted || false;
-      aObj.result = data[0]?.submission || null;
-      return aObj;
-    }));
-
-    res.json({ success: true, count: dataWithStatus.length, data: dataWithStatus });
-  } catch (e) {
-    next(e);
-  }
-});
 
 // Child school schedule (Thời khóa biểu trên lớp)
 router.get('/:childId/schedule', protect, ownChildOr403(), async (req, res, next) => {

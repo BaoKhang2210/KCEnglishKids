@@ -164,7 +164,6 @@ exports.deleteClassroom = handler(async (req, res) => {
     await models.LearningObservation.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
     await models.HomePracticePlan.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
     for (const name of ['TeacherNote', 'VocabularyMastery']) await models[name].deleteMany({ student: { $in: ids } });
-    await models.Assignment.deleteMany({ $or: [{ classRoom: room._id }, { student: { $in: ids } }] });
     await models.ParentNotification.deleteMany({ child: { $in: ids } });
     await ClassRecognition.deleteMany({ classroom: room._id });
     await ClassRecognition.updateMany({ 'winners.child': { $in: ids } }, { $pull: { winners: { child: { $in: ids } }, ranking: { child: { $in: ids.map(String) } } } });

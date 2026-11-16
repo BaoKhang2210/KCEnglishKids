@@ -12,7 +12,6 @@ interface GameCompleteScreenProps {
   onPlayAgain: () => void;
   onHome: () => void;
   onNextGame?: () => void;
-  isFromAssignment?: boolean;
 }
 
 export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
@@ -21,7 +20,6 @@ export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
   onPlayAgain,
   onHome,
   onNextGame,
-  isFromAssignment = false,
 }) => {
   useEffect(() => {
     playPraiseAudio();
@@ -41,24 +39,9 @@ export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
       <StoryBackdrop scene="celebration"/>
       {/* Top: Mascot & Celebration */}
       <div className="story-completion-heading flex flex-col items-center gap-1.5 mt-2">
-        {isFromAssignment ? (
-          <>
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md animate-bounce-gentle">
-              <span>🎉</span>
-              <span>Nhiệm vụ hoàn thành!</span>
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md">
-              Bé đã hoàn thành bài tập cô giao! 🌟
-            </h2>
-            <p className="text-xs sm:text-sm font-bold text-amber-200 drop-shadow-sm max-w-md">
-              Cô giáo đã ghi nhận kết quả của bé rồi nhé. Giỏi lắm!
-            </p>
-          </>
-        ) : (
-          <h2 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md">
-            Great Job! 🎉
-          </h2>
-        )}
+        <h2 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md">
+          Great Job! 🎉
+        </h2>
         <div className="flex items-center gap-1.5 mt-1">
           {Array.from({ length: Math.min(stars, 6) }).map((_, i) => (
             <Star
@@ -99,7 +82,7 @@ export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
           className="story-action min-h-[52px] sm:min-h-[58px] px-5 rounded-2xl font-black flex items-center gap-2 cursor-pointer active:scale-95 transition-all text-sm sm:text-base"
         >
           <RotateCcw className="w-5 h-5" />
-          <span>{isFromAssignment ? 'Chơi lại 🔁' : 'Play again 🔁'}</span>
+          <span>Play again 🔁</span>
         </button>
 
         <button
@@ -108,16 +91,13 @@ export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
             onHome();
           }}
           type="button"
-          className={isFromAssignment
-            ? "story-action is-primary min-h-[54px] sm:min-h-[62px] px-8 rounded-2xl font-black flex items-center gap-2.5 shadow-xl cursor-pointer active:scale-95 transition-all text-base sm:text-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-2 border-emerald-300"
-            : "story-action min-h-[52px] sm:min-h-[58px] px-5 rounded-2xl font-black flex items-center gap-2 cursor-pointer active:scale-95 transition-all text-sm sm:text-base"
-          }
+          className="story-action min-h-[52px] sm:min-h-[58px] px-5 rounded-2xl font-black flex items-center gap-2 cursor-pointer active:scale-95 transition-all text-sm sm:text-base"
         >
           <Home className="w-5 h-5" />
-          <span>{isFromAssignment ? 'Về trang chủ 🏠' : 'Games 🏠'}</span>
+          <span>Games 🏠</span>
         </button>
 
-        {!isFromAssignment && onNextGame && (
+        {onNextGame && (
           <button
             onClick={() => {
               sfx.playPop();

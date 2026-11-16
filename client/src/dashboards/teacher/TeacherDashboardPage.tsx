@@ -4,13 +4,10 @@ import {
   Users,
   Star,
   LogOut,
-  BookOpen,
-  Calendar,
   CheckCircle,
   Clock,
   PlusCircle,
   FileText,
-  Trash2,
   ChevronRight,
   Sparkles,
   Award,
@@ -25,7 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { teacherApi, lessonsApi } from '../../services/api';
 import { playWordAudio, sfx } from '../../utils/audio';
 
-type TabType = 'TEACHING' | 'ROSTER' | 'ASSIGNMENTS' | 'NOTES';
+type TabType = 'TEACHING' | 'ROSTER' | 'NOTES';
 
 const NOTE_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   INTEREST: { label: 'Hứng thú cao', color: 'text-amber-800', bg: 'bg-amber-100 border-amber-300' },
@@ -58,21 +55,7 @@ export const TeacherDashboardPage: React.FC = () => {
   const [drilldownStudentId, setDrilldownStudentId] = useState<string | null>(null);
   const [studentOverview, setStudentOverview] = useState<any>(null);
   const [loadingOverview, setLoadingOverview] = useState(false);
-
-  // Assignments State
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [assignmentFilterStatus, setAssignmentFilterStatus] = useState<string>('');
-  const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
   const [curriculumTree, setCurriculumTree] = useState<any[]>([]);
-
-  // Form: Create Assignment
-  const [assignClassId, setAssignClassId] = useState('');
-  const [assignUnitId, setAssignUnitId] = useState('');
-  const [assignLessonId, setAssignLessonId] = useState('');
-  const [assignActivityId, setAssignActivityId] = useState('');
-  const [assignDueDate, setAssignDueDate] = useState('');
-  const [assignInstructions, setAssignInstructions] = useState('');
-  const [submittingAssignment, setSubmittingAssignment] = useState(false);
 
   // Form: Create Note
   const [noteStudentId, setNoteStudentId] = useState('');
@@ -83,12 +66,6 @@ export const TeacherDashboardPage: React.FC = () => {
   // Unique IDs for form controls
   const classFilterSelectId = useId();
   const teachingLessonSelectId = useId();
-  const assignClassSelectId = useId();
-  const assignUnitSelectId = useId();
-  const assignLessonSelectId = useId();
-  const assignActivitySelectId = useId();
-  const assignDueDateInputId = useId();
-  const assignInstructionsTextareaId = useId();
   const noteStudentSelectId = useId();
   const noteTypeSelectId = useId();
   const noteContentTextareaId = useId();
@@ -137,13 +114,12 @@ export const TeacherDashboardPage: React.FC = () => {
           if (res.data.length > 0) {
             const firstId = res.data[0]._id;
             setSelectedClassId(firstId);
-            setAssignClassId(firstId);
             const detailRes = await teacherApi.getClassDetail(firstId);
             if (detailRes.success) setSelectedClass(detailRes.data);
           }
         }
 
-        // Fetch curriculum tree for assignment selector & classroom teaching
+        // Fetch curriculum tree for classroom teaching
         const curRes = await teacherApi.getCurriculumOptions();
         if (curRes.success && curRes.data && curRes.data.length > 0) {
           setCurriculumTree(curRes.data);
@@ -166,9 +142,6 @@ export const TeacherDashboardPage: React.FC = () => {
             loadTeachingLesson(targetLessonId);
           }
         }
-
-        // Fetch assignments
-        loadAssignments();
       } catch (err) {
         console.error('Failed to initialize teacher dashboard:', err);
       } finally {
@@ -178,16 +151,6 @@ export const TeacherDashboardPage: React.FC = () => {
 
     loadData();
   }, [user, navigate]);
-
-  // Load assignments
-  const loadAssignments = async (status?: string) => {
-    try {
-      const res = await teacherApi.getAssignments(undefined, status || undefined);
-      if (res.success) setAssignments(res.data);
-    } catch (err) {
-      console.error('Failed to load assignments:', err);
-    }
-  };
 
   // Switch class
   const handleSelectClass = async (classId: string) => {
@@ -211,62 +174,6 @@ export const TeacherDashboardPage: React.FC = () => {
       console.error('Failed to load student overview:', err);
     } finally {
       setLoadingOverview(false);
-    }
-  };
-
-  // Create Assignment submit
-  const handleCreateAssignment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assignClassId || !assignLessonId) {
-      alert('Vui lòng chọn lớp học và bài học.');
-      return;
-    }
-
-    try {
-      setSubmittingAssignment(true);
-      const res = await teacherApi.createAssignment({
-        classRoomId: assignClassId,
-        assignedToType: 'CLASS',
-        lessonId: assignLessonId,
-        activityId: assignActivityId || undefined,
-        dueDate: assignDueDate || undefined,
-        instructions: assignInstructions
-      });
-
-      if (res.success) {
-        setShowCreateAssignmentModal(false);
-        setAssignInstructions('');
-        setAssignDueDate('');
-        setAssignLessonId('');
-        setAssignActivityId('');
-        loadAssignments();
-        alert('Đã giao bài tập thành công!');
-      }
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi giao bài tập');
-    } finally {
-      setSubmittingAssignment(false);
-    }
-  };
-
-  // Update assignment status
-  const handleUpdateAssignmentStatus = async (id: string, newStatus: string) => {
-    try {
-      await teacherApi.updateAssignmentStatus(id, newStatus);
-      loadAssignments(assignmentFilterStatus);
-    } catch (err) {
-      console.error('Failed to update status:', err);
-    }
-  };
-
-  // Delete assignment
-  const handleDeleteAssignment = async (id: string) => {
-    if (!window.confirm('Bạn có chắc muốn xoá bài tập này?')) return;
-    try {
-      await teacherApi.deleteAssignment(id);
-      loadAssignments(assignmentFilterStatus);
-    } catch (err) {
-      console.error('Failed to delete assignment:', err);
     }
   };
 
@@ -305,10 +212,6 @@ export const TeacherDashboardPage: React.FC = () => {
     logout();
     navigate('/teacher/login');
   };
-
-  // Find lessons for selected unit in assignment modal
-  const selectedUnitLessons = curriculumTree.find(u => u._id === assignUnitId)?.lessons || [];
-  const selectedLessonActivities = selectedUnitLessons.find((l: any) => l._id === assignLessonId)?.activities || [];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
@@ -377,24 +280,6 @@ export const TeacherDashboardPage: React.FC = () => {
           >
             <Users className="w-4 h-4" />
             <span>Lớp học & Học sinh</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('ASSIGNMENTS');
-              loadAssignments();
-            }}
-            className={`px-5 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-all cursor-pointer ${
-              activeTab === 'ASSIGNMENTS'
-                ? 'bg-teal-700 text-white '
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Giao bài tập</span>
-            <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full font-bold">
-              {assignments.length}
-            </span>
           </button>
 
           <button
@@ -510,20 +395,6 @@ export const TeacherDashboardPage: React.FC = () => {
                             </span>
                           </div>
                         )}
-
-                        <div className="mt-6 flex flex-wrap gap-3">
-                          <button
-                            onClick={() => {
-                              setActiveTab('ASSIGNMENTS');
-                              setAssignLessonId(teachingLesson._id);
-                              setShowCreateAssignmentModal(true);
-                            }}
-                            className="bg-white text-slate-900 hover:bg-amber-50 font-black text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer"
-                          >
-                            <BookOpen className="w-4 h-4 text-amber-800" />
-                            <span>Giao bài này về nhà cho các bé 🚀</span>
-                          </button>
-                        </div>
                       </div>
                     </div>
 
@@ -810,133 +681,6 @@ export const TeacherDashboardPage: React.FC = () => {
               </div>
             )}
 
-            {/* ================= TAB 2: ASSIGNMENTS ================= */}
-            {activeTab === 'ASSIGNMENTS' && (
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200">
-                  <div>
-                    <h2 className="text-2xl font-black text-slate-900">Quản lý bài tập</h2>
-                    <p className="text-xs font-semibold text-slate-600">
-                      Giao bài học/hoạt động cho cả lớp hoặc từng học sinh cần rèn luyện thêm
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* Status Filter */}
-                    <select
-                      value={assignmentFilterStatus}
-                      onChange={e => {
-                        setAssignmentFilterStatus(e.target.value);
-                        loadAssignments(e.target.value);
-                      }}
-                      className="bg-slate-100 font-bold text-xs text-slate-700 px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none cursor-pointer"
-                    >
-                      <option value="">Tất cả trạng thái</option>
-                      <option value="ASSIGNED">Đã giao (ASSIGNED)</option>
-                      <option value="IN_PROGRESS">Đang học (IN_PROGRESS)</option>
-                      <option value="COMPLETED">Đã hoàn thành (COMPLETED)</option>
-                    </select>
-
-                    <button
-                      onClick={() => setShowCreateAssignmentModal(true)}
-                      className="bg-teal-700 hover:bg-teal-700 text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5  transition-all cursor-pointer"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      <span>Giao bài tập mới</span>
-                    </button>
-                  </div>
-                </div>
-
-                {assignments.length === 0 ? (
-                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-                    <BookOpen className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-                    <p className="font-bold text-slate-600">Chưa có bài tập nào được giao.</p>
-                    <p className="text-xs text-slate-600 mt-1">Bấm "+ Giao bài tập mới" để bắt đầu giao bài cho học sinh.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {assignments.map(item => (
-                      <div
-                        key={item._id}
-                        className="bg-white rounded-3xl border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black bg-teal-50 text-teal-800 px-2.5 py-0.5 rounded-md border border-teal-200">
-                              Lớp: {item.classRoom?.name || 'N/A'}
-                            </span>
-                            {item.assignedToType === 'CLASS' ? (
-                              <span className="text-xs font-bold bg-blue-50 text-blue-800 px-2.5 py-0.5 rounded-md border border-blue-200">
-                                Cả lớp
-                              </span>
-                            ) : (
-                              <span className="text-xs font-bold bg-purple-50 text-purple-800 px-2.5 py-0.5 rounded-md border border-purple-200">
-                                Cá nhân: {item.student?.name || 'Học sinh'}
-                              </span>
-                            )}
-                            <span
-                              className={`text-xs font-black px-2.5 py-0.5 rounded-md ${
-                                item.status === 'COMPLETED'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : item.status === 'IN_PROGRESS'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {item.status}
-                            </span>
-                          </div>
-
-                          <h4 className="text-lg font-black text-slate-900">
-                            {item.lesson?.title || 'Bài học'}
-                          </h4>
-
-                          {item.activity && (
-                            <p className="text-xs font-bold text-slate-600">
-                              Hoạt động cụ thể: <span className="text-teal-800">{item.activity.title}</span> ({item.activity.activityType})
-                            </p>
-                          )}
-
-                          {item.instructions && (
-                            <p className="text-xs font-medium text-slate-600 italic">
-                              "{item.instructions}"
-                            </p>
-                          )}
-
-                          {item.dueDate && (
-                            <div className="flex items-center gap-1 text-xs font-bold text-rose-800 pt-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              <span>Hạn chót: {new Date(item.dueDate).toLocaleDateString('vi-VN')}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={item.status}
-                            onChange={e => handleUpdateAssignmentStatus(item._id, e.target.value)}
-                            className="bg-slate-100 font-bold text-xs text-slate-700 px-3 py-2 rounded-xl border border-slate-200 focus:outline-none cursor-pointer"
-                          >
-                            <option value="ASSIGNED">Đã giao</option>
-                            <option value="IN_PROGRESS">Đang làm</option>
-                            <option value="COMPLETED">Đã hoàn thành</option>
-                          </select>
-
-                          <button
-                            onClick={() => handleDeleteAssignment(item._id)}
-                            className="p-2 text-slate-600 hover:text-rose-800 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                            title="Xoá bài tập"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* ================= TAB 3: PEDAGOGICAL NOTES ================= */}
             {activeTab === 'NOTES' && (
               <div className="space-y-6">
@@ -1178,161 +922,6 @@ export const TeacherDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* ================= MODAL: CREATE ASSIGNMENT ================= */}
-      {showCreateAssignmentModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 my-8 relative">
-            <button
-              onClick={() => setShowCreateAssignmentModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-600 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-teal-800" />
-              <span>Giao bài tập mới</span>
-            </h3>
-
-            <form onSubmit={handleCreateAssignment} className="space-y-4">
-              <div>
-                <label htmlFor={assignClassSelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                  Lớp học *
-                </label>
-                <select
-                  id={assignClassSelectId}
-                  value={assignClassId}
-                  onChange={e => setAssignClassId(e.target.value)}
-                  required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
-                >
-                  {classes.map(c => (
-                    <option key={c._id} value={c._id}>
-                      {c.name} ({c.ageGroupCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Curriculum Selector */}
-              <div>
-                <label htmlFor={assignUnitSelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                  1. Chọn Unit giáo trình *
-                </label>
-                <select
-                  id={assignUnitSelectId}
-                  value={assignUnitId}
-                  onChange={e => {
-                    setAssignUnitId(e.target.value);
-                    setAssignLessonId('');
-                    setAssignActivityId('');
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
-                >
-                  <option value="">-- Chọn Unit --</option>
-                  {curriculumTree.map(u => (
-                    <option key={u._id} value={u._id}>
-                      Unit {u.unitNumber}: {u.title} ({u.ageGroupCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {assignUnitId && (
-                <div>
-                  <label htmlFor={assignLessonSelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                    2. Chọn Bài học (Lesson) *
-                  </label>
-                  <select
-                    id={assignLessonSelectId}
-                    value={assignLessonId}
-                    onChange={e => {
-                      setAssignLessonId(e.target.value);
-                      setAssignActivityId('');
-                    }}
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
-                  >
-                    <option value="">-- Chọn Bài học --</option>
-                    {selectedUnitLessons.map((l: any) => (
-                      <option key={l._id} value={l._id}>
-                        Bài {l.lessonNumber}: {l.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {assignLessonId && selectedLessonActivities.length > 0 && (
-                <div>
-                  <label htmlFor={assignActivitySelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                    3. Hoạt động cụ thể (Tuỳ chọn)
-                  </label>
-                  <select
-                    id={assignActivitySelectId}
-                    value={assignActivityId}
-                    onChange={e => setAssignActivityId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500 cursor-pointer"
-                  >
-                    <option value="">-- Cả bài học (Tất cả hoạt động) --</option>
-                    {selectedLessonActivities.map((act: any) => (
-                      <option key={act._id} value={act._id}>
-                        {act.title} ({act.activityType})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor={assignDueDateInputId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                    Hạn nộp (Tuỳ chọn)
-                  </label>
-                  <input
-                    id={assignDueDateInputId}
-                    type="date"
-                    value={assignDueDate}
-                    onChange={e => setAssignDueDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor={assignInstructionsTextareaId} className="block text-xs font-black text-slate-700 uppercase mb-1">
-                    Dặn dò học sinh / Phụ huynh
-                  </label>
-                  <input
-                    id={assignInstructionsTextareaId}
-                    type="text"
-                    value={assignInstructions}
-                    onChange={e => setAssignInstructions(e.target.value)}
-                    placeholder="Ví dụ: Bé hãy cố gắng đạt 3 sao nhé!"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 font-medium text-sm focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateAssignmentModal(false)}
-                  className="px-5 py-2.5 rounded-2xl font-black text-sm text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Huỷ
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingAssignment}
-                  className="bg-teal-700 hover:bg-teal-700 text-white font-black text-sm px-6 py-2.5 rounded-2xl  transition-all cursor-pointer"
-                >
-                  {submittingAssignment ? 'Đang tạo...' : 'Xác nhận giao bài'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
-    </div>
   );
 };

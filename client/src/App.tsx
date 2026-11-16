@@ -17,8 +17,6 @@ const TeacherLoginPage = lazy(() => import('./dashboards/teacher/TeacherLoginPag
 const TeacherLayout = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherLayout})));
 const TeacherDashboard = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherDashboard})));
 const TeacherContent = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherContent})));
-const TeacherAssignments = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAssignments})));
-const TeacherAssignmentDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAssignmentDetail})));
 const TeacherStudents = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherStudents})));
 const TeacherStudentDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherStudentDetail})));
 const TeacherAnalytics = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAnalytics})));
@@ -172,8 +170,6 @@ export function App() {
             <Route path="classes" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="classes/:classId" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="content" element={<TeacherContent />} />
-            <Route path="assignments" element={<TeacherAssignments />} />
-            <Route path="assignments/:assignmentId" element={<TeacherAssignmentDetail />} />
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
             <Route path="analytics" element={<TeacherAnalytics />} />
@@ -183,7 +179,7 @@ export function App() {
             <Route path="sentences" element={<SentenceTeachingPage />} />
             <Route path="lesson-planner" element={<TeacherLegacyRedirect target="/teacher/content" />} />
             <Route path="learning-studio" element={<TeacherLegacyRedirect target="/teacher/content" />} />
-            <Route path="home-practice" element={<TeacherLegacyRedirect target="/teacher/assignments" />} />
+            <Route path="home-practice" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="unit-review" element={<TeacherLegacyRedirect target="/teacher/analytics" />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
