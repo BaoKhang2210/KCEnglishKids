@@ -219,7 +219,7 @@ export const ClassroomSessionsList: React.FC = () => {
   return (
     <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Top Header Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
@@ -239,24 +239,6 @@ export const ClassroomSessionsList: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-600 max-w-3xl leading-relaxed">
             Xem lại lịch sử mọi buổi học đã diễn ra, bảng xếp hạng sao của học sinh và gửi phiếu báo cáo học tập tới phụ huynh.
           </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3 shrink-0">
-          <Link
-            to="/teacher/schedule"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-xs"
-          >
-            <School size={16} className="text-slate-500" />
-            <span>Thời khóa biểu</span>
-          </Link>
-          <Link
-            to="/teacher/classroom-sessions/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white text-xs sm:text-sm font-black shadow-md hover:from-teal-700 hover:to-emerald-700 hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5"
-          >
-            <Plus size={16} />
-            <span>Chuẩn bị buổi dạy mới</span>
-          </Link>
         </div>
       </div>
 
