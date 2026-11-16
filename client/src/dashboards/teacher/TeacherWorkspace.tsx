@@ -582,7 +582,6 @@ export const TeacherAssignments = () => {
               <tr>
                 <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider">Nội dung bài tập</th>
                 <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Lớp áp dụng</th>
-                <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Đối tượng</th>
                 <th className="py-3.5 px-4 text-left font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Hạn hoàn thành</th>
                 <th className="py-3.5 px-4 text-center font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Trạng thái</th>
                 <th className="py-3.5 px-4 text-right font-black text-slate-800 text-xs uppercase tracking-wider whitespace-nowrap">Thao tác</th>
@@ -618,12 +617,6 @@ export const TeacherAssignments = () => {
                     <td className="py-4 px-4 align-middle whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 font-bold text-indigo-950 bg-indigo-50/80 border border-indigo-200/80 px-3 py-1 rounded-full text-xs shadow-2xs">
                         {a.classRoom?.name || '—'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 align-middle whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 font-bold text-teal-950 bg-teal-50 border border-teal-200/80 px-3 py-1 rounded-full text-xs shadow-2xs">
-                        <Users size={13} className="text-teal-700 shrink-0" />
-                        <span>Cả lớp ({a.classRoom?.students?.length || 0} bé)</span>
                       </span>
                     </td>
                     <td className="py-4 px-4 align-middle whitespace-nowrap">
@@ -692,16 +685,9 @@ export const TeacherAssignments = () => {
               options={classes.filter(c => c.status === 'ACTIVE').map(c => ({ value: c._id, label: `${c.name} (${c.students?.length || 0} học sinh)` }))}
             />
 
-            {form.classRoomId && <>
-              <div className="space-y-1">
-                <span className="block text-xs font-black text-slate-700 uppercase">Đối tượng nhận bài</span>
-                <div className="w-full bg-teal-50 border border-teal-200/80 rounded-2xl px-4 py-2.5 font-bold text-sm text-teal-900 flex items-center gap-2">
-                  <span>👥</span>
-                  <span>Toàn bộ học sinh trong lớp ({classStudents.length} học sinh)</span>
-                </div>
-              </div>
-              <p className="text-sm text-slate-500">Ưu tiên hoạt động ngắn, vui và phù hợp với nội dung bé vừa học.</p>
-            </>}
+            {form.classRoomId && (
+              <p className="text-xs font-semibold text-slate-500">Ưu tiên hoạt động ngắn, vui và phù hợp với {classStudents.length} học sinh trong lớp.</p>
+            )}
 
             <Select
               label="Chọn bài học (Lesson)"

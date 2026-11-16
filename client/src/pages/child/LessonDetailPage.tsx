@@ -37,6 +37,7 @@ export const LessonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const requestedGameParam = searchParams.get('game') as GameId | null;
+  const isFromAssignment = searchParams.get('from') === 'assignment';
   const { user } = useAuth();
   const { refresh: refreshRewards } = useRewards();
   const navigate = useNavigate();
@@ -396,7 +397,14 @@ export const LessonDetailPage: React.FC = () => {
       {/* LEFT: Back button + Lesson title */}
       <div className="flex items-center gap-2 min-w-0 max-w-[150px] sm:max-w-[200px] md:max-w-[240px]">
         <button
-          onClick={() => { sfx.playPop(); navigate(-1); }}
+          onClick={() => {
+            sfx.playPop();
+            if (isFromAssignment) {
+              navigate('/');
+            } else {
+              navigate(-1);
+            }
+          }}
           aria-label="Quay lại"
           className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-50 hover:bg-amber-100 border-2 border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0"
         >
@@ -564,9 +572,24 @@ export const LessonDetailPage: React.FC = () => {
                     }}
                     unitNumber={unitNumber}
                     lessonNumber={lessonNumber}
-                    onExit={() => setActiveGameId(null)}
+                    isFromAssignment={isFromAssignment}
+                    onExit={() => {
+                      if (isFromAssignment) {
+                        sessionStorage.setItem('kc_assignment_completed', 'true');
+                        navigate('/');
+                      } else {
+                        setActiveGameId(null);
+                      }
+                    }}
                     onGameComplete={handleGameCompleted}
-                    onNextGame={(nextId) => setActiveGameId(nextId as GameId)}
+                    onNextGame={(nextId) => {
+                      if (isFromAssignment) {
+                        sessionStorage.setItem('kc_assignment_completed', 'true');
+                        navigate('/');
+                      } else {
+                        setActiveGameId(nextId as GameId);
+                      }
+                    }}
                   />
                 ) : (
                   <GamesTab

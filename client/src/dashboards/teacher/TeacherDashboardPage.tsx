@@ -1214,16 +1214,6 @@ export const TeacherDashboardPage: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1">
-                  Đối tượng giao
-                </label>
-                <div className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-4 py-2.5 font-bold text-sm text-slate-700 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-teal-700" />
-                  <span>Toàn bộ học sinh trong lớp ({selectedClass?.students?.length || 0} học sinh)</span>
-                </div>
-              </div>
-
               {/* Curriculum Selector */}
               <div>
                 <label htmlFor={assignUnitSelectId} className="block text-xs font-black text-slate-700 uppercase mb-1">

@@ -11,6 +11,7 @@ interface GameFullscreenShellProps {
   onBack: () => void;
   onReplayAudio?: () => void;
   children: React.ReactNode;
+  isFromAssignment?: boolean;
 }
 
 /**
@@ -26,6 +27,7 @@ export const GameFullscreenShell: React.FC<GameFullscreenShellProps> = ({
   onBack,
   onReplayAudio,
   children,
+  isFromAssignment = false,
 }) => {
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
@@ -51,16 +53,18 @@ export const GameFullscreenShell: React.FC<GameFullscreenShellProps> = ({
         style={{ height: '50px', minHeight: '50px' }}
         className="w-full px-3 sm:px-6 flex items-center justify-between border-b border-indigo-500/30 bg-slate-900/80 backdrop-blur-md flex-shrink-0 z-10"
       >
-        {/* Left: Nút quay lại danh sách game (>= 48px tap area) */}
+        {/* Left: Nút quay lại (>= 48px tap area) */}
         <button
           onClick={handleBack}
           type="button"
-          aria-label="Quay lại danh sách trò chơi"
-          title="Quay lại danh sách game"
+          aria-label={isFromAssignment ? "Quay về trang chủ" : "Quay lại danh sách trò chơi"}
+          title={isFromAssignment ? "Quay về trang chủ" : "Quay lại danh sách game"}
           className="min-w-[48px] min-h-[48px] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-black cursor-pointer active:scale-95 transition-all"
         >
           <ArrowLeft className="w-5 h-5 text-amber-300 stroke-[3]" />
-          <span className="text-xs font-black text-amber-200 hidden sm:inline">Danh sách game</span>
+          <span className="text-xs font-black text-amber-200 hidden sm:inline">
+            {isFromAssignment ? 'Về trang chủ' : 'Danh sách game'}
+          </span>
         </button>
 
         {/* Center: Game Title & Icon */}

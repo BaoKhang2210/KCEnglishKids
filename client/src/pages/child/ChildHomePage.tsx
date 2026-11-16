@@ -286,6 +286,19 @@ export const ChildHomePage: React.FC = () => {
     refreshRewards();
   }, [refreshRewards]);
 
+  // Congratulate child if returning from a completed assignment
+  useEffect(() => {
+    if (sessionStorage.getItem('kc_assignment_completed') === 'true') {
+      sessionStorage.removeItem('kc_assignment_completed');
+      try { sfx.playSuccess(); } catch {}
+      setToastMessage('🎉 Bé đã hoàn thành xuất sắc bài tập cô giao! Giỏi lắm!');
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        setToastMessage(null);
+      }, 4500);
+    }
+  }, []);
+
   // The star ledger is the source for journey stars; rewards.totalStars includes home practice & classroom stars.
   const ledger = rewards?.starLedger;
   const totalStars = rewards?.totalStars ?? (ledger?.totalStars ?? 0);

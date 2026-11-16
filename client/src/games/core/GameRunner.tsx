@@ -21,6 +21,7 @@ interface GameRunnerProps {
   onExit: () => void;
   onGameComplete: (gameId: string, stars: number, answers: Array<{wordId: string; selectedId: string | null}>) => void;
   onNextGame?: (nextGameId: string) => void;
+  isFromAssignment?: boolean;
 }
 
 export const GameRunner: React.FC<GameRunnerProps> = ({
@@ -31,6 +32,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
   onExit,
   onGameComplete,
   onNextGame,
+  isFromAssignment = false,
 }) => {
   const definition: GameDefinition = GAME_REGISTRY[config.gameId] || GAME_REGISTRY['bubble-pop'];
   const { state, targetVocab, attempts, isAssisted, dispatch, restart, hasCheckpoint } = useGameSession(config, definition);
@@ -181,6 +183,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
         stars={state.stars}
         onBack={onExit}
         onReplayAudio={hasStarted && state.status === 'playing' ? handleReplay : undefined}
+        isFromAssignment={isFromAssignment}
       >
         {state.status === 'complete' ? (
           <GameCompleteScreen
@@ -188,7 +191,8 @@ export const GameRunner: React.FC<GameRunnerProps> = ({
             practicedWords={practicedWords}
             onPlayAgain={handleRestart}
             onHome={onExit}
-            onNextGame={onNextGame && nextGameId ? () => onNextGame(nextGameId as GameId) : undefined}
+            onNextGame={!isFromAssignment && onNextGame && nextGameId ? () => onNextGame(nextGameId as GameId) : undefined}
+            isFromAssignment={isFromAssignment}
           />
         ) : loadFailed || state.targetOrder.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-5 px-6 text-center text-white">
