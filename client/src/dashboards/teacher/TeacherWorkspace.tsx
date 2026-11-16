@@ -328,12 +328,6 @@ export const TeacherContent = () => {
               >
                 Dạy mẫu câu bài này
               </Link>
-              <Link
-                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 px-4 py-2 text-xs font-semibold text-white transition-all cursor-pointer shadow-xs"
-                to={`/teacher/assignments?lesson=${lesson._id}`}
-              >
-                <ClipboardList size={14} /> Giao bài học này
-              </Link>
             </div>
           </div>
         </Modal>
