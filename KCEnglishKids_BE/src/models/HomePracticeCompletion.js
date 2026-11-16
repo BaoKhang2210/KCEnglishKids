@@ -30,7 +30,8 @@ const homePracticeCompletionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-homePracticeCompletionSchema.index({ child: 1, date: 1 }, { unique: true });
+homePracticeCompletionSchema.index({ child: 1, lesson: 1 }, { unique: true, sparse: true });
+homePracticeCompletionSchema.index({ child: 1, date: 1 });
 
 module.exports = mongoose.model('HomePracticeCompletion', homePracticeCompletionSchema);
 

@@ -67,7 +67,11 @@ const statsFor = async ids => {
     HomePracticeCompletion ? HomePracticeCompletion.aggregate([
       { $match: { child: { $in: ids } } },
       { $group: {
-          _id: '$child',
+          _id: { child: '$child', lesson: { $ifNull: ['$lesson', '$date'] } },
+          stars: { $first: '$stars' }
+      } },
+      { $group: {
+          _id: '$_id.child',
           homePracticeStars: { $sum: '$stars' },
           homePracticeCount: { $sum: 1 }
       } }

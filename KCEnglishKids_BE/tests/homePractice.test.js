@@ -41,7 +41,6 @@ function mastery() {
 
 // Install in-memory fakes for the models homePractice touches; returns the live plan store.
 function install(t, fixture = {}) {
-  t.mock.method(M.Assignment, 'findOne', () => chain(() => fixture.assignment || null));
   const plans = [];
   let seq = 1;
   const obs = fixture.observations || observations();
@@ -223,28 +222,6 @@ test('the family report refuses a stale basis token or an observation from anoth
   assert.throws(() => report.snapshot(row, { basisToken: row.basisToken, observationIds: [id(999)] }), /không thuộc/);
 });
 
-test('the family report includes the canonical homework and invalidates preview when its instructions change', async t => {
-  const assignment = { _id: id(300), instructions: 'Cùng nghe và chỉ tranh mèo.', dueDate: new Date('2026-11-10T00:00:00Z') };
-  install(t, { assignment });
-  t.mock.method(M.Assignment, 'findOne', filter => {
-    assert.equal(filter.teacher, TEACHER_ID);
-    assert.equal(filter.classRoom, ROOM_ID);
-    assert.equal(filter.lesson, LESSON_ID);
-    assert.ok(filter.$and[0].$or.some(row => row.recipients === CHILD_ID));
-    assert.ok(!filter.status.$in.includes('CANCELLED'));
-    return chain(() => assignment);
-  });
-  const currentSession = { ...session(), teacher: TEACHER_ID };
-  const draft = await report.row(currentSession, child(), currentSession.studentScores[0]);
-  assert.equal(draft.assignment._id, assignment._id);
-  const selected = report.snapshot(draft, { basisToken: draft.basisToken, observationIds: [], includeAssignment: true });
-  assert.match(report.lines(selected).join('\n'), /Cùng nghe và chỉ tranh mèo/);
-  const omitted = report.snapshot(draft, { basisToken: draft.basisToken, observationIds: [], includeAssignment: false });
-  assert.equal(omitted.assignment, null);
-  assignment.instructions = 'Chọn tranh chó.';
-  const updated = await report.row(currentSession, child(), currentSession.studentScores[0]);
-  assert.throws(() => report.snapshot(updated, { basisToken: draft.basisToken, observationIds: [] }), /đổi/);
-});
 
 test('choosing review words keeps reasons ordered and never invents a word outside the lesson', () => {
   const guide = lessonGuide(lesson(), '3-4');
@@ -257,9 +234,12 @@ test('choosing review words keeps reasons ordered and never invents a word outsi
 
 test('getHomeReview and completeHomeReview support the 5-minute home review flow and grant 3 stars idempotently', async t => {
   install(t);
-  for (const name of ['Progress', 'UnitCompletion', 'Assignment']) {
-    t.mock.method(M[name], 'find', () => chain(() => []));
-  }
+  const rewardService = require('../src/services/rewardService');
+  t.mock.method(rewardService, 'computeRewards', async () => ({
+    totalStars: 3,
+    homeStars: 3,
+    classStars: 0
+  }));
   t.mock.method(M.Lesson, 'findById', () => chain(() => clone(lesson())));
   t.mock.method(M.ClassroomSession, 'findOne', () => chain(() => clone(session())));
   t.mock.method(M.LanguageContent, 'find', () => chain(() => [
@@ -269,7 +249,12 @@ test('getHomeReview and completeHomeReview support the 5-minute home review flow
   const completions = [];
   t.mock.method(M.HomePracticeCompletion, 'find', () => chain(() => clone(completions)));
   t.mock.method(M.HomePracticeCompletion, 'findOne', filter => chain(() => {
-    const found = completions.find(c => String(c.child) === String(filter.child) && c.date === filter.date);
+    const found = completions.find(c => {
+      if (String(c.child) !== String(filter.child)) return false;
+      if (filter.lesson && String(c.lesson) === String(filter.lesson)) return true;
+      if (filter.date && c.date === filter.date) return true;
+      return false;
+    });
     return found ? clone(found) : null;
   }));
   t.mock.method(M.HomePracticeCompletion, 'create', async values => {

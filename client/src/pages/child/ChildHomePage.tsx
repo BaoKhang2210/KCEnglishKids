@@ -245,7 +245,7 @@ export const ChildHomePage: React.FC = () => {
                 setHomeReviewSummary({
                   lessonTitle: rev.lessonTitle,
                   lessonVietnameseTitle: rev.lessonVietnameseTitle,
-                  completedToday: rev.completedToday
+                  completedToday: Boolean(rev.completedToday || rev.isCompleted)
                 });
               }
             })

@@ -235,8 +235,11 @@ async function getHomeReview(child) {
   if (M.HomePracticeCompletion && typeof M.HomePracticeCompletion.findOne === 'function') {
     completion = await M.HomePracticeCompletion.findOne({
       child: child._id,
-      date: todayStr
-    }).lean();
+      $or: [
+        { lesson: lesson._id },
+        { date: todayStr }
+      ]
+    }).sort({ completedAt: -1, createdAt: -1 }).lean();
   }
 
   const lessonDisplayName = lesson.vietnameseTitle || lesson.title;
@@ -269,6 +272,8 @@ async function getHomeReview(child) {
     sentencePatterns,
     parentGuidance,
     completedToday: Boolean(completion),
+    isCompleted: Boolean(completion),
+    completedDate: completion?.date || null,
     starsAwarded: completion ? completion.stars : 0,
     approvedPlan: useApprovedPlan ? approved : null
   };
@@ -294,10 +299,12 @@ async function completeHomeReview(child, lessonId) {
   }
 
   if (M.HomePracticeCompletion) {
-    completion = await M.HomePracticeCompletion.findOne({
+    // Check if ALREADY completed for this lesson (or today) - only award 3 stars ONCE!
+    const query = {
       child: child._id,
-      date: todayStr
-    });
+      ...(validLessonId ? { lesson: validLessonId } : { date: todayStr })
+    };
+    completion = await M.HomePracticeCompletion.findOne(query);
 
     if (!completion) {
       try {
@@ -312,14 +319,14 @@ async function completeHomeReview(child, lessonId) {
         newlyCompleted = true;
       } catch (err) {
         if (err.code === 11000) {
-          completion = await M.HomePracticeCompletion.findOne({
-            child: child._id,
-            date: todayStr
-          });
+          completion = await M.HomePracticeCompletion.findOne(query);
+          newlyCompleted = false;
         } else {
           throw err;
         }
       }
+    } else {
+      newlyCompleted = false;
     }
   }
 
@@ -328,13 +335,14 @@ async function completeHomeReview(child, lessonId) {
 
   return {
     completedToday: true,
+    isCompleted: true,
     newlyCompleted,
     starsAwarded: newlyCompleted ? 3 : 0,
     totalStars: rewardState.totalStars,
     rewards: rewardState,
     message: newlyCompleted
       ? 'Tuyệt vời! Bé đã xuất sắc hoàn thành 5 phút ôn tập hôm nay và nhận được 3 ngôi sao!'
-      : 'Hôm nay bé đã nhận thưởng 3 sao cho bài ôn tập rồi!'
+      : 'Bé đã nhận thưởng 3 sao cho bài ôn tập này rồi!'
   };
 }
 

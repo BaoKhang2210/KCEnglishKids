@@ -84,7 +84,7 @@ export function MyLearningPage() {
           const hr = res.data.homeReview as HomeReviewData;
           setReviewData(hr);
           setGameIds(res.data.gameIds || []);
-          if (hr.completedToday) {
+          if (hr.completedToday || (hr as any).isCompleted) {
             setPart1Done(true);
             setPart2Done(true);
             setRewardClaimed(true);
@@ -145,20 +145,25 @@ export function MyLearningPage() {
     if (part1Done && part2Done && !rewardClaimed && !claiming && reviewData) {
       setClaiming(true);
       api.post(`/children/${childId}/home-practice/complete`, { lessonId: reviewData.lessonId })
-        .then(() => {
+        .then((res: any) => {
           setRewardClaimed(true);
-          setShowCelebration(true);
-          refresh();
-          sfx.playStarFanfare();
-          sfx.playApplause();
-          try {
-            confetti({
-              particleCount: 120,
-              spread: 80,
-              origin: { y: 0.5 }
-            });
-          } catch (e) {
-            // silent
+          const isNewlyCompleted = res.data?.data?.newlyCompleted ?? res.data?.newlyCompleted ?? false;
+          if (isNewlyCompleted) {
+            setShowCelebration(true);
+            refresh();
+            sfx.playStarFanfare();
+            sfx.playApplause();
+            try {
+              confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.5 }
+              });
+            } catch (e) {
+              // silent
+            }
+          } else {
+            refresh();
           }
         })
         .catch((err: any) => {

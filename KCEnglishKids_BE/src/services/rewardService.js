@@ -138,7 +138,7 @@ const computeRewards = async (childId) => {
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
     ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores'),
-    HomePracticeCompletion.find({ child: childId }).select('stars'),
+    HomePracticeCompletion.find({ child: childId }).select('stars lesson date'),
     computeStarLedger(childId)
   ]);
 
@@ -217,7 +217,13 @@ const computeRewards = async (childId) => {
   }
 
   const teacherStars = 0;
-  const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
+  const seenHomePracticeKeys = new Set();
+  const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => {
+    const key = h.lesson ? `lesson:${String(h.lesson)}` : `date:${h.date}`;
+    if (seenHomePracticeKeys.has(key)) return sum;
+    seenHomePracticeKeys.add(key);
+    return sum + (h.stars || 3);
+  }, 0);
   const legacyBonusStars = completions.reduce((sum, completion) => {
     const reward = (completion.rewards || []).find(item => item.type === 'STAR');
     return sum + (reward ? reward.amount || 0 : 0);
