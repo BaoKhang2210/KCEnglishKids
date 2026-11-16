@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Plus,
   Clock,
-  School,
   Edit2,
   Trash2,
   Filter,
@@ -141,18 +140,6 @@ export const AdminSchedulePage: React.FC = () => {
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-
-  // Modal State for Quick Add Class right from TKB page
-  const [isQuickAddClassOpen, setIsQuickAddClassOpen] = useState(false);
-  const [quickClassData, setQuickClassData] = useState({
-    name: '',
-    ageGroupCode: '3-4',
-    teacherId: '',
-    academicYear: '2026-2027',
-    description: ''
-  });
-  const [quickClassError, setQuickClassError] = useState<string | null>(null);
-  const [quickClassSubmitting, setQuickClassSubmitting] = useState(false);
 
   // Form State for Schedule
   const [formData, setFormData] = useState<{
@@ -445,78 +432,6 @@ export const AdminSchedulePage: React.FC = () => {
     }
   };
 
-  // Open Quick Add Class Modal
-  const handleOpenQuickAddClass = () => {
-    const unassignedTeacher = teachers.find((t) => !teacherClassesMap.has(String(t._id)));
-    const defaultTeacher = unassignedTeacher || teachers[0];
-    setQuickClassData({
-      name: '',
-      ageGroupCode: '3-4',
-      teacherId: defaultTeacher?._id || '',
-      academicYear: defaultYear,
-      description: ''
-    });
-    setQuickClassError(null);
-    setIsQuickAddClassOpen(true);
-  };
-
-  // Submit Quick Add Class
-  const handleQuickAddClassSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setQuickClassError(null);
-    const cleanName = quickClassData.name.trim();
-    if (!cleanName) {
-      setQuickClassError('Vui lòng nhập tên lớp học.');
-      return;
-    }
-
-    // Check duplicate
-    const exists = classrooms.find((c) => c.name.trim().toLowerCase() === cleanName.toLowerCase());
-    if (exists) {
-      setQuickClassError(`Tên lớp "${cleanName}" đã tồn tại. Vui lòng chọn tên khác!`);
-      return;
-    }
-
-    if (!quickClassData.teacherId) {
-      setQuickClassError('Vui lòng phân công giáo viên phụ trách (quy tắc 1-1).');
-      return;
-    }
-
-    try {
-      setQuickClassSubmitting(true);
-      const res = await adminApi.createClassroom({
-        name: cleanName,
-        ageGroupCode: quickClassData.ageGroupCode,
-        teacherId: quickClassData.teacherId,
-        academicYear: quickClassData.academicYear,
-        description: quickClassData.description
-      });
-
-      if (res.success) {
-        showAlert('success', `Đã tạo thành công lớp "${cleanName}"! Lớp đã được thêm vào danh sách.`);
-        setIsQuickAddClassOpen(false);
-        // Refresh classrooms and auto select this new class in schedule modal
-        const freshClasses = await adminApi.getClassrooms();
-        const freshList = Array.isArray(freshClasses) ? freshClasses : (freshClasses?.data || []);
-        setClassrooms(freshList);
-        // If schedule modal was open or to be opened:
-        const createdClassId = res.data?._id;
-        if (createdClassId) {
-          setFormData((prev) => ({
-            ...prev,
-            classroom: createdClassId,
-            teacher: quickClassData.teacherId
-          }));
-        }
-        await fetchData();
-      }
-    } catch (err: any) {
-      setQuickClassError(err?.message || 'Tạo lớp học thất bại.');
-    } finally {
-      setQuickClassSubmitting(false);
-    }
-  };
-
   // Week navigation (offset 0 = current week, -1 = last week, +1 = next week)
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
@@ -650,18 +565,8 @@ export const AdminSchedulePage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <button
             type="button"
-            onClick={handleOpenQuickAddClass}
-            className="py-3 px-5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-black text-sm sm:text-base flex items-center gap-2 transition-all border border-indigo-200 cursor-pointer"
-            title="Tạo lớp học mới trực tiếp từ đây"
-          >
-            <School size={18} />
-            <span>Thêm Lớp Mới</span>
-          </button>
-
-          <button
-            type="button"
             onClick={handleOpenCreateModal}
-            className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all  cursor-pointer"
+            className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm sm:text-base flex items-center gap-2.5 transition-all cursor-pointer"
           >
             <Plus size={20} />
             <span> Xếp Lịch Cho Lớp</span>
@@ -834,13 +739,7 @@ export const AdminSchedulePage: React.FC = () => {
         <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center space-y-4">
           <CalendarDays size={52} className="mx-auto text-slate-700" />
           <h3 className="text-xl font-black text-slate-900">Chưa có thời khóa biểu nào được xếp</h3>
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <button
-              onClick={handleOpenQuickAddClass}
-              className="py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm sm:text-base border border-slate-200 cursor-pointer"
-            >
-              + Tạo Lớp Mới
-            </button>
+          <div className="flex items-center justify-center pt-2">
             <button
               onClick={handleOpenCreateModal}
               className="py-3 px-6 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-sm sm:text-base cursor-pointer"
@@ -1227,21 +1126,9 @@ export const AdminSchedulePage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Lớp học */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      Lớp Học <span className="text-rose-800">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModalOpen(false);
-                        handleOpenQuickAddClass();
-                      }}
-                      className="text-xs font-bold text-indigo-800 hover:underline cursor-pointer"
-                    >
-                      + Thêm lớp mới
-                    </button>
-                  </div>
+                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Lớp Học <span className="text-rose-800">*</span>
+                  </label>
                   <select
                     value={formData.classroom}
                     onChange={(e) => handleClassChange(e.target.value)}
@@ -1460,122 +1347,6 @@ export const AdminSchedulePage: React.FC = () => {
       )}
 
       {/* ── MODAL: THÊM LỚP HỌC MỚI TRỰC TIẾP TỪ TKB ──────────────────────── */}
-      {isQuickAddClassOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-2xl border border-slate-200 shadow-2xl animate-scale-up space-y-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-800 flex items-center justify-center font-black">
-                  <School size={20} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900">Tạo Lớp Học Mới</h3>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsQuickAddClassOpen(false)}
-                className="p-1.5 text-slate-600 hover:text-slate-700 rounded-xl"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {quickClassError && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-                <AlertCircle size={16} className="shrink-0 text-rose-800" />
-                <span>{quickClassError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleQuickAddClassSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Tên Lớp Học *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={quickClassData.name}
-                  onChange={(e) => setQuickClassData({ ...quickClassData, name: e.target.value })}
-                  placeholder="Ví dụ: Rainbow Stars"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                    Độ Tuổi Giảng Dạy *
-                  </label>
-                  <select
-                    value={quickClassData.ageGroupCode}
-                    onChange={(e) => setQuickClassData({ ...quickClassData, ageGroupCode: e.target.value })}
-                    className="w-full px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold"
-                  >
-                    <option value="3-4">3–4 Tuổi</option>
-                    <option value="4-5">4–5 Tuổi</option>
-                    <option value="5-6">5–6 Tuổi</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                    Năm Học
-                  </label>
-                  <input
-                    type="text"
-                    value={quickClassData.academicYear}
-                    onChange={(e) => setQuickClassData({ ...quickClassData, academicYear: e.target.value })}
-                    className="w-full px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Giáo Viên Phụ Trách *
-                </label>
-                <select
-                  required
-                  value={quickClassData.teacherId}
-                  onChange={(e) => setQuickClassData({ ...quickClassData, teacherId: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:outline-none focus:border-indigo-600"
-                >
-                  <option value="" disabled>
-                    -- Chọn giáo viên --
-                  </option>
-                  {teachers.map((t) => (
-                    <option
-                      key={t._id}
-                      value={t._id}
-                      className="text-slate-900 font-bold"
-                    >
-                      {t.name} - {t.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsQuickAddClassOpen(false)}
-                  className="py-2.5 px-4 rounded-2xl bg-slate-100 text-slate-700 font-bold text-sm cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={quickClassSubmitting}
-                  className="py-2.5 px-5 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-black text-sm cursor-pointer"
-                >
-                  {quickClassSubmitting ? 'Đang tạo...' : 'Tạo Lớp & Xếp Lịch'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
