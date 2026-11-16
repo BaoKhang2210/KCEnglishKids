@@ -3700,16 +3700,29 @@ export const LiveSessionPage: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleMarkAttendance(sId, 'PRESENT');
-                          }}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
-                        >
-                          <UserCheck size={14} />
-                          <span>Cho vào lớp</span>
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleMarkAttendance(sId, 'PRESENT');
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold transition-all cursor-pointer"
+                            title="Ghi nhận có mặt đúng giờ"
+                          >
+                            Có mặt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleMarkAttendance(sId, 'LATE');
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer transition-all"
+                            title="Ghi nhận bé đến trễ và cho vào học"
+                          >
+                            <UserCheck size={13} />
+                            <span>Vào trễ</span>
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -3738,7 +3751,11 @@ export const LiveSessionPage: React.FC = () => {
                           <StudentAvatar student={stu} size="sm" />
                           <div className="min-w-0">
                             <p className="text-sm font-extrabold text-white truncate">{sName}</p>
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                              sc.attendance === 'LATE'
+                                ? 'text-amber-300 bg-amber-500/25 border border-amber-400/40'
+                                : 'text-emerald-400 bg-emerald-500/20'
+                            }`}>
                               {sc.attendance === 'LATE' ? 'Đến trễ' : 'Có mặt'}
                             </span>
                           </div>

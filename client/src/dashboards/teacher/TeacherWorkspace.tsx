@@ -2120,6 +2120,7 @@ export const TeacherStudentDetail = () => {
   const [showCompetencyModal, setShowCompetencyModal] = useState(false);
   const [parentSubject, setParentSubject] = useState('Nhận xét học tập');
   const [parentNoteText, setParentNoteText] = useState('');
+  const [showAllAttendance, setShowAllAttendance] = useState(false);
 
   const studentNoteTemplates = [
     { label: '🌟 Phát âm to rõ', text: 'Bé phát âm rất to, rõ ràng và tự tin trước lớp.' },
@@ -2160,29 +2161,120 @@ export const TeacherStudentDetail = () => {
 
       {observationParams.get('unitId')&&<Link className="teacher-button mt-5" to={`/teacher/analytics?unitId=${encodeURIComponent(observationParams.get('unitId')!)}&classroomId=${encodeURIComponent(observationParams.get('classroomId') || data.student?.assignedClass?._id || data.student?.assignedClass || '')}`}>← Quay lại quan sát Unit đang chọn</Link>}
       <ObservationPortfolio studentId={studentId} initialLessonId={observationParams.get("lessonId")||""} unitId={observationParams.get("unitId")||undefined} ageGroup={student.ageGroupCode}/>
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-3.5 grid-cols-2 lg:grid-cols-6 items-stretch">
+        {/* Card 1: Cấp độ Koko */}
         <div
           onClick={() => setShowCompetencyModal(true)}
-          className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 cursor-pointer transition-all group col-span-2 sm:col-span-1"
+          className="h-full min-h-[128px] rounded-2xl border-2 border-teal-200 bg-gradient-to-br from-teal-50/90 to-emerald-50/50 p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-teal-400 flex flex-col justify-between group"
         >
-          <div className="mb-2 flex items-center justify-between text-teal-800 text-xs font-bold uppercase tracking-wider">
-            Cấp độ Koko
-            <span className="text-xl group-hover:scale-110 transition-transform">
-              {data?.competencyReport?.explorerLevel?.icon || '🌱'}
-            </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">Cấp độ bé</span>
+            <div className="w-8 h-8 rounded-xl bg-teal-100/90 text-teal-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Brain size={16} />
+            </div>
           </div>
-          <div className="text-base font-black text-teal-900 truncate">
-            {data?.competencyReport?.explorerLevel?.title || 'Mầm Nhí Khám Phá'}
+          <div className="my-1.5">
+            <div className="text-base sm:text-lg font-black text-teal-950 flex items-center gap-1 truncate">
+              <span>{data?.competencyReport?.explorerLevel?.icon || '🌱'}</span>
+              <span className="truncate">{data?.competencyReport?.explorerLevel?.title || 'Mầm Nhí Khám Phá'}</span>
+            </div>
           </div>
-          <div className="mt-1 text-xs text-teal-800 font-semibold flex items-center gap-1">
-            <Brain size={12} /> Xem hồ sơ năng lực →
+          <div className="text-[11px] text-teal-700 font-bold flex items-center gap-1 group-hover:underline">
+            <span>Hồ sơ năng lực →</span>
           </div>
         </div>
-        <Metric label="Chuyên cần" value={`${data?.attendanceSummary?.attendanceRate ?? 100}%`} icon={<UserCheck size={16} className="text-emerald-700" />} />
-        <Metric label="Từ vựng tích lũy" value={`${data?.competencyReport?.vocabularyCompetency?.masteredCount ?? 0} từ vựng`} icon={<BookOpen size={16} />} />
-        <Metric label="Bài đã hoàn thành" value={stats.completedLessons} icon={<CheckCircle2 size={16} />} />
-        <Metric label="Số sao Koko" value={`⭐ ${stats.totalStars}`} icon={<Star size={16} className="text-amber-800 fill-amber-400" />} />
-        <Metric label="Thời gian học đã ghi nhận" value={studyTimeLabel(stats.learningTime, stats.hasLearningTime)} icon={<Clock size={16} />} />
+
+        {/* Card 2: Chuyên cần */}
+        <div className="h-full min-h-[128px] rounded-2xl border border-slate-200/90 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-300 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 tracking-wide">Chuyên cần</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <UserCheck size={16} />
+            </div>
+          </div>
+          <div className="my-1.5">
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {data?.attendanceSummary?.attendanceRate ?? 100}%
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-600 font-semibold truncate">
+            {data?.attendanceSummary?.present || 0}/{data?.attendanceSummary?.totalSessions || 0} buổi tham gia
+          </div>
+        </div>
+
+        {/* Card 3: Từ vựng tích lũy */}
+        <div className="h-full min-h-[128px] rounded-2xl border border-slate-200/90 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 tracking-wide">Từ vựng</span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <BookOpen size={16} />
+            </div>
+          </div>
+          <div className="my-1.5">
+            <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+              <span>{data?.competencyReport?.vocabularyCompetency?.masteredCount ?? 0}</span>
+              <span className="text-xs font-bold text-slate-600">từ</span>
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-600 font-semibold truncate">
+            Đã nhớ thành thạo
+          </div>
+        </div>
+
+        {/* Card 4: Bài đã hoàn thành */}
+        <div className="h-full min-h-[128px] rounded-2xl border border-slate-200/90 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-violet-300 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 tracking-wide">Bài hoàn thành</span>
+            <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <CheckCircle2 size={16} />
+            </div>
+          </div>
+          <div className="my-1.5">
+            <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+              <span>{stats.completedLessons}</span>
+              <span className="text-xs font-bold text-slate-600">bài</span>
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-600 font-semibold truncate">
+            Hoàn tất chương trình
+          </div>
+        </div>
+
+        {/* Card 5: Số sao Koko */}
+        <div className="h-full min-h-[128px] rounded-2xl border border-slate-200/90 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-amber-300 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 tracking-wide">Số sao Koko</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Star size={16} className="text-amber-500 fill-amber-400" />
+            </div>
+          </div>
+          <div className="my-1.5">
+            <div className="text-2xl font-black text-amber-600 tracking-tight">
+              ⭐ {stats.totalStars}
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-600 font-semibold truncate">
+            Tổng sao tích lũy
+          </div>
+        </div>
+
+        {/* Card 6: Thời gian học */}
+        <div className="h-full min-h-[128px] rounded-2xl border border-slate-200/90 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-sky-300 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 tracking-wide">Thời gian học</span>
+            <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Clock size={16} />
+            </div>
+          </div>
+          <div className="my-1.5">
+            <div className="text-lg sm:text-xl font-black text-slate-900 tracking-tight truncate" title={studyTimeLabel(stats.learningTime, stats.hasLearningTime)}>
+              {studyTimeLabel(stats.learningTime, stats.hasLearningTime)}
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-600 font-semibold truncate">
+            Thời lượng ghi nhận
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -2206,70 +2298,120 @@ export const TeacherStudentDetail = () => {
         </section>
 
         {/* Chuyên cần & Điểm danh */}
-        <section className="rounded-2xl border bg-white p-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-              <UserCheck size={18} className="text-teal-700" />
-              <span>Chuyên cần & Điểm danh</span>
-            </h3>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-              (data?.attendanceSummary?.attendanceRate ?? 100) >= 90
-                ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-                : 'bg-amber-100 text-amber-950 border border-amber-300'
-            }`}>
-              {data?.attendanceSummary?.attendanceRate ?? 100}%
-            </span>
-          </div>
+        <section className="rounded-2xl border bg-white p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <UserCheck size={18} className="text-teal-700" />
+                <span>Chuyên cần & Điểm danh</span>
+              </h3>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                (data?.attendanceSummary?.attendanceRate ?? 100) >= 90
+                  ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                  : 'bg-amber-100 text-amber-950 border border-amber-300'
+              }`}>
+                {data?.attendanceSummary?.attendanceRate ?? 100}%
+              </span>
+            </div>
 
-          <div className="grid grid-cols-4 gap-1.5 text-center mb-3">
-            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
-              <span className="block text-[10px] font-bold text-emerald-800">Có mặt</span>
-              <strong className="text-sm font-black text-emerald-950">{data?.attendanceSummary?.present || 0}</strong>
+            <div className="grid grid-cols-4 gap-1.5 text-center mb-3.5">
+              <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                <span className="block text-[10px] font-bold text-emerald-800">Có mặt</span>
+                <strong className="text-sm font-black text-emerald-950">{data?.attendanceSummary?.present || 0}</strong>
+              </div>
+              <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
+                <span className="block text-[10px] font-bold text-amber-800">Đến trễ</span>
+                <strong className="text-sm font-black text-amber-950">{data?.attendanceSummary?.late || 0}</strong>
+              </div>
+              <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
+                <span className="block text-[10px] font-bold text-blue-800">Nghỉ phép</span>
+                <strong className="text-sm font-black text-blue-950">{data?.attendanceSummary?.excused || 0}</strong>
+              </div>
+              <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
+                <span className="block text-[10px] font-bold text-rose-800">Vắng</span>
+                <strong className="text-sm font-black text-rose-950">{data?.attendanceSummary?.absent || 0}</strong>
+              </div>
             </div>
-            <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
-              <span className="block text-[10px] font-bold text-amber-800">Đến trễ</span>
-              <strong className="text-sm font-black text-amber-950">{data?.attendanceSummary?.late || 0}</strong>
-            </div>
-            <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
-              <span className="block text-[10px] font-bold text-blue-800">Nghỉ phép</span>
-              <strong className="text-sm font-black text-blue-950">{data?.attendanceSummary?.excused || 0}</strong>
-            </div>
-            <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
-              <span className="block text-[10px] font-bold text-rose-800">Vắng</span>
-              <strong className="text-sm font-black text-rose-950">{data?.attendanceSummary?.absent || 0}</strong>
-            </div>
-          </div>
 
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {data?.attendanceSummary?.history?.length ? (
-              data.attendanceSummary.history.map((h: any, idx: number) => {
-                const isPresent = h.attendance === 'PRESENT';
-                const isLate = h.attendance === 'LATE';
-                const isExcused = h.attendance === 'EXCUSED';
-                return (
-                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                    <div>
-                      <span className="font-bold text-slate-800 block truncate">{h.title}</span>
-                      <span className="text-[10px] text-slate-500">{date(h.date)}</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-md font-bold text-[11px] shrink-0 ${
-                      isPresent
-                        ? 'bg-emerald-100 text-emerald-900'
-                        : isLate
-                        ? 'bg-amber-100 text-amber-900'
-                        : isExcused
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'bg-rose-100 text-rose-900'
-                    }`}>
-                      {isPresent ? 'Có mặt' : isLate ? 'Đến trễ' : isExcused ? 'Nghỉ phép' : 'Vắng mặt'}
-                    </span>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-slate-500 italic text-center py-4">Chưa có lịch sử điểm danh.</p>
+            {/* Chuỗi buổi học trực quan */}
+            {data?.attendanceSummary?.history?.length > 0 && (
+              <div className="mb-3.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="text-[11px] font-bold text-slate-600 mb-1.5 flex items-center justify-between">
+                  <span>Tiến độ theo buổi ({data.attendanceSummary.history.length} buổi)</span>
+                  <span className="text-[10px] text-slate-500">Gần nhất → Cũ nhất</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {data.attendanceSummary.history.map((h: any, i: number) => {
+                    const isPresent = h.attendance === 'PRESENT';
+                    const isLate = h.attendance === 'LATE';
+                    const isExcused = h.attendance === 'EXCUSED';
+                    const bg = isPresent
+                      ? 'bg-emerald-600 text-white'
+                      : isLate
+                      ? 'bg-amber-600 text-white'
+                      : isExcused
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-rose-600 text-white';
+                    const symbol = isPresent ? '✓' : isLate ? '⏱' : isExcused ? 'P' : '✕';
+                    return (
+                      <span
+                        key={i}
+                        title={`${h.title || 'Buổi học'} (${date(h.date)}): ${isPresent ? 'Có mặt' : isLate ? 'Đến trễ' : isExcused ? 'Nghỉ phép' : 'Vắng mặt'}`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${bg} cursor-help transition-transform hover:scale-105 shadow-xs`}
+                      >
+                        <span>B{data.attendanceSummary.history.length - i}</span>
+                        <span>{symbol}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
             )}
+
+            {/* Chi tiết từng buổi học (hiển thị tự nhiên không cuộn ép) */}
+            <div className="space-y-2">
+              {data?.attendanceSummary?.history?.length ? (
+                (showAllAttendance ? data.attendanceSummary.history : data.attendanceSummary.history.slice(0, 5)).map((h: any, idx: number) => {
+                  const isPresent = h.attendance === 'PRESENT';
+                  const isLate = h.attendance === 'LATE';
+                  const isExcused = h.attendance === 'EXCUSED';
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs hover:bg-slate-100/70 transition-colors">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-bold text-slate-800 block truncate">{h.title}</span>
+                        <span className="text-[10px] text-slate-500 font-medium">{date(h.date)}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-md font-bold text-[11px] shrink-0 ${
+                        isPresent
+                          ? 'bg-emerald-100 text-emerald-950 border border-emerald-200'
+                          : isLate
+                          ? 'bg-amber-100 text-amber-950 border border-amber-200'
+                          : isExcused
+                          ? 'bg-blue-100 text-blue-950 border border-blue-200'
+                          : 'bg-rose-100 text-rose-950 border border-rose-200'
+                      }`}>
+                        {isPresent ? 'Có mặt' : isLate ? 'Đến trễ' : isExcused ? 'Nghỉ phép' : 'Vắng mặt'}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-slate-500 italic text-center py-4">Chưa có lịch sử điểm danh.</p>
+              )}
+            </div>
           </div>
+
+          {data?.attendanceSummary?.history?.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAllAttendance(!showAllAttendance)}
+              className="w-full mt-3 py-2 px-3 rounded-xl border border-dashed border-teal-300 text-teal-800 bg-teal-50/50 hover:bg-teal-50 text-xs font-bold transition-colors text-center cursor-pointer"
+            >
+              {showAllAttendance
+                ? 'Thu gọn danh sách buổi học ↑'
+                : `Xem toàn bộ ${data.attendanceSummary.history.length} buổi học ↓`}
+            </button>
+          )}
         </section>
 
         <section className="rounded-2xl border bg-white p-6">
