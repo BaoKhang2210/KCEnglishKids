@@ -54,11 +54,10 @@ exports.getClassDetail = async (req, res, next) => { try {
   await classRoom.populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin createdAt contact parentContact status assignedClass', options: { sort: { name: 1 } } });
   // §1.1.2 — Mongo sorts by code point; re-sort with Vietnamese locale so accented names order correctly
   classRoom.students.sort(byNameVi);
-  const [resultStats, assignments, recentSessions, attendanceHistory] = await Promise.all([
+  const [resultStats, assignments, recentSessions] = await Promise.all([
     statsFor(classRoom.students.map(x => x._id)),
     Assignment.find({ classRoom: classRoom._id, teacher: req.user._id }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
-    ClassroomSession.find({ classroom: classRoom._id }).sort({ date: -1 }).lean(),
-    Attendance.find({ classroom: classRoom._id }).sort({ date: -1 }).lean()
+    ClassroomSession.find({ classroom: classRoom._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).lean()
   ]);
   const map = new Map(resultStats.map(x => [String(x._id), x]));
   const studentAttendanceSummary = classRoom.students.map(st => {
@@ -70,19 +69,6 @@ exports.getClassDetail = async (req, res, next) => { try {
         else if (score.attendance === 'EXCUSED') excused++;
         else if (score.attendance === 'ABSENT') absent++;
         else if (score.attendance === 'LATE') late++;
-      }
-    });
-    const sessionDateStrings = new Set(recentSessions.map(s => s.date ? new Date(s.date).toISOString().split('T')[0] : ''));
-    attendanceHistory.forEach(att => {
-      const attDateStr = att.date ? new Date(att.date).toISOString().split('T')[0] : '';
-      if (attDateStr && !sessionDateStrings.has(attDateStr)) {
-        const rec = (att.records || []).find(r => String(r.student?._id || r.student) === String(st._id));
-        if (rec) {
-          if (rec.status === 'PRESENT') present++;
-          else if (rec.status === 'EXCUSED') excused++;
-          else if (rec.status === 'ABSENT') absent++;
-          else if (rec.status === 'LATE') late++;
-        }
       }
     });
     const totalRecorded = present + excused + absent + late;
@@ -109,7 +95,6 @@ exports.getClassDetail = async (req, res, next) => { try {
       })),
       assignments,
       recentSessions,
-      attendanceHistory,
       studentAttendanceSummary
     }
   });
@@ -188,10 +173,9 @@ exports.getStudents = async (req, res, next) => { try {
   if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode;
   if (req.query.search) q.$or = [{ name: { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' } }, { username: { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' } }];
   const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 });
-  const [resultStats, sessionRows, attendanceRows] = await Promise.all([
+  const [resultStats, sessionRows] = await Promise.all([
     statsFor(data.map(x => x._id)),
-    ClassroomSession.find({ 'studentScores.student': { $in: data.map(x => x._id) } }).select('date studentScores').lean(),
-    Attendance.find({ 'records.student': { $in: data.map(x => x._id) } }).select('date records').lean()
+    ClassroomSession.find({ 'studentScores.student': { $in: data.map(x => x._id) }, status: 'COMPLETED' }).select('date startedAt createdAt studentScores').lean()
   ]);
   const statMap = new Map(resultStats.map(x => [String(x._id), x]));
   const attMap = new Map();
@@ -205,19 +189,6 @@ exports.getStudents = async (req, res, next) => { try {
         else if (row.attendance === 'LATE') late++;
         else if (row.attendance === 'EXCUSED') excused++;
         else if (row.attendance === 'ABSENT') absent++;
-      }
-    });
-    const sessionDateStrings = new Set(sessionRows.map(s => s.date ? new Date(s.date).toISOString().split('T')[0] : ''));
-    attendanceRows.forEach(att => {
-      const attDateStr = att.date ? new Date(att.date).toISOString().split('T')[0] : '';
-      if (attDateStr && !sessionDateStrings.has(attDateStr)) {
-        const rec = (att.records || []).find(r => String(r.student?._id || r.student) === sIdStr);
-        if (rec) {
-          if (rec.status === 'PRESENT') present++;
-          else if (rec.status === 'LATE') late++;
-          else if (rec.status === 'EXCUSED') excused++;
-          else if (rec.status === 'ABSENT') absent++;
-        }
       }
     });
     const totalRecorded = present + excused + absent + late;
@@ -240,7 +211,7 @@ exports.getStudentOverview = async (req, res, next) => {
     const student = await getStudent(req, req.params.studentId);
     if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
     const notesQuery = { student: student._id };
-    const [progressList, recentActivities, sessions, notes, assignments, [overallStat], masteryList, listeningResults, attSessions, attDocs] = await Promise.all([
+    const [progressList, recentActivities, sessions, notes, assignments, [overallStat], masteryList, listeningResults, attSessions] = await Promise.all([
       Progress.find({ child: student._id }).populate('lesson', 'title ageGroupCode').populate('topic', 'englishName vietnameseName').sort({ lastActivityAt: -1 }),
       ActivityResult.find({ child: student._id }).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }).limit(30),
       LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15),
@@ -249,8 +220,7 @@ exports.getStudentOverview = async (req, res, next) => {
       statsFor([student._id]),
       VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean(),
       ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity score stars duration').lean(),
-      ClassroomSession.find({ classroom: student.assignedClass, 'studentScores.student': student._id }).sort({ date: -1, startedAt: -1 }).limit(30).lean(),
-      Attendance.find({ classroom: student.assignedClass, 'records.student': student._id }).sort({ date: -1 }).limit(30).lean()
+      ClassroomSession.find({ classroom: student.assignedClass, 'studentScores.student': student._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).limit(30).lean()
     ]);
 
     let attPresent = 0, attExcused = 0, attAbsent = 0, attLate = 0;
@@ -263,32 +233,12 @@ exports.getStudentOverview = async (req, res, next) => {
         else if (row.attendance === 'EXCUSED') attExcused++;
         else if (row.attendance === 'ABSENT') attAbsent++;
         attHistory.push({
-          date: s.date || s.startedAt,
+          date: s.date || s.startedAt || s.createdAt,
           type: 'SESSION',
           title: s.title || 'Buổi dạy trực tiếp',
           attendance: row.attendance || 'PRESENT',
           note: row.note || ''
         });
-      }
-    });
-    const sessionDateStrings = new Set((attSessions || []).map(s => s.date ? new Date(s.date).toISOString().split('T')[0] : ''));
-    (attDocs || []).forEach(att => {
-      const attDateStr = att.date ? new Date(att.date).toISOString().split('T')[0] : '';
-      if (attDateStr && !sessionDateStrings.has(attDateStr)) {
-        const rec = (att.records || []).find(r => String(r.student?._id || r.student) === String(student._id));
-        if (rec) {
-          if (rec.status === 'PRESENT') attPresent++;
-          else if (rec.status === 'LATE') attLate++;
-          else if (rec.status === 'EXCUSED') attExcused++;
-          else if (rec.status === 'ABSENT') attAbsent++;
-          attHistory.push({
-            date: att.date,
-            type: 'ROSTER',
-            title: 'Điểm danh lớp',
-            attendance: rec.status,
-            note: rec.note || ''
-          });
-        }
       }
     });
     const totalRecorded = attPresent + attExcused + attAbsent + attLate;

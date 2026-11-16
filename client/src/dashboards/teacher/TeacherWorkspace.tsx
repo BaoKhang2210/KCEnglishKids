@@ -2121,6 +2121,7 @@ export const TeacherStudentDetail = () => {
   const [parentSubject, setParentSubject] = useState('Nhận xét học tập');
   const [parentNoteText, setParentNoteText] = useState('');
   const [showAllAttendance, setShowAllAttendance] = useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false);
 
   const studentNoteTemplates = [
     { label: '🌟 Phát âm to rõ', text: 'Bé phát âm rất to, rõ ràng và tự tin trước lớp.' },
@@ -2278,22 +2279,69 @@ export const TeacherStudentDetail = () => {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <section className="rounded-2xl border bg-white p-6">
-          <h3 className="mb-3 font-bold">Lịch sử học tập</h3>
-          {data.recentActivities.length ? (
-            data.recentActivities.map((r: any) => (
-              <div key={r._id} className="flex justify-between border-t py-3 text-sm">
-                <span>
-                  <b>{r.lesson?.title}</b>
-                  <small className="block text-slate-600">
-                    {r.activity?.title} · {date(r.createdAt)}
-                  </small>
-                </span>
-                <span>{r.score==null?'Chưa có độ đúng':r.score+'%'} · {r.stars}★</span>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-slate-600">Chưa có hoạt động học nào.</p>
+        {/* Lịch sử học tập */}
+        <section className="rounded-2xl border bg-white p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3.5">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <Sparkles size={18} className="text-indigo-600" />
+                <span>Lịch sử học tập</span>
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {data.recentActivities.length} hoạt động
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {data.recentActivities.length ? (
+                (showAllActivities ? data.recentActivities : data.recentActivities.slice(0, 5)).map((r: any) => (
+                  <div key={r._id} className="p-3 rounded-2xl bg-slate-50/80 hover:bg-slate-100/90 border border-slate-100 transition-all flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs truncate max-w-[180px]">{r.lesson?.title || 'Bài học'}</span>
+                        <span className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
+                          {r.activity?.title || 'Hoạt động'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-slate-500 font-medium">
+                        <Clock size={12} className="shrink-0 text-slate-400" />
+                        <span>{date(r.createdAt)}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                        r.score == null
+                          ? 'bg-slate-100 text-slate-600'
+                          : r.score >= 80
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : r.score >= 60
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                          : 'bg-rose-100 text-rose-800 border border-rose-200'
+                      }`}>
+                        {r.score == null ? 'Chưa chấm' : `${r.score}%`}
+                      </span>
+                      <span className="text-[11px] font-bold text-amber-600 flex items-center gap-0.5">
+                        <Star size={12} className="fill-amber-400 text-amber-500" /> {r.stars || 0}★
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 italic text-center py-6">Chưa có hoạt động học nào.</p>
+              )}
+            </div>
+          </div>
+
+          {data.recentActivities.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAllActivities(!showAllActivities)}
+              className="w-full mt-3 py-2 px-3 rounded-xl border border-dashed border-indigo-300 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 text-xs font-bold transition-colors text-center cursor-pointer"
+            >
+              {showAllActivities
+                ? 'Thu gọn lịch sử học tập ↑'
+                : `Xem toàn bộ ${data.recentActivities.length} hoạt động ↓`}
+            </button>
           )}
         </section>
 
@@ -2333,42 +2381,7 @@ export const TeacherStudentDetail = () => {
               </div>
             </div>
 
-            {/* Chuỗi buổi học trực quan */}
-            {data?.attendanceSummary?.history?.length > 0 && (
-              <div className="mb-3.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="text-[11px] font-bold text-slate-600 mb-1.5 flex items-center justify-between">
-                  <span>Tiến độ theo buổi ({data.attendanceSummary.history.length} buổi)</span>
-                  <span className="text-[10px] text-slate-500">Gần nhất → Cũ nhất</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {data.attendanceSummary.history.map((h: any, i: number) => {
-                    const isPresent = h.attendance === 'PRESENT';
-                    const isLate = h.attendance === 'LATE';
-                    const isExcused = h.attendance === 'EXCUSED';
-                    const bg = isPresent
-                      ? 'bg-emerald-600 text-white'
-                      : isLate
-                      ? 'bg-amber-600 text-white'
-                      : isExcused
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-rose-600 text-white';
-                    const symbol = isPresent ? '✓' : isLate ? '⏱' : isExcused ? 'P' : '✕';
-                    return (
-                      <span
-                        key={i}
-                        title={`${h.title || 'Buổi học'} (${date(h.date)}): ${isPresent ? 'Có mặt' : isLate ? 'Đến trễ' : isExcused ? 'Nghỉ phép' : 'Vắng mặt'}`}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${bg} cursor-help transition-transform hover:scale-105 shadow-xs`}
-                      >
-                        <span>B{data.attendanceSummary.history.length - i}</span>
-                        <span>{symbol}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Chi tiết từng buổi học (hiển thị tự nhiên không cuộn ép) */}
+            {/* Chi tiết từng buổi học đã kết thúc */}
             <div className="space-y-2">
               {data?.attendanceSummary?.history?.length ? (
                 (showAllAttendance ? data.attendanceSummary.history : data.attendanceSummary.history.slice(0, 5)).map((h: any, idx: number) => {
@@ -2396,7 +2409,7 @@ export const TeacherStudentDetail = () => {
                   );
                 })
               ) : (
-                <p className="text-xs text-slate-500 italic text-center py-4">Chưa có lịch sử điểm danh.</p>
+                <p className="text-xs text-slate-500 italic text-center py-4">Chưa có lịch sử điểm danh buổi học.</p>
               )}
             </div>
           </div>
