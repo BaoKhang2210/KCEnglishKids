@@ -41,7 +41,7 @@ export function ClassRecognitionsPage() {
   const [scope, setScope] = useState<'SCHOOL' | string>(isAdmin ? 'SCHOOL' : '');
   const isSchool = scope === 'SCHOOL';
   const [kind, setKind] = useState<RecognitionKind>('WEEK');
-  const [date, setDate] = useState(() => currentPeriodDate('WEEK'));
+  const [date, setDate] = useState(() => previousPeriodDate('WEEK'));
   const [data, setData] = useState<RecognitionPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [classesLoading, setClassesLoading] = useState(true);
@@ -771,6 +771,14 @@ export function ClassRecognitionsPage() {
                             </p>
                           </div>
                         </div>
+
+                        <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white/70 border border-amber-200/60 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-slate-600 text-[11px]">Tích lũy toàn khóa:</span>
+                          <span className="font-black text-amber-950 flex items-center gap-0.5">
+                            <Star size={11} className="fill-amber-400 text-amber-600" />
+                            {winner.totalStars ?? winner.stars} ⭐
+                          </span>
+                        </div>
                       </div>
 
                       <button
@@ -830,6 +838,14 @@ export function ClassRecognitionsPage() {
                               {runnerUp.homeStars ?? 0} 🏠
                             </p>
                           </div>
+                        </div>
+
+                        <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-slate-600 text-[11px]">Tích lũy toàn khóa:</span>
+                          <span className="font-black text-amber-950 flex items-center gap-0.5">
+                            <Star size={11} className="fill-amber-400 text-amber-600" />
+                            {runnerUp.totalStars ?? runnerUp.stars} ⭐
+                          </span>
                         </div>
                       </div>
 
@@ -891,6 +907,14 @@ export function ClassRecognitionsPage() {
                             </p>
                           </div>
                         </div>
+
+                        <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white border border-orange-200/80 flex items-center justify-between text-xs font-semibold">
+                          <span className="text-slate-600 text-[11px]">Tích lũy toàn khóa:</span>
+                          <span className="font-black text-amber-950 flex items-center gap-0.5">
+                            <Star size={11} className="fill-amber-400 text-amber-600" />
+                            {third.totalStars ?? third.stars} ⭐
+                          </span>
+                        </div>
                       </div>
 
                       <button
@@ -910,8 +934,24 @@ export function ClassRecognitionsPage() {
                 <Trophy size={40} className="mx-auto text-slate-300 mb-2" />
                 <h4 className="text-base font-black text-slate-700">Chưa ghi nhận số sao hợp lệ trong kỳ này</h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                  Kỳ này chưa có buổi học nào ghi nhận số sao lớn hơn 0 để trao thưởng. Hãy kiểm tra lại lịch học và nhật ký giảng dạy.
+                  Kỳ này chưa có buổi học nào ghi nhận số sao lớn hơn 0 để trao thưởng. Hãy kiểm tra lại lịch học hoặc chọn kỳ đã hoàn thành buổi học.
                 </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setKind('WEEK'); setDate(previousPeriodDate('WEEK')); setNotice(''); }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Xem vinh danh Tuần trước
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setKind('MONTH'); setDate(currentPeriodDate('MONTH')); setNotice(''); }}
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Xem vinh danh Tháng này
+                  </button>
+                </div>
               </div>
             )}
 
@@ -955,7 +995,7 @@ export function ClassRecognitionsPage() {
                   <span>Bảng điểm thi đua chi tiết</span>
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Xếp hạng theo tổng số sao đạt được trong kỳ; hỗ trợ theo dõi chuyên cần và điểm tích lũy toàn khóa.
+                  Xếp hạng theo tổng số sao đạt được trong kỳ; hiển thị song song với tổng sao tích lũy toàn khóa học (đồng nhất với Theo dõi tiến bộ).
                 </p>
               </div>
 
@@ -981,9 +1021,9 @@ export function ClassRecognitionsPage() {
                     <th className="py-2.5 px-3 min-w-[130px]">Học sinh</th>
                     <th className="py-2.5 px-2 text-center w-24">Trên lớp</th>
                     <th className="py-2.5 px-2 text-center w-24">Ở nhà</th>
-                    <th className="py-2.5 px-2.5 text-center w-28">Tổng kỳ</th>
+                    <th className="py-2.5 px-2.5 text-center w-28" title="Sao đạt được trong kỳ này để xét thứ hạng">Sao kỳ này</th>
                     <th className="py-2.5 px-3 text-center w-32">Tham gia</th>
-                    <th className="py-2.5 px-2 text-center w-24">Tích lũy</th>
+                    <th className="py-2.5 px-2 text-center w-28" title="Tổng số sao tích lũy toàn khóa (đồng nhất với Theo dõi tiến bộ)">Tổng tích lũy</th>
                     <th className="py-2.5 px-3 text-center w-28">Danh hiệu</th>
                     <th className="py-2.5 px-2.5 text-center w-24">Giấy khen</th>
                   </tr>

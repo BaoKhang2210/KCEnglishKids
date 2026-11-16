@@ -225,11 +225,13 @@ const computeRewards = async (childId) => {
     return sum + (reward ? reward.amount || 0 : 0);
   }, 0);
   const badgeProgressStars = legacyEarnedStars + legacyBonusStars + classroomStars + teacherStars + homePracticeStars;
-  const totalStars = (starLedger?.totalStars || 0) + (homePracticeStars || 0) + (classroomStars || 0) + (teacherStars || 0);
-  const earnedStars = starLedger?.units?.reduce((sum, unit) => sum + unit.lessonStars, 0) || legacyEarnedStars;
-  bonusStars = (starLedger?.units?.reduce((sum, unit) => sum + unit.bonusStars, 0) || 0) + legacyBonusStars;
+  const ledgerLessonStars = starLedger?.units?.reduce((sum, unit) => sum + unit.lessonStars, 0) || 0;
+  const earnedStars = Math.max(ledgerLessonStars, legacyEarnedStars);
+  const ledgerBonusStars = starLedger?.units?.reduce((sum, unit) => sum + unit.bonusStars, 0) || 0;
+  bonusStars = Math.max(ledgerBonusStars, legacyBonusStars);
   const homeStars = earnedStars + bonusStars + (teacherStars || 0) + (homePracticeStars || 0);
   const classStars = classroomStars;
+  const totalStars = earnedStars + bonusStars + classroomStars + (teacherStars || 0) + (homePracticeStars || 0);
 
   let explorerLevel = {
     level: 1,

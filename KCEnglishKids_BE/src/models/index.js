@@ -36,6 +36,7 @@ module.exports = {
   HomePracticeCompletion: require('./HomePracticeCompletion'),
   LearningObservation: require('./LearningObservation'),
   GameCatalogSetting: require('./GameCatalogSetting'),
+  ClassRecognition: require('./ClassRecognition'),
   SchoolRecognition: require('./SchoolRecognition'),
   LearningEvent: require('./LearningEvent'),
   StageStarGrant: require('./StageStarGrant'),
