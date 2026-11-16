@@ -240,7 +240,8 @@ const getUsers = async (req, res, next) => {
       query.$or = [
         { name: { $regex: integrity.escapeRegex(search), $options: 'i' } },
         { email: { $regex: integrity.escapeRegex(search), $options: 'i' } },
-        { username: { $regex: integrity.escapeRegex(search), $options: 'i' } }
+        { username: { $regex: integrity.escapeRegex(search), $options: 'i' } },
+        { contact: { $regex: integrity.escapeRegex(search), $options: 'i' } }
       ];
     }
 

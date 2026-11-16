@@ -24,7 +24,8 @@ import {
   UploadCloud,
   CheckCircle2,
   AlertTriangle,
-  FileText
+  FileText,
+  Phone
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminApi } from '../../services/api';
@@ -595,9 +596,17 @@ export const AdminUsersPage: React.FC = () => {
                         )}
                         <div>
                           <p className="font-black text-slate-900">{u.name}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
-                            <span>@{u.username || 'N/A'}</span>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium mt-0.5">
+                            <span className="font-mono text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-1.5 py-0.2 rounded text-[11px] font-bold">
+                              @{u.username || 'N/A'}
+                            </span>
                             {u.email && <span>• {u.email}</span>}
+                            {(u.contact || (u as any).phone) && (
+                              <span className="text-slate-700 font-semibold flex items-center gap-1 text-[11px]">
+                                • <Phone size={11} className="text-slate-400 shrink-0" />
+                                <span>{u.contact || (u as any).phone}</span>
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
