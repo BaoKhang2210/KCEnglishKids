@@ -278,9 +278,6 @@ export const AdminLogsPage: React.FC = () => {
             <ClipboardList className="text-indigo-800" size={26} />
             <span>Nhật Ký Hoạt Động Hệ Thống (Audit Logs)</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Ghi nhận chi tiết lịch sử mọi thao tác: quản lý lớp học, phân công giáo viên, nhập học sinh Excel, cập nhật giáo trình & mẫu câu.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -578,27 +575,14 @@ export const AdminLogsPage: React.FC = () => {
                         <span>{new Date(log.createdAt).toLocaleString('vi-VN')}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        {log.user?.avatar ? (
-                          <img
-                            src={log.user.avatar}
-                            alt=""
-                            className="h-7 w-7 rounded-lg object-cover border border-slate-200 shrink-0"
-                          />
-                        ) : (
-                          <div className="h-7 w-7 rounded-lg bg-indigo-500/20 text-indigo-800 border border-indigo-500/30 flex items-center justify-center font-black text-xs shrink-0">
-                            {log.user?.name?.[0] || 'A'}
-                          </div>
-                        )}
-                        <div className="truncate">
-                          <p className="font-bold text-inherit text-xs truncate max-w-[130px]">
-                            {log.user?.name || 'Admin'}
-                          </p>
-                          <p className="text-[10px] text-slate-600 truncate max-w-[130px]">
-                            {log.user?.email || log.user?.role || 'admin'}
-                          </p>
-                        </div>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <div className="truncate">
+                        <p className="font-bold text-inherit text-xs truncate max-w-[150px]">
+                          {log.user?.name || 'Admin'}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                          {log.user?.email || log.user?.role || 'admin'}
+                        </p>
                       </div>
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">

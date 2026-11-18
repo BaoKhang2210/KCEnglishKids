@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Expand,
   Grid3X3,
-  Search,
   Volume2,
   X,
   Sparkles,
@@ -19,7 +18,7 @@ import {
   HelpCircle,
   Lightbulb
 } from 'lucide-react';
-import { sentenceApi } from '../../services/api';
+import { sentenceApi, teacherApi } from '../../services/api';
 import { sfx, playWordAudio } from '../../utils/audio';
 import { childSpeechEngine, type SpeechRecognitionResult } from '../../utils/speechRecognition';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
@@ -92,17 +91,6 @@ export interface SentencePattern {
   hasAnswers?: boolean;
 }
 
-interface UnitOverview {
-  unitId: string;
-  unitNumber: number;
-  bookNumber: number;
-  bookTitle: string;
-  bigQuestion: string;
-  ageGroupCode: string;
-  sentenceCount: number;
-  lessonCount: number;
-}
-
 const TYPE_META: Record<string, { label: string; cls: string; borderCls: string }> = {
   QUESTION: { label: 'Hỏi & Đáp', cls: 'bg-amber-100 text-amber-800 border-amber-200', borderCls: 'border-amber-400' },
   PATTERN: { label: 'Mẫu câu', cls: 'bg-violet-100 text-violet-800 border-violet-200', borderCls: 'border-violet-400' },
@@ -115,31 +103,21 @@ const TYPE_META: Record<string, { label: string; cls: string; borderCls: string 
 const typeMeta = (t: string) =>
   TYPE_META[t] || { label: t, cls: 'bg-slate-100 text-slate-700 border-slate-200', borderCls: 'border-slate-400' };
 
-const TYPE_FILTERS: Array<[string, string]> = [
-  ['', 'Tất cả'],
-  ['QUESTION', 'Hỏi & Đáp'],
-  ['PATTERN', 'Mẫu câu'],
-  ['SENTENCE', 'Câu đơn'],
-  ['ORACY', 'Đàm thoại']
-];
-
-const unitLabel = (u: UnitOverview) => `Sách ${u.bookNumber} · Unit ${u.unitNumber} — ${u.bigQuestion}`;
-
-export const SentenceTeachingPage: React.FC = () => {
+export const SentenceTeachingPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlLessonId = searchParams.get('lessonId') || '';
   const urlUnitId = searchParams.get('unitId') || '';
   const urlMode = searchParams.get('mode') || '';
 
   const [age, setAge] = useState('');
+  const [assignedAges, setAssignedAges] = useState<string[]>([]);
   const [unitId, setUnitId] = useState(urlUnitId);
   const [lessonId, setLessonId] = useState(urlLessonId);
-  const [type, setType] = useState('');
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const [units, setUnits] = useState<UnitOverview[]>([]);
+  const [catalog, setCatalog] = useState<{ units: any[]; lessons: any[] } | null>(null);
   const [rows, setRows] = useState<SentencePattern[]>([]);
+  const [lessonRows, setLessonRows] = useState<SentencePattern[]>([]);
+  const [lessonLoading, setLessonLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadTick, setReloadTick] = useState(0);
@@ -159,17 +137,19 @@ export const SentenceTeachingPage: React.FC = () => {
   const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(t);
-  }, [search]);
+    setUnitId(urlUnitId);
+    setLessonId(urlLessonId);
+  }, [urlUnitId, urlLessonId]);
 
-  // Units overview
   useEffect(() => {
-    sentenceApi
-      .getUnitsOverview({ ageGroupCode: age || undefined, contentType: type || undefined })
-      .then((x) => setUnits(x.data || []))
-      .catch(() => setUnits([]));
-  }, [age, type]);
+    let cancelled = false;
+    Promise.all([teacherApi.getClasses(), teacherApi.getContent()]).then(([classes, content]) => {
+      if (cancelled) return;
+      setAssignedAges([...new Set((classes.data || []).map((room: any) => room.ageGroupCode).filter(Boolean))] as string[]);
+      setCatalog({ units: content.data?.units || [], lessons: content.data?.lessons || [] });
+    }).catch(e => { if (!cancelled) setError(e?.message || 'Không thể tải lớp giảng dạy.'); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Teaching list
   useEffect(() => {
@@ -178,11 +158,7 @@ export const SentenceTeachingPage: React.FC = () => {
     setError('');
     sentenceApi
       .getPatterns({
-        ageGroupCode: age || undefined,
-        unitId: unitId || undefined,
-        lessonId: lessonId || undefined,
-        contentType: type || undefined,
-        search: debouncedSearch || undefined
+        ageGroupCode: age || undefined
       })
       .then((x) => {
         if (!cancelled) setRows(x.data || []);
@@ -196,27 +172,58 @@ export const SentenceTeachingPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [age, unitId, lessonId, type, debouncedSearch, reloadTick]);
+  }, [age, reloadTick]);
 
-  useEffect(() => setClassIdx(0), [rows]);
   useEffect(() => {
-    if (!urlUnitId) setUnitId('');
-  }, [age, urlUnitId]);
+    if (!lessonId) {
+      setLessonRows(unitId ? rows.filter(row => String(row.sourceUnit?._id || 'none') === unitId) : []);
+      setLessonLoading(false);
+      return;
+    }
+    if (lessonId === 'none') {
+      setLessonRows(rows.filter(row => !row.lesson));
+      return;
+    }
+    let cancelled = false;
+    setLessonRows([]);
+    setLessonLoading(true);
+    sentenceApi.getPatterns({ ageGroupCode: age || undefined, unitId: unitId || undefined, lessonId })
+      .then(response => { if (!cancelled) setLessonRows(response.data || []); })
+      .catch(e => { if (!cancelled) { setLessonRows([]); setError(e?.message || 'Không thể tải mẫu câu của bài học.'); } })
+      .finally(() => { if (!cancelled) setLessonLoading(false); });
+    return () => { cancelled = true; };
+  }, [age, unitId, lessonId, reloadTick, rows]);
+
+  useEffect(() => setClassIdx(0), [lessonRows, lessonId, unitId]);
 
   const activeLesson = useMemo(() => {
     if (!lessonId) return null;
-    const match = rows.find((r) => r.lesson?._id === lessonId);
-    return match?.lesson || null;
-  }, [rows, lessonId]);
+    const match = catalog?.lessons.find((item: any) => String(item._id) === lessonId);
+    return match || rows.find((row) => row.lesson?._id === lessonId)?.lesson || null;
+  }, [catalog, rows, lessonId]);
 
   const clearLessonFilter = () => {
     setLessonId('');
+    setUnitId('');
     const params = new URLSearchParams(searchParams);
     params.delete('lessonId');
+    params.delete('unitId');
     setSearchParams(params);
   };
 
-  const current = rows[classIdx];
+  const selectUnit = (id: string) => {
+    setUnitId(id);
+    setLessonId('');
+    setMode('grid');
+    const params = new URLSearchParams(searchParams);
+    params.delete('lessonId');
+    params.delete('mode');
+    if (id) params.set('unitId', id);
+    else params.delete('unitId');
+    setSearchParams(params);
+  };
+
+  const current = lessonRows[classIdx];
   const isCurrentRevealed = Boolean(
     autoReveal || (current && revealedAnswers[current._id])
   );
@@ -258,14 +265,30 @@ export const SentenceTeachingPage: React.FC = () => {
     );
   }, [rows]);
 
+  const navigationGroups = grouped;
+
+  const selectedGrouped = useMemo(() => {
+    const byUnit = new Map<string, { unit: PatternUnit | null; count: number; lessons: Map<string, { lesson: PatternLesson | null; items: SentencePattern[] }> }>();
+    lessonRows.forEach(row => {
+      const key = row.sourceUnit?._id || 'none';
+      if (!byUnit.has(key)) byUnit.set(key, { unit: row.sourceUnit, count: 0, lessons: new Map() });
+      const group = byUnit.get(key)!;
+      group.count++;
+      if (!group.lessons.has('all')) group.lessons.set('all', { lesson: null, items: [] });
+      group.lessons.get('all')!.items.push(row);
+    });
+    return Array.from(byUnit.values());
+  }, [lessonRows]);
+  const activeUnit = navigationGroups.find(group => String(group.unit?._id || 'none') === unitId)?.unit;
+
   const step = useCallback(
     (delta: number) => {
       sfx.playPop();
       setMicActiveTarget(null);
       setMicResult(null);
-      setClassIdx((i) => Math.min(Math.max(i + delta, 0), Math.max(rows.length - 1, 0)));
+      setClassIdx((i) => Math.min(Math.max(i + delta, 0), Math.max(lessonRows.length - 1, 0)));
     },
-    [rows.length]
+    [lessonRows.length]
   );
 
   // Keyboard shortcuts in classroom mode
@@ -353,132 +376,37 @@ export const SentenceTeachingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[85vh]">
-      {/* Top Banner & Header */}
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div>
+      {!embedded && <div className="mb-5">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-3 py-1 text-xs font-bold text-teal-800">
               <Sparkles size={14} className="text-teal-800" /> Công cụ trình chiếu sư phạm
             </span>
-            <span className="text-xs text-slate-600 font-medium">Mongo languagecontents</span>
           </div>
           <h1 className="mt-1 text-3xl font-black text-slate-900 tracking-tight">
-            Mẫu Câu & Hỏi Đáp Tương Tác
+            Mẫu câu & hỏi đáp
           </h1>
           <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-            Chiếu câu hỏi lên màn hình, đố bé đoán câu trả lời và lật mở đáp án với âm thanh & luyện đọc giọng nói thực tế.
+            Chọn một Unit để xem toàn bộ mẫu câu, nghe phát âm hoặc trình chiếu cho cả lớp.
           </p>
-        </div>
+      </div>}
 
-        <button
-          onClick={() => setMode('classroom')}
-          disabled={!rows.length}
-          className="flex items-center gap-2 rounded-2xl bg-teal-700 px-6 py-3.5 text-base font-bold text-white  hover:bg-teal-700 active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
-        >
-          <Play size={18} /> Bắt đầu học mẫu câu ({rows.length} câu)
-        </button>
-      </div>
-
-      {/* Active Lesson Filter Banner */}
-      {lessonId && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-teal-50 border border-teal-200/80 p-4 text-teal-900">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white font-black text-sm">
-              🎯
-            </span>
-            <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-wider text-teal-800">
-                Đang dạy mẫu câu theo bài học
-              </p>
-              <h2 className="text-base font-bold text-slate-900 truncate">
-                {activeLesson?.title || (rows[0]?.lesson?.title) || 'Bài học được chọn từ lớp'}
-                {(activeLesson?.vietnameseTitle || rows[0]?.lesson?.vietnameseTitle) && (
-                  <span className="font-normal text-slate-600 ml-1.5 text-xs">
-                    ({activeLesson?.vietnameseTitle || rows[0]?.lesson?.vietnameseTitle})
-                  </span>
-                )}
-              </h2>
-            </div>
-          </div>
-          <button
-            onClick={clearLessonFilter}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-teal-800 border border-teal-300 hover:bg-teal-100 transition-colors cursor-pointer active:scale-95 shrink-0"
-          >
-            <X size={15} /> Xem tất cả bài học
-          </button>
-        </div>
-      )}
-
-      {/* Responsive Filter Bar */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
-        {/* Left Side: Age Groups & Content Types */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Age Groups */}
-          <div className="flex flex-wrap items-center gap-1">
-            {['', '3-4', '4-5', '5-6'].map((a) => (
+      {assignedAges.length > 1 && <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
+          <span className="px-2 text-sm font-semibold text-slate-600">Độ tuổi:</span>
+            {['', ...assignedAges].map((a) => (
               <button
                 key={a || 'all'}
-                onClick={() => setAge(a)}
+                onClick={() => { setAge(a); selectUnit(''); }}
                 className={`rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                   age === a
                     ? 'bg-teal-700 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {a ? `Tuổi ${a}` : 'Mọi tuổi'}
+                {a ? `Tuổi ${a}` : 'Các lớp phụ trách'}
               </button>
             ))}
-          </div>
-
-          <span className="hidden sm:inline-block h-5 w-px bg-slate-200" />
-
-          {/* Content Type Filter */}
-          <div className="flex flex-wrap items-center gap-1">
-            {TYPE_FILTERS.map(([v, label]) => (
-              <button
-                key={v || 'alltype'}
-                onClick={() => setType(v)}
-                className={`rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  type === v
-                    ? 'bg-white text-inherit'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Side: Unit Selector & Search Box */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          {/* Unit Selector */}
-          <select
-            value={unitId}
-            onChange={(e) => setUnitId(e.target.value)}
-            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-teal-500"
-          >
-            <option value="">Tất cả 27 Unit ({units.length})</option>
-            {units.map((u) => (
-              <option key={u.unitId} value={u.unitId}>
-                {unitLabel(u)} · {u.sentenceCount} câu
-              </option>
-            ))}
-          </select>
-
-          {/* Search */}
-          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus-within:border-teal-500 focus-within:bg-white transition-colors">
-            <Search size={14} className="text-slate-600 shrink-0" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm tiếng Anh / tiếng Việt…"
-              className="w-full sm:w-44 outline-none bg-transparent font-medium"
-            />
-          </label>
-        </div>
-      </div>
+      </div>}
 
       {/* Error state */}
       {error && (
@@ -502,7 +430,7 @@ export const SentenceTeachingPage: React.FC = () => {
       )}
 
       {/* Empty state */}
-      {!error && !loading && !rows.length && (
+      {!error && !loading && !navigationGroups.length && (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 sm:p-14 text-center text-slate-600 max-w-lg mx-auto my-6">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 text-3xl">
             💬
@@ -512,8 +440,8 @@ export const SentenceTeachingPage: React.FC = () => {
           </h3>
           <p className="text-sm text-slate-600 mb-6">
             {lessonId
-              ? 'Bài học này chưa có mẫu câu được liên kết riêng hoặc bộ lọc hiện tại chưa khớp.'
-              : 'Hãy thử xóa bộ lọc tìm kiếm hoặc chọn độ tuổi/chủ đề khác.'}
+              ? 'Bài học này chưa có mẫu câu được liên kết riêng.'
+              : 'Chưa có mẫu câu cho độ tuổi đang chọn.'}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             {lessonId && (
@@ -527,9 +455,7 @@ export const SentenceTeachingPage: React.FC = () => {
             <button
               onClick={() => {
                 setAge('');
-                setType('');
                 setUnitId('');
-                setSearch('');
                 clearLessonFilter();
               }}
               className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 cursor-pointer transition-all"
@@ -541,53 +467,55 @@ export const SentenceTeachingPage: React.FC = () => {
       )}
 
       {/* Grid Mode */}
-      {!error && !loading && rows.length > 0 && (
-        <div className="space-y-8">
-          {grouped.map((g) => (
+      {!error && !loading && navigationGroups.length > 0 && (
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
+            <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
+              <h2 className="text-base font-bold text-slate-900">Chọn Unit</h2>
+              <span className="text-xs text-slate-600">{navigationGroups.length} Unit</span>
+            </div>
+            <div className="space-y-1">
+              {navigationGroups.map(group => (
+                <div key={group.unit?._id || 'none'} className="border-b border-slate-100 last:border-b-0">
+                  <button type="button" aria-pressed={unitId === String(group.unit?._id || 'none') && !lessonId} onClick={() => selectUnit(String(group.unit?._id || 'none'))} className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-3 text-left ${unitId === String(group.unit?._id || 'none') && !lessonId ? 'bg-teal-700 text-white' : 'hover:bg-slate-50'}`}>
+                    <span className="min-w-0"><strong className="block text-sm">{group.unit ? `Sách ${group.unit.bookNumber} · Unit ${group.unit.unitNumber}` : 'Mẫu câu chung'}</strong><small className={`block truncate ${unitId === String(group.unit?._id || 'none') && !lessonId ? 'text-teal-50' : 'text-slate-600'}`}>{group.unit?.bigQuestion || 'Mẫu câu giao tiếp'}</small></span>
+                    <span className={`shrink-0 text-xs font-bold ${unitId === String(group.unit?._id || 'none') && !lessonId ? 'text-white' : 'text-teal-800'}`}>{group.count} câu</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+          <div className="min-w-0 space-y-5">
+          {!lessonId && !unitId && <div className="rounded-2xl border border-dashed border-teal-300 bg-teal-50 p-8 text-center text-slate-700"><MessageCircle size={28} className="mx-auto mb-3 text-teal-700" /><strong className="block text-lg text-slate-900">Chọn một Unit</strong><p className="mt-1 text-sm">Toàn bộ mẫu câu trong Unit sẽ xuất hiện tại đây.</p></div>}
+          {lessonLoading && <div role="status" className="rounded-2xl bg-white p-8 text-center text-slate-600">Đang tải mẫu câu của bài học…</div>}
+          {(unitId || lessonId) && !lessonLoading && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-teal-800">{lessonId ? 'Bài đang chọn' : `${lessonRows.length} mẫu câu`}</p><h2 className="text-xl font-bold text-slate-900">{lessonId ? activeLesson?.title || 'Bài học' : activeUnit ? `Unit ${activeUnit.unitNumber} · ${activeUnit.bigQuestion || ''}` : 'Mẫu câu chung'}</h2>{lessonId && activeLesson?.vietnameseTitle && <p className="text-sm text-slate-600">{activeLesson.vietnameseTitle}</p>}</div>
+            <button type="button" disabled={!lessonRows.length} onClick={() => setMode('classroom')} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"><Play size={16} /> Trình chiếu mẫu câu</button>
+          </div>}
+          {(unitId || lessonId) && !lessonLoading && !lessonRows.length && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">Chưa có mẫu câu trong nội dung này.</div>}
+          {(unitId || lessonId) && !lessonLoading && selectedGrouped.map((g) => (
             <section
               key={g.unit?._id || 'none'}
-              className="rounded-3xl border border-slate-200 bg-white p-6"
+              className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
             >
-              {/* Unit header */}
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-teal-800">
-                    {g.unit ? `Sách ${g.unit.bookNumber} · Unit ${g.unit.unitNumber}` : 'Chương trình học'}
-                  </p>
-                  <h2 className="text-xl font-black text-slate-900 mt-0.5">
-                    {g.unit?.bigQuestion || 'Mẫu câu bài học'}
-                  </h2>
-                </div>
-                <span className="rounded-full bg-teal-50 px-3.5 py-1 text-xs font-bold text-teal-800 border border-teal-200">
-                  {g.count} mẫu câu / hỏi đáp
-                </span>
-              </div>
+              {lessonId && <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <p className="text-sm font-bold text-teal-800">{g.unit ? `Sách ${g.unit.bookNumber} · Unit ${g.unit.unitNumber} · ${g.unit.bigQuestion || ''}` : 'Mẫu câu chung'}</p>
+                <span className="text-xs text-slate-600">{g.count} câu</span>
+              </div>}
 
               {/* Lesson groups */}
               <div className="space-y-6">
                 {Array.from(g.lessons.values()).map((gl) => (
                   <div key={gl.lesson?._id || 'none'}>
-                    {gl.lesson && (
-                      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <span className="h-2 w-2 rounded-full bg-teal-700" />
-                        {gl.lesson.title}
-                        {gl.lesson.vietnameseTitle && (
-                          <span className="font-normal text-slate-600">
-                            ({gl.lesson.vietnameseTitle})
-                          </span>
-                        )}
-                      </h3>
-                    )}
-
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="space-y-3">
                       {gl.items.map((item) => {
                         const meta = typeMeta(item.contentType);
-                        const globalIdx = rows.findIndex((r) => r._id === item._id);
+                        const globalIdx = lessonRows.findIndex((r) => r._id === item._id);
 
                         return (
                           <div
                             key={item._id}
-                            className="group flex flex-col justify-between rounded-2xl border-2 border-slate-100 bg-slate-50/70 p-4.5 hover:border-teal-300 hover:bg-white transition-all"
+                            className="group rounded-xl border border-slate-200 bg-slate-50/60 p-4 hover:border-teal-300 hover:bg-white transition-all"
                           >
                             <div>
                               {/* Card Meta & Action */}
@@ -605,13 +533,6 @@ export const SentenceTeachingPage: React.FC = () => {
                                     title="Nghe phát âm câu hỏi"
                                   >
                                     <Volume2 size={16} />
-                                  </button>
-                                  <button
-                                    onClick={() => jumpToSlide(globalIdx)}
-                                    className="rounded-lg p-1.5 text-teal-800 hover:bg-teal-100 transition-colors cursor-pointer"
-                                    title="Chiếu câu này lên máy chiếu"
-                                  >
-                                    <Play size={15} />
                                   </button>
                                 </div>
                               </div>
@@ -664,12 +585,12 @@ export const SentenceTeachingPage: React.FC = () => {
                                             loading="lazy"
                                           />
                                         </div>
-                                        <div className="truncate">
-                                          <b className="text-emerald-950 font-bold block text-xs truncate">
+                                        <div className="min-w-0">
+                                          <b className="text-emerald-950 font-bold block text-sm">
                                             {ans.english}
                                           </b>
                                           {ans.vietnamese && (
-                                            <span className="text-[11px] text-emerald-800 font-medium block truncate">
+                                            <span className="text-xs text-emerald-800 font-medium block">
                                               {ans.vietnamese}
                                             </span>
                                           )}
@@ -698,11 +619,11 @@ export const SentenceTeachingPage: React.FC = () => {
                                   ? `${item.answers.length} câu trả lời`
                                   : 'Mẫu câu đơn'}
                               </span>
-                              <button
+                              <button type="button"
                                 onClick={() => jumpToSlide(globalIdx)}
                                 className="font-bold text-teal-800 hover:underline inline-flex items-center gap-1"
                               >
-                                Chiếu slide <ChevronRight size={13} />
+                                Trình chiếu câu này <ChevronRight size={13} />
                               </button>
                             </div>
                           </div>
@@ -714,6 +635,7 @@ export const SentenceTeachingPage: React.FC = () => {
               </div>
             </section>
           ))}
+          </div>
         </div>
       )}
 
@@ -752,7 +674,7 @@ export const SentenceTeachingPage: React.FC = () => {
             {/* Center: Slide Index */}
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-white/10 px-4 py-1 text-xs font-black tracking-wide text-slate-200">
-                Câu {classIdx + 1} / {rows.length}
+                Câu {classIdx + 1} / {lessonRows.length}
               </span>
             </div>
 
@@ -809,7 +731,7 @@ export const SentenceTeachingPage: React.FC = () => {
               >
                 {typeMeta(current.contentType).label}
               </span>
-              {current.lesson?.title && (
+              {lessonId && current.lesson?.title && (
                 <span className="text-xs text-slate-400 font-medium">
                   • {current.lesson.title}
                 </span>
@@ -826,9 +748,15 @@ export const SentenceTeachingPage: React.FC = () => {
                   className="w-full h-full object-contain filter group-hover:scale-105 transition-transform"
                 />
                 <button
-                  onClick={() => playWordAudio(current.english, current.audioUrl || undefined)}
+                  onClick={() => {
+                    if (current.answers && current.answers.length > 0) {
+                      void playFullDialogue(current);
+                    } else {
+                      void playWordAudio(current.english, current.audioUrl || undefined);
+                    }
+                  }}
                   className="absolute -bottom-3 -right-3 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-4 ring-teal-300/40"
-                  title="Nghe phát âm câu hỏi"
+                  title="Nghe phát âm cả câu hỏi và câu trả lời"
                 >
                   <Volume2 size={24} />
                 </button>
@@ -1073,7 +1001,7 @@ export const SentenceTeachingPage: React.FC = () => {
 
             <button
               onClick={() => step(1)}
-              disabled={classIdx >= rows.length - 1}
+              disabled={classIdx >= lessonRows.length - 1}
               className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 disabled:opacity-20 px-6 py-3 font-bold text-sm text-white transition-all cursor-pointer"
             >
               Câu tiếp <ChevronRight size={18} />

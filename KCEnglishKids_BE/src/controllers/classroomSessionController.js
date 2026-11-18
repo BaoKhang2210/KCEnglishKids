@@ -1,10 +1,11 @@
-const { ClassroomSession, ClassRoom, Lesson, Activity, Attendance, Schedule } = require('../models');
+const { ClassroomSession, ClassRoom, Lesson, Activity, Attendance, Schedule, CurriculumUnit } = require('../models');
 const access = require('../services/teacherAccess');
 const rules = require('../services/teacherRules');
 const { activeScheduleFilter } = require('../services/scheduleRules');
 const ai = require('../services/aiService');
 const { lessonGuide, closureDecision } = require('../services/earlyLearning');
 const { idOf, validId, fail } = rules;
+const reviewSession = session => session.isGapReview === true || session.lessonPlan?.isGapReview === true || session.lessonPlan?.meta?.isReviewPlan === true;
 const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
 const wrap = handler => async (req, res, next) => { try { await handler(req, res); } catch (error) { next(error); } };
 async function sessionFor(req, writing = false, active = true) {
@@ -12,7 +13,7 @@ async function sessionFor(req, writing = false, active = true) {
   const query = ClassroomSession.findOne({ _id: req.params.id, ...scope(req) });
   const item = await (writing ? query.select('+appliedOperations') : query);
   if (!item) fail('Không tìm thấy buổi học được phân công.', 404);
-  if (writing) await access.classroom(req, item.classroom, active);
+  await access.classroom(req, item.classroom, writing && active);
   return item;
 }
 async function saveSession(req, mutate, closing = false) {
@@ -39,9 +40,12 @@ async function checkTiming(req, classroom) {
   }
   const clock = rules.vnClock();
   const mins = value => value.split(':').reduce((n, part) => n * 60 + Number(part), 0);
-  if (!slots.some(slot => slot.dayOfWeek === clock.day && clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= mins(slot.endTime) + 30)) {
-    fail('Chưa đến giờ dạy theo thời khóa biểu. Bạn có thể chuẩn bị trước và mở lớp từ 15 phút trước giờ học.', 409);
+  const activeSlot = slots.find(slot => slot.dayOfWeek === clock.day && clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= mins(slot.endTime) + 30);
+  const todaySlot = slots.find(slot => slot.dayOfWeek === clock.day);
+  if (!activeSlot && !todaySlot) {
+    fail('Chưa đến giờ dạy theo thời khóa biểu. Lớp học không có ca dạy hôm nay.', 409);
   }
+  return activeSlot || todaySlot;
 }
 async function populateSession(item, summary = false) {
   await item.populate('classroom', 'name ageGroupCode teacher');
@@ -52,21 +56,24 @@ async function populateSession(item, summary = false) {
     { path: 'curriculumUnits', select: 'unitNumber bookNumber bigQuestion title' },
     { path: 'topic', select: 'englishName vietnameseName' }
   ] });
-  await item.populate('activities', 'title activityType questionCount questions status');
+  await item.populate('activities', 'title vietnameseTitle instructions activityType questionCount questions status');
   await item.populate('studentScores.student', 'name avatar avatarUrl ageGroupCode');
   if (summary) {
     await item.populate('summary.studentsNeedingPractice', 'name avatar avatarUrl');
     await item.populate('summary.topPerformers', 'name avatar avatarUrl');
   }
   const data = item.toObject ? item.toObject() : item;
+  data.isGapReview = reviewSession(data);
+  if (data.isGapReview && data.lesson && data.lessonPlan?.reviewFocus?.length) data.lesson.vocabularyItems = await require('../models').Vocabulary.find({ _id: { $in: data.lessonPlan.reviewFocus.map(word => word.vocabularyId).filter(Boolean) }, status: 'ACTIVE' }).lean();
   data.teachingGuide = data.teachingGuideSnapshot || lessonGuide(data.lesson, data.ageGroup);
   if (data.teachingGoals?.length) data.teachingGuide.goals = data.teachingGoals;
   return data;
 }
 exports.getSessions = wrap(async (req, res) => {
   const query = scope(req);
+  if (req.user.role !== 'ADMIN') query.classroom = { $in: await access.classroomIds(req) };
   if (req.query.status) {
-    if (!['SCHEDULED', 'LIVE', 'COMPLETED'].includes(req.query.status)) fail('Trạng thái buổi học không hợp lệ.');
+    if (!['SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'].includes(req.query.status)) fail('Trạng thái buổi học không hợp lệ.');
     query.status = req.query.status;
   }
   if (req.query.classroomId) { await access.classroom(req, req.query.classroomId); query.classroom = req.query.classroomId; }
@@ -110,11 +117,24 @@ exports.createSession = wrap(async (req, res) => {
   let plan = body.lessonPlan || null;
   if (plan && (typeof plan !== 'object' || Array.isArray(plan) || JSON.stringify(plan).length > 200000)) fail('Giáo án không hợp lệ.');
   if (plan && lesson && (plan.meta?.lessonTitle !== lesson.title || plan.meta?.ageGroup !== room.ageGroupCode || plan.meta?.durationMinutes !== duration)) plan = null;
-  if (!plan && lesson) plan = await ai.generateLessonPlan({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
+  const isGapReview = body.isGapReview === true || body.reviewMode === true || plan?.isGapReview === true || plan?.meta?.isReviewPlan === true;
+  let reviewVocabulary = null;
+  if (isGapReview) {
+    const rawWords = body.gapWords || plan?.reviewFocus?.map(word => word.english) || plan?.meta?.gapRemediationFocus || [];
+    const names = (Array.isArray(rawWords) ? rawWords : String(rawWords).split(',')).map(word => String(word).trim().toLowerCase()).filter(Boolean);
+    if (!lesson || !names.length || names.length > 12 || new Set(names).size !== names.length) fail('Chọn bài học và từ 1 đến 12 từ ôn khác nhau.');
+    const report = await require('../services/classLearningGaps').buildReport(require('../models'), room);
+    const focus = report.gaps.filter(word => names.includes(word.english.toLowerCase()));
+    if (names.some(name => !focus.some(word => word.english.toLowerCase() === name))) fail('Dữ liệu ôn tập đã thay đổi. Vui lòng tải lại phần phân tích của lớp.', 409);
+    reviewVocabulary = await require('../models').Vocabulary.find({ _id: { $in: focus.map(word => word.vocabularyId) }, status: 'ACTIVE' }).lean();
+    plan = ai.applyReviewFocus(ai.generateLessonPlan({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, durationMinutes: duration, vocabularyList: reviewVocabulary, sentencePatterns: [], teachingStyle: 'active_tpr' }), focus);
+  } else if (!plan && lesson) plan = await ai.generateLessonPlanWithAI({ ageGroup: room.ageGroupCode, lessonTitle: lesson.title, targetTopic: lesson.topic?.englishName || 'General', durationMinutes: duration, vocabularyList: lesson.vocabularyItems || [], sentencePatterns: lesson.languageContents || [], teachingStyle: 'active_tpr' });
+  const guideLesson = reviewVocabulary ? { ...(lesson.toObject ? lesson.toObject() : lesson), vocabularyItems: reviewVocabulary } : lesson;
   const session = await ClassroomSession.create({ classroom: room._id, teacher: req.user._id, lesson: lesson?._id || null,
     title: rules.text(body.title, 200) || lesson?.title || 'Buổi dạy trên lớp', ageGroup: room.ageGroupCode,
     status: 'SCHEDULED', plannedDuration: duration, sessionNumber: number, includeWarmup: body.includeWarmup !== false,
-    activities: activityIds, lessonPlan: plan, teachingGoals: lessonGuide(lesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(lesson,room.ageGroupCode),
+    isGapReview,
+    activities: isGapReview ? [] : activityIds, lessonPlan: plan, teachingGoals: lessonGuide(guideLesson,room.ageGroupCode).goals, teachingGuideSnapshot: lessonGuide(guideLesson,room.ageGroupCode),
     studentScores: roster.map(student => ({ student, attendance: map.get(idOf(student)) || 'PRESENT' }))
   });
   if (records) {
@@ -129,8 +149,14 @@ exports.startSession = wrap(async (req, res) => {
   const item = await saveSession(req, async session => {
     if (session.status === 'LIVE') return false;
     if (session.status !== 'SCHEDULED') fail('Buổi học đã kết thúc.', 409);
-    await checkTiming(req, session.classroom);
+    const scheduledSlot = await checkTiming(req, session.classroom);
     const room = await access.classroom(req, session.classroom, true);
+    const completedIds = (room.completedLessons || []).map(id => idOf(id));
+    const slotLessonId = scheduledSlot?.lesson ? idOf(scheduledSlot.lesson) : null;
+    const slotLessonAlreadyCompleted = Boolean(slotLessonId && completedIds.includes(slotLessonId));
+    if (!reviewSession(session) && slotLessonId && !slotLessonAlreadyCompleted && slotLessonId !== idOf(session.lesson)) {
+      fail('Bài dạy không khớp bài đã được phân trên thời khóa biểu. Vui lòng mở đúng bài theo lịch.', 409);
+    }
     const attendance = await Attendance.findOne({ classroom: room._id, date: rules.vnDate() });
     if (!attendance) fail('Vui lòng hoàn tất điểm danh hôm nay ở phần chuẩn bị buổi dạy trước khi mở lớp.');
     const records = rules.attendanceRecords(attendance.records, room.students);
@@ -143,6 +169,48 @@ exports.startSession = wrap(async (req, res) => {
   });
   res.json({ success: true, data: item });
 });
+async function advanceClassroomCurriculum(classroomId, completedLessonId) {
+  try {
+    const classroom = await ClassRoom.findById(classroomId);
+    if (!classroom) return;
+
+    const completedLessonIds = (classroom.completedLessons || []).map(id => String(id?._id || id));
+    if (completedLessonId && !completedLessonIds.includes(String(completedLessonId))) {
+      completedLessonIds.push(String(completedLessonId));
+    }
+
+    if (CurriculumUnit && typeof CurriculumUnit.find === 'function') {
+      const units = await CurriculumUnit.find({ ageGroupCode: classroom.ageGroupCode, status: 'ACTIVE' }).sort({ bookNumber: 1, unitNumber: 1 }).lean();
+      const unitIds = units.map(u => u._id);
+      const lessons = await Lesson.find({ curriculumUnits: { $in: unitIds }, status: 'ACTIVE', ageGroupCode: classroom.ageGroupCode }).sort({ displayOrder: 1, _id: 1 }).lean();
+
+      const unitOrderMap = new Map(units.map((u, idx) => [String(u._id), idx]));
+      const sortedLessons = [...lessons].sort((a, b) => {
+        const uA = Array.isArray(a.curriculumUnits) ? a.curriculumUnits[0] : a.curriculumUnits;
+        const uB = Array.isArray(b.curriculumUnits) ? b.curriculumUnits[0] : b.curriculumUnits;
+        const orderA = unitOrderMap.get(String(uA)) ?? 999;
+        const orderB = unitOrderMap.get(String(uB)) ?? 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.displayOrder || 0) - (b.displayOrder || 0);
+      });
+
+      const nextUntaught = sortedLessons.find(l => !completedLessonIds.includes(String(l._id)));
+      await ClassRoom.updateOne(
+        { _id: classroom._id, deletionPending: { $ne: true } },
+        {
+          $addToSet: { completedLessons: completedLessonId },
+          $set: { currentLesson: nextUntaught ? nextUntaught._id : classroom.currentLesson }
+        }
+      );
+      return;
+    }
+
+    await ClassRoom.updateOne({ _id: classroom._id, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: completedLessonId } });
+  } catch (err) {
+    console.error('Lỗi tự động thăng cấp bài học cho lớp:', err);
+  }
+}
+
 exports.endSession = wrap(async (req, res) => {
   const item = await saveSession(req, async session => {
     if (session.status === 'COMPLETED') return false;
@@ -150,11 +218,13 @@ exports.endSession = wrap(async (req, res) => {
     const lesson = session.lesson ? await Lesson.findById(session.lesson).populate('vocabularyItems') : null;
     const guide = session.teachingGuideSnapshot || lessonGuide(lesson,session.ageGroup);
     if(session.teachingGoals?.length)guide.goals=session.teachingGoals;
-    session.teachingOutcome = closureDecision(req.body||{},guide,session.studentScores);
+    session.teachingOutcome = closureDecision(reviewSession(session) ? { ...(req.body || {}), coverage: 'REVIEW' } : req.body||{},guide,session.studentScores);
     session.status = 'COMPLETED'; session.endedAt = new Date(); rules.summarize(session);
   }, true);
-  // Idempotent progress update is also retried when the end request is repeated.
-  if (item.lesson && item.teachingOutcome?.coverage === 'COMPLETE') await ClassRoom.updateOne({ _id: item.classroom, deletionPending: { $ne: true } }, { $addToSet: { completedLessons: item.lesson } });
+  // Idempotent progress update and automatic advance to the next untaught curriculum lesson
+  if (item.lesson && item.teachingOutcome?.coverage === 'COMPLETE') {
+    await advanceClassroomCurriculum(item.classroom, item.lesson);
+  }
   res.json({ success: true, data: await populateSession(item, true) });
 });
 exports.scoreStudent = wrap(async (req, res) => {
@@ -175,6 +245,30 @@ exports.recordQuestionResult = wrap(async (req, res) => {
     rules.recordQuestion(session, req.body);
   });
   res.json({ success: true, data: item });
+});
+exports.updateStudentAttendance = wrap(async (req, res) => {
+  const { studentId } = req.params;
+  const status = req.body.attendance || 'LATE';
+  if (!['PRESENT', 'LATE', 'EXCUSED', 'ABSENT'].includes(status)) fail('Trạng thái điểm danh không hợp lệ.');
+
+  const item = await saveSession(req, async session => {
+    rules.requireLive(session);
+    const scoreRow = session.studentScores.find(row => idOf(row.student) === studentId);
+    if (!scoreRow) fail('Học sinh không thuộc danh sách buổi học.', 404);
+    scoreRow.attendance = status;
+  });
+
+  try {
+    const today = rules.vnDate();
+    await Attendance.updateOne(
+      { classroom: item.classroom, date: today, 'records.student': studentId },
+      { $set: { 'records.$.status': status } }
+    );
+  } catch (err) {
+    console.warn('Could not sync live attendance update to daily roster:', err);
+  }
+
+  res.json({ success: true, data: await populateSession(item) });
 });
 exports.updateActivityIndex = wrap(async (req, res) => {
   const item = await saveSession(req, session => {
@@ -197,4 +291,79 @@ exports.deleteDraft = wrap(async (req, res) => {
   const result = await ClassroomSession.deleteOne({ _id: item._id, status: 'SCHEDULED', __v: item.__v });
   if (!result.deletedCount) fail('Kế hoạch vừa thay đổi. Vui lòng tải lại.', 409);
   res.json({ success: true });
+});
+
+exports.reportOff = wrap(async (req, res) => {
+  const { classroomId, date: inputDate, reason, note, timeSlot } = req.body;
+  if (!rules.validId(classroomId)) fail('Mã lớp học không hợp lệ.');
+  const room = await access.classroom(req, classroomId, true);
+  let date = rules.vnDate();
+  if (inputDate) {
+    if (typeof inputDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(inputDate)) fail('Ngày báo nghỉ không đúng định dạng YYYY-MM-DD.');
+    if (isNaN(new Date(`${inputDate}T00:00:00+07:00`).getTime())) fail('Ngày báo nghỉ không hợp lệ.');
+    date = inputDate;
+  }
+  const validReason = rules.text(reason, 200) || 'Nghỉ theo kế hoạch';
+  const validNote = rules.text(note, 500) || '';
+
+  const startOfDay = new Date(`${date}T00:00:00+07:00`);
+  const endOfDay = new Date(`${date}T23:59:59+07:00`);
+
+  let session = await ClassroomSession.findOne({
+    classroom: room._id,
+    status: { $in: ['SCHEDULED', 'CANCELLED'] },
+    $or: [
+      { startedAt: { $gte: startOfDay, $lte: endOfDay } },
+      { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+    ]
+  });
+
+  if (session) {
+    session.status = 'CANCELLED';
+    session.cancellationReason = validReason;
+    session.cancellationNote = validNote;
+    session.cancelledBy = req.user._id;
+    session.cancelledAt = new Date();
+    await session.save();
+  } else {
+    session = await ClassroomSession.create({
+      classroom: room._id,
+      teacher: room.teacher || req.user._id,
+      lesson: null,
+      title: 'Buổi học báo nghỉ',
+      ageGroup: room.ageGroupCode || '4-5',
+      status: 'CANCELLED',
+      plannedDuration: 0,
+      sessionNumber: (await ClassroomSession.countDocuments({ classroom: room._id })) + 1,
+      cancellationReason: validReason,
+      cancellationNote: validNote,
+      cancelledBy: req.user._id,
+      cancelledAt: new Date(),
+      startedAt: new Date(`${date}T${timeSlot?.startTime || '08:00'}:00+07:00`),
+      endedAt: new Date(`${date}T${timeSlot?.endTime || '08:45'}:00+07:00`)
+    });
+  }
+
+  res.status(200).json({ success: true, data: session });
+});
+
+exports.cancelSession = wrap(async (req, res) => {
+  const item = await sessionFor(req, true, false);
+  if (item.status === 'COMPLETED' || item.status === 'LIVE') {
+    fail('Không thể báo nghỉ buổi học đang diễn ra hoặc đã hoàn thành.', 409);
+  }
+  item.status = 'CANCELLED';
+  item.cancellationReason = rules.text(req.body.reason, 200) || 'Nghỉ theo kế hoạch';
+  item.cancellationNote = rules.text(req.body.note, 500) || '';
+  item.cancelledBy = req.user._id;
+  item.cancelledAt = new Date();
+  await item.save();
+  res.json({ success: true, data: item });
+});
+
+exports.restoreCancelledSession = wrap(async (req, res) => {
+  const item = await sessionFor(req, true, false);
+  if (item.status !== 'CANCELLED') fail('Buổi học không ở trạng thái báo nghỉ.', 409);
+  await ClassroomSession.deleteOne({ _id: item._id });
+  res.json({ success: true, message: 'Đã hủy báo nghỉ thành công.' });
 });

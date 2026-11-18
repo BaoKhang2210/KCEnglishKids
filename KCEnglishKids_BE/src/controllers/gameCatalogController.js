@@ -1,9 +1,22 @@
-const { GameCatalogSetting } = require('../models');
+const { GameCatalogSetting, Lesson } = require('../models');
 const { validateCatalog, mergeCatalog, loadCatalog, assertLessonCoverage } = require('../services/gameCatalog');
 const { audit } = require('../services/adminIntegrity');
 const { fail } = require('../services/teacherRules');
+const { usable } = require('../services/gameRules');
 exports.get = async (_req, res, next) => {
-  try { res.json({ success: true, data: await loadCatalog() }); } catch (error) { next(error); }
+  try {
+    const [catalog, lessons] = await Promise.all([loadCatalog(), Lesson.find({ status: 'ACTIVE' }).select('title vietnameseTitle ageGroupCode vocabularyItems displayOrder').populate('vocabularyItems').lean()]);
+    res.json({ success: true, data: { ...catalog, games: catalog.games.map(game => ({ ...game, supportedLessons: lessons.filter(lesson => usable(game, lesson.vocabularyItems.filter(word => word.status === 'ACTIVE')).length >= game.minVocab).length })),
+      lessons: lessons.map(lesson => ({ _id: lesson._id, title: lesson.vietnameseTitle || lesson.title, ageGroupCode: lesson.ageGroupCode })) } });
+  } catch (error) { next(error); }
+};
+exports.preview = async (req, res, next) => {
+  try {
+    if (!require('../services/teacherRules').validId(req.query.lessonId)) fail('Chọn bài học để xem trước.');
+    const lesson = await Lesson.findOne({ _id: req.query.lessonId, status: 'ACTIVE' }).populate('vocabularyItems').lean();
+    if (!lesson) fail('Bài học không còn hoạt động.', 404);
+    res.json({ success: true, data: { ...lesson, vocabularyItems: lesson.vocabularyItems.filter(word => word.status === 'ACTIVE') } });
+  } catch (error) { next(error); }
 };
 exports.update = async (req, res, next) => {
   try {

@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-11-02T23:35:19.384Z",
+  "method": "Authenticated read-only requests to running backend on port 5000; verified against MongoDB counts",
+  "schoolCompletedTeachingSessions": 4,
+  "schoolCreatedTeachingSessions": 6,
+  "classroom": "Little Stars Class (Age 3–4)",
+  "classroomCompletedTeachingSessions": 2,
+  "completedChildSelfStudySessions": 1,
+  "passed": true
+}

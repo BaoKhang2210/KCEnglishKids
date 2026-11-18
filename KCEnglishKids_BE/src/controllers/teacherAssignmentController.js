@@ -6,6 +6,13 @@ const inbox = require('../services/parentInbox');
 const { fail, idOf, validId } = rules;
 const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
 const wrap = handler => async (req, res, next) => { try { await handler(req, res); } catch (error) { next(error); } };
+exports.proposal = wrap(async (req, res) => {
+  const room = await access.classroom(req, req.query.classRoomId, true);
+  const child = req.query.studentId ? await access.child(req, req.query.studentId) : null;
+  if (child && !room.students.some(student => idOf(student) === idOf(child))) fail('Học sinh không thuộc lớp.', 403);
+  if (req.query.lessonId && !validId(req.query.lessonId)) fail('Mã bài học không hợp lệ.');
+  res.json({ success: true, data: await require('../services/homeworkProposal').proposal(room, child, req.query.lessonId) });
+});
 async function owned(req, id = req.params.id) {
   if (!validId(id)) fail('Mã bài giao không hợp lệ.');
   const item = await Assignment.findOne({ _id: id, ...scope(req) });
@@ -38,6 +45,9 @@ exports.createAssignment = wrap(async (req, res) => {
   if (target === 'STUDENT' && !room.students.some(s => idOf(s) === b.studentId)) fail('Học sinh không thuộc lớp.');
   const recipients = target === 'STUDENT' ? [b.studentId] : room.students;
   if (!recipients.length) fail('Lớp chưa có học sinh để giao bài.');
+  const child = target === 'STUDENT' ? await access.child(req, b.studentId) : null;
+  const studied = await require('../services/homeworkProposal').studiedLessonIds(room, child);
+  if (!studied.includes(idOf(lesson))) fail('Chỉ giao ôn bài đã học có buổi dạy, tiến độ hoặc quan sát được ghi nhận.');
   const contentSnapshot = activitySnapshot.length ? await Activity.find({ _id: { $in: activitySnapshot } }).lean() : [];
   const item = await Assignment.create({ teacher: req.user._id, classRoom: room._id, assignedToType: target,
     student: target === 'STUDENT' ? b.studentId : null, recipients, activitySnapshot, contentSnapshot,

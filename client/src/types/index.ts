@@ -18,8 +18,8 @@ export interface ParentNoteOption {
 
 export interface ParentNoteSuggestions {
   options: ParentNoteOption[];
-  source: 'template';
-  generative: false;
+  source: 'template' | 'gemini';
+  generative: boolean;
   fallback: boolean;
   metrics: {
     scope: 'all_time' | 'assignment';
@@ -39,8 +39,8 @@ export interface SpeakingRequest {
 }
 
 export interface SpeakingFeedback {
-  evaluationType: 'transcript_match';
-  source: 'rules';
+  evaluationType: 'transcript_match' | 'audio_coaching';
+  source: 'rules' | 'gemini';
   evaluated: boolean;
   score: number | null;
   displayStars: number;
@@ -52,15 +52,19 @@ export interface SpeakingFeedback {
 }
 
 export interface LessonPlanRequest {
+  teacherRequest?: string;
   lessonId?: string;
   classroomId?: string;
-  durationMinutes?: 15 | 25 | 35;
+  durationMinutes?: number;
   teachingStyle?: 'active_tpr' | 'story_song' | 'interactive_drills';
   ageGroup?: AgeGroupCode;
   lessonTitle?: string;
   targetTopic?: string;
   vocabularyList?: Array<{ english: string; vietnamese?: string; pronunciation?: string }>;
   sentencePatterns?: Array<{ english: string; vietnamese?: string }>;
+  reviewMode?: boolean;
+  reviewVocabularyIds?: string[];
+  gapWords?: string;
 }
 
 export interface LessonPlanActivity {
@@ -84,6 +88,8 @@ export interface LessonPlanPhase {
 }
 
 export interface LessonPlan {
+  isGapReview?: boolean;
+  reviewFocus?: Array<{ vocabularyId?: string; english: string; vietnamese?: string; reasons?: string[] }>;
   meta: {
     lessonTitle: string;
     targetTopic: string;
@@ -110,8 +116,9 @@ export interface LessonPlan {
   teacherPrepTips: string[];
   phases: LessonPlanPhase[];
   homeConnectPrompt: string;
-  source: 'pedagogical_engine';
-  generative: false;
+  source: 'pedagogical_engine' | 'gemini';
+  generative: boolean;
+  fallback?: boolean;
 }
 
 export interface User {
@@ -517,6 +524,9 @@ export interface RewardSummary {
   earnedStars: number;
   bonusStars: number;
   classroomStars: number;
+  homePracticeStars?: number;
+  homeStars?: number;
+  classStars?: number;
   completedUnits: number;
   completedLessons: number;
   perfectLessons: number;
@@ -586,7 +596,7 @@ export interface RevealedChest {
 
 // ─── Classroom Session (Phase 2) ──────────────────────────────────────────────
 
-export type SessionStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED';
+export type SessionStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
 export type StudentAnswerResult = 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED';
 export type StudentSessionStatus = 'ACTIVE' | 'NEEDS_PRACTICE' | 'COMPLETED';
 
@@ -624,6 +634,7 @@ export interface SessionSummary {
 }
 
 export interface ClassroomSession {
+  isGapReview?: boolean;
   teachingGuide?: import('../components/teacher/TeachingGuidePanel').TeachingGuide;
   teachingGoals?: {key:string;label:string}[];
   teachingOutcome?: {coverage:'COMPLETE'|'CONTINUE'|'REVIEW';goalsCovered:string[];reflection?:string};
@@ -635,6 +646,10 @@ export interface ClassroomSession {
   title: string;
   ageGroup: AgeGroupCode;
   status: SessionStatus;
+  cancellationReason?: string;
+  cancellationNote?: string;
+  cancelledBy?: any;
+  cancelledAt?: string;
   startedAt?: string;
   endedAt?: string;
   plannedDuration: number;

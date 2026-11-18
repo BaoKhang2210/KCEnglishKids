@@ -1,6 +1,7 @@
 import { fetchAllPages } from '../../services/adminPagination';
 import { AdminBookTabs } from '../../components/staff/AdminBookTabs';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   MessageSquare,
   Plus,
@@ -16,15 +17,20 @@ import {
 import { adminApi } from '../../services/api';
 
 export const AdminSentencesPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const urlBook = Number(searchParams.get('book')) || 1;
+  const urlUnitId = searchParams.get('unitId') || 'ALL';
+  const urlLessonId = searchParams.get('lessonId') || 'ALL';
+
   const requestVersion = useRef(0);
   const [curriculumTree, setCurriculumTree] = useState<any[]>([]);
   const [sentences, setSentences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [selectedBookNum, setSelectedBookNum] = useState<number>(1);
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('ALL');
-  const [selectedLessonId, setSelectedLessonId] = useState<string>('ALL');
+  const [selectedBookNum, setSelectedBookNum] = useState<number>(urlBook);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>(urlUnitId);
+  const [selectedLessonId, setSelectedLessonId] = useState<string>(urlLessonId);
   const [filterType, setFilterType] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -293,11 +299,8 @@ export const AdminSentencesPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-black text-inherit flex items-center gap-2.5">
             <MessageSquare className="text-teal-800" size={26} />
-            <span>Thư Viện Mẫu Câu Theo Sách & Giáo Trình</span>
+            <span>Mẫu câu</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Sắp xếp phân cấp khoa học theo: Sách (Book 1, 2, 3) ➔ Unit ➔ Bài học (Lesson) ➔ Mẫu câu đàm thoại chuẩn.
-          </p>
         </div>
 
         <button
@@ -403,7 +406,6 @@ export const AdminSentencesPage: React.FC = () => {
         <div className="py-16 text-center bg-white rounded-3xl border border-slate-200">
           <MessageSquare size={40} className="mx-auto text-slate-600 mb-3" />
           <p className="text-sm font-bold text-slate-700">Không tìm thấy mẫu câu nào trong phạm vi chọn</p>
-          <p className="text-xs text-slate-600 mt-1">Hãy thay đổi bộ lọc hoặc tạo mẫu câu mới cho Unit này.</p>
           <button
             onClick={() => handleOpenCreate()}
             className="mt-3.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-700 text-white font-bold text-xs"

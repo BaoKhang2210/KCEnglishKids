@@ -38,7 +38,7 @@ test('Pet Animals choice questions always include the target, including fish', (
   const vocab = new Map(words.map(english => [english, { _id: oid(), english, imageUrl: '/images/' + english + '.svg' }]));
   const result = buildActivitiesForLesson({ key: 'B1_U5_L1', vocabularyWords: words, ageGroupCode: '3-4', order: 1, difficulty: 1, title: 'Pets', vietnameseTitle: 'Pets' }, vocab);
   const activity = result.find(a => a.activityType === 'IMAGE_WORD_MATCH');
-  assert.equal(activity.questions.length, 4);
+  assert.equal(activity.questions.length, 6);
   for (const question of activity.questions) {
     assert.equal(question.options.filter(o => o.isCorrect).length, 1);
     assert.equal(question.options.find(o => o.isCorrect).text, question.correctAnswer);

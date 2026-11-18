@@ -52,13 +52,35 @@ async function classroom(id) {
   if (!room || room.deletionPending) throw fail('Lớp học không tồn tại hoặc đang được xóa.', 404);
   return room;
 }
-async function availableTeacher(id, roomId) {
+async function availableTeacher(id) {
   if (!validId(String(id || ''))) throw fail('Vui lòng chọn giáo viên hợp lệ.');
   const teacher = await User.findOne({ _id: id, role: 'TEACHER', status: 'ACTIVE' });
   if (!teacher) throw fail('Giáo viên không tồn tại hoặc đã ngừng hoạt động.');
-  const conflict = await ClassRoom.findOne({ teacher: id, status: { $in: TEACHING_STATUSES }, ...(roomId ? { _id: { $ne: roomId } } : {}) });
-  if (conflict) throw fail(`Giáo viên đã phụ trách lớp ${conflict.name}. Mỗi giáo viên chỉ phụ trách một lớp đang hoạt động.`);
   return teacher;
+}
+async function refreshTeacherClasses(teacherId) {
+  if (!validId(String(teacherId || ''))) return;
+  if (mongoose.connection.readyState !== 1) return;
+  try {
+    const activeRooms = await ClassRoom.find({
+      teacher: teacherId,
+      status: { $in: TEACHING_STATUSES },
+      deletionPending: { $ne: true }
+    }).sort({ createdAt: 1 }).select('_id').lean();
+    const roomIds = activeRooms.map(r => r._id);
+    if (roomIds.length > 0) {
+      await User.findByIdAndUpdate(teacherId, {
+        $set: { assignedClasses: roomIds, assignedClass: roomIds[0] }
+      });
+    } else {
+      await User.findByIdAndUpdate(teacherId, {
+        $set: { assignedClasses: [] },
+        $unset: { assignedClass: 1 }
+      });
+    }
+  } catch (err) {
+    console.warn('refreshTeacherClasses warning:', err?.message);
+  }
 }
 async function syncTeacher(room, teacherId) {
   const current = TEACHING_STATUSES.includes(room.status);
@@ -66,22 +88,42 @@ async function syncTeacher(room, teacherId) {
   if (await ClassroomSession.exists({ classroom: room._id, status: 'LIVE', ...(current ? { teacher: { $ne: teacherId } } : {}) })) {
     throw fail('Hãy kết thúc buổi dạy đang mở trước khi bàn giao hoặc đóng lớp.', 409);
   }
+  const previousTeacherId = room.teacher ? String(room.teacher?._id || room.teacher) : null;
   room.teacher = teacherId;
   await room.save();
-  await User.updateMany({ role: 'TEACHER', assignedClass: room._id, _id: { $ne: teacherId } }, { $unset: { assignedClass: 1 } });
+  await User.updateMany(
+    { role: 'TEACHER', assignedClass: room._id, _id: { $ne: teacherId } },
+    { $unset: { assignedClass: 1 }, $pull: { assignedClasses: room._id } }
+  );
   if (!current) {
-    await User.updateOne({ _id: teacherId, assignedClass: room._id }, { $unset: { assignedClass: 1 } });
+    await User.updateOne(
+      { _id: teacherId, assignedClass: room._id },
+      { $unset: { assignedClass: 1 }, $pull: { assignedClasses: room._id } }
+    );
     await Schedule.updateMany({ classroom: room._id }, { $set: { teacher: teacherId, isActive: false } });
   } else {
-    await User.findByIdAndUpdate(teacherId, { $set: { assignedClass: room._id } });
+    await User.findByIdAndUpdate(teacherId, {
+      $set: { assignedClass: room._id },
+      $addToSet: { assignedClasses: room._id }
+    });
     await Schedule.updateMany({ classroom: room._id }, { $set: { teacher: teacherId } });
+  }
+  await refreshTeacherClasses(teacherId);
+  if (previousTeacherId && previousTeacherId !== String(teacherId)) {
+    await refreshTeacherClasses(previousTeacherId);
   }
 }
 async function moveStudents(room, ids, replace = false) {
   if (!Array.isArray(ids) || ids.some(id => !validId(String(id)))) throw fail('Danh sách mã học sinh không hợp lệ.');
   const unique = [...new Set(ids.map(String))];
-  const students = await User.find({ _id: { $in: unique }, role: 'CHILD', status: 'ACTIVE' }).select('_id');
+  const students = await User.find({ _id: { $in: unique }, role: 'CHILD', status: 'ACTIVE' }).select('_id name ageGroupCode');
   if (students.length !== unique.length) throw fail('Danh sách có học sinh không tồn tại hoặc đã ngừng hoạt động.');
+  if (room.ageGroupCode) {
+    const wrongAge = students.find(s => s.ageGroupCode && s.ageGroupCode !== room.ageGroupCode);
+    if (wrongAge) {
+      throw fail(`Không thể thêm học sinh khác độ tuổi vào lớp. Lớp "${room.name}" dành cho lứa tuổi ${room.ageGroupCode}, nhưng học sinh "${wrongAge.name}" thuộc lứa tuổi ${wrongAge.ageGroupCode}.`);
+    }
+  }
   await ClassRoom.updateMany({ _id: { $ne: room._id }, students: { $in: unique } }, { $pull: { students: { $in: unique } } });
   if (replace) {
     await User.updateMany({ role: 'CHILD', assignedClass: room._id, _id: { $nin: unique } }, { $unset: { assignedClass: 1 } });
@@ -113,22 +155,59 @@ async function importStudents(rows, room, defaultCode = '3-4') {
   let skippedCount = 0;
   // Validate the entire batch before writing any account.
   for (const [index, row] of rows.entries()) {
-    const name = String(row.name || row.fullName || row['Họ và tên'] || '').trim();
+    const name = String(row.name || row.fullName || row['Họ và tên'] || row['Họ tên'] || row['Tên'] || row['Tên học sinh'] || row['FullName'] || '').trim();
     if (!name) throw fail(`Dòng ${index + 1}: thiếu họ tên.`);
-    const dob = parseDob(row.dob || row['Ngày sinh']);
-    const code = room?.ageGroupCode || row.ageGroupCode || defaultCode;
-    if (!['3-4', '4-5', '5-6'].includes(code)) throw fail(`Dòng ${index + 1}: nhóm tuổi không hợp lệ.`);
-    const age = await AgeGroup.findOne({ code });
+    let dob;
+    try {
+      dob = parseDob(row.dob || row['Ngày sinh'] || row['birthDate']);
+    } catch (_) {
+      dob = undefined;
+    }
+    const rawCode = room?.ageGroupCode || row.ageGroupCode || row['Nhóm tuổi'] || defaultCode;
+    const code = ['3-4', '4-5', '5-6'].includes(rawCode) ? rawCode : (defaultCode || '3-4');
+    const age = await AgeGroup.findOne({ code }) || await AgeGroup.findOne();
     if (!age) throw fail('Chưa có nhóm tuổi tương ứng trong hệ thống.');
-    const contact = String(row.contact || row.parentContact || row['SĐT Phụ huynh'] || '').trim();
+    const contact = String(row.contact || row.parentContact || row['SĐT Phụ huynh'] || row['Số điện thoại'] || row['SĐT'] || row['phone'] || '').trim();
     const importKey = crypto.createHash('sha256').update(JSON.stringify([String(room?._id || ''), name.toLocaleLowerCase('vi'), dob?.toISOString().slice(0, 10) || '', contact])).digest('hex');
     if (seen.has(importKey) || await User.exists({ importKey })) { skippedCount++; continue; }
     seen.add(importKey);
-    const rawPin = pin(row.pin || row['Mã PIN']);
+
+    let candidatePin = row.pin || row['Mã PIN'] || row['PIN'];
+    if (candidatePin !== undefined && candidatePin !== null && candidatePin !== '') {
+      let pinStr = String(candidatePin).trim();
+      if (/^\d{1,3}$/.test(pinStr)) pinStr = pinStr.padStart(4, '0');
+      const isWeak = /^(1234|(\d)\2{3})$/.test(pinStr);
+      if (!/^\d{4}$/.test(pinStr) || isWeak) {
+        candidatePin = undefined;
+      } else {
+        candidatePin = pinStr;
+      }
+    } else {
+      candidatePin = undefined;
+    }
+
+    const rawPin = pin(candidatePin);
     const login = await username(name, row.username);
+    const ANIMAL_AVATARS = ['lion', 'panda', 'rabbit', 'bear', 'fox', 'koala', 'monkey', 'cat', 'dog', 'elephant'];
+    const ANIMAL_AVATAR_SYMBOLS = {
+      lion: '/images/symbols/1f981.svg',
+      tiger: '/images/symbols/1f42f.svg',
+      panda: '/images/symbols/1f43c.svg',
+      rabbit: '/images/symbols/1f430.svg',
+      bear: '/images/symbols/1f43b.svg',
+      fox: '/images/symbols/1f98a.svg',
+      koala: '/images/symbols/1f43b.svg',
+      monkey: '/images/symbols/1f412.svg',
+      cat: '/images/symbols/1f431.svg',
+      dog: '/images/rewards/fluent-3d/dog_face_3d.png',
+      elephant: '/images/symbols/1f418.svg'
+    };
+    const randomAvatar = ANIMAL_AVATARS[Math.floor(Math.random() * ANIMAL_AVATARS.length)];
+    const avatarKey = row.avatar || randomAvatar;
+    const avatarUrl = row.avatarUrl || ANIMAL_AVATAR_SYMBOLS[avatarKey] || '/images/symbols/1f981.svg';
     const child = new User({ role: 'CHILD', name, username: login, dob, pin: rawPin, password: rawPin,
       contact, parentContact: contact, ageGroup: age._id, ageGroupCode: code, assignedClass: room?._id,
-      avatar: row.avatar || 'lion', status: 'ACTIVE', importKey });
+      avatar: avatarKey, avatarUrl, status: 'ACTIVE', importKey });
     await child.validate();
     prepared.push({ child, rawPin });
   }

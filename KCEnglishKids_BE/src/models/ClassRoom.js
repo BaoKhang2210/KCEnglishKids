@@ -70,5 +70,16 @@ classRoomSchema.pre('validate', function () {
   this.normalizedName = normalizeClassName(this.name);
 });
 classRoomSchema.index({ normalizedName: 1 }, { unique: true, name: 'unique_normalized_class_name' });
-classRoomSchema.index({ teacher: 1 }, { name: 'one_teacher_per_current_class', unique: true, partialFilterExpression: { status: { $in: TEACHING_STATUSES } } });
-module.exports = mongoose.model('ClassRoom', classRoomSchema);
+classRoomSchema.index({ teacher: 1 }, { name: 'one_teacher_per_current_class', partialFilterExpression: { status: { $in: ['ACTIVE', 'UPCOMING'] } } });
+
+const ClassRoomModel = mongoose.model('ClassRoom', classRoomSchema);
+
+// Ensure legacy unique 1-teacher-1-class index is dropped if it exists in MongoDB
+mongoose.connection.once('open', () => {
+  ClassRoomModel.collection.dropIndex('one_teacher_per_current_class').catch(() => {});
+});
+if (mongoose.connection.readyState === 1) {
+  ClassRoomModel.collection.dropIndex('one_teacher_per_current_class').catch(() => {});
+}
+
+module.exports = ClassRoomModel;

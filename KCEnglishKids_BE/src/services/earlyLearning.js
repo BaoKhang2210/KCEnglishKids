@@ -44,9 +44,13 @@ function lessonGuide(lesson, ageCode) {
 }
 function closureDecision(body, guide, scores) {
   if (!['COMPLETE', 'CONTINUE', 'REVIEW'].includes(body.coverage)) fail('Chọn đã dạy đủ mục tiêu, cần dạy tiếp hoặc buổi ôn tập.');
-  if (!Array.isArray(body.goalsCovered) || new Set(body.goalsCovered).size !== body.goalsCovered.length || body.goalsCovered.some(key => !guide.goals.some(goal => goal.key === key))) fail('Mục tiêu ghi nhận không hợp lệ.');
-  if (body.coverage === 'COMPLETE' && (body.goalsCovered.length !== guide.goals.length || !scores.some(row => !['ABSENT', 'EXCUSED'].includes(row.attendance)))) fail('Chỉ đánh dấu đã dạy đủ khi đã tổ chức các mục tiêu và có học sinh tham gia.');
-  return { coverage: body.coverage, goalsCovered: body.goalsCovered, reflection: text(body.reflection, 1000), recordedAt: new Date() };
+  const allGoalKeys = (guide?.goals || []).map(goal => goal.key);
+  const rawGoals = Array.isArray(body.goalsCovered) && body.goalsCovered.length > 0
+    ? body.goalsCovered
+    : (body.coverage === 'COMPLETE' ? allGoalKeys : (body.goalsCovered || []));
+  if (!Array.isArray(rawGoals) || new Set(rawGoals).size !== rawGoals.length || rawGoals.some(key => !guide.goals.some(goal => goal.key === key))) fail('Mục tiêu ghi nhận không hợp lệ.');
+  if (body.coverage === 'COMPLETE' && (rawGoals.length !== guide.goals.length || !scores.some(row => !['ABSENT', 'EXCUSED'].includes(row.attendance)))) fail('Chỉ đánh dấu đã dạy đủ khi đã tổ chức các mục tiêu và có học sinh tham gia.');
+  return { coverage: body.coverage, goalsCovered: rawGoals, reflection: text(body.reflection, 1000), recordedAt: new Date() };
 }
 function observationSummary(rows) {
   const latest = new Map();

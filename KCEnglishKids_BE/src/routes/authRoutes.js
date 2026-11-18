@@ -8,6 +8,7 @@ const {
   teacherLogin,
   getMe,
   changePin,
+  changePassword,
   lookupStudent,
   recoveryOptions,
   recoveryBegin,
@@ -22,7 +23,7 @@ const { protect } = require('../middlewares/authMiddleware');
 
 router.use(require('../middlewares/authRateLimit'));
 router.use((req,res,next)=>{
-  for(const key of ['identifier','email','phone','contact','password','pin','currentPin','newPin','childId','avatar','name','ageGroupCode','token','code','newPassword']) {
+  for(const key of ['identifier','email','phone','contact','password','pin','currentPin','newPin','childId','avatar','name','ageGroupCode','token','code','newPassword','currentPassword']) {
     if(req.body?.[key]!==undefined && (typeof req.body[key]!=='string'||req.body[key].length>300)) return res.status(400).json({success:false,message:'Thông tin đăng nhập không hợp lệ.'});
   }
   if(req.body?.pictures!==undefined && (!Array.isArray(req.body.pictures)||req.body.pictures.length>8||req.body.pictures.some(p=>typeof p!=='string'||p.length>40))) return res.status(400).json({success:false,message:'Thông tin đăng nhập không hợp lệ.'});
@@ -35,6 +36,7 @@ router.post('/admin-login', adminLogin);
 router.post('/teacher-login', teacherLogin);
 router.get('/me', protect, getMe);
 router.post('/change-pin', protect, changePin);
+router.post('/change-password', protect, changePassword);
 router.post('/lookup-student', protect, lookupStudent);
 router.get('/recovery-options', recoveryOptions);
 router.post('/recovery-begin', recoveryBegin);

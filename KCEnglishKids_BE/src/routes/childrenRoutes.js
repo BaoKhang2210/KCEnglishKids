@@ -10,7 +10,9 @@ const clientStateController = require('../controllers/clientStateController');
 const { getChildRewards, revealChildChest } = require('../controllers/rewardController');
 const { protect, ownChildOr403, childRewardReadAccess } = require('../middlewares/authMiddleware');
 const early = require('../controllers/earlyLearningController');
+router.get('/:childId/arcade',protect,ownChildOr403(),require('../controllers/arcadeController').library);
 router.get('/:childId/home-practice',protect,ownChildOr403(),require('../controllers/homePracticeController').family);
+router.post('/:childId/home-practice/complete',protect,ownChildOr403(),require('../controllers/homePracticeController').complete);
 router.get('/:childId/lesson-guide/:id', protect, ownChildOr403(), early.guide);
 router.get('/:childId/observations', protect, ownChildOr403(), early.familyList);
 router.get('/:childId/observations/:id/media', protect, ownChildOr403(), early.media);
@@ -60,8 +62,8 @@ const pn = require('../controllers/parentNotificationController');
 const { Assignment, User, ClassRoom, Schedule } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
-router.post('/:childId/parent-notifications/:id/reply', protect, ownChildOr403(), pn.replyAsParent);
 router.patch('/:childId/parent-notifications/:id/read', protect, ownChildOr403(), pn.markAsReadByParent);
+router.post('/:childId/parent-notifications/:id/feedback', protect, ownChildOr403(), pn.sendParentFeedback);
 
 // Child assignments (Bài cô giáo giao)
 router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, next) => {

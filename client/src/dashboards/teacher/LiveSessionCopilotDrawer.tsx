@@ -102,7 +102,7 @@ export const LiveSessionCopilotDrawer: React.FC<Props> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-400">AI TEACHER COPILOT</span>
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400">{lessonPlan?.generative ? 'GEMINI · TRỢ LÝ GIẢNG DẠY' : 'TRỢ LÝ GIẢNG DẠY · MẪU SƯ PHẠM'}</span>
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">
                 Trực tiếp trên lớp
               </span>

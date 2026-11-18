@@ -77,6 +77,7 @@ function requireLive(session) {
 }
 function applyScore(session, body, studentIds) {
   requireLive(session);
+  if ((session.isGapReview || session.lessonPlan?.isGapReview || session.lessonPlan?.meta?.isReviewPlan) && body.stars !== undefined && body.stars !== 0) fail('Buổi ôn lỗ hổng chỉ ghi nhận tiến bộ, không cộng hoặc trừ sao.', 400);
   if (body.points !== undefined && body.points !== 0) fail('Buổi dạy chỉ ghi nhận sao và câu trả lời; không sử dụng điểm.');
   const operationId = text(body.operationId, 100);
   if (!/^[\w-]{8,100}$/.test(operationId)) fail('Thiếu mã thao tác để chống cộng điểm lặp.');

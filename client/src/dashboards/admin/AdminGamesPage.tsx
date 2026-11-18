@@ -603,7 +603,10 @@ export const AdminGamesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      <header className="staff-page-header"><div><h1>Kho trò chơi</h1></div></header>
       <AdminStage3Games />
+      <details className="rounded-2xl border border-slate-200 bg-white p-5">
+      <summary className="cursor-pointer font-bold text-slate-800">Hoạt động theo bài học và câu hỏi trên lớp</summary>
       {/* ── Top Alert Toast ─────────────────────────────────────────────────── */}
       {alert && (
         <div
@@ -620,17 +623,10 @@ export const AdminGamesPage: React.FC = () => {
 
       {/* ── Banner Header ───────────────────────────────────────────────────── */}
       <header className="staff-page-header">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-800 text-xs font-bold uppercase tracking-wider">
-              <Gamepad2 size={14} />
-              <span>Trung tâm Tương tác Giáo dục</span>
-            </div>
+          <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Kho Trò Chơi & Hoạt Động Tương Tác
+              Hoạt động theo bài học
             </h1>
-            <p className="text-sm text-slate-600 font-medium leading-relaxed">
-              Quản lý trò chơi chặng 3 ở trên; quản lý hoạt động và câu hỏi theo bài học ở bên dưới.
-            </p>
           </div>
 
           <div className="staff-page-header-actions">
@@ -647,7 +643,7 @@ export const AdminGamesPage: React.FC = () => {
               className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-indigo-700 hover:bg-indigo-700 text-white font-bold text-sm  transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
             >
               <Plus size={18} />
-              <span>Thêm Trò Chơi Mới</span>
+              <span>Thêm hoạt động</span>
             </button>
           </div>
       </header>
@@ -659,7 +655,7 @@ export const AdminGamesPage: React.FC = () => {
             <Gamepad2 size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tổng Trò Chơi</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Tổng hoạt động</p>
             <p className="text-2xl font-black text-inherit mt-0.5">{stats.totalActivities}</p>
           </div>
         </div>
@@ -832,9 +828,6 @@ export const AdminGamesPage: React.FC = () => {
             <Gamepad2 size={32} />
           </div>
           <p className="text-base font-bold text-inherit">Không tìm thấy trò chơi phù hợp</p>
-          <p className="text-xs text-slate-600 max-w-md mx-auto">
-            Hãy thử thay đổi từ khóa tìm kiếm hoặc bấm nút "Thêm Trò Chơi Mới" để tạo trò chơi tương tác đầu tiên cho bài học.
-          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -1042,7 +1035,7 @@ export const AdminGamesPage: React.FC = () => {
       {/* ── CREATE / EDIT MODAL ──────────────────────────────────────────────── */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-3xl rounded-3xl bg-white border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+          <div className="w-full max-w-5xl rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-white">
               <div className="flex items-center gap-3">
@@ -1053,9 +1046,6 @@ export const AdminGamesPage: React.FC = () => {
                   <h2 className="text-lg font-black text-inherit">
                     {modalMode === 'create' ? 'Tạo Trò Chơi Mới' : 'Chỉnh Sửa Trò Chơi'}
                   </h2>
-                  <p className="text-xs text-slate-600">
-                    Cấu hình thể loại, điểm thưởng và câu hỏi tương tác cho trẻ
-                  </p>
                 </div>
               </div>
               <button
@@ -1486,6 +1476,7 @@ export const AdminGamesPage: React.FC = () => {
           </div>
         </div>
       )}
+      </details>
     </div>
   );
 };

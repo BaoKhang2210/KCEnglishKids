@@ -17,6 +17,7 @@ import type { GameId } from '../../games/core/types';
 import { learningOutbox } from '../../services/learningOutbox';
 import { getAvailableLessonGames } from '../../games/registry';
 import { LockedStageDialog } from '../../components/child/lesson/LockedStageDialog';
+import { useActiveLearningTime } from '../../hooks/useActiveLearningTime';
 
 const childIdFor = (user: any) => user?._id || user?.id || 'child_guest';
 const friendlySyncError = (message: string) => {
@@ -58,6 +59,7 @@ export const LessonDetailPage: React.FC = () => {
   const [warmupDismissed, setWarmupDismissed] = useState(false);
 
   const childId = user?._id || user?.id || 'child_guest';
+  const takeLearningSeconds = useActiveLearningTime(childId + ':' + id, Boolean(lesson && !loading && user?.role === 'CHILD'));
 
   useEffect(() => {
     if (!user) {
@@ -210,7 +212,7 @@ export const LessonDetailPage: React.FC = () => {
     if(user?.role!=='CHILD')return true;
     const scope = childId + ':' + id;
     try {
-      const saved = await learningOutbox.enqueue(childId, id, payload);
+      const saved = await learningOutbox.enqueue(childId, id, { ...payload, durationSeconds: takeLearningSeconds() });
       if (activeScope.current !== scope) return false;
       const stagePending = learningOutbox.pending(childId).some(row => row.lessonId === id);
       if (saved.offline || stagePending) {

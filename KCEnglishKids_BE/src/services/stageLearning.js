@@ -47,6 +47,7 @@ function gradeStage(stage, payload, words, game, age) {
 
 async function completeStage(childId, lessonId, body) {
   const stage = Number(body.stage);
+  if (body.durationSeconds !== undefined && (!Number.isInteger(body.durationSeconds) || body.durationSeconds < 0 || body.durationSeconds > 7200)) fail('Thời lượng luyện tập không hợp lệ.', 400);
   if (![1, 2, 3].includes(stage) || typeof body.submissionId !== 'string' || !/^[a-zA-Z0-9_-]{8,120}$/.test(body.submissionId)) fail('Valid stage and submissionId required.', 400);
   const lesson = await activeLesson(childId, lessonId);
   const previous = await Progress.findOne({ child: childId, lesson: lessonId });
@@ -66,7 +67,7 @@ async function completeStage(childId, lessonId, body) {
   if (topologyType && !/ReplicaSet|Sharded/.test(topologyType)) {
     fail('Stage star awards require a transaction-capable MongoDB replica set.', 503);
   }
-  const safePayload = { stage, gameId: game?.id, ...graded };
+  const safePayload = { stage, gameId: game?.id, ...graded, ...(body.durationSeconds !== undefined ? { durationSeconds: body.durationSeconds } : {}) };
   const payloadHash = crypto.createHash('sha256').update(JSON.stringify(safePayload)).digest('hex');
   let event;
   try {

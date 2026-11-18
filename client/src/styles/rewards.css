@@ -1,0 +1,49 @@
+/* Original full-image reward medals, generated for KCEnglishKids. */
+.reward-medal-art { --medal-size: 112px; position: relative; display: inline-grid; place-items: center; width: var(--medal-size); height: var(--medal-size); vertical-align: middle; flex-shrink: 0; }
+.reward-medal-art--sm { --medal-size: 100px; }
+.reward-medal-art--lg { --medal-size: 164px; }
+.reward-medal-art--xl { --medal-size: 216px; }
+.reward-medal-art__image { width: 100%; height: 100%; filter: drop-shadow(0 5px 4px #6a50302b); }
+.reward-medal-art.is-locked .reward-medal-art__image { filter: grayscale(.9); opacity: .35; }
+.reward-medal-art__lock { position: absolute; right: 7%; bottom: 8%; width: 26px; height: 26px; display: grid; place-items: center; background: #fffc; border: 1px solid #dce5e1; border-radius: 50%; color: #738781; }
+.reward-medal-art.is-jiggling { animation: reward-wiggle .55s ease; }
+.reward-decal { --decal-size: 112px; --decal-tint: #dcf4e7; position: relative; display: inline-grid; place-items: center; width: var(--decal-size); height: var(--decal-size); isolation: isolate; vertical-align: middle; }
+.reward-decal--sm { --decal-size: 92px; }
+.reward-decal--lg { --decal-size: 144px; }
+.reward-decal--xl { --decal-size: 192px; }
+.reward-decal[data-rarity="rare"] { --decal-tint: #dceefa; }
+.reward-decal[data-rarity="epic"] { --decal-tint: #eee0fa; }
+.reward-decal[data-rarity="legendary"] { --decal-tint: #ffedbd; }
+.reward-decal__mat { position: absolute; inset: 4%; border-radius: 38% 48% 39% 45%; background: var(--decal-tint); transform: rotate(-9deg); border: 1px solid #fff; }
+.reward-decal[data-rarity="legendary"] .reward-decal__mat { background: conic-gradient(from 30deg, #ffedbd, #f7d9eb, #e1ecff, #deefe4, #ffedbd); }
+.reward-decal__image { position: relative; width: 96%; height: 96%; transform: rotate(-7deg); transition: transform .3s ease; filter: drop-shadow(3px 0 0 white) drop-shadow(-3px 0 0 white) drop-shadow(0 3px 0 white) drop-shadow(0 -3px 0 white) drop-shadow(0 6px 4px #5e4e6033); }
+button:hover .reward-decal__image, .reward-decal--playful .reward-decal__image { transform: rotate(5deg) translateY(-3px); }
+.reward-decal__orbit { position: absolute; color: #ba8b4b; top: 3%; right: 0; transform: rotate(12deg); }
+.reward-decal__peel { position: absolute; bottom: 8%; right: 10%; width: 17%; height: 17%; background: linear-gradient(135deg,#fff 45%,#dcdde7 50%,#fff 90%); border-radius: 4px 0 40% 0; transform: rotate(-8deg); box-shadow: -2px -2px 3px #6b5b7114; }
+.reward-decal--locked .reward-decal__image { filter: grayscale(1); opacity: .22; }
+.reward-decal--locked .reward-decal__mat { background: #edf0ef; border: 2px dashed #cdd6d3; }
+.reward-decal--locked .reward-decal__orbit { display: none; }
+.reward-decal__lock { position: absolute; display: grid; place-items: center; width: 34px; height: 34px; background: #fffc; color: #738781; border: 1px solid #dce5e1; border-radius: 50%; box-shadow: 0 2px 6px #283d2812; }
+.reward-sticker-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; padding: 16px 10px 12px; border: 1px solid #e7e4db; border-radius: 23px; background: #fffefb; box-shadow: 0 4px 0 #e6e7db, 0 7px 16px #394c3b08; cursor: pointer; text-align: center; color: #304d43; }
+.reward-sticker-card::before { content: ''; position: absolute; top: -4px; left: calc(50% - 18px); width: 36px; height: 12px; background: #f4d5a985; transform: rotate(-5deg); border-left: 1px dashed #fff9; border-right: 1px dashed #fff9; }
+.reward-sticker-card[data-locked="true"] { background: #f5f7f2; box-shadow: none; }
+.reward-sticker-card:focus-visible, .reward-album button:focus-visible, .reward-showcase button:focus-visible { outline: 3px solid #348d8a; outline-offset: 4px; }
+.reward-sticker-card__name { font-weight: 900; font-size: .8rem; line-height: 1.35; min-height: 2.7em; }
+.reward-sticker-card__description { font-size: .68rem; line-height: 1.45; color: #718078; min-height: 2.9em; }
+.reward-rarity { display: inline-flex; gap: 5px; align-items: center; border-radius: 99px; padding: 3px 9px; font-size: 10px; font-weight: 900; background: #e6f3e9; color: #427558; margin-top: auto; }
+.reward-rarity[data-rarity="rare"] { background: #e3f0fc; color: #366b94; }
+.reward-rarity[data-rarity="epic"] { background: #f0e6fb; color: #8652a7; }
+.reward-rarity[data-rarity="legendary"] { background: #fff0c7; color: #94621f; }
+.reward-album { background: #fcfaf3; border: 1px solid #e5ddc9; border-radius: 32px; box-shadow: 0 24px 90px #173c3440; }
+.reward-album__hero { background: linear-gradient(120deg,#e1f1e5,#edf7ed 65%,#fff1cc); border: 1px solid #d7e8d8; border-radius: 24px; padding: 18px; padding-right: 36px; }
+.reward-album__grid { background-image: radial-gradient(#b9c8ba55 .8px, transparent .8px); background-size: 15px 15px; padding: 14px 5px 18px; }
+.reward-album__badge { border: 1px solid #e4dfcc; background: #fffdf7; box-shadow: 0 4px 0 #e6e4d8; }
+.reward-album__badge[data-locked="true"] { background: #f3f5ef; box-shadow: none; }
+.reward-album__stats { color: #355d4a; background: #edf4e8; border: 1px solid #d9e6cf; }
+.reward-showcase { background: radial-gradient(ellipse at top,#fff8e5,#fcfaf4 65%); border-color: #e8d8b8; max-height: 92dvh; overflow-y: auto; }
+@keyframes reward-wiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-12deg) scale(1.06); } 65% { transform: rotate(8deg); } }
+@media (max-width: 380px) { .reward-decal--sm { --decal-size: 76px; } .reward-medal-art--sm { --medal-size: 84px; } .reward-album { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) {
+  .reward-medal-art *, .reward-medal-art, .reward-decal *, .reward-sticker-card { animation: none !important; transition: none !important; }
+  button:hover .reward-decal__image, .reward-decal--playful .reward-decal__image { transform: rotate(-7deg); }
+}

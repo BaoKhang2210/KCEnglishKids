@@ -87,13 +87,13 @@ export const ResultModal: React.FC<ResultModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
-      <div className="bg-white rounded-4xl border-4 border-amber-300 shadow-2xl max-w-xl sm:max-w-2xl w-full p-8 sm:p-12 text-center animate-pop-in relative overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label="Kết quả trò chơi" className="bg-white rounded-4xl border-4 border-amber-300 shadow-2xl max-w-xl sm:max-w-2xl w-full max-h-[calc(100dvh-2rem)] p-4 sm:p-8 text-center animate-pop-in relative overflow-y-auto overflow-x-hidden">
         {/* Soft decorative glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-100/60 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none" />
 
         {/* Mascot Center Stage */}
-        <div className="flex justify-center -mt-20 mb-3 relative z-10">
+        <div className="flex justify-center mt-12 mb-3 relative z-10">
           <KokoMascot
             state="celebrating"
             size="lg"
@@ -102,7 +102,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           />
         </div>
 
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-800 mb-2 tracking-tight relative z-10">
+        <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-800 mb-2 tracking-tight relative z-10">
           {message.title}
         </h2>
         <p className="text-slate-600 font-bold text-base sm:text-xl mb-6 relative z-10">
@@ -110,7 +110,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         </p>
 
         {/* 3 Large Glowing Animated Stars */}
-        <div className="flex items-center justify-center gap-6 my-6 relative z-10">
+        <div className="flex items-center justify-center gap-3 sm:gap-6 my-6 relative z-10">
           {[1, 2, 3].map(num => {
             const earned = stars >= num;
             return (
@@ -122,7 +122,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 style={{ animationDelay: `${num * 220}ms` }}
               >
                 <Star
-                  className={`w-20 h-20 sm:w-28 sm:h-28 ${
+                  className={`w-14 h-14 sm:w-28 sm:h-28 ${
                     earned
                       ? 'text-amber-400 fill-amber-400 filter drop-shadow-[0_10px_20px_rgba(251,191,36,0.65)]'
                       : 'text-slate-300'
@@ -141,7 +141,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         </p>
 
         {/* Score & Correct Answer Stats Pill */}
-        <div className="bg-amber-50/90 border-3 border-amber-200 rounded-3xl p-5 sm:p-6 mb-6 flex justify-around relative z-10 shadow-xs">
+        <div className="bg-amber-50/90 border-3 border-amber-200 rounded-3xl p-3 sm:p-6 mb-6 flex justify-around gap-2 relative z-10 shadow-xs">
           <div>
             <span className="text-xs sm:text-sm font-black text-slate-400 block uppercase tracking-wider mb-1">
               Điểm số
@@ -189,14 +189,14 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 sfx.playPop();
                 onPlayNext();
               }}
-              className="btn-3d-emerald w-full py-5 px-8 rounded-3xl text-white font-black text-xl sm:text-2xl flex items-center justify-center gap-3 cursor-pointer shadow-xl active:scale-95"
+              className="btn-3d-emerald w-full py-4 px-3 sm:px-8 rounded-3xl text-white font-black text-lg sm:text-2xl flex items-center justify-center gap-3 cursor-pointer shadow-xl active:scale-95"
             >
-              <span>Chơi tiếp: {nextActivityTitle || 'Trò chơi tiếp theo'}</span>
-              <ArrowRight className="w-7 h-7 stroke-[3.5]" />
+              <span className="min-w-0 break-words">Chơi tiếp: {nextActivityTitle || 'Trò chơi tiếp theo'}</span>
+              <ArrowRight className="w-7 h-7 shrink-0 stroke-[3.5]" />
             </button>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <button
               onClick={() => {
                 sfx.playPop();

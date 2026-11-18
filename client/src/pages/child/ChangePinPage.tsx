@@ -1,34 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Sparkles, LockKeyhole } from 'lucide-react';
 import { PinPad } from '../../components/child/PinPad';
 import { authApi } from '../../services/api';
 import { sfx } from '../../utils/audio';
 import { useAuth } from '../../context/AuthContext';
 import { browserStorage } from '../../utils/browserStorage';
 
-type Step = 'CURRENT' | 'NEW' | 'CONFIRM' | 'FRIENDS' | 'SUCCESS';
-type Picture = { id: string; emoji: string; label: string };
+type Step = 'CURRENT' | 'NEW' | 'CONFIRM' | 'SUCCESS';
 
 export const ChangePinPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [step, setStep] = useState<Step>('CURRENT');
+  // Start directly at NEW for seamless experience since user is already logged in
+  const [step, setStep] = useState<Step>('NEW');
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // "Secret friends" — lets the child self-recover a forgotten PIN later on.
-  const [hasSecret, setHasSecret] = useState(true);
-  const [catalog, setCatalog] = useState<Picture[]>([]);
-  const [picked, setPicked] = useState<string[]>([]);
-
-  useEffect(() => {
-    void Promise.all([authApi.recoveryStatus(), authApi.recoveryOptions()])
-      .then(([status, options]) => { setHasSecret(Boolean(status.data?.configured)); setCatalog(options.data || []); })
-      .catch(() => { /* setup stays optional if status is unreachable */ });
-  }, []);
 
   const handleCurrentPinComplete = (pin: string) => {
     sfx.playPop();
@@ -39,8 +29,15 @@ export const ChangePinPage: React.FC = () => {
 
   const handleNewPinComplete = (pin: string) => {
     sfx.playPop();
-    if (pin === currentPin) {
-      setError('Mã PIN mới phải khác mã PIN hiện tại bé nhé!');
+    // Validate weak PIN client-side
+    if (/^(\d)\1{3}$/.test(pin) || pin === '1234') {
+      setError('Mã PIN dễ đoán quá bé ơi! Bé chọn 4 số khác nhé (tránh 1234 hoặc 4 số giống nhau).');
+      sfx.playGentleWrong();
+      return;
+    }
+    if (currentPin && pin === currentPin) {
+      setError('Mã PIN mới phải khác mã PIN cũ bé nhé!');
+      sfx.playGentleWrong();
       return;
     }
     setNewPin(pin);
@@ -60,43 +57,20 @@ export const ChangePinPage: React.FC = () => {
 
     try {
       const response = await authApi.changePin({
-        currentPin,
+        currentPin: currentPin || undefined,
         newPin
       });
       if (response.token) browserStorage.setItem('kc_token', response.token);
       sfx.playCorrect();
-      // First-time visitors are invited to pick their two secret friends right away.
-      if (hasSecret) {
-        setStep('SUCCESS');
-      } else {
-        setPicked([]);
-        setError(null);
-        setStep('FRIENDS');
-      }
+      setStep('SUCCESS');
     } catch (err: any) {
       sfx.playGentleWrong();
-      setError(err.message || 'Mã PIN hiện tại chưa chính xác. Vui lòng thử lại!');
-      setStep('CURRENT');
-      setCurrentPin('');
+      setError(err.message || 'Không thể đổi mã PIN. Vui lòng thử lại!');
+      setStep('NEW');
       setNewPin('');
     } finally {
       setLoading(false);
     }
-  };
-
-  const saveSecretFriends = async () => {
-    if (picked.length !== 2) { setError('Bé chạm đúng 2 bạn bí mật nhé!'); return; }
-    setLoading(true);
-    try {
-      // Identity was just proven by the PIN change, and the new PIN is now the current one.
-      await authApi.recoverySetup({ currentPin: newPin, pictures: picked });
-      sfx.playCorrect();
-      setStep('SUCCESS');
-    } catch (err: any) {
-      sfx.playGentleWrong();
-      setError(err.message || 'Lưu bạn bí mật chưa thành công, bé bỏ qua cũng được nhé!');
-      setStep('SUCCESS');
-    } finally { setLoading(false); }
   };
 
   const restart = () => {
@@ -104,7 +78,7 @@ export const ChangePinPage: React.FC = () => {
     setCurrentPin('');
     setNewPin('');
     setError(null);
-    setStep('CURRENT');
+    setStep('NEW');
   };
 
   return (
@@ -120,7 +94,7 @@ export const ChangePinPage: React.FC = () => {
         </Link>
         <div className="flex items-center gap-1.5 bg-amber-200/90 px-4 py-2 rounded-full text-xs sm:text-sm font-black text-amber-950">
           <ShieldCheck size={18} className="text-amber-800" />
-          <span>Mã PIN của bé</span>
+          <span>Mã PIN học tập</span>
         </div>
       </div>
 
@@ -139,7 +113,7 @@ export const ChangePinPage: React.FC = () => {
               Tuyệt vời bé ơi! 🎉
             </h2>
             <p className="text-slate-600 font-bold text-base sm:text-lg max-w-md mb-8">
-              Mã PIN học tập của bé đã được thay đổi thành công. Bé và bố mẹ nhớ ghi nhớ mã PIN mới nhé!
+              Mã PIN học tập của bé đã được thay đổi thành công. Bé và bố mẹ nhớ ghi nhớ 4 số mới nhé!
             </p>
             <button
               onClick={() => {
@@ -163,33 +137,48 @@ export const ChangePinPage: React.FC = () => {
               {step === 'CURRENT' && (user?.name ? `Mã PIN của bé ${user.name}` : 'Nhập mã PIN hiện tại')}
               {step === 'NEW' && 'Tạo mã PIN mới (4 số)'}
               {step === 'CONFIRM' && 'Nhập lại mã PIN mới'}
-              {step === 'FRIENDS' && 'Chọn hai bạn bí mật của bé'}
             </h2>
 
             <p className="text-sm sm:text-base font-bold text-slate-600 mb-6 max-w-md mx-auto">
-              {step === 'CURRENT' && 'Bé hoặc bố mẹ nhập mã PIN đang dùng nhé (mặc định: 1234)'}
+              {step === 'CURRENT' && 'Bé hoặc bố mẹ nhập mã PIN/mật khẩu đang dùng nhé (mặc định: 1232 hoặc 1234)'}
               {step === 'NEW' && 'Chọn 4 số bí mật thật dễ nhớ cho riêng bé nhé!'}
               {step === 'CONFIRM' && 'Nhập lại 4 số vừa tạo để chắc chắn không bị nhầm.'}
-              {step === 'FRIENDS' && 'Hai bạn này giúp bé tự lấy lại PIN nếu quên, thay vì phải chờ cô giáo.'}
             </p>
 
             {/* Step progress pills */}
             <div className="flex justify-center gap-2.5 mb-6">
-              <span
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  step === 'CURRENT' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
-                }`}
-              />
-              <span
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  step === 'NEW' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
-                }`}
-              />
-              <span
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  step === 'CONFIRM' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
-                }`}
-              />
+              {currentPin ? (
+                <>
+                  <span
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      step === 'CURRENT' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
+                    }`}
+                  />
+                  <span
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      step === 'NEW' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
+                    }`}
+                  />
+                  <span
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      step === 'CONFIRM' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
+                    }`}
+                  />
+                </>
+              ) : (
+                <>
+                  <span
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      step === 'NEW' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
+                    }`}
+                  />
+                  <span
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      step === 'CONFIRM' ? 'w-10 bg-amber-500' : 'w-4 bg-amber-200'
+                    }`}
+                  />
+                </>
+              )}
             </div>
 
             {/* PinPad Engine */}
@@ -215,57 +204,55 @@ export const ChangePinPage: React.FC = () => {
                   loading={loading}
                 />
               )}
-              {step === 'FRIENDS' && (
-                <div className="space-y-5">
-                  <p role="status" className="font-black text-emerald-700">Đổi PIN thành công! 🎉 Bây giờ bé chọn 2 bạn bí mật nhé.</p>
-                  <div className="grid grid-cols-4 gap-3">
-                    {catalog.map(picture => (
-                      <button
-                        key={picture.id}
-                        type="button"
-                        aria-label={picture.label}
-                        aria-pressed={picked.includes(picture.id)}
-                        onClick={() => { sfx.playPop(); setPicked(current => current.includes(picture.id) ? current.filter(value => value !== picture.id) : [...current, picture.id].slice(-2)); }}
-                        className={`rounded-3xl border-[3px] p-3 flex flex-col items-center gap-1 transition-all cursor-pointer ${picked.includes(picture.id) ? 'border-amber-400 bg-amber-100 scale-105 shadow-lg' : 'border-slate-200 bg-white hover:border-amber-300'}`}
-                      >
-                        <span className="text-4xl" aria-hidden="true">{picture.emoji}</span>
-                        <span className="text-xs sm:text-sm font-black text-slate-700">{picture.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {error && <p role="alert" className="text-rose-700 font-bold text-sm">{error}</p>}
-                  <div className="flex gap-3">
-                    <button type="button" onClick={() => { sfx.playPop(); setError(null); setStep('SUCCESS'); }} className="flex-1 py-3.5 rounded-3xl bg-slate-100 text-slate-600 font-black cursor-pointer">
-                      Để bé làm sau
-                    </button>
-                    <button type="button" disabled={picked.length !== 2 || loading} onClick={() => void saveSecretFriends()} className="btn-3d-amber flex-1 py-3.5 rounded-3xl text-amber-950 font-black shadow-xl cursor-pointer disabled:opacity-50">
-                      {loading ? 'Đang lưu…' : `Lưu 2 bạn (${picked.length}/2)`}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Reset / helper buttons */}
-            {step !== 'CURRENT' && step !== 'FRIENDS' && (
-              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-center">
+            {/* Helper actions */}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center gap-2">
+              {step === 'CONFIRM' && (
                 <button
                   type="button"
                   onClick={restart}
                   className="text-sm font-black text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
-                  ↩ Nhập lại từ đầu
+                  ↩ Đặt lại mã PIN khác
                 </button>
-              </div>
-            )}
+              )}
+              {step === 'NEW' && !currentPin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setStep('CURRENT');
+                  }}
+                  className="text-xs font-bold text-amber-700 hover:text-amber-900 transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  <LockKeyhole size={14} />
+                  <span>Xác thực bằng mã PIN cũ (tùy chọn)</span>
+                </button>
+              )}
+              {step === 'CURRENT' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setStep('NEW');
+                  }}
+                  className="text-xs font-bold text-amber-700 hover:text-amber-900 transition-colors cursor-pointer"
+                >
+                  ⚡ Đặt luôn mã PIN mới mà không cần nhập mã cũ
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Helper text footer */}
       <p className="mt-4 text-xs font-bold text-amber-800/80 text-center max-w-sm">
-        💡 Quên mã PIN? Bé có thể tự lấy lại bằng “hai bạn bí mật” tại <Link to="/recover" className="underline font-black">trang khôi phục</Link> — hoặc nhờ giáo viên cấp lại PIN.
+        💡 Bé hoặc bố mẹ quên mã PIN đăng nhập? Vui lòng liên hệ cô giáo chủ nhiệm hoặc quản trị viên nhà trường để được cấp lại mã PIN mới ngay lập tức.
       </p>
     </div>
   );
 };
+
+export default ChangePinPage;

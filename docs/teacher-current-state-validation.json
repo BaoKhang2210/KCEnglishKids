@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-03",
+  "classroom": "Little Stars Class (Age 3–4)",
+  "todaySlots": [
+    {
+      "startTime": "08:30",
+      "endTime": "09:15",
+      "lesson": "People at School",
+      "lessonNumber": 2
+    }
+  ],
+  "students": 7,
+  "unassessed": 7,
+  "needsObservation": 7,
+  "gapWords": 9,
+  "unassessedWords": 115,
+  "currentLesson": "6ae854cf5645712444177f7a",
+  "dashboardNeedsObservation": 7,
+  "checkedAt": "2026-11-02T23:30:08.562Z",
+  "runningBackend": {
+    "port": 5000,
+    "needsObservation": 7,
+    "unassessed": 7,
+    "lesson": "People at School",
+    "checkedAt": "2026-11-02T23:32:51.321Z"
+  }
+}

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { recognitionPeriod, rankClassroomStars, rewardFor } = require('../src/services/recognitionRules');
+const { recognitionPeriod, rankClassroomStars, rankSchoolStars, rewardFor } = require('../src/services/recognitionRules');
 const ClassRecognition = require('../src/models/ClassRecognition');
 
 test('weekly boundaries use Vietnam Monday, including the year transition', () => {
@@ -60,4 +60,30 @@ test('rewards are symbolic and storage enforces one publication per class/period
   }
   assert.ok(ClassRecognition.schema.indexes().some(([key, options]) =>
     key.classroom === 1 && key.kind === 1 && key.periodStart === 1 && options.unique));
+});
+
+test('period stars determine rank and winners; students with zero stars in period cannot win', () => {
+  const students = [
+    { _id: 'leo', name: 'Leo', totalStars: 10 },
+    { _id: 'an', name: 'An', totalStars: 6 },
+    { _id: 'binh', name: 'Bình', totalStars: 7 },
+    { _id: 'chi', name: 'Chi', totalStars: 0 }
+  ];
+  const sessions = [{ status: 'COMPLETED', studentScores: [
+    { student: 'an', stars: 6 }, { student: 'binh', stars: 2 }
+  ] }];
+  for (const rank of [rankClassroomStars, rankSchoolStars]) {
+    const rows = rank(students, sessions);
+    // An has 6 stars in this session, so An is the winner
+    assert.deepEqual(rows.filter(row => row.winner).map(row => row.child), ['an']);
+    assert.equal(rows.find(row => row.child === 'leo').sessions, 0);
+    assert.equal(rows.find(row => row.child === 'leo').winner, false);
+    assert.equal(rows.find(row => row.child === 'an').winner, true);
+  }
+  const school = rankSchoolStars(students, sessions);
+  assert.equal(school[0].child, 'an');
+  assert.equal(school[0].rank, 1);
+  assert.equal(school[1].child, 'binh');
+  assert.equal(school[1].rank, 2);
+  assert.equal(rankSchoolStars([{ _id: 'a', name: 'An', totalStars: 0 }], [])[0].winner, false);
 });

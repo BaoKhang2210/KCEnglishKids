@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useRef, useState } from 'react';
+import { useReducer, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameSessionState, GameCheckpoint, GameConfig, GameDefinition } from './types';
 import { buildTargetSequence, getWordType, isTransparentImage } from './targetSelector';
 
@@ -10,25 +10,28 @@ type GameSessionAction =
   | { type: 'RESTART_SESSION'; targetOrder: string[] }
   | { type: 'RESTORE_CHECKPOINT'; checkpoint: GameCheckpoint };
 
-function gameSessionReducer(state: GameSessionState, action: GameSessionAction): GameSessionState {
+export const targetKey = (index: number, wordId: string) => `${index}:${wordId}`;
+export function gameSessionReducer(state: GameSessionState, action: GameSessionAction): GameSessionState {
+  if ('wordId' in action && (state.status !== 'playing' || state.targetOrder[state.targetIndex] !== action.wordId)) return state;
+  const key = targetKey(state.targetIndex, state.targetOrder[state.targetIndex]);
   switch (action.type) {
     case 'START_PLAYING':
       return { ...state, status: 'playing' };
 
     case 'RECORD_ATTEMPT': {
-      const curAttempts = state.attemptsPerTarget[action.wordId] || 0;
-      const curWrongs = state.wrongVocabIdsPerTarget[action.wordId] || [];
+      const curAttempts = state.attemptsPerTarget[key] || 0;
+      const curWrongs = state.wrongVocabIdsPerTarget[key] || [];
       const updatedWrongs = action.wrongVocabId ? [...curWrongs, action.wrongVocabId] : curWrongs;
 
       return {
         ...state,
         attemptsPerTarget: {
           ...state.attemptsPerTarget,
-          [action.wordId]: curAttempts + 1,
+          [key]: curAttempts + 1,
         },
         wrongVocabIdsPerTarget: {
           ...state.wrongVocabIdsPerTarget,
-          [action.wordId]: updatedWrongs,
+          [key]: updatedWrongs,
         },
       };
     }
@@ -38,7 +41,7 @@ function gameSessionReducer(state: GameSessionState, action: GameSessionAction):
         ...state,
         assistedPerTarget: {
           ...state.assistedPerTarget,
-          [action.wordId]: true,
+          [key]: true,
         },
       };
 
@@ -82,14 +85,14 @@ function gameSessionReducer(state: GameSessionState, action: GameSessionAction):
 
 export function useGameSession(config: GameConfig, definition: GameDefinition) {
   const targetCount = definition.targetCountByAge[config.ageGroup] || 4;
-  const eligibleVocabulary = config.vocabularyList.filter(v =>
+  const eligibleVocabulary = useMemo(() => config.vocabularyList.filter(v =>
     definition.supportedWordTypes.includes(getWordType(v)) &&
     (!definition.requiresImage || Boolean(v.imageUrl)) &&
     (!definition.requiresTransparentImage || isTransparentImage(v))
-  );
-  const initialTargets = useRef(
+  ), [config.vocabularyList, definition]);
+  const [initialTargets] = useState(() =>
     config.targetOrder || buildTargetSequence(eligibleVocabulary, targetCount, definition.supportedWordTypes)
-  ).current;
+  );
 
   const [state, dispatch] = useReducer(gameSessionReducer, {
     status: 'playing',
@@ -101,7 +104,7 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
     stars: 0,
   });
 
-  const cpKey = `kc_game_cp_${config.childId || 'guest'}_${config.lessonId}_${config.gameId}`;
+  const cpKey = `kc_game_cp_v2_${config.childId || 'guest'}_${config.lessonId}_${config.gameId}`;
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const skipNextSaveRef = useRef(false);
 
@@ -115,27 +118,28 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
         if (
           parsed.lessonId === config.lessonId && parsed.attemptToken === config.attemptToken &&
           parsed.gameId === config.gameId &&
-          parsed.targetIndex < parsed.targetOrder.length
+          parsed.childId === (config.childId || 'guest') &&
+          Array.isArray(parsed.targetOrder) && Number.isInteger(parsed.targetIndex) && parsed.targetIndex >= 0 &&
+          parsed.targetIndex < parsed.targetOrder.length &&
+          parsed.targetOrder.length === initialTargets.length &&
+          (!config.targetOrder || parsed.targetOrder.every((id, index) => id === config.targetOrder![index]))
         ) {
           // Lọc các từ bị xóa hoặc đã thay đổi
           const activeIds = new Set(eligibleVocabulary.map(v => v._id));
           const completedIds = parsed.targetOrder.slice(0, parsed.targetIndex).filter(id => activeIds.has(id));
           const remainingIds = parsed.targetOrder.slice(parsed.targetIndex).filter(id => activeIds.has(id));
-          const knownIds = new Set([...completedIds, ...remainingIds]);
-          const addedIds = eligibleVocabulary.map(v => v._id).filter(id => !knownIds.has(id));
-          const validOrder = [...completedIds, ...remainingIds, ...addedIds].slice(0, targetCount);
-          if (validOrder.length > 0) {
+          if (completedIds.length === parsed.targetIndex && remainingIds.length === parsed.targetOrder.length - parsed.targetIndex) {
             skipNextSaveRef.current = true;
             setHasCheckpoint(true);
             dispatch({
               type: 'RESTORE_CHECKPOINT',
               checkpoint: {
                 ...parsed,
-                targetOrder: validOrder,
+                targetOrder: parsed.targetOrder,
                 targetIndex: completedIds.length,
-                attemptsPerTarget: Object.fromEntries(Object.entries(parsed.attemptsPerTarget || {}).filter(([id]) => activeIds.has(id))),
-                assistedPerTarget: Object.fromEntries(Object.entries(parsed.assistedPerTarget || {}).filter(([id]) => activeIds.has(id))),
-                wrongVocabIdsPerTarget: Object.fromEntries(Object.entries(parsed.wrongVocabIdsPerTarget || {}).filter(([id]) => activeIds.has(id))),
+                attemptsPerTarget: parsed.attemptsPerTarget || {},
+                assistedPerTarget: parsed.assistedPerTarget || {},
+                wrongVocabIdsPerTarget: parsed.wrongVocabIdsPerTarget || {},
                 stars: completedIds.length,
               },
             });
@@ -146,7 +150,7 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
     } catch (e) {
       console.warn('Failed to parse game checkpoint:', e);
     }
-  }, [cpKey, config.lessonId, config.gameId, config.vocabularyList]);
+  }, [cpKey, config.lessonId, config.gameId, config.preview, config.attemptToken, config.childId, config.targetOrder, eligibleVocabulary, initialTargets.length]);
 
   // Tự động lưu checkpoint khi chuyển targetIndex
   useEffect(() => {
@@ -181,8 +185,9 @@ export function useGameSession(config: GameConfig, definition: GameDefinition) {
 
   const currentWordId = state.targetOrder[state.targetIndex];
   const targetVocab = config.vocabularyList.find(v => v._id === currentWordId);
-  const attempts = currentWordId ? state.attemptsPerTarget[currentWordId] || 0 : 0;
-  const isAssisted = currentWordId ? !!state.assistedPerTarget[currentWordId] : false;
+  const key = targetKey(state.targetIndex, currentWordId);
+  const attempts = currentWordId ? state.attemptsPerTarget[key] || 0 : 0;
+  const isAssisted = currentWordId ? !!state.assistedPerTarget[key] : false;
 
   return {
     state,

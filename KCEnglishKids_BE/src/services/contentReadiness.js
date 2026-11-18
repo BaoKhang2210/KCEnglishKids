@@ -1,4 +1,5 @@
-const { Vocabulary, CurriculumUnit, Topic, Assignment, ActivityResult } = require('../models');
+const { Vocabulary, CurriculumUnit, Topic, Assignment, ActivityResult, LanguageContent } = require('../models');
+const { auditLessonAgeAppropriateness } = require('./aiService');
 const fail = message => { throw Object.assign(new Error(message), {statusCode:409}); };
 const safeMedia = value => typeof value === 'string' && (value.startsWith('/') && !value.startsWith('//') || /^https:\/\//i.test(value));
 async function lessonReadiness(lesson) {
@@ -20,7 +21,27 @@ async function lessonReadiness(lesson) {
   if(!await Topic.exists({_id:lesson.topic,status:'ACTIVE'}))issues.push('Chủ đề chưa hoạt động.');
   const games=await require('./gameCatalog').configuredGames(words,units[0]?.unitNumber||1,lesson.displayOrder||1);
   if(games.length<2)issues.push('Không đủ 2 game khả dụng.');
-  return {ready:issues.length===0,issues,games:games.map(g=>g.id),wordCount:words.length,archivedWords:attached.length-words.length,audioPolicy:'Audio URL hoặc giọng đọc của thiết bị; cần nghe thử trước khi xuất bản.'};
+  const sentenceOr = [{ lesson: lesson._id }];
+  if (Array.isArray(lesson.languageContents) && lesson.languageContents.length > 0) {
+    sentenceOr.push({ _id: { $in: lesson.languageContents } });
+  }
+  const sentences = LanguageContent?.find
+    ? await LanguageContent.find({ $or: sentenceOr, status: { $ne: 'INACTIVE' } }).lean()
+    : [];
+  const ageAudit = auditLessonAgeAppropriateness({ lesson, vocabularies: words, sentences });
+  if (ageAudit.unsafeCount > 0) {
+    issues.push(...ageAudit.warnings.filter(w => w.startsWith('[An toàn')));
+  }
+  return {
+    ready:issues.length===0,
+    issues,
+    games:games.map(g=>g.id),
+    wordCount:words.length,
+    sentenceCount:sentences.length,
+    archivedWords:attached.length-words.length,
+    audioPolicy:'Audio URL hoặc giọng đọc của thiết bị; cần nghe thử trước khi xuất bản.',
+    ageAudit
+  };
 }
 async function assertPublishable(lesson){const report=await lessonReadiness(lesson);if(!report.ready)fail(report.issues.join(' '));return report;}
 async function assertNotAssigned(query){if(await Assignment.exists({status:{$in:['ASSIGNED','IN_PROGRESS']},...query}))fail('Nội dung đang được giao. Hủy/đóng bài giao trước khi ẩn hoặc sửa; tạo bản mới để giữ lịch sử.');}

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { X, Sparkles, Heart, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { StickerItem } from '../../data/stickers';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
-import { LearningSymbol } from '../common/LearningSymbol';
+import { StickerArtwork } from './StickerArtwork';
 
 interface StickerShowcaseModalProps {
   sticker: StickerItem | null;
@@ -17,6 +18,7 @@ export const StickerShowcaseModal: React.FC<StickerShowcaseModalProps> = ({
   isUnlocked,
   onClose
 }) => {
+  const reducedMotion = useReducedMotion();
   const [isPeeling, setIsPeeling] = useState(false);
 
   useEffect(() => {
@@ -25,7 +27,8 @@ export const StickerShowcaseModal: React.FC<StickerShowcaseModalProps> = ({
         sfx.playStarFanfare();
         try {
           confetti({
-            particleCount: 80,
+            particleCount: 60,
+            disableForReducedMotion: true,
             spread: 70,
             origin: { y: 0.6 },
             colors: ['#F43F5E', '#EC4899', '#A855F7', '#38BDF8', '#FBBF24']
@@ -56,7 +59,7 @@ export const StickerShowcaseModal: React.FC<StickerShowcaseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white rounded-[36px] border-4 border-rose-300 shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 relative overflow-hidden animate-pop-in text-center">
+      <div role="dialog" aria-modal="true" aria-label={sticker.name} className="reward-showcase bg-white rounded-[36px] border-4 border-rose-300 shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 relative overflow-hidden animate-pop-in text-center">
         {/* Soft pastel aura background */}
         <div className="absolute top-0 right-0 w-44 h-44 bg-rose-100/70 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-44 h-44 bg-amber-100/60 rounded-full blur-2xl pointer-events-none" />
@@ -79,37 +82,12 @@ export const StickerShowcaseModal: React.FC<StickerShowcaseModalProps> = ({
           <span>{rarityInfo.icon} {rarityInfo.label}</span>
         </div>
 
-        {/* Big 3D Puffy Vinyl Sticker with Peel Physics */}
-        <div
-          onClick={handlePeel}
-          className="relative my-4 flex justify-center items-center cursor-pointer group"
-          title="Bấm vào sticker để bóc dán vui nhộn!"
-        >
-          <div
-            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-4xl flex items-center justify-center relative overflow-hidden shadow-2xl transition-transform duration-300 ${
-              isUnlocked
-                ? sticker.rarity === 'legendary'
-                  ? 'puffy-sticker holographic-foil'
-                  : `puffy-sticker bg-gradient-to-tr ${sticker.bgGradient}`
-                : 'bg-slate-200 border-4 border-dashed border-slate-300 text-slate-400'
-            } ${isPeeling ? 'animate-jelly' : 'group-hover:scale-108 group-hover:rotate-[-3deg]'}`}
-          >
-            {/* Top Gloss Arc Light Reflection */}
-            {isUnlocked && (
-              <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/45 via-white/15 to-transparent rounded-t-4xl pointer-events-none" />
-            )}
-
-            {/* Sticker Icon */}
-            <span className="text-7xl sm:text-8xl filter drop-shadow-lg select-none">
-              {isUnlocked ? <LearningSymbol symbol={sticker.icon} label={sticker.name} className="w-28 h-28 sm:w-36 sm:h-36" /> : '🔒'}
-            </span>
-
-            {/* Peel corner fold effect in bottom-right */}
-            {isUnlocked && (
-              <div className="absolute bottom-0 right-0 w-8 h-8 bg-white/40 backdrop-blur-xs rounded-tl-2xl shadow-xs pointer-events-none" />
-            )}
-          </div>
-        </div>
+        <motion.button type="button" onClick={handlePeel} disabled={!isUnlocked}
+          aria-label={sticker.name} className="relative mx-auto my-5 block rounded-3xl cursor-pointer"
+          animate={isPeeling && !reducedMotion ? { rotate: [0, -10, 8, 0], scale: [1, 1.08, 1] } : { rotate: 0, scale: 1 }}
+          transition={{ duration: .5 }}>
+          <StickerArtwork sticker={sticker} unlocked={isUnlocked} size="xl" playful={isPeeling && !reducedMotion} />
+        </motion.button>
 
         {/* Sticker Title */}
         <h3 className="text-2xl sm:text-3xl font-black text-slate-800 font-display mt-2 mb-1">
@@ -132,7 +110,7 @@ export const StickerShowcaseModal: React.FC<StickerShowcaseModalProps> = ({
         ) : (
           <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 mb-4 text-slate-600 text-xs font-extrabold text-left shadow-inner">
             <span className="block font-black text-amber-700 mb-1">💡 Làm sao để mở khóa sticker này?</span>
-            <span>Vào mục Trò chơi (12 Mini-Games), trả lời đúng các từ vựng và giành 2-3 sao vàng để hệ thống tặng ngẫu nhiên một sticker mới tinh!</span>
+            <span>Hoàn thành các bài trong một Unit để nhận rương quà. Mở rương trong bộ sưu tập để khám phá sticker được hệ thống tặng!</span>
           </div>
         )}
 

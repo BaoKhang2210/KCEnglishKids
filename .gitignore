@@ -52,6 +52,7 @@ Thumbs.db
 [Dd]esktop.ini
 
 # Temporary files & test coverage
+scratch/
 .local-backups/
 .tmp/asset-source/
 coverage/

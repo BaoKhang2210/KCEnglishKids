@@ -4,7 +4,9 @@ const ClassroomSession = require('../models/ClassroomSession');
 const User = require('../models/User');
 const ClassRecognition = require('../models/ClassRecognition');
 const SchoolRecognition = require('../models/SchoolRecognition');
+const { HomePracticeCompletion, UnitCompletion, Progress, Assignment } = require('../models');
 const { recognitionPeriod, rewardFor, rankClassroomStars, rankSchoolStars } = require('../services/recognitionRules');
+const { statsFor } = require('../services/teacherStatistics');
 
 const fail = (res, status, message) => res.status(status).json({ success: false, message });
 const validId = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
@@ -25,15 +27,137 @@ function periodFor(req, res) {
 }
 const keyFor = (classroom, period) => ({ classroom: classroom._id, kind: period.kind, periodStart: period.start });
 
+async function periodHomeStars(studentIds, period) {
+  if (!studentIds || !studentIds.length) return new Map();
+
+  const [homePractices, unitCompletions, progressDocs, assignmentReviews] = await Promise.all([
+    HomePracticeCompletion && typeof HomePracticeCompletion.aggregate === 'function'
+      ? HomePracticeCompletion.aggregate([
+          {
+            $match: {
+              child: { $in: studentIds },
+              $or: [
+                { completedAt: { $gte: period.start, $lt: period.end } },
+                { date: { $gte: period.date, $lte: period.lastDate } }
+              ]
+            }
+          },
+          {
+            $group: {
+              _id: '$child',
+              stars: { $sum: '$stars' }
+            }
+          }
+        ])
+      : Promise.resolve([]),
+
+    UnitCompletion && typeof UnitCompletion.aggregate === 'function'
+      ? UnitCompletion.aggregate([
+          {
+            $match: {
+              child: { $in: studentIds },
+              completedAt: { $gte: period.start, $lt: period.end }
+            }
+          },
+          { $unwind: '$rewards' },
+          { $match: { 'rewards.type': 'STAR' } },
+          {
+            $group: {
+              _id: '$child',
+              stars: { $sum: '$rewards.amount' }
+            }
+          }
+        ])
+      : Promise.resolve([]),
+
+    Progress && typeof Progress.find === 'function'
+      ? Progress.find({
+          child: { $in: studentIds },
+          completed: true,
+          $or: [
+            { 'completionSnapshot.recordedAt': { $gte: period.start, $lt: period.end } },
+            { lastActivityAt: { $gte: period.start, $lt: period.end } },
+            { updatedAt: { $gte: period.start, $lt: period.end } }
+          ]
+        }).select('child stars').lean()
+      : Promise.resolve([]),
+
+    Assignment && typeof Assignment.aggregate === 'function'
+      ? Assignment.aggregate([
+          { $match: { 'reviews.child': { $in: studentIds } } },
+          { $unwind: '$reviews' },
+          {
+            $match: {
+              'reviews.child': { $in: studentIds },
+              'reviews.reviewedAt': { $gte: period.start, $lt: period.end },
+              'reviews.bonusStars': { $gt: 0 }
+            }
+          },
+          {
+            $group: {
+              _id: '$reviews.child',
+              stars: { $sum: '$reviews.bonusStars' }
+            }
+          }
+        ])
+      : Promise.resolve([])
+  ]);
+
+  const map = new Map();
+  for (const id of studentIds) {
+    map.set(String(id), 0);
+  }
+
+  for (const hp of homePractices || []) {
+    const cid = String(hp._id || hp.child);
+    if (map.has(cid)) {
+      map.set(cid, map.get(cid) + (Number(hp.stars) || Number(hp.homePracticeStars) || 0));
+    }
+  }
+
+  for (const uc of unitCompletions || []) {
+    const cid = String(uc._id || uc.child);
+    if (map.has(cid)) {
+      map.set(cid, map.get(cid) + (Number(uc.stars) || 0));
+    }
+  }
+
+  for (const p of progressDocs || []) {
+    const cid = String(p.child);
+    if (map.has(cid)) {
+      map.set(cid, map.get(cid) + (Number(p.stars) || 0));
+    }
+  }
+
+  for (const ar of assignmentReviews || []) {
+    const cid = String(ar._id || ar.child);
+    if (map.has(cid)) {
+      map.set(cid, map.get(cid) + (Number(ar.stars) || 0));
+    }
+  }
+
+  return map;
+}
+
 async function calculate(classroom, period) {
-  const [students, sessions] = await Promise.all([
-    User.find({ _id: { $in: classroom.students }, role: 'CHILD', status: 'ACTIVE' }).select('name avatarUrl').lean(),
+  const students = await User.find({ _id: { $in: classroom.students }, role: 'CHILD', status: 'ACTIVE' }).select('name avatarUrl').lean();
+  const studentIds = students.map(s => s._id);
+  const [sessions, statsList, homeStarsMap] = await Promise.all([
     ClassroomSession.find({
       classroom: classroom._id, status: 'COMPLETED',
       endedAt: { $gte: period.start, $lt: period.end }
-    }).select('status studentScores').lean()
+    }).select('status studentScores endedAt startedAt').lean(),
+    statsFor(studentIds),
+    periodHomeStars(studentIds, period)
   ]);
-  return rankClassroomStars(students, sessions);
+  const statsMap = new Map((statsList || []).map(s => [String(s._id), s]));
+  const studentsWithTotal = students.map(s => ({
+    ...s,
+    className: classroom.name,
+    totalStars: statsMap.get(String(s._id))?.totalStars || 0,
+    homeStars: homeStarsMap.get(String(s._id)) || 0
+  }));
+  return rankClassroomStars(studentsWithTotal, sessions);
 }
 
 exports.classes = async (req, res, next) => {
@@ -71,7 +195,7 @@ exports.publish = async (req, res, next) => {
     let published = await ClassRecognition.findOne(key).lean();
     if (!published) {
       const ranking = await calculate(classroom, period);
-      const winners = ranking.filter(row => row.winner).map(({ child, name, stars }) => ({ child, name, stars }));
+      const winners = ranking.filter(row => row.winner).map(({ child, name, stars, totalStars }) => ({ child, name, stars: stars || totalStars }));
       if (!winners.length) return fail(res, 400, 'Kỳ này chưa có sao hợp lệ để vinh danh.');
       try {
         published = await ClassRecognition.create({
@@ -123,12 +247,27 @@ exports.read = async (req, res, next) => {
 };
 
 async function schoolRanking(period) {
-  const [students, sessions] = await Promise.all([
-    User.find({ role: 'CHILD', status: 'ACTIVE' }).select('name avatarUrl').lean(),
-    ClassroomSession.find({ status: 'COMPLETED', endedAt: { $gte: period.start, $lt: period.end } }).select('status studentScores').lean()
+  const students = await User.find({ role: 'CHILD', status: 'ACTIVE' })
+    .select('name avatarUrl assignedClass')
+    .populate('assignedClass', 'name')
+    .lean();
+  const studentIds = students.map(s => s._id);
+  const [sessions, statsList, homeStarsMap] = await Promise.all([
+    ClassroomSession.find({
+      status: 'COMPLETED',
+      endedAt: { $gte: period.start, $lt: period.end }
+    }).select('status studentScores endedAt startedAt').lean(),
+    statsFor(studentIds),
+    periodHomeStars(studentIds, period)
   ]);
-  const minimumSessions = period.kind === 'WEEK' ? 2 : 4;
-  return { minimumSessions, ranking: rankSchoolStars(students, sessions, minimumSessions) };
+  const statsMap = new Map((statsList || []).map(s => [String(s._id), s]));
+  const studentsWithTotal = students.map(s => ({
+    ...s,
+    className: s.assignedClass?.name || 'Chưa phân lớp',
+    totalStars: statsMap.get(String(s._id))?.totalStars || 0,
+    homeStars: homeStarsMap.get(String(s._id)) || 0
+  }));
+  return { minimumSessions: 0, ranking: rankSchoolStars(studentsWithTotal, sessions) };
 }
 const schoolKey = period => ({ kind: period.kind, periodStart: period.start });
 exports.schoolPreview = async (req, res, next) => {
@@ -154,8 +293,8 @@ exports.schoolPublish = async (req, res, next) => {
     let published = await SchoolRecognition.findOne(key).lean();
     if (!published) {
       const { ranking, minimumSessions } = await schoolRanking(period);
-      const winners = ranking.filter(row => row.winner).map(({ child, name, stars, sessions, starsPerSession }) => ({ child, name, stars, sessions, starsPerSession }));
-      if (!winners.length) return fail(res, 400, 'Chưa có học sinh đủ số buổi và có sao hợp lệ để vinh danh.');
+      const winners = ranking.filter(row => row.winner).map(({ child, name, stars, totalStars, sessions, starsPerSession }) => ({ child, name, stars: stars || totalStars, sessions, starsPerSession }));
+      if (!winners.length) return fail(res, 400, 'Chưa có học sinh có sao hợp lệ để vinh danh.');
       try {
         published = await SchoolRecognition.create({ ...key, className: 'Toàn trường', periodEnd: period.end,
           publishedBy: req.user._id, minimumSessions, reward: rewardFor(period.kind), ranking, winners });

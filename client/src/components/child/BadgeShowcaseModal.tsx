@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { X, Sparkles, Trophy, Lock, Bell, ArrowRight } from 'lucide-react';
 import type { BadgeItem } from '../../data/badges';
 import { getReqFullLabel } from '../../data/labels';
@@ -18,6 +18,7 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
   onClose,
   currentProgress = 0
 }) => {
+  const reducedMotion = useReducedMotion();
   const [isJiggling, setIsJiggling] = useState(false);
 
   useEffect(() => {
@@ -57,10 +58,10 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
       <motion.div
-        initial={{ scale: 0.86, opacity: 0, y: 24 }}
+        initial={reducedMotion ? false : { scale: .92, opacity: 0, y: 16 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-        className="bg-white rounded-[36px] border-4 border-amber-300 shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 relative overflow-hidden text-center"
+        role="dialog" aria-modal="true" aria-label={badge.name} className="reward-showcase bg-white rounded-[36px] border-4 border-amber-300 shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 relative overflow-hidden text-center"
       >
         {/* Sunburst glowing background when unlocked */}
         {badge.unlocked && (
@@ -99,13 +100,13 @@ export const BadgeShowcaseModal: React.FC<BadgeShowcaseModalProps> = ({
         {/* 3D Rosette Medal with Ribbon Tails */}
         <div
           onClick={handleShakeBadge}
-          className="relative my-4 pb-4 flex justify-center items-center cursor-pointer group"
+          className="relative mt-7 mb-10 pb-4 flex justify-center items-center cursor-pointer group"
           title="Bấm vào huy chương để rung chuông leng keng!"
         >
           <CuteRosetteMedal
             badge={badge}
             unlocked={badge.unlocked}
-            size="lg"
+            size="xl"
             showRibbons={true}
             isJiggling={isJiggling}
             className="group-hover:scale-108 transition-transform"
