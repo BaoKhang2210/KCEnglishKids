@@ -124,6 +124,7 @@ async function prepareDemoAtlas() {
 
   // Create 3 ACTIVE classrooms + 1 COMPLETED (ready for Rollover demo) + 1 UPCOMING (ready for activation demo)
   const class1 = await M.ClassRoom.create({
+    _id: new mongoose.Types.ObjectId('6af1fcff9b357c62ef641115'),
     name: 'Little Stars Class (Age 3–4)',
     teacher: teacherSarah._id,
     ageGroup: ageGroupsMap['3-4']?._id,
@@ -137,6 +138,7 @@ async function prepareDemoAtlas() {
   });
 
   const class2 = await M.ClassRoom.create({
+    _id: new mongoose.Types.ObjectId('6af1fcff9b357c62ef641116'),
     name: 'Sunny Kindergarten (Age 4–5)',
     teacher: teacherEmily._id,
     ageGroup: ageGroupsMap['4-5']?._id,
@@ -150,6 +152,7 @@ async function prepareDemoAtlas() {
   });
 
   const class3 = await M.ClassRoom.create({
+    _id: new mongoose.Types.ObjectId('6af1fcff9b357c62ef641117'),
     name: 'Rainbow Explorers (Age 5–6)',
     teacher: teacherDavid._id,
     ageGroup: ageGroupsMap['5-6']?._id,
