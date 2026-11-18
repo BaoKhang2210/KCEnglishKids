@@ -41,16 +41,32 @@ async function prepareDemoAtlas() {
   const booksMap = {};
   for (const b of books) booksMap[b.ageGroupCode] = b;
 
+  const allUnits = await M.CurriculumUnit.find({ status: 'ACTIVE' }).lean();
+  const unitNumberMap = new Map(allUnits.map(u => [String(u._id), u.unitNumber || 99]));
+
   const allLessons = await M.Lesson.find({ status: 'ACTIVE' })
     .populate('vocabularyItems')
-    .sort({ displayOrder: 1, createdAt: 1 })
     .lean();
 
-  const b1Lessons = allLessons.filter(l => l.ageGroupCode === '3-4');
-  const b2Lessons = allLessons.filter(l => l.ageGroupCode === '4-5');
-  const b3Lessons = allLessons.filter(l => l.ageGroupCode === '5-6');
+  const sortLessonsSequentially = (list) => {
+    return [...list].sort((a, b) => {
+      const uIdA = Array.isArray(a.curriculumUnits) && a.curriculumUnits.length ? String(a.curriculumUnits[0]) : '';
+      const uIdB = Array.isArray(b.curriculumUnits) && b.curriculumUnits.length ? String(b.curriculumUnits[0]) : '';
+      const uNumA = unitNumberMap.get(uIdA) ?? 99;
+      const uNumB = unitNumberMap.get(uIdB) ?? 99;
+      if (uNumA !== uNumB) return uNumA - uNumB;
+      return (a.displayOrder || 0) - (b.displayOrder || 0);
+    });
+  };
+
+  const b1Lessons = sortLessonsSequentially(allLessons.filter(l => l.ageGroupCode === '3-4'));
+  const b2Lessons = sortLessonsSequentially(allLessons.filter(l => l.ageGroupCode === '4-5'));
+  const b3Lessons = sortLessonsSequentially(allLessons.filter(l => l.ageGroupCode === '5-6'));
 
   console.log(`📚 Active Lessons found: 3-4 (${b1Lessons.length}), 4-5 (${b2Lessons.length}), 5-6 (${b3Lessons.length})`);
+  console.log('   3-4 first 5:', b1Lessons.slice(0, 5).map(l => l.key).join(', '));
+  console.log('   4-5 first 5:', b2Lessons.slice(0, 5).map(l => l.key).join(', '));
+  console.log('   5-6 first 5:', b3Lessons.slice(0, 5).map(l => l.key).join(', '));
 
   // 2. Ensure Admin & 3 Teachers
   let admin = await M.User.findOne({ username: 'admin' });
@@ -656,6 +672,42 @@ async function prepareDemoAtlas() {
       averageAccuracy: 85,
       totalStars: 25,
       totalPoints: 288,
+      studentsNeedingPractice: [class3Kids[4]._id],
+      topPerformers: [childToby._id, class3Kids[0]._id]
+    }
+  });
+
+  await M.ClassroomSession.create({
+    classroom: class3._id,
+    teacher: teacherDavid._id,
+    lesson: b3Lessons[1]?._id,
+    title: `${b3Lessons[1]?.title || 'Lesson 2'} — Mẫu câu & Giao tiếp Lớp Lá`,
+    ageGroup: '5-6',
+    status: 'COMPLETED',
+    sessionNumber: 2,
+    startedAt: new Date('2026-11-17T10:30:00.000+07:00'),
+    endedAt: new Date('2026-11-17T11:15:00.000+07:00'),
+    plannedDuration: 45,
+    studentScores: [
+      { student: childToby._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[0]._id, points: 46, stars: 4, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[1]._id, points: 44, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[2]._id, points: 40, stars: 3, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[3]._id, points: 42, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[4]._id, points: 32, stars: 2, correctCount: 3, incorrectCount: 2, notAnswered: 0, attendance: 'PRESENT', status: 'NEEDS_PRACTICE' },
+      { student: class3Kids[5]._id, points: 42, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' }
+    ],
+    teachingOutcome: {
+      coverage: 'COMPLETE',
+      goalsCovered: ['Thực hành hỏi đáp các môn học ở trường', 'Ghép câu hoàn chỉnh theo nhóm'],
+      reflection: 'Các bé Lớp Lá nắm vững từ vựng môn học và phản xạ câu rất tốt.',
+      recordedAt: new Date('2026-11-17T11:15:00.000+07:00')
+    },
+    summary: {
+      participationCount: 7,
+      averageAccuracy: 87,
+      totalStars: 26,
+      totalPoints: 296,
       studentsNeedingPractice: [class3Kids[4]._id],
       topPerformers: [childToby._id, class3Kids[0]._id]
     }
