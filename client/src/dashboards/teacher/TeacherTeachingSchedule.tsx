@@ -978,9 +978,15 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         const effectiveLesson = resolveDynamicSlotLesson(schedule, slot, day.dateString, bookRoadmap.lessons, sessions, vietnamDate());
                         const lessonDisplayTitle = effectiveLesson.title || effectiveLesson.vietnameseTitle || 'English Lesson';
 
-                        const matchedSession = daySessions.find(
-                          (s: any) => String(s.classroom?._id || s.classroom) === cId
-                        );
+                        const matchedSession = daySessions.find((s: any) => {
+                          if (String(s.classroom?._id || s.classroom) !== cId) return false;
+                          if (dayFixedSlots.length <= 1) return true;
+                          const ts = s.startedAt ? new Date(s.startedAt) : null;
+                          if (!ts || isNaN(ts.getTime())) return true;
+                          const vnTs = new Date(ts.getTime() + 7 * 3600000);
+                          const hhmm = `${String(vnTs.getUTCHours()).padStart(2, '0')}:${String(vnTs.getUTCMinutes()).padStart(2, '0')}`;
+                          return hhmm === slot.startTime;
+                        });
                         const isCancelled = matchedSession?.status === 'CANCELLED';
 
                         const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);

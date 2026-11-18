@@ -391,16 +391,24 @@ exports.reportOff = wrap(async (req, res) => {
   const validReason = rules.text(reason, 200) || 'Nghỉ theo kế hoạch';
   const validNote = rules.text(note, 500) || '';
 
-  const startOfDay = new Date(`${date}T00:00:00+07:00`);
-  const endOfDay = new Date(`${date}T23:59:59+07:00`);
+  const startOfDay = timeSlot?.startTime
+    ? new Date(`${date}T${timeSlot.startTime}:00+07:00`)
+    : new Date(`${date}T00:00:00+07:00`);
+  const endOfDay = timeSlot?.startTime
+    ? new Date(startOfDay.getTime() + 60 * 1000)
+    : new Date(`${date}T23:59:59+07:00`);
 
   let session = await ClassroomSession.findOne({
     classroom: room._id,
     status: { $in: ['SCHEDULED', 'CANCELLED'] },
-    $or: [
-      { startedAt: { $gte: startOfDay, $lte: endOfDay } },
-      { createdAt: { $gte: startOfDay, $lte: endOfDay } }
-    ]
+    ...(timeSlot?.startTime
+      ? { startedAt: { $gte: startOfDay, $lt: endOfDay } }
+      : {
+          $or: [
+            { startedAt: { $gte: startOfDay, $lte: endOfDay } },
+            { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        })
   });
 
   if (session) {
