@@ -601,22 +601,32 @@ export function ClassRecognitionsPage() {
               <School size={14} className="text-indigo-600" />
               <span>{isAdmin ? 'Phạm vi vinh danh' : 'Lớp học phụ trách'}</span>
             </label>
-            <select
-              value={scope}
-              disabled={classesLoading || publishing}
-              onChange={e => { setScope(e.target.value); setNotice(''); }}
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all cursor-pointer"
-            >
-              {isAdmin && <option value="SCHOOL">Toàn trường</option>}
-              {!classes.length && !isAdmin && (
-                <option value="">{classesLoading ? 'Đang tải danh sách lớp…' : 'Chưa có lớp được phân công'}</option>
-              )}
-              {classes.map(c => (
-                <option key={c._id} value={c._id}>
-                  Lớp: {c.name}
-                </option>
-              ))}
-            </select>
+            {!isAdmin && classes.length <= 1 ? (
+              <div className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold truncate">
+                {classesLoading
+                  ? 'Đang tải lớp học…'
+                  : classes[0]
+                  ? `Lớp: ${classes[0].name}`
+                  : 'Chưa có lớp đang giảng dạy'}
+              </div>
+            ) : (
+              <select
+                value={scope}
+                disabled={classesLoading || publishing}
+                onChange={e => { setScope(e.target.value); setNotice(''); }}
+                className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold focus:outline-none focus:border-indigo-600 focus:bg-white transition-all cursor-pointer"
+              >
+                {isAdmin && <option value="SCHOOL">Toàn trường</option>}
+                {!classes.length && !isAdmin && (
+                  <option value="">{classesLoading ? 'Đang tải danh sách lớp…' : 'Chưa có lớp được phân công'}</option>
+                )}
+                {classes.map(c => (
+                  <option key={c._id} value={c._id}>
+                    Lớp: {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
