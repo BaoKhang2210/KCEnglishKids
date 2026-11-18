@@ -1,4 +1,4 @@
-import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson } from '../../utils/teachingSchedule';
+import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson, getLessonUnitInfo } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -26,6 +26,7 @@ interface ClassOption {
   _id: string;
   name: string;
   ageGroupCode: string;
+  status?: string;
   studentCount?: number;
   currentLesson?: any;
   completedLessons?: any[];
@@ -125,7 +126,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   // State
   const [classes, setClasses] = useState<ClassOption[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string>(urlClassId || 'ALL');
+  const [selectedClassId, setSelectedClassId] = useState<string>(urlClassId || '');
   const [sessions, setSessions] = useState<ClassroomSession[]>([]);
   const [mySchedules, setMySchedules] = useState<ClassSchedule[]>([]);
   const [curriculumData, setCurriculumData] = useState<any>(null);
@@ -268,14 +269,15 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
         const clsList = Array.isArray(clsRes) ? clsRes : (clsRes?.data || clsRes?.classes || []);
         setClasses(clsList);
+        const preferredClass = clsList.find((room: ClassOption) => room.status === 'ACTIVE') || clsList[0];
         if (urlClassId && clsList.some((room: ClassOption) => room._id === urlClassId)) {
           setSelectedClassId(urlClassId);
         } else if (urlClassId) {
-          setSelectedClassId('ALL');
-          setError('Lớp trong liên kết không thuộc phân công hiện tại. Đang hiển thị các lớp của bạn.');
-        } else if (clsList.length === 1) {
-          // 1-1 teacher-to-class rule: auto-select their single assigned class
-          setSelectedClassId(String(clsList[0]._id));
+          setSelectedClassId(preferredClass ? String(preferredClass._id) : '');
+          setError('Lớp trong liên kết không thuộc phân công hiện tại. Đang hiển thị lớp bạn phụ trách.');
+        } else if (preferredClass) {
+          // Strict 1-1 teacher-to-class scope: teachers only view their own assigned class
+          setSelectedClassId(String(preferredClass._id));
         }
 
         const sList = Array.isArray(sessRes) ? sessRes : (sessRes?.data || []);
@@ -299,38 +301,37 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   // Selected class object
   const activeClass = useMemo(() => {
-    if (selectedClassId === 'ALL') return classes[0] || null;
-    return classes.find((c) => String(c._id) === String(selectedClassId)) || classes[0] || null;
+    return classes.find((c) => String(c._id) === String(selectedClassId)) || classes.find((c) => c.status === 'ACTIVE') || classes[0] || null;
   }, [classes, selectedClassId]);
 
   const effectiveClassId = activeClass?._id || '';
 
   // Filtered sessions strictly for this class in Roadmap
   const roadmapSessions = useMemo(() => {
-    if (!effectiveClassId) return sessions.filter(s => s.status === 'COMPLETED');
+    if (!effectiveClassId) return [];
     return sessions.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
       return cId === String(effectiveClassId) && s.status === 'COMPLETED';
     });
   }, [sessions, effectiveClassId]);
 
-  // Filtered sessions based on selected classroom
+  // Filtered sessions strictly for the teacher's own assigned classroom
   const filteredSessions = useMemo(() => {
-    if (selectedClassId === 'ALL') return sessions;
+    if (!effectiveClassId) return [];
     return sessions.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
-      return cId === String(selectedClassId);
+      return cId === String(effectiveClassId);
     });
-  }, [sessions, selectedClassId]);
+  }, [sessions, effectiveClassId]);
 
-  // Filtered scheduled fixed slots from Admin based on selected classroom
+  // Filtered scheduled fixed slots strictly for the teacher's own assigned classroom
   const filteredMySchedules = useMemo(() => {
-    if (selectedClassId === 'ALL') return mySchedules;
+    if (!effectiveClassId) return [];
     return mySchedules.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
-      return cId === String(selectedClassId);
+      return cId === String(effectiveClassId);
     });
-  }, [mySchedules, selectedClassId]);
+  }, [mySchedules, effectiveClassId]);
 
   // Target book number based on activeClass ageGroupCode
   const targetBookNumber = useMemo(() => {
@@ -689,25 +690,31 @@ export const TeacherTeachingSchedule: React.FC = () => {
           </p>
         </div>
 
-        {/* Filter Classroom & Teaching Action */}
+        {/* Classroom Badge / Selector (Strictly own assigned classes) */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
-            <GraduationCap size={20} className="text-teal-800 shrink-0" />
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-              className="bg-transparent text-sm sm:text-base font-extrabold text-slate-800 outline-none cursor-pointer"
-            >
-              {classes.length > 1 && (
-                <option value="ALL">🏫 Tất cả các lớp ({classes.length} lớp)</option>
-              )}
-              {classes.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name} {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {classes.length <= 1 ? (
+            <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
+              <GraduationCap size={20} className="text-teal-800 shrink-0" />
+              <span className="text-sm sm:text-base font-extrabold text-slate-800">
+                {activeClass ? `${activeClass.name} • Lớp giảng dạy của tôi` : 'Chưa được phân công lớp'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
+              <GraduationCap size={20} className="text-teal-800 shrink-0" />
+              <select
+                value={effectiveClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="bg-transparent text-sm sm:text-base font-extrabold text-slate-800 outline-none cursor-pointer"
+              >
+                {classes.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Quick Teach Button with Schedule Gate */}
           {effectiveClassId && (
@@ -1001,7 +1008,9 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                   </span>
                                 ) : effectiveLesson.lessonNumber > 0 ? (
                                   <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
-                                    Lesson #{effectiveLesson.lessonNumber}
+                                    {effectiveLesson.unitNumber && effectiveLesson.unitLessonNumber
+                                      ? `Unit ${effectiveLesson.unitNumber} · Lesson ${effectiveLesson.unitLessonNumber}`
+                                      : `Lesson #${effectiveLesson.lessonNumber}`}
                                   </span>
                                 ) : null}
                               </div>
@@ -1019,7 +1028,11 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                   : 'Bài học dự kiến:'}
                               </p>
                               <p className="font-black text-slate-900 text-xs mt-0.5 break-words" title={`${lessonDisplayTitle}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}`}>
-                                {effectiveLesson.isUnheld ? 'Buổi học chưa diễn ra thực tế' : `Lesson ${effectiveLesson.lessonNumber}: ${lessonDisplayTitle}`}
+                                {effectiveLesson.isUnheld
+                                  ? 'Buổi học chưa diễn ra thực tế'
+                                  : effectiveLesson.unitNumber && effectiveLesson.unitLessonNumber
+                                  ? `Unit ${effectiveLesson.unitNumber} · Lesson ${effectiveLesson.unitLessonNumber}: ${lessonDisplayTitle}`
+                                  : `Lesson ${effectiveLesson.lessonNumber}: ${lessonDisplayTitle}`}
                               </p>
                             </div>
 
@@ -1141,7 +1154,9 @@ export const TeacherTeachingSchedule: React.FC = () => {
                           </div>
                         ) : (
                           activeSessions.map((s: any) => {
-                            const lessonTitle = s.lesson?.title || s.title || 'Buổi học tiếng Anh';
+                            const lessonObj = s.lesson as any;
+                            const uInfo = getLessonUnitInfo(lessonObj);
+                            const lessonTitle = lessonObj?.title || s.title || 'Buổi học tiếng Anh';
                             const roomName = s.classroom?.name || 'Lớp';
                             const scoreCount = (s.studentScores || []).filter((row: any) => !['ABSENT', 'EXCUSED'].includes(row.attendance)).length;
                             const stars = s.summary?.totalStars;
@@ -1161,6 +1176,11 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                       : 'Dạy'}
                                   </span>
                                 </div>
+                                {uInfo.label && (
+                                  <span className="inline-block mb-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-black">
+                                    {uInfo.label}
+                                  </span>
+                                )}
                                 <h5 className="text-sm font-black text-slate-900 break-words" title={lessonTitle}>
                                   {lessonTitle}
                                 </h5>

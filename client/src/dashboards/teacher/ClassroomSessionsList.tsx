@@ -22,7 +22,7 @@ import {
   Plus,
   RotateCcw
 } from 'lucide-react';
-import { cleanReason } from '../../utils/teachingSchedule';
+import { cleanReason, getLessonUnitInfo } from '../../utils/teachingSchedule';
 import { classroomSessionApi, teacherApi } from '../../services/api';
 import type { ClassroomSession } from '../../types';
 
@@ -616,6 +616,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
   const dur = durationMin(s);
   const classroom = s.classroom as any;
   const lesson = s.lesson as any;
+  const unitInfo = getLessonUnitInfo(lesson);
   const isCancelled = s.status === 'CANCELLED';
   const isLive = s.status === 'LIVE';
 
@@ -672,9 +673,14 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
               {isCancelled && s.cancellationReason ? `Báo nghỉ: ${cleanReason(s.cancellationReason)}` : s.title}
             </h3>
             {lesson?.title && (
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600 line-clamp-1">
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600 line-clamp-1" title={`${unitInfo.label ? `${unitInfo.label}: ` : ''}${lesson.title}`}>
                 <BookOpen size={13} className="text-teal-700 shrink-0" />
-                <span>Bài học: {lesson.title}</span>
+                {unitInfo.label && (
+                  <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-black shrink-0">
+                    {unitInfo.label}
+                  </span>
+                )}
+                <span className="truncate">{lesson.title}</span>
               </p>
             )}
           </div>
@@ -801,9 +807,9 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
             )}
 
             {lesson?.title && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200">
-                <BookOpen size={11} className="text-slate-400" />
-                {lesson.title}
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold text-teal-900 bg-teal-50 border border-teal-200">
+                <BookOpen size={11} className="text-teal-700 shrink-0" />
+                <span>{unitInfo.label ? `${unitInfo.label} · ` : ''}{lesson.title}</span>
               </span>
             )}
           </div>

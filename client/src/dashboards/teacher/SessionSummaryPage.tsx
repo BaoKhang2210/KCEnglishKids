@@ -20,6 +20,7 @@ import {
   Mail
 } from 'lucide-react';
 import { classroomSessionApi } from '../../services/api';
+import { getLessonUnitInfo } from '../../utils/teachingSchedule';
 import { FamilyReportModal } from '../../components/teacher/FamilyReportModal';
 import { StudentAvatar } from '../../components/common/StudentAvatar';
 import type { ClassroomSession, User } from '../../types';
@@ -143,6 +144,21 @@ export const SessionSummaryPage: React.FC = () => {
                   👶 {(session.classroom as any)?.ageGroupCode} tuổi
                 </span>
               )}
+
+              {(() => {
+                const lessonObj = session.lesson as any;
+                const uInfo = getLessonUnitInfo(lessonObj);
+                if (!lessonObj?.title && !uInfo.label) return null;
+                return (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/20 text-white font-black border border-white/25">
+                    <BookOpen size={13} className="text-amber-300" />
+                    <span>
+                      {uInfo.label ? `${uInfo.label}: ` : ''}
+                      {lessonObj?.title || ''}
+                    </span>
+                  </span>
+                );
+              })()}
 
               {Boolean(session.plannedDuration) && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/20 border border-white/15">

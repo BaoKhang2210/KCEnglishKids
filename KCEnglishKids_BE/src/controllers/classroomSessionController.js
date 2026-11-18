@@ -57,7 +57,7 @@ async function checkTiming(req, classroom) {
 async function populateSession(item, summary = false) {
   await item.populate('classroom', 'name ageGroupCode teacher');
   await item.populate('teacher', 'name avatar avatarUrl');
-  await item.populate({ path: 'lesson', select: 'title vietnameseTitle description ageGroupCode learningObjectives vocabularyItems languageContents topic curriculumUnits', populate: [
+  await item.populate({ path: 'lesson', select: 'key title vietnameseTitle description displayOrder ageGroupCode learningObjectives vocabularyItems languageContents topic curriculumUnits', populate: [
     { path: 'vocabularyItems', select: 'english vietnamese pronunciation audioUrl imageUrl category' },
     { path: 'languageContents', match: { status: 'ACTIVE' } },
     { path: 'curriculumUnits', select: 'unitNumber bookNumber bigQuestion title' },
@@ -88,7 +88,7 @@ exports.getSessions = wrap(async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 100));
   const [data, total] = await Promise.all([
     ClassroomSession.find(query).populate('classroom', 'name ageGroupCode teacher').populate('teacher', 'name avatar avatarUrl')
-      .populate({ path: 'lesson', select: 'title vietnameseTitle displayOrder curriculumUnits', populate: { path: 'curriculumUnits', select: 'bookNumber unitNumber title vietnameseTitle theme' } })
+      .populate({ path: 'lesson', select: 'key title vietnameseTitle displayOrder curriculumUnits', populate: { path: 'curriculumUnits', select: 'bookNumber unitNumber title vietnameseTitle theme' } })
       .sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit),
     ClassroomSession.countDocuments(query)
   ]);
