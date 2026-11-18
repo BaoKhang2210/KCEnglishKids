@@ -10,7 +10,7 @@ import { KokoMascot } from './KokoMascot';
 import { ChildBadgesModal } from './ChildBadgesModal';
 import { CertificateModal } from './CertificateModal';
 
-export function ChildRecognitions() {
+export function ChildRecognitions({ streakDays }: { streakDays?: number } = {}) {
   const { user } = useAuth();
   const { rewards } = useRewards();
   const [items, setItems] = useState<ChildRecognition[]>([]);
@@ -87,7 +87,7 @@ export function ChildRecognitions() {
     icon: '🌱',
     progressPercent: 20
   };
-  const streak = (user as any)?.streak || 1;
+  const streak = streakDays ?? (user as any)?.streak ?? 1;
   const completedLessons = rewards?.completedLessons ?? 0;
   const homePracticeStars = rewards?.homePracticeStars ?? 0;
 
