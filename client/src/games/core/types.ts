@@ -40,7 +40,6 @@ export interface GameDefinition {
 
 export interface GameConfig {
   preview?: boolean;
-  assignmentId?: string;
   instructions?: string;
   targetOrder?: string[];
   attemptToken?: string;

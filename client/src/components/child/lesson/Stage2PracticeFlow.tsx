@@ -637,6 +637,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const summarySaveStartedRef = useRef(false);
   const autoSubmittedSessionRef = useRef('');
   const replayAttemptActiveRef = useRef(false);
+  const attemptSubmissionIdRef = useRef('');
   const [showResumePrompt, setShowResumePrompt] = useState(Boolean(checkpoint && !stage2Completed));
   const [showSessionIntro, setShowSessionIntro] = useState(!checkpoint && !stage2Completed);
   // Break dialog removed — no longer interrupts practice flow
@@ -1216,6 +1217,8 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     setIsReplayAttempt(true);
     replayAttemptActiveRef.current = true;
     practiceSessionIdRef.current = globalThis.crypto?.randomUUID?.() || `stage2-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    attemptSubmissionIdRef.current = '';
+    try { localStorage.removeItem(checkpointKey); } catch {}
     // A replay is a new reportable attempt even when this stage was completed
     // earlier. Never let the prior attempt's confirmed summary suppress its save.
     setSummaryReport(null);
@@ -1247,10 +1250,13 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
     summarySaveStartedRef.current = true;
     setSummarySaving(true);
     setSummaryError('');
+    if (!attemptSubmissionIdRef.current) {
+      attemptSubmissionIdRef.current = `${stage2OutcomeSubmissionId(practiceSessionIdRef.current || lessonId, 2, 'complete')}-${Date.now().toString(36)}`;
+    }
     try {
       const result = await onComplete({
         answers: evidenceRef.current,
-        submissionId: stage2OutcomeSubmissionId(practiceSessionIdRef.current || lessonId, 2, 'complete'),
+        submissionId: attemptSubmissionIdRef.current,
       });
       if (result?.confirmed) {
         setSummaryReport(result);

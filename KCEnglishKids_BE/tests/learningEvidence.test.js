@@ -8,7 +8,7 @@ const id = n => String(n).padStart(24, '0');
 const query = value => ({ select() { return this; }, sort() { return this; }, lean: async () => value });
 function statistics(t, { quiz = [], classroom = [], stages = [], homePractice = [] } = {}) {
   for (const [Model, rows] of [[M.ActivityResult, quiz], [M.Progress, []], [M.ClassroomSession, classroom], [M.UnitCompletion, []], [M.LearningEvent, stages], [M.HomePracticeCompletion, homePractice]]) if (Model) t.mock.method(Model, 'aggregate', async () => rows);
-  t.mock.method(M.Progress, 'find', () => query([])); t.mock.method(M.Assignment, 'find', () => query([]));
+  t.mock.method(M.Progress, 'find', () => query([]));
 }
 test('a child with classroom answers but no independent practice has no practice percentage', async t => {
   statistics(t, { classroom: [{ _id: id(1), correctAnswers: 5, incorrectAnswers: 0, classroomSessions: 1, learningTime: 1800, timedSessions: 1 }] });

@@ -80,13 +80,19 @@ async function familyCurrent(child){
   return {_id:plan._id,revision:plan.revision,lessonTitle:plan.lessonTitle,lessonId:plan.lesson,teacherNote:plan.teacherNote,words:plan.words.map(word=>({...word,_id:word.vocabulary})),homeActivity:plan.homeActivity,approvedAt:plan.createdAt};
 }
 
-async function getHomeReview(child) {
+async function getHomeReview(child, requestedLessonId) {
+  let room = null;
+  if (child.assignedClass && M.ClassRoom) {
+    room = await M.ClassRoom.findById(child.assignedClass).populate('teacher').lean();
+  }
+
   // 1. First, check if there is a completed classroom session for this child/classroom
   let recentSession = null;
   if (child.assignedClass && M.ClassroomSession && typeof M.ClassroomSession.findOne === 'function') {
     recentSession = await M.ClassroomSession.findOne({
       classroom: child.assignedClass,
       status: 'COMPLETED',
+      lesson: { $ne: null },
       'studentScores': {
         $elemMatch: {
           student: child._id,
@@ -98,44 +104,55 @@ async function getHomeReview(child) {
     if (!recentSession) {
       recentSession = await M.ClassroomSession.findOne({
         classroom: child.assignedClass,
-        status: 'COMPLETED'
+        status: 'COMPLETED',
+        lesson: { $ne: null }
       }).sort({ endedAt: -1, createdAt: -1, _id: -1 }).populate('lesson').lean();
     }
   }
 
   const approved = await familyCurrent(child);
 
-  // The lesson taught in the latest completed session takes precedence!
+  // Collect all lesson IDs actually taught in class by the teacher
+  const taughtLessonIds = new Set();
+  if (recentSession?.lesson?._id) {
+    taughtLessonIds.add(String(recentSession.lesson._id));
+  } else if (recentSession?.lesson) {
+    taughtLessonIds.add(String(recentSession.lesson));
+  }
+  if (Array.isArray(room?.completedLessons)) {
+    for (const cl of room.completedLessons) {
+      const lid = cl?._id || cl;
+      if (lid) taughtLessonIds.add(String(lid));
+    }
+  }
+
+  // If the teacher has NOT taught any lesson in class yet:
+  // Strictly do NOT show or generate 5-minute review (no fallback to untaught curriculum)!
+  if (taughtLessonIds.size === 0) {
+    return null;
+  }
+
+  // Determine the target lesson: strictly the lesson taught in class
   let targetLessonId = null;
   let useApprovedPlan = false;
+  const mongoose = require('mongoose');
 
-  if (recentSession?.lesson) {
+  if (requestedLessonId && mongoose.Types.ObjectId.isValid(requestedLessonId) && taughtLessonIds.has(String(requestedLessonId))) {
+    targetLessonId = requestedLessonId;
+    if (approved && String(approved.lessonId) === String(targetLessonId)) {
+      useApprovedPlan = true;
+    }
+  } else if (recentSession?.lesson) {
+    // The lesson the teacher just taught in class
     targetLessonId = recentSession.lesson._id || recentSession.lesson;
     if (approved && String(approved.lessonId) === String(targetLessonId)) {
       useApprovedPlan = true;
     }
-  } else if (approved) {
-    targetLessonId = approved.lessonId;
-    useApprovedPlan = true;
-  } else if (child.assignedClass) {
-    const room = await M.ClassRoom.findById(child.assignedClass).lean();
-    if (room?.currentLesson) {
-      targetLessonId = room.currentLesson;
-    }
-  }
-
-  if (!targetLessonId) {
-    const unit = await M.CurriculumUnit.findOne({
-      ageGroupCode: child.ageGroupCode,
-      status: 'ACTIVE'
-    }).sort({ bookNumber: 1, unitNumber: 1 }).lean();
-    const fallbackLesson = await M.Lesson.findOne({
-      ageGroupCode: child.ageGroupCode,
-      status: 'ACTIVE',
-      ...(unit ? { curriculumUnits: unit._id } : {})
-    }).sort({ displayOrder: 1, _id: 1 }).lean();
-    if (fallbackLesson) {
-      targetLessonId = fallbackLesson._id;
+  } else if (room?.completedLessons?.length > 0) {
+    const lastTaught = room.completedLessons[room.completedLessons.length - 1];
+    targetLessonId = lastTaught?._id || lastTaught;
+    if (approved && String(approved.lessonId) === String(targetLessonId)) {
+      useApprovedPlan = true;
     }
   }
 
@@ -235,8 +252,8 @@ async function getHomeReview(child) {
   if (M.HomePracticeCompletion && typeof M.HomePracticeCompletion.findOne === 'function') {
     completion = await M.HomePracticeCompletion.findOne({
       child: child._id,
-      date: todayStr
-    }).lean();
+      lesson: lesson._id
+    }).sort({ completedAt: -1, createdAt: -1 }).lean();
   }
 
   const lessonDisplayName = lesson.vietnameseTitle || lesson.title;
@@ -251,7 +268,9 @@ async function getHomeReview(child) {
         ],
     teacherNote: (useApprovedPlan && approved?.teacherNote)
       ? approved.teacherNote
-      : (recentSession
+      : (room?.teacher?.name
+          ? `Cô ${room.teacher.name} vừa dạy bài học "${lessonDisplayName}" cho lớp ${room.name || ''}. Ba mẹ hãy cùng bé dành 5 phút vui học và đập tay khen ngợi con nhé!`
+          : recentSession
           ? `Bé vừa hoàn thành bài học "${lessonDisplayName}" trên lớp cùng cô giáo. Ba mẹ hãy dành 5 phút vui học và đập tay khen ngợi con nhé!`
           : 'Ba mẹ hãy dành 5 phút trò chuyện vui vẻ cùng con nhé!')
   };
@@ -260,6 +279,8 @@ async function getHomeReview(child) {
     lessonId: lesson._id,
     lessonTitle: lesson.title,
     lessonVietnameseTitle: lesson.vietnameseTitle || lesson.title,
+    teacherName: room?.teacher?.name || null,
+    classroomName: room?.name || null,
     recentSession: recentSession ? {
       _id: recentSession._id,
       title: recentSession.title,
@@ -269,6 +290,8 @@ async function getHomeReview(child) {
     sentencePatterns,
     parentGuidance,
     completedToday: Boolean(completion),
+    isCompleted: Boolean(completion),
+    completedDate: completion?.date || null,
     starsAwarded: completion ? completion.stars : 0,
     approvedPlan: useApprovedPlan ? approved : null
   };
@@ -280,32 +303,65 @@ async function completeHomeReview(child, lessonId) {
   let completion = null;
   let newlyCompleted = false;
 
+  let validLessonId = undefined;
+  const mongoose = require('mongoose');
+  if (lessonId && mongoose.Types.ObjectId.isValid(lessonId)) {
+    const review = await getHomeReview(child, lessonId);
+    if (review?.lessonId && String(review.lessonId) === String(lessonId)) {
+      validLessonId = lessonId;
+    }
+  }
+
+  if (!validLessonId) {
+    const review = await getHomeReview(child);
+    if (review?.lessonId && mongoose.Types.ObjectId.isValid(review.lessonId)) {
+      validLessonId = review.lessonId;
+    }
+  }
+
+  if (!validLessonId) {
+    const { computeRewards } = require('./rewardService');
+    const rewardState = await computeRewards(child._id);
+    return {
+      completedToday: false,
+      isCompleted: false,
+      newlyCompleted: false,
+      starsAwarded: 0,
+      totalStars: rewardState.totalStars,
+      rewards: rewardState,
+      message: 'Chưa có bài học nào được dạy trên lớp để ôn tập.'
+    };
+  }
+
   if (M.HomePracticeCompletion) {
-    completion = await M.HomePracticeCompletion.findOne({
+    // Strictly 1 completion reward per (child, lesson)
+    const query = {
       child: child._id,
-      date: todayStr
-    });
+      lesson: validLessonId
+    };
+    completion = await M.HomePracticeCompletion.findOne(query);
 
     if (!completion) {
       try {
-        completion = await M.HomePracticeCompletion.create({
+        const payload = {
           child: child._id,
-          lesson: lessonId,
           date: todayStr,
           stars: 3,
-          completedAt: new Date()
-        });
+          completedAt: new Date(),
+          lesson: validLessonId
+        };
+        completion = await M.HomePracticeCompletion.create(payload);
         newlyCompleted = true;
       } catch (err) {
         if (err.code === 11000) {
-          completion = await M.HomePracticeCompletion.findOne({
-            child: child._id,
-            date: todayStr
-          });
+          completion = await M.HomePracticeCompletion.findOne(query);
+          newlyCompleted = false;
         } else {
           throw err;
         }
       }
+    } else {
+      newlyCompleted = false;
     }
   }
 
@@ -314,12 +370,14 @@ async function completeHomeReview(child, lessonId) {
 
   return {
     completedToday: true,
+    isCompleted: true,
     newlyCompleted,
     starsAwarded: newlyCompleted ? 3 : 0,
     totalStars: rewardState.totalStars,
+    rewards: rewardState,
     message: newlyCompleted
-      ? 'Tuyệt vời! Bé đã xuất sắc hoàn thành 5 phút ôn tập hôm nay và nhận được 3 ngôi sao!'
-      : 'Hôm nay bé đã nhận thưởng 3 sao cho bài ôn tập rồi!'
+      ? 'Tuyệt vời! Bé đã xuất sắc hoàn thành 5 phút ôn tập bài vừa học và nhận được 3 ngôi sao!'
+      : 'Bé đã nhận thưởng 3 sao cho bài học này trước đó rồi (không cộng thêm sao ở các lần ôn sau)!'
   };
 }
 

@@ -10,10 +10,10 @@ interface Props extends ParentNoteRequest {
 
 // A keyed inner panel cannot carry suggestions between recipients or submissions.
 export function ParentNoteSuggestions(props: Props) {
-  return <SuggestionPanel key={`${props.childId}:${props.assignmentId || ''}:${props.resultId || ''}`} {...props} />;
+  return <SuggestionPanel key={`${props.childId}:${props.resultId || ''}`} {...props} />;
 }
 
-function SuggestionPanel({ childId, assignmentId, resultId, onSelect, disabled }: Props) {
+function SuggestionPanel({ childId, resultId, onSelect, disabled }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ function SuggestionPanel({ childId, assignmentId, resultId, onSelect, disabled }
     setLoading(true);
     setError('');
     try {
-      const response = await aiApi.generateParentNote({ childId, assignmentId, resultId }, controller.signal);
+      const response = await aiApi.generateParentNote({ childId, resultId }, controller.signal);
       if (controller.signal.aborted) return;
       setSuggestions(response.data);
       setSelected('');
@@ -61,7 +61,7 @@ function SuggestionPanel({ childId, assignmentId, resultId, onSelect, disabled }
       <div aria-live="polite" aria-busy={loading}>
         {suggestions && <>
           <p className="mb-2 text-[11px] text-slate-600">
-            {suggestions.metrics.scope === 'assignment' ? 'Độ đúng của lượt đang xem; tổng bài và sao toàn hành trình.' : 'Số liệu toàn bộ quá trình học, không phải riêng tuần này.'}
+            Số liệu toàn bộ quá trình học, không phải riêng tuần này.
             {suggestions.metrics.averageAccuracy != null && ` Độ đúng trên câu đã ghi nhận: ${suggestions.metrics.averageAccuracy}%.`}
           </p>
           <div className="grid gap-2 sm:grid-cols-3">

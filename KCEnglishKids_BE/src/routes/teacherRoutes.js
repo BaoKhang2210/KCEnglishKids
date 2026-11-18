@@ -25,21 +25,13 @@ router.post('/classes/:id/students', c.addStudents);
 router.delete('/classes/:id/students/:studentId', c.removeStudent);
 router.get('/classes/:id/attendance', c.getClassAttendance);
 router.post('/classes/:id/attendance', c.saveClassAttendance);
+router.get('/classes/:id/curriculum-progress', require('../controllers/adminController').getClassroomCurriculumProgress);
 
 router.get('/content', c.getContent);
 router.get('/curriculum-options', c.getCurriculumOptions);
 router.get('/lessons/:id', c.getLesson);
 router.get('/activities/:id', c.getActivity);
-
-router.get('/assignments/proposal', require('../controllers/teacherAssignmentController').proposal);
-router.get('/assignments', c.getAssignments);
 router.get('/tasks', async(req,res,next)=>{try{res.json({success:true,data:await require('../services/learningInsights').teacherTasks(req)});}catch(error){next(error);}});
-router.post('/assignments', c.createAssignment);
-router.get('/assignments/:id', c.getAssignment);
-router.put('/assignments/:id', c.updateAssignment);
-router.delete('/assignments/:id', c.deleteAssignment);
-router.patch('/assignments/:id/status', c.updateAssignmentStatus);
-router.post('/assignments/:assignmentId/submissions/:childId/review', c.reviewAssignmentSubmission);
 
 router.get('/students', c.getStudents);
 router.get('/students/:studentId/overview', c.getStudentOverview);

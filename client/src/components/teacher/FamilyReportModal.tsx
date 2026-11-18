@@ -12,7 +12,6 @@ interface DraftRow {
   basisToken?: string;
   sentContent?: string | null;
   observations: any[];
-  assignment?: any;
   plan?: any;
 }
 
@@ -127,7 +126,6 @@ export function FamilyReportModal({
             teacherNote: notes[r.childId] || getDefaultNote(r.childName, r.attended, lTitle, uTitle),
             basisToken: r.basisToken,
             observationIds: (r.observations || []).map((o: any) => o._id),
-            includeAssignment: Boolean(r.assignment),
             includePlan: Boolean(r.plan)
           };
         });

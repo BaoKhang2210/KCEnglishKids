@@ -16,8 +16,7 @@ import {
   HelpCircle,
   Image as ImageIcon,
   ShieldCheck,
-  Wand2,
-  Copy
+  Wand2
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
@@ -34,15 +33,19 @@ export const AdminCurriculumPage: React.FC = () => {
   const [vocabModal, setVocabModal] = useState<{ mode: 'create' | 'edit'; lessonId: string; data: any } | null>(null);
   const [sentenceModal, setSentenceModal] = useState<{ mode: 'create' | 'edit'; lessonId: string; unitId: string; data: any } | null>(null);
 
-  // AI Curriculum Creator Modal (Feature A)
-  const [aiCreatorModal, setAiCreatorModal] = useState<{ unitId: string; lessonId?: string } | null>(null);
+  // AI Curriculum Creator Modal (AI Full Unit & Single Lesson Creator)
+  const [aiCreatorModal, setAiCreatorModal] = useState<{
+    mode: 'unit' | 'lesson';
+    unitId?: string;
+    unitData?: any;
+    lessonId?: string;
+  } | null>(null);
   const [aiTopic, setAiTopic] = useState('Các phương tiện giao thông (Vehicles)');
   const [aiAgeGroup, setAiAgeGroup] = useState<'3-4' | '4-5' | '5-6'>('3-4');
-  const [aiTargetMode, setAiTargetMode] = useState<'existing_lesson' | 'new_lesson'>('new_lesson');
   const [aiDraft, setAiDraft] = useState<any | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiApplying, setAiApplying] = useState(false);
-  const [copiedPromptIdx, setCopiedPromptIdx] = useState<number | null>(null);
+  const [selectedAiLessonIdx, setSelectedAiLessonIdx] = useState<number>(0);
 
   // Age-Appropriateness & Publish Readiness Audit Modal (Feature B)
   const [auditModal, setAuditModal] = useState<{ lesson: any; report: any } | null>(null);
@@ -156,13 +159,11 @@ export const AdminCurriculumPage: React.FC = () => {
 
   // ── UNIT HANDLERS ─────────────────────────────────────────────────────────
   const handleOpenCreateUnit = () => {
-    const nextNum = Array.from({ length: 9 }, (_, index) => index + 1).find(
-      number => !currentUnits.some((unit: any) => unit.unitNumber === number)
+    const maxUnitNumber = currentUnits.reduce(
+      (max: number, unit: any) => Math.max(max, Number(unit.unitNumber) || 0),
+      0
     );
-    if (!nextNum) {
-      showAlert('error', 'Sách đã có đủ 9 Unit. Hãy chỉnh sửa một Unit đang có.');
-      return;
-    }
+    const nextNum = maxUnitNumber + 1;
     setUnitForm({
       unitNumber: nextNum,
       bigQuestion: ''
@@ -665,24 +666,33 @@ export const AdminCurriculumPage: React.FC = () => {
     }
   };
 
-  // ── A. AI CURRICULUM CREATOR HANDLERS ─────────────────────────────────────
-  const handleOpenAiCreator = (unitId: string, lesson?: any) => {
+  // ── A. AI CURRICULUM CREATOR HANDLERS (Tạo trọn gói Unit Mới & Tạo Bài học vào Unit) ──
+  const handleOpenAiCreator = () => {
     const defaultAge: '3-4' | '4-5' | '5-6' =
       selectedBookNum === 1 ? '3-4' : selectedBookNum === 2 ? '4-5' : '5-6';
     setAiAgeGroup(defaultAge);
-    if (lesson) {
-      setAiTargetMode('existing_lesson');
-      const suggestedTopic = lesson.vietnameseTitle
-        ? `${lesson.vietnameseTitle} (${lesson.title})`
-        : lesson.title || 'Các phương tiện giao thông (Vehicles)';
-      setAiTopic(suggestedTopic);
-      setAiCreatorModal({ unitId, lessonId: lesson._id });
-    } else {
-      setAiTargetMode(activeLesson ? 'existing_lesson' : 'new_lesson');
-      setAiTopic('Các phương tiện giao thông (Vehicles)');
-      setAiCreatorModal({ unitId, lessonId: activeLesson?._id });
-    }
+    setAiTopic('Các phương tiện giao thông (Vehicles)');
+    setAiCreatorModal({ mode: 'unit' });
     setAiDraft(null);
+    setSelectedAiLessonIdx(0);
+  };
+
+  const handleOpenAiLessonCreator = (unit?: any) => {
+    const targetUnit = unit || activeUnit || currentUnits[0];
+    if (!targetUnit) {
+      showAlert('error', 'Vui lòng chọn Unit trước khi tạo bài học.');
+      return;
+    }
+    const defaultAge = (targetUnit.ageGroupCode as '3-4' | '4-5' | '5-6') || (selectedBookNum === 1 ? '3-4' : selectedBookNum === 2 ? '4-5' : '5-6');
+    setAiAgeGroup(defaultAge);
+    setAiTopic(targetUnit.bigQuestion ? `Mở rộng: ${targetUnit.bigQuestion}` : 'Từ vựng và mẫu câu mới');
+    setAiCreatorModal({
+      mode: 'lesson',
+      unitId: targetUnit._id,
+      unitData: targetUnit
+    });
+    setAiDraft(null);
+    setSelectedAiLessonIdx(0);
   };
 
   const handleGenerateAiDraft = async (e?: React.FormEvent) => {
@@ -693,12 +703,20 @@ export const AdminCurriculumPage: React.FC = () => {
     }
     try {
       setAiGenerating(true);
+      const isLessonMode = aiCreatorModal?.mode === 'lesson';
+      const existingLessonCount = isLessonMode
+        ? (aiCreatorModal?.unitData?.lessons?.length ?? 0)
+        : undefined;
       const res = await adminApi.generateAiCurriculum({
         topic: aiTopic.trim(),
-        ageGroup: aiAgeGroup
+        ageGroup: aiAgeGroup,
+        mode: isLessonMode ? 'lesson' : 'unit',
+        unitId: isLessonMode ? aiCreatorModal?.unitId : undefined,
+        existingLessonCount
       });
       if (res.success && res.data) {
         setAiDraft(res.data);
+        setSelectedAiLessonIdx(0);
       }
     } catch (err: any) {
       showAlert('error', err?.message || 'Không thể tạo gợi ý từ AI.');
@@ -711,28 +729,59 @@ export const AdminCurriculumPage: React.FC = () => {
     if (!aiDraft || !aiCreatorModal) return;
     try {
       setAiApplying(true);
-      const targetLessonId =
-        aiTargetMode === 'existing_lesson' && (aiCreatorModal.lessonId || activeLesson?._id)
-          ? aiCreatorModal.lessonId || activeLesson?._id
-          : undefined;
-      const res = await adminApi.applyAiCurriculum({
-        lessonId: targetLessonId,
-        unitId: aiCreatorModal.unitId,
-        ageGroupCode: aiAgeGroup,
-        suggestedLessonTitle: aiDraft.suggestedLessonTitle,
-        suggestedVietnameseTitle: aiDraft.suggestedVietnameseTitle,
-        category: aiDraft.category,
-        vocabularies: aiDraft.vocabularies || [],
-        sentencePairs: aiDraft.sentencePairs || []
-      });
-      if (res.success) {
-        showAlert('success', res.message || 'Đã lưu nội dung AI vào giáo trình!');
-        const savedLessonId = res.data?.lessonId;
-        setAiCreatorModal(null);
-        setAiDraft(null);
-        await loadCurriculum();
-        if (savedLessonId) {
-          setSelectedLessonId(String(savedLessonId));
+      const isLessonMode = aiCreatorModal.mode === 'lesson';
+
+      if (isLessonMode && aiCreatorModal.unitId) {
+        // Mode: Apply single AI Lesson directly into the selected Unit
+        const res = await adminApi.applyAiCurriculum({
+          createNewUnit: false,
+          unitId: aiCreatorModal.unitId,
+          existingLessonCount: aiCreatorModal.unitData?.lessons?.length ?? 0,
+          ageGroupCode: aiAgeGroup,
+          suggestedLessonTitle: aiDraft.suggestedLessonTitle,
+          suggestedVietnameseTitle: aiDraft.suggestedVietnameseTitle,
+          description: aiDraft.description,
+          category: aiDraft.category,
+          vocabularies: aiDraft.vocabularies || [],
+          sentencePairs: aiDraft.sentencePairs || []
+        });
+        if (res.success) {
+          showAlert('success', res.message || 'Đã tạo thành công bài học mới vào Unit!');
+          const createdLessonId = res.data?.lessonId;
+          const targetUnitId = aiCreatorModal.unitId;
+          setAiCreatorModal(null);
+          setAiDraft(null);
+          await loadCurriculum();
+          if (targetUnitId) setSelectedUnitId(String(targetUnitId));
+          if (createdLessonId) setSelectedLessonId(String(createdLessonId));
+        }
+      } else {
+        // Mode: Full Unit Creator (Unit + 4 Lessons)
+        const targetBookNumber = aiAgeGroup === '3-4' ? 1 : aiAgeGroup === '4-5' ? 2 : 3;
+        const res = await adminApi.applyAiCurriculum({
+          createNewUnit: true,
+          bookNumber: targetBookNumber,
+          ageGroupCode: aiAgeGroup,
+          bigQuestion: aiDraft.bigQuestion,
+          storyTitle: aiDraft.storyTitle,
+          values: aiDraft.values,
+          unitLessons: aiDraft.unitLessons || [],
+          suggestedLessonTitle: aiDraft.suggestedLessonTitle,
+          suggestedVietnameseTitle: aiDraft.suggestedVietnameseTitle,
+          category: aiDraft.category,
+          vocabularies: aiDraft.vocabularies || [],
+          sentencePairs: aiDraft.sentencePairs || []
+        });
+        if (res.success) {
+          showAlert('success', res.message || 'Đã tạo thành công Unit mới kèm 4 bài học với từ vựng & mẫu câu riêng biệt!');
+          const savedUnitId = res.data?.unitId;
+          const savedLessonId = res.data?.lessonId;
+          if (res.data?.bookNumber) setSelectedBookNum(Number(res.data.bookNumber));
+          setAiCreatorModal(null);
+          setAiDraft(null);
+          await loadCurriculum();
+          if (savedUnitId) setSelectedUnitId(String(savedUnitId));
+          if (savedLessonId) setSelectedLessonId(String(savedLessonId));
         }
       }
     } catch (err: any) {
@@ -799,14 +848,25 @@ export const AdminCurriculumPage: React.FC = () => {
           <span>Giáo Trình</span>
         </h1>
 
-        <button
-          id="btn-create-unit"
-          onClick={handleOpenCreateUnit}
-          className="px-4 py-2.5 rounded-2xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs sm:text-sm flex items-center gap-2 transition-all self-start sm:self-auto cursor-pointer"
-        >
-          <Plus size={18} />
-          <span>Thêm Unit (Book {selectedBookNum})</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <button
+            type="button"
+            id="btn-ai-create-unit-top"
+            onClick={handleOpenAiCreator}
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 hover:from-violet-800 hover:to-indigo-800 text-white font-black text-xs sm:text-sm flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+          >
+            <Wand2 size={18} />
+            <span>AI Tạo Unit Mới (4 Bài)</span>
+          </button>
+          <button
+            id="btn-create-unit"
+            onClick={handleOpenCreateUnit}
+            className="px-4 py-2.5 rounded-2xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <Plus size={18} />
+            <span>Thêm Unit (Book {selectedBookNum})</span>
+          </button>
+        </div>
       </div>
 
       <AdminBookTabs selected={selectedBookNum} onSelect={book => setSelectedBookNum(book)} />
@@ -942,14 +1002,16 @@ export const AdminCurriculumPage: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
                     <button
                       type="button"
-                      id="btn-ai-curriculum-creator"
-                      onClick={() => handleOpenAiCreator(activeUnit._id)}
-                      className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 hover:from-violet-800 hover:to-indigo-800 text-white font-black text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+                      id="btn-ai-create-lesson-banner"
+                      onClick={() => handleOpenAiLessonCreator(activeUnit)}
+                      className="px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-700 to-indigo-700 hover:from-violet-800 hover:to-indigo-800 text-white font-black text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+                      title="Dùng AI sinh bài học mới kèm từ vựng và mẫu câu vào Unit này"
                     >
                       <Wand2 size={15} />
-                      <span>Tạo nhanh bằng AI</span>
+                      <span>AI Tạo Bài Học</span>
                     </button>
                     <button
+                      id="btn-create-lesson"
                       onClick={() => handleOpenCreateLesson(activeUnit._id)}
                       className="px-4 py-2.5 rounded-2xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
                     >
@@ -967,12 +1029,22 @@ export const AdminCurriculumPage: React.FC = () => {
                       <p className="text-sm font-bold text-slate-700">
                         Chưa có bài học nào trong Unit {activeUnit.unitNumber}
                       </p>
-                      <button
-                        onClick={() => handleOpenCreateLesson(activeUnit._id)}
-                        className="mt-3 px-4 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs cursor-pointer"
-                      >
-                        Thêm Bài Học Đầu Tiên
-                      </button>
+                      <div className="flex items-center justify-center gap-2.5 mt-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAiLessonCreator(activeUnit)}
+                          className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-700 to-indigo-700 hover:from-violet-800 hover:to-indigo-800 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <Wand2 size={14} />
+                          <span>AI Tạo Bài Học Mới</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenCreateLesson(activeUnit._id)}
+                          className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs cursor-pointer border border-slate-300"
+                        >
+                          Thêm Thủ Công
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -1064,14 +1136,6 @@ export const AdminCurriculumPage: React.FC = () => {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAiCreator(activeUnit._id, activeLesson)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-violet-800 bg-violet-50 border border-violet-200 hover:bg-violet-100 flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
-                              >
-                                <Wand2 size={14} />
-                                <span>Tạo nhanh bằng AI</span>
-                              </button>
                               <button
                                 type="button"
                                 disabled={auditLoadingId === activeLesson._id}
@@ -1448,18 +1512,23 @@ export const AdminCurriculumPage: React.FC = () => {
             <form onSubmit={handleUnitSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Số thứ tự Unit (1 - 9) *
+                  Số thứ tự Unit (Tự động xếp ở cuối sách) *
                 </label>
                 <input
                   type="number"
                   min="1"
-                  max="9"
+                  max="50"
                   required
                   value={unitForm.unitNumber}
                   disabled={unitModal.mode === 'edit'}
                   onChange={(e) => setUnitForm({ ...unitForm, unitNumber: Number(e.target.value) })}
                   className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-300 text-slate-900 text-base focus:border-indigo-600 focus:outline-none disabled:bg-slate-100"
                 />
+                {unitModal.mode === 'create' && (
+                  <p className="text-xs font-semibold text-indigo-700 mt-1.5">
+                    ✨ Khi tạo Unit {unitForm.unitNumber}, hệ thống tự động khởi tạo kèm 4 bài học chuẩn sư phạm (Vocabulary &amp; Phonics, Sentence Patterns, Story &amp; Values, Review Games).
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1511,6 +1580,29 @@ export const AdminCurriculumPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleLessonSubmit} className="space-y-4">
+              {lessonModal.mode === 'create' && (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <Wand2 size={18} className="text-violet-700 shrink-0" />
+                    <span className="text-xs font-bold text-violet-950">
+                      Gợi ý: Bạn có thể để AI tự động tạo tiêu đề, từ vựng và mẫu câu giao tiếp cho Unit này chỉ trong vài giây.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const u = currentUnits.find((unit: any) => unit._id === (lessonForm.unitId || lessonModal.unitId)) || activeUnit;
+                      setLessonModal(null);
+                      handleOpenAiLessonCreator(u);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-violet-700 hover:bg-violet-800 text-white font-black text-xs flex items-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Sparkles size={14} />
+                    <span>AI Tạo Tự Động</span>
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">
@@ -2216,10 +2308,14 @@ export const AdminCurriculumPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-slate-900">
-                    Tạo Nhanh Giáo Trình Bằng AI
+                    {aiCreatorModal.mode === 'lesson'
+                      ? `AI Tạo Bài Học Mới Vào Unit ${aiCreatorModal.unitData?.unitNumber || ''}`
+                      : 'Tạo Trọn Gói Unit Mới Bằng AI (4 Bài Học Riêng Biệt)'}
                   </h3>
                   <p className="text-xs sm:text-sm font-semibold text-slate-600">
-                    Nhập chủ đề &amp; chọn độ tuổi để AI tự động sinh 6 từ vựng cốt lõi, phiên âm IPA, 2 cặp câu Hỏi – Đáp và Prompt tranh Flashcard
+                    {aiCreatorModal.mode === 'lesson'
+                      ? `Tạo bài học mới kèm từ vựng & mẫu câu chuẩn mầm non vào Unit: "${aiCreatorModal.unitData?.bigQuestion || ''}" (Book ${aiCreatorModal.unitData?.bookNumber || selectedBookNum})`
+                      : 'Nhập chủ đề & chọn độ tuổi để AI sinh 1 Unit mới ở cuối sách gồm 4 Bài học với từ vựng & mẫu câu riêng biệt khác nhau hoàn toàn'}
                   </p>
                 </div>
               </div>
@@ -2283,15 +2379,26 @@ export const AdminCurriculumPage: React.FC = () => {
                 {/* Quick Topic Preset Chips */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
                   <span className="text-xs font-bold text-slate-600 mr-1">Chủ đề mẫu:</span>
-                  {[
-                    'Các phương tiện giao thông (Vehicles)',
-                    'Những con vật đáng yêu (Animals)',
-                    'Trái cây thơm ngon (Fruits)',
-                    'Đồ chơi của bé (Toys)',
-                    'Gia đình hạnh phúc (Family)',
-                    'Sắc màu rực rỡ (Colors)',
-                    'Cơ thể của bé (Body Parts)'
-                  ].map((preset) => (
+                  {(aiCreatorModal.mode === 'lesson'
+                    ? [
+                        `Mở rộng: ${aiCreatorModal.unitData?.bigQuestion || 'Chủ đề Unit'}`,
+                        'Từ vựng cốt lõi & Phát âm',
+                        'Mẫu câu giao tiếp & Hỏi đáp',
+                        'Đồ dùng & Hành động trong lớp',
+                        'Trò chơi tương tác & Vận động TPR',
+                        'Các con vật vui nhộn (Animals)',
+                        'Màu sắc & Hình khối (Colors & Shapes)'
+                      ]
+                    : [
+                        'Các phương tiện giao thông (Vehicles)',
+                        'Những con vật đáng yêu (Animals)',
+                        'Trái cây thơm ngon (Fruits)',
+                        'Đồ chơi của bé (Toys)',
+                        'Gia đình hạnh phúc (Family)',
+                        'Sắc màu rực rỡ (Colors)',
+                        'Cơ thể của bé (Body Parts)'
+                      ]
+                  ).map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -2307,315 +2414,573 @@ export const AdminCurriculumPage: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Target Mode Selection */}
-                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-violet-200/70 text-xs font-bold text-slate-700">
-                  <span>Nơi lưu nội dung:</span>
-                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="aiTargetMode"
-                      checked={aiTargetMode === 'new_lesson'}
-                      onChange={() => setAiTargetMode('new_lesson')}
-                    />
-                    <span>Tạo Bài Học Mới trong Unit {activeUnit?.unitNumber || 1}</span>
-                  </label>
-                  {activeLesson && (
-                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="aiTargetMode"
-                        checked={aiTargetMode === 'existing_lesson'}
-                        onChange={() => setAiTargetMode('existing_lesson')}
-                      />
-                      <span>Bổ sung vào bài đang chọn: &ldquo;{activeLesson.title}&rdquo;</span>
-                    </label>
-                  )}
+                {/* Target Mode Info Note */}
+                <div className="flex items-center gap-2 pt-2 border-t border-violet-200/70 text-xs font-black text-violet-900">
+                  <Sparkles size={15} className="text-violet-600 shrink-0" />
+                  <span>
+                    {aiCreatorModal.mode === 'lesson'
+                      ? `Mục tiêu: Tạo 1 Bài Học Mới vào Unit ${aiCreatorModal.unitData?.unitNumber || ''} (Bài #${(aiCreatorModal.unitData?.lessons?.length || 0) + 1}) với 3–4 từ vựng và 1–2 cặp câu Hỏi–Đáp`
+                      : `Mục tiêu: Tạo Trọn Gói Unit Mới ở cuối Book ${selectedBookNum} (Unit #${currentUnits.reduce((m: number, u: any) => Math.max(m, Number(u.unitNumber) || 0), 0) + 1} kèm 4 Bài Học với từ vựng & mẫu câu riêng biệt cho từng bài)`}
+                  </span>
                 </div>
               </form>
 
               {/* AI Generated Result Preview & Editor */}
               {aiDraft && (
                 <div className="space-y-5 animate-fade-in">
-                  {/* Age Guideline & Lesson Title Bar */}
-                  <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="inline-block px-2.5 py-0.5 rounded-lg bg-indigo-700 text-white text-[11px] font-black uppercase">
-                        {aiDraft.ageRule?.title || `Chuẩn ${aiDraft.ageGroupCode} tuổi`}
-                      </span>
-                      <p className="text-xs sm:text-sm font-bold text-indigo-950 mt-1">
-                        {aiDraft.ageRule?.ruleSummary}
-                      </p>
+                  {aiCreatorModal.mode === 'lesson' ? (
+                    /* ── A. SINGLE LESSON MODE PREVIEW & EDITOR ── */
+                    <div className="space-y-4">
+                      {/* Lesson Header Fields */}
+                      <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block px-2.5 py-0.5 rounded-lg bg-indigo-700 text-white text-[11px] font-black uppercase">
+                                {aiDraft.ageRule?.title || `Chuẩn ${aiDraft.ageGroupCode} tuổi`}
+                              </span>
+                              <span className="text-xs font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                                Unit {aiCreatorModal.unitData?.unitNumber} · Bài #{(aiCreatorModal.unitData?.lessons?.length || 0) + 1}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm font-bold text-indigo-950 mt-1">
+                              {aiDraft.ageRule?.ruleSummary}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-indigo-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-black uppercase tracking-wider text-indigo-950 mb-1">
+                              Tiêu đề bài học tiếng Anh *
+                            </label>
+                            <input
+                              type="text"
+                              value={aiDraft.suggestedLessonTitle || ''}
+                              onChange={(e) => setAiDraft({ ...aiDraft, suggestedLessonTitle: e.target.value })}
+                              placeholder="VD: Unit 1 - Lesson 3: School Playground"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 text-xs sm:text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-black uppercase tracking-wider text-indigo-950 mb-1">
+                              Tiêu đề bài học tiếng Việt *
+                            </label>
+                            <input
+                              type="text"
+                              value={aiDraft.suggestedVietnameseTitle || ''}
+                              onChange={(e) => setAiDraft({ ...aiDraft, suggestedVietnameseTitle: e.target.value })}
+                              placeholder="VD: Bài 3: Vui chơi ở sân trường"
+                              className="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-indigo-950 mb-1">
+                            Mô tả mục tiêu sư phạm của bài học
+                          </label>
+                          <input
+                            type="text"
+                            value={aiDraft.description || ''}
+                            onChange={(e) => setAiDraft({ ...aiDraft, description: e.target.value })}
+                            placeholder="Mô tả tóm tắt nội dung bài học..."
+                            className="w-full px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-xs text-slate-700 focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Vocabularies of this Lesson */}
+                      <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                            <span>📚 Từ Vựng Cốt Lõi Của Bài ({aiDraft.vocabularies?.length || 0} từ)</span>
+                          </h4>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            Có thể chỉnh sửa trực tiếp từ vựng &amp; phiên âm
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {(aiDraft.vocabularies || []).map((v: any, vIdx: number) => (
+                            <div key={vIdx} className="p-3 rounded-2xl bg-white border border-slate-200 space-y-2 hover:border-violet-300 transition-all">
+                              <div className="flex items-start gap-3">
+                                <img
+                                  src={v.imageUrl || '/images/vocabulary/book-v1.svg'}
+                                  alt={v.english}
+                                  className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-100 p-1 shrink-0"
+                                />
+                                <div className="flex-1 space-y-1.5 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={v.english}
+                                      onChange={(e) => {
+                                        const nextVocabs = [...aiDraft.vocabularies];
+                                        nextVocabs[vIdx] = { ...nextVocabs[vIdx], english: e.target.value };
+                                        setAiDraft({ ...aiDraft, vocabularies: nextVocabs });
+                                      }}
+                                      placeholder="Từ tiếng Anh"
+                                      className="w-full px-2 py-1 rounded-lg border border-slate-200 text-xs font-black text-slate-900"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={v.pronunciation || ''}
+                                      onChange={(e) => {
+                                        const nextVocabs = [...aiDraft.vocabularies];
+                                        nextVocabs[vIdx] = { ...nextVocabs[vIdx], pronunciation: e.target.value };
+                                        setAiDraft({ ...aiDraft, vocabularies: nextVocabs });
+                                      }}
+                                      placeholder="/IPA/"
+                                      className="w-24 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono text-slate-600"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={v.vietnamese}
+                                      onChange={(e) => {
+                                        const nextVocabs = [...aiDraft.vocabularies];
+                                        nextVocabs[vIdx] = { ...nextVocabs[vIdx], vietnamese: e.target.value };
+                                        setAiDraft({ ...aiDraft, vocabularies: nextVocabs });
+                                      }}
+                                      placeholder="Nghĩa tiếng Việt"
+                                      className="w-full px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700"
+                                    />
+                                    <select
+                                      value={v.wordType || 'noun'}
+                                      onChange={(e) => {
+                                        const nextVocabs = [...aiDraft.vocabularies];
+                                        nextVocabs[vIdx] = { ...nextVocabs[vIdx], wordType: e.target.value };
+                                        setAiDraft({ ...aiDraft, vocabularies: nextVocabs });
+                                      }}
+                                      className="px-2 py-1 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 bg-white"
+                                    >
+                                      <option value="noun">Danh từ</option>
+                                      <option value="verb">Động từ</option>
+                                      <option value="adjective">Tính từ</option>
+                                      <option value="color">Màu sắc</option>
+                                      <option value="number">Số đếm</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Sentence Pairs of this Lesson */}
+                      <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                            <span>💬 Mẫu Câu Giao Tiếp Hỏi &amp; Đáp ({aiDraft.sentencePairs?.length || 0} cặp câu)</span>
+                          </h4>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            Chuẩn lứa tuổi mầm non ({aiDraft.ageGroupCode} tuổi)
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          {(aiDraft.sentencePairs || []).map((pair: any, pIdx: number) => (
+                            <div key={pIdx} className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2.5 hover:border-violet-300 transition-all">
+                              <div className="flex items-center gap-2 text-xs font-black text-indigo-900">
+                                <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[11px]">Cặp câu {pIdx + 1}</span>
+                              </div>
+                              {/* Question */}
+                              <div className="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-1.5">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-900">
+                                  <span>Hỏi (Question):</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <input
+                                    type="text"
+                                    value={pair.questionEnglish}
+                                    onChange={(e) => {
+                                      const nextPairs = [...aiDraft.sentencePairs];
+                                      nextPairs[pIdx] = { ...nextPairs[pIdx], questionEnglish: e.target.value };
+                                      setAiDraft({ ...aiDraft, sentencePairs: nextPairs });
+                                    }}
+                                    placeholder="Câu hỏi tiếng Anh"
+                                    className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-900"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={pair.questionVietnamese || ''}
+                                    onChange={(e) => {
+                                      const nextPairs = [...aiDraft.sentencePairs];
+                                      nextPairs[pIdx] = { ...nextPairs[pIdx], questionVietnamese: e.target.value };
+                                      setAiDraft({ ...aiDraft, sentencePairs: nextPairs });
+                                    }}
+                                    placeholder="Dịch nghĩa tiếng Việt"
+                                    className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs text-slate-700"
+                                  />
+                                </div>
+                              </div>
+                              {/* Answer */}
+                              <div className="p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1.5">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-900">
+                                  <span>Đáp (Answer):</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <input
+                                    type="text"
+                                    value={pair.answerEnglish}
+                                    onChange={(e) => {
+                                      const nextPairs = [...aiDraft.sentencePairs];
+                                      nextPairs[pIdx] = { ...nextPairs[pIdx], answerEnglish: e.target.value };
+                                      setAiDraft({ ...aiDraft, sentencePairs: nextPairs });
+                                    }}
+                                    placeholder="Câu trả lời tiếng Anh"
+                                    className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-900"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={pair.answerVietnamese || ''}
+                                    onChange={(e) => {
+                                      const nextPairs = [...aiDraft.sentencePairs];
+                                      nextPairs[pIdx] = { ...nextPairs[pIdx], answerVietnamese: e.target.value };
+                                      setAiDraft({ ...aiDraft, sentencePairs: nextPairs });
+                                    }}
+                                    placeholder="Dịch nghĩa tiếng Việt"
+                                    className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs text-slate-700"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    {aiTargetMode === 'new_lesson' && (
+                  ) : (
+                    /* ── B. FULL UNIT MODE PREVIEW & EDITOR (4 Lessons) ── */
+                    <div className="space-y-5">
+                      {/* Age Guideline & Unit Title Bar */}
+                  <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="inline-block px-2.5 py-0.5 rounded-lg bg-indigo-700 text-white text-[11px] font-black uppercase">
+                          {aiDraft.ageRule?.title || `Chuẩn ${aiDraft.ageGroupCode} tuổi`}
+                        </span>
+                        <p className="text-xs sm:text-sm font-bold text-indigo-950 mt-1">
+                          {aiDraft.ageRule?.ruleSummary}
+                        </p>
+                      </div>
                       <div className="flex flex-col sm:flex-row gap-2 shrink-0">
                         <input
                           type="text"
                           value={aiDraft.suggestedLessonTitle || ''}
                           onChange={(e) => setAiDraft({ ...aiDraft, suggestedLessonTitle: e.target.value })}
-                          placeholder="Tên bài tiếng Anh"
+                          placeholder="Chủ đề tiếng Anh"
                           className="px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-xs font-black text-slate-900"
                         />
                         <input
                           type="text"
                           value={aiDraft.suggestedVietnameseTitle || ''}
                           onChange={(e) => setAiDraft({ ...aiDraft, suggestedVietnameseTitle: e.target.value })}
-                          placeholder="Tên bài tiếng Việt"
+                          placeholder="Chủ đề tiếng Việt"
                           className="px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-xs font-semibold text-slate-700"
                         />
                       </div>
-                    )}
-                  </div>
-
-                  {/* 1. 6 Core Vocabulary Words + IPA + Cartoon Flashcard Prompts */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm sm:text-base font-black text-teal-900 flex items-center gap-2">
-                        <Sparkles size={17} className="text-teal-700" />
-                        <span>1. 6 Từ Vựng Cốt Lõi, Phiên Âm IPA &amp; Prompt Tranh Flashcard Hoạt Hình</span>
-                      </h4>
-                      <span className="text-xs font-bold text-slate-500">
-                        Có thể chỉnh sửa trực tiếp trước khi lưu
-                      </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {(aiDraft.vocabularies || []).map((v: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200 space-y-3"
-                        >
-                          <div className="flex items-start gap-3">
-                            <img
-                              src={v.imageUrl || '/images/vocabulary/book-v1.svg'}
-                              alt={v.english}
-                              className="w-14 h-14 rounded-2xl object-contain bg-white border border-slate-200 p-1.5 shrink-0"
-                            />
-                            <div className="grid grid-cols-3 gap-2 flex-1">
-                              <div>
-                                <label className="block text-[10px] font-black uppercase text-slate-500 mb-0.5">
-                                  Từ tiếng Anh #{idx + 1}
-                                </label>
-                                <div className="flex items-center gap-1">
+                    <div className="pt-2 border-t border-indigo-200/80 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <span className="text-xs font-black text-indigo-900 shrink-0">Big Question (Câu hỏi lớn của Unit):</span>
+                        <input
+                          type="text"
+                          value={aiDraft.bigQuestion || ''}
+                          onChange={(e) => setAiDraft({ ...aiDraft, bigQuestion: e.target.value })}
+                          className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-xs font-bold text-slate-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 Lessons Breakdown Tabs */}
+                  {Array.isArray(aiDraft.unitLessons) && aiDraft.unitLessons.length === 4 ? (
+                    <div className="space-y-4 pt-2 border-t border-slate-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h4 className="text-sm sm:text-base font-black text-indigo-950 flex items-center gap-2">
+                          <Layers size={18} className="text-indigo-600" />
+                          <span>4 Bài Học Riêng Biệt Trong Unit (Từ vựng &amp; Mẫu câu riêng từng bài):</span>
+                        </h4>
+                        <span className="text-xs font-bold text-slate-500">
+                          Bấm vào từng bài để xem và chỉnh sửa
+                        </span>
+                      </div>
+
+                      {/* 4 Tabs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {aiDraft.unitLessons.map((ul: any, uIdx: number) => {
+                          const isSel = selectedAiLessonIdx === uIdx;
+                          return (
+                            <button
+                              key={uIdx}
+                              type="button"
+                              onClick={() => setSelectedAiLessonIdx(uIdx)}
+                              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                                isSel
+                                  ? 'bg-violet-700 text-white border-violet-700 shadow-md ring-2 ring-violet-300'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-violet-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-xs font-black mb-1">
+                                <span>Bài {ul.lessonOrder || uIdx + 1}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSel ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                  {ul.vocabularies?.length || 0} từ · {ul.sentencePairs?.length || 0} câu
+                                </span>
+                              </div>
+                              <p className="text-xs font-black truncate">{ul.title}</p>
+                              <p className={`text-[11px] truncate font-medium ${isSel ? 'text-violet-200' : 'text-slate-500'}`}>
+                                {ul.vietnameseTitle}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Lesson Content Details */}
+                      {(() => {
+                        const activeAiLesson = aiDraft.unitLessons[selectedAiLessonIdx] || aiDraft.unitLessons[0];
+                        const lessonVocabs = activeAiLesson?.vocabularies || [];
+                        const lessonSentences = activeAiLesson?.sentencePairs || [];
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border-2 border-indigo-200/80 space-y-5 animate-fade-in">
+                            {/* Lesson Header Fields */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-violet-700 text-white text-xs font-black">
+                                    Chi tiết Bài {activeAiLesson.lessonOrder || selectedAiLessonIdx + 1}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200">
+                                    Định hướng: {activeAiLesson.focus || 'BÀI HỌC'}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-2 mt-2">
                                   <input
                                     type="text"
-                                    value={v.english}
+                                    value={activeAiLesson.title || ''}
                                     onChange={(e) => {
-                                      const next = [...aiDraft.vocabularies];
-                                      next[idx] = { ...next[idx], english: e.target.value };
-                                      setAiDraft({ ...aiDraft, vocabularies: next });
+                                      const nextLessons = [...aiDraft.unitLessons];
+                                      nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], title: e.target.value };
+                                      setAiDraft({ ...aiDraft, unitLessons: nextLessons });
                                     }}
-                                    className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-sm font-black text-teal-950"
+                                    placeholder="Tiêu đề tiếng Anh"
+                                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs font-black text-slate-900 flex-1"
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={() => playAudio(v.english)}
-                                    className="p-1.5 rounded-lg bg-teal-50 text-teal-800 hover:bg-teal-100 cursor-pointer shrink-0"
-                                    title="Nghe phát âm"
-                                  >
-                                    <Volume2 size={14} />
-                                  </button>
+                                  <input
+                                    type="text"
+                                    value={activeAiLesson.vietnameseTitle || ''}
+                                    onChange={(e) => {
+                                      const nextLessons = [...aiDraft.unitLessons];
+                                      nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], vietnameseTitle: e.target.value };
+                                      setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                    }}
+                                    placeholder="Tiêu đề tiếng Việt"
+                                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-700 flex-1"
+                                  />
                                 </div>
                               </div>
+                              <p className="text-xs text-slate-500 italic max-w-xs">{activeAiLesson.description}</p>
+                            </div>
 
-                              <div>
-                                <label className="block text-[10px] font-black uppercase text-slate-500 mb-0.5">
-                                  Phiên âm IPA
-                                </label>
-                                <input
-                                  type="text"
-                                  value={v.pronunciation}
-                                  onChange={(e) => {
-                                    const next = [...aiDraft.vocabularies];
-                                    next[idx] = { ...next[idx], pronunciation: e.target.value };
-                                    setAiDraft({ ...aiDraft, vocabularies: next });
-                                  }}
-                                  className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-sm font-mono text-slate-800"
-                                />
+                            {/* Lesson Vocabularies */}
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h5 className="text-xs sm:text-sm font-black text-teal-900 flex items-center gap-1.5">
+                                  <Sparkles size={15} className="text-teal-600" />
+                                  <span>Từ Vựng Riêng Của Bài {activeAiLesson.lessonOrder || selectedAiLessonIdx + 1} ({lessonVocabs.length} từ vựng):</span>
+                                </h5>
+                                <span className="text-[11px] font-bold text-slate-400">Không trùng lặp với các bài học khác trong Unit</span>
                               </div>
 
-                              <div>
-                                <label className="block text-[10px] font-black uppercase text-slate-500 mb-0.5">
-                                  Nghĩa tiếng Việt
-                                </label>
-                                <input
-                                  type="text"
-                                  value={v.vietnamese}
-                                  onChange={(e) => {
-                                    const next = [...aiDraft.vocabularies];
-                                    next[idx] = { ...next[idx], vietnamese: e.target.value };
-                                    setAiDraft({ ...aiDraft, vocabularies: next });
-                                  }}
-                                  className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-300 text-sm font-semibold text-slate-800"
-                                />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {lessonVocabs.map((v: any, vIdx: number) => (
+                                  <div key={vIdx} className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5">
+                                    <div className="flex items-start gap-2.5">
+                                      <img
+                                        src={v.imageUrl || '/images/vocabulary/book-v1.svg'}
+                                        alt={v.english}
+                                        className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 p-1 shrink-0"
+                                      />
+                                      <div className="grid grid-cols-3 gap-1.5 flex-1">
+                                        <div>
+                                          <label className="block text-[9px] font-black uppercase text-slate-400 mb-0.5">Tiếng Anh</label>
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="text"
+                                              value={v.english}
+                                              onChange={(e) => {
+                                                const nextLessons = [...aiDraft.unitLessons];
+                                                const nextVocabs = [...nextLessons[selectedAiLessonIdx].vocabularies];
+                                                nextVocabs[vIdx] = { ...nextVocabs[vIdx], english: e.target.value };
+                                                nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], vocabularies: nextVocabs };
+                                                setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                              }}
+                                              className="w-full px-2 py-1 rounded-lg border border-slate-300 text-xs font-black text-teal-950"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => playAudio(v.english)}
+                                              className="p-1 rounded bg-teal-50 text-teal-800 hover:bg-teal-100 cursor-pointer shrink-0"
+                                              title="Nghe"
+                                            >
+                                              <Volume2 size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className="block text-[9px] font-black uppercase text-slate-400 mb-0.5">IPA</label>
+                                          <input
+                                            type="text"
+                                            value={v.pronunciation}
+                                            onChange={(e) => {
+                                              const nextLessons = [...aiDraft.unitLessons];
+                                              const nextVocabs = [...nextLessons[selectedAiLessonIdx].vocabularies];
+                                              nextVocabs[vIdx] = { ...nextVocabs[vIdx], pronunciation: e.target.value };
+                                              nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], vocabularies: nextVocabs };
+                                              setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                            }}
+                                            className="w-full px-2 py-1 rounded-lg border border-slate-300 text-xs font-mono text-slate-800"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[9px] font-black uppercase text-slate-400 mb-0.5">Tiếng Việt</label>
+                                          <input
+                                            type="text"
+                                            value={v.vietnamese}
+                                            onChange={(e) => {
+                                              const nextLessons = [...aiDraft.unitLessons];
+                                              const nextVocabs = [...nextLessons[selectedAiLessonIdx].vocabularies];
+                                              nextVocabs[vIdx] = { ...nextVocabs[vIdx], vietnamese: e.target.value };
+                                              nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], vocabularies: nextVocabs };
+                                              setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                            }}
+                                            className="w-full px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Lesson Sentence Pairs */}
+                            <div className="space-y-3 pt-3 border-t border-slate-200">
+                              <div className="flex items-center justify-between">
+                                <h5 className="text-xs sm:text-sm font-black text-pink-900 flex items-center gap-1.5">
+                                  <MessageSquare size={15} className="text-pink-600" />
+                                  <span>Mẫu Câu Riêng Của Bài {activeAiLesson.lessonOrder || selectedAiLessonIdx + 1} ({lessonSentences.length} cặp câu):</span>
+                                </h5>
+                                <span className="text-[11px] font-bold text-slate-400">Chuẩn lứa tuổi {aiDraft.ageGroupCode}</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {lessonSentences.map((pair: any, pIdx: number) => (
+                                  <div key={pIdx} className="p-3.5 rounded-2xl bg-pink-50/50 border border-pink-200 space-y-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="font-black text-pink-900">Mẫu câu #{pIdx + 1}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => playAudio(`${pair.questionEnglish} ${pair.answerEnglish}`)}
+                                        className="px-2 py-0.5 rounded bg-white border border-pink-200 text-pink-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Volume2 size={12} />
+                                        <span>Nghe</span>
+                                      </button>
+                                    </div>
+
+                                    {/* Question */}
+                                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 space-y-1">
+                                      <label className="block text-[10px] font-black uppercase text-amber-800">Câu Hỏi</label>
+                                      <input
+                                        type="text"
+                                        value={pair.questionEnglish}
+                                        onChange={(e) => {
+                                          const nextLessons = [...aiDraft.unitLessons];
+                                          const nextPairs = [...nextLessons[selectedAiLessonIdx].sentencePairs];
+                                          nextPairs[pIdx] = { ...nextPairs[pIdx], questionEnglish: e.target.value };
+                                          nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], sentencePairs: nextPairs };
+                                          setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                        }}
+                                        className="w-full px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-black text-slate-900"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={pair.questionVietnamese || ''}
+                                        onChange={(e) => {
+                                          const nextLessons = [...aiDraft.unitLessons];
+                                          const nextPairs = [...nextLessons[selectedAiLessonIdx].sentencePairs];
+                                          nextPairs[pIdx] = { ...nextPairs[pIdx], questionVietnamese: e.target.value };
+                                          nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], sentencePairs: nextPairs };
+                                          setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                        }}
+                                        placeholder="Nghĩa tiếng Việt"
+                                        className="w-full px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] text-slate-600"
+                                      />
+                                    </div>
+
+                                    {/* Answer */}
+                                    <div className="bg-white p-2.5 rounded-xl border border-emerald-200 space-y-1">
+                                      <label className="block text-[10px] font-black uppercase text-emerald-800">Câu Trả Lời</label>
+                                      <input
+                                        type="text"
+                                        value={pair.answerEnglish}
+                                        onChange={(e) => {
+                                          const nextLessons = [...aiDraft.unitLessons];
+                                          const nextPairs = [...nextLessons[selectedAiLessonIdx].sentencePairs];
+                                          nextPairs[pIdx] = { ...nextPairs[pIdx], answerEnglish: e.target.value };
+                                          nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], sentencePairs: nextPairs };
+                                          setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                        }}
+                                        className="w-full px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-black text-emerald-950"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={pair.answerVietnamese || ''}
+                                        onChange={(e) => {
+                                          const nextLessons = [...aiDraft.unitLessons];
+                                          const nextPairs = [...nextLessons[selectedAiLessonIdx].sentencePairs];
+                                          nextPairs[pIdx] = { ...nextPairs[pIdx], answerVietnamese: e.target.value };
+                                          nextLessons[selectedAiLessonIdx] = { ...nextLessons[selectedAiLessonIdx], sentencePairs: nextPairs };
+                                          setAiDraft({ ...aiDraft, unitLessons: nextLessons });
+                                        }}
+                                        placeholder="Nghĩa tiếng Việt"
+                                        className="w-full px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] text-slate-600"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>
-
-                          {/* Consistent Cartoon Flashcard Prompt */}
-                          <div className="p-2.5 rounded-xl bg-white border border-slate-200 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-violet-800 flex items-center gap-1">
-                                <ImageIcon size={12} />
-                                <span>Prompt sinh tranh Flashcard hoạt hình nhất quán</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard?.writeText(v.imagePrompt || '');
-                                  setCopiedPromptIdx(idx);
-                                  setTimeout(() => setCopiedPromptIdx(null), 1800);
-                                }}
-                                className="px-2 py-0.5 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-                              >
-                                <Copy size={11} />
-                                <span>{copiedPromptIdx === idx ? 'Đã chép' : 'Chép Prompt'}</span>
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              value={v.imagePrompt || ''}
-                              onChange={(e) => {
-                                const next = [...aiDraft.vocabularies];
-                                next[idx] = { ...next[idx], imagePrompt: e.target.value };
-                                setAiDraft({ ...aiDraft, vocabularies: next });
-                              }}
-                              className="w-full text-xs text-slate-600 bg-transparent focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })()}
                     </div>
-                  </div>
-
-                  {/* 2. 2 Short Q&A Communication Pairs */}
-                  <div className="space-y-3 pt-2 border-t border-slate-200">
-                    <h4 className="text-sm sm:text-base font-black text-pink-900 flex items-center gap-2">
-                      <MessageSquare size={17} className="text-pink-700" />
-                      <span>2. 2 Cặp Câu Giao Tiếp Hỏi – Đáp Ngắn (Chuẩn lứa tuổi {aiDraft.ageGroupCode})</span>
-                    </h4>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {(aiDraft.sentencePairs || []).map((pair: any, pIdx: number) => (
-                        <div
-                          key={pIdx}
-                          className="p-4 rounded-2xl bg-pink-50/40 border border-pink-200 space-y-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-0.5 rounded-lg bg-pink-700 text-white text-xs font-black">
-                              Cặp Hỏi – Đáp #{pIdx + 1}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => playAudio(`${pair.questionEnglish} ${pair.answerEnglish}`)}
-                                className="px-2.5 py-1 rounded-lg bg-white border border-pink-200 text-pink-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                              >
-                                <Volume2 size={13} />
-                                <span>Nghe hội thoại</span>
-                              </button>
+                  ) : (
+                    /* Fallback: Flat Vocabulary & Sentences */
+                    <div className="space-y-4 pt-2 border-t border-slate-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {(aiDraft.vocabularies || []).map((v: any, idx: number) => (
+                          <div key={idx} className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2">
+                            <div className="flex items-start gap-2.5">
+                              <img src={v.imageUrl || '/images/vocabulary/book-v1.svg'} alt={v.english} className="w-12 h-12 object-contain" />
+                              <div className="flex-1">
+                                <p className="font-black text-xs text-slate-900">{v.english} <span className="font-normal font-mono text-slate-500">{v.pronunciation}</span></p>
+                                <p className="text-xs text-slate-600 font-semibold">{v.vietnamese}</p>
+                              </div>
                             </div>
                           </div>
-
-                          {/* Question */}
-                          <div className="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200">
-                            <label className="block text-[11px] font-black uppercase text-amber-800">
-                              Câu Hỏi (Question)
-                            </label>
-                            <input
-                              type="text"
-                              value={pair.questionEnglish}
-                              onChange={(e) => {
-                                const next = [...aiDraft.sentencePairs];
-                                next[pIdx] = { ...next[pIdx], questionEnglish: e.target.value };
-                                setAiDraft({ ...aiDraft, sentencePairs: next });
-                              }}
-                              className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-slate-900"
-                            />
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                value={pair.questionVietnamese || ''}
-                                onChange={(e) => {
-                                  const next = [...aiDraft.sentencePairs];
-                                  next[pIdx] = { ...next[pIdx], questionVietnamese: e.target.value };
-                                  setAiDraft({ ...aiDraft, sentencePairs: next });
-                                }}
-                                placeholder="Nghĩa tiếng Việt"
-                                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs text-slate-700"
-                              />
-                              <input
-                                type="text"
-                                value={pair.questionPronunciation || ''}
-                                onChange={(e) => {
-                                  const next = [...aiDraft.sentencePairs];
-                                  next[pIdx] = { ...next[pIdx], questionPronunciation: e.target.value };
-                                  setAiDraft({ ...aiDraft, sentencePairs: next });
-                                }}
-                                placeholder="IPA câu hỏi"
-                                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-mono text-slate-600"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Answer */}
-                          <div className="space-y-1.5 bg-white p-3 rounded-xl border border-emerald-200">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[11px] font-black uppercase text-emerald-800">
-                                Câu Trả Lời (Answer)
-                              </label>
-                              {pair.shortAnswerEnglish && pair.answerEnglish !== pair.shortAnswerEnglish && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = [...aiDraft.sentencePairs];
-                                    next[pIdx] = { ...next[pIdx], answerEnglish: pair.shortAnswerEnglish };
-                                    setAiDraft({ ...aiDraft, sentencePairs: next });
-                                  }}
-                                  className="text-[11px] font-bold text-teal-700 hover:underline cursor-pointer"
-                                >
-                                  Dùng cụm ngắn 3–4 tuổi ({pair.shortAnswerEnglish})
-                                </button>
-                              )}
-                            </div>
-                            <input
-                              type="text"
-                              value={pair.answerEnglish}
-                              onChange={(e) => {
-                                const next = [...aiDraft.sentencePairs];
-                                next[pIdx] = { ...next[pIdx], answerEnglish: e.target.value };
-                                setAiDraft({ ...aiDraft, sentencePairs: next });
-                              }}
-                              className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-emerald-950"
-                            />
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                value={pair.answerVietnamese || ''}
-                                onChange={(e) => {
-                                  const next = [...aiDraft.sentencePairs];
-                                  next[pIdx] = { ...next[pIdx], answerVietnamese: e.target.value };
-                                  setAiDraft({ ...aiDraft, sentencePairs: next });
-                                }}
-                                placeholder="Nghĩa tiếng Việt"
-                                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs text-slate-700"
-                              />
-                              <input
-                                type="text"
-                                value={pair.answerPronunciation || ''}
-                                onChange={(e) => {
-                                  const next = [...aiDraft.sentencePairs];
-                                  next[pIdx] = { ...next[pIdx], answerPronunciation: e.target.value };
-                                  setAiDraft({ ...aiDraft, sentencePairs: next });
-                                }}
-                                placeholder="IPA câu trả lời"
-                                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-mono text-slate-600"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2624,7 +2989,9 @@ export const AdminCurriculumPage: React.FC = () => {
             <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-200 shrink-0">
               <span className="text-xs font-semibold text-slate-500">
                 {aiDraft
-                  ? `Sẵn sàng lưu ${aiDraft.vocabularies?.length || 0} từ vựng & ${aiDraft.sentencePairs?.length || 0} cặp câu Hỏi – Đáp`
+                  ? aiCreatorModal.mode === 'lesson'
+                    ? `Sẵn sàng tạo bài học mới vào Unit ${aiCreatorModal.unitData?.unitNumber || ''} với ${aiDraft.vocabularies?.length || 0} từ vựng và ${aiDraft.sentencePairs?.length || 0} cặp câu`
+                    : 'Sẵn sàng tạo Unit mới gồm 4 bài học với từ vựng & mẫu câu riêng biệt'
                   : 'Bấm "Đề xuất bằng AI" để khởi tạo nội dung mẫu'}
               </span>
               <div className="flex items-center gap-3">
@@ -2640,15 +3007,15 @@ export const AdminCurriculumPage: React.FC = () => {
                     type="button"
                     disabled={aiApplying}
                     onClick={handleApplyAiDraft}
-                    className="px-6 py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="px-6 py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
                   >
                     <Check size={18} />
                     <span>
                       {aiApplying
                         ? 'Đang lưu vào Giáo trình...'
-                        : aiTargetMode === 'existing_lesson' && activeLesson
-                        ? `Lưu vào bài "${activeLesson.title}"`
-                        : 'Tạo Bài Học & Lưu Toàn Bộ'}
+                        : aiCreatorModal.mode === 'lesson'
+                        ? `Tạo & Thêm Bài Học Vào Unit ${aiCreatorModal.unitData?.unitNumber || ''}`
+                        : `Tạo Trọn Gói Unit #${currentUnits.reduce((m: number, u: any) => Math.max(m, Number(u.unitNumber) || 0), 0) + 1} (4 Bài Học Riêng Biệt)`}
                     </span>
                   </button>
                 )}

@@ -9,7 +9,7 @@ const fail = (res, status, message) => res.status(status).json({ success: false,
 const sameId = (a, b) => String(a?._id || a) === String(b?._id || b);
 
 // Dependency injection keeps API tests isolated from real children's records.
-function createAiController({ db = models, rewards = computeRewards, submissions = require('../services/teacherAssignments').submissions, statistics = require('../services/teacherStatistics').statsFor } = {}) {
+function createAiController({ db = models, rewards = computeRewards, statistics = require('../services/teacherStatistics').statsFor } = {}) {
   const capabilities = (_req, res) => res.json({ success: true, data: { provider: gemini.configuration().enabled ? 'gemini' : 'local', generative: gemini.configuration().enabled, audioCoaching: gemini.configuration().enabled, transcriptMatching: true } });
   const evaluateAudio = async (req, res, next) => {
     try {
@@ -30,11 +30,10 @@ function createAiController({ db = models, rewards = computeRewards, submissions
   };
   const generateParentNote = async (req, res, next) => {
     try {
-      if (!validBody(req.body, ['childId', 'assignmentId', 'resultId'])) return fail(res, 400, 'Invalid note request fields.');
-      const { childId, assignmentId, resultId } = req.body;
-      const hasAssignment = assignmentId !== undefined || resultId !== undefined;
-      if (!validId(childId) || (hasAssignment && (!validId(assignmentId) || !validId(resultId)))) {
-        return fail(res, 400, 'Valid childId and paired assignmentId/resultId are required.');
+      if (!validBody(req.body, ['childId'])) return fail(res, 400, 'Invalid note request fields.');
+      const { childId } = req.body;
+      if (!validId(childId)) {
+        return fail(res, 400, 'Valid childId is required.');
       }
       const child = await db.User.findOne({ _id: childId, role: 'CHILD', status: 'ACTIVE' })
         .select('name ageGroupCode assignedClass streak lastActiveDate');
@@ -43,31 +42,16 @@ function createAiController({ db = models, rewards = computeRewards, submissions
       if (!admin && !await db.ClassRoom.exists({ teacher: req.user._id, students: child._id, status: 'ACTIVE' })) {
         return fail(res, 403, 'You do not have access to this child.');
       }
-      let selectedResult = null;
-      if (hasAssignment) {
-        const assignment = await db.Assignment.findOne({ _id: assignmentId, ...(admin ? {} : { teacher: req.user._id }) }).populate('lesson', 'title');
-        if (!assignment) return fail(res, 403, 'You do not have access to this assignment.');
-        const member = await db.ClassRoom.exists({ _id: assignment.classRoom, students: child._id, ...(admin ? {} : { teacher: req.user._id }) });
-        if (!member || (assignment.recipients !== undefined && !assignment.recipients.some(id => sameId(id, child._id))) || (assignment.assignedToType === 'STUDENT' && !sameId(assignment.student, child._id))) {
-          return fail(res, 403, 'This assignment is not assigned to this child.');
-        }
-        if (assignment.status === 'CANCELLED') return fail(res, 409, 'Bài giao đã được hủy.');
-        const { data } = await submissions(assignment, [child]);
-        const submission = data[0];
-        if (!submission?.hasSubmitted || !sameId(submission.submission?._id, resultId)) return fail(res, 404, 'Matching completed assignment result not found.');
-        selectedResult = { ...submission.submission, lesson: assignment.lesson };
-      }
       const [rewardState, completedLessons, accuracyRows, latest] = await Promise.all([
         rewards(child._id),
         db.Progress.countDocuments({ child: child._id, completed: true }),
-        hasAssignment ? [] : statistics([child._id]),
-        hasAssignment ? selectedResult : db.Progress.findOne({ child: child._id }).sort({ lastActivityAt: -1 }).select('lesson').populate('lesson', 'title')
+        statistics([child._id]),
+        db.Progress.findOne({ child: child._id }).sort({ lastActivityAt: -1 }).select('lesson').populate('lesson', 'title')
       ]);
-      const averageAccuracy = hasAssignment ? ai.answerAccuracy(selectedResult)
-        : Number.isFinite(accuracyRows[0]?.averageScore) ? Math.round(accuracyRows[0].averageScore) : null;
+      const averageAccuracy = Number.isFinite(accuracyRows[0]?.averageScore) ? Math.round(accuracyRows[0].averageScore) : null;
       const facts = {
         studentName: child.name, ageGroup: child.ageGroupCode || null,
-        scope: hasAssignment ? 'assignment' : 'all_time', averageAccuracy,
+        scope: 'all_time', averageAccuracy,
         totalStars: rewardState.totalStars, completedLessons,
         streak: ai.currentStreak(child), recentLesson: latest?.lesson?.title || null
       };

@@ -109,7 +109,7 @@ exports.unitReview = wrap(async(req,res)=>{
   if(!unit)fail('Unit không phù hợp lớp.',404);
   const lessons=await M.Lesson.find({curriculumUnits:unit._id,status:'ACTIVE'}).select('title vietnameseTitle displayOrder').sort({displayOrder:1}).lean();
   const unitCode = `B${unit.bookNumber || 1}_U${unit.unitNumber}`;
-  const [children,observations]=await Promise.all([
+  const [children,observations,completedSessions]=await Promise.all([
     M.User.find({_id:{$in:room.students},role:'CHILD',status:'ACTIVE'}).select('name avatarUrl').sort({name:1}).lean(),
     M.LearningObservation.find({
       child: { $in: room.students },
@@ -119,9 +119,35 @@ exports.unitReview = wrap(async(req,res)=>{
         { unitKey: unitCode },
         { lesson: { $in: lessons.map(lesson => lesson._id) } }
       ]
-    }).sort({observedAt:-1,_id:-1}).lean()
+    }).sort({observedAt:-1,_id:-1}).lean(),
+    M.ClassroomSession.find({
+      classroom: room._id,
+      status: 'COMPLETED',
+      lesson: { $in: lessons.map(l => l._id) },
+      $or: [{'teachingOutcome.coverage':{$exists:false}},{'teachingOutcome.coverage':'COMPLETE'}]
+    }).distinct('lesson')
   ]);
   const roster=children.map(child=>{const own=observations.filter(row=>idOf(row.child)===idOf(child));const latest={};for(const row of own)if(!latest[row.skill])latest[row.skill]={level:row.level,evidence:row.evidence,observedAt:row.observedAt};return{child,latest};});
-  res.json({success:true,data:{classroom:{_id:room._id,name:room.name},unit,lessons,roster,basis:'Quan sát của giáo viên trong chơi và tình huống quen thuộc; không tự chuyển sao thành năng lực.'}});
+
+  const completedIdsSet = new Set([...(room.completedLessons || []).map(idOf), ...completedSessions.map(idOf)]);
+  const completedLessonsCount = lessons.filter(l => completedIdsSet.has(idOf(l._id))).length;
+  const isUnitCompleted = lessons.length > 0 && completedLessonsCount === lessons.length;
+  const unassessedCount = roster.filter(r => !r.latest?.LISTEN_POINT || !r.latest?.EXPRESS || !r.latest?.PARTICIPATE).length;
+
+  res.json({
+    success: true,
+    data: {
+      classroom: { _id: room._id, name: room.name },
+      unit,
+      lessons,
+      roster,
+      isUnitCompleted,
+      completedLessonsCount,
+      totalLessonsCount: lessons.length,
+      unassessedCount,
+      fullyAssessedCount: roster.length - unassessedCount,
+      basis: 'Quan sát của giáo viên trong chơi và tình huống quen thuộc; không tự chuyển sao thành năng lực.'
+    }
+  });
 });
 exports.readMedia = readMedia;

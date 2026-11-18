@@ -1,4 +1,4 @@
-const { ClassRoom, User, Progress, ActivityResult, LearningSession, Assignment, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion, Schedule, VocabularyMastery, Attendance, ParentNotification } = require('../models');
+const { ClassRoom, User, Progress, ActivityResult, LearningSession, TeacherNote, CurriculumUnit, CurriculumBook, Lesson, Activity, ClassroomSession, UnitCompletion, Schedule, VocabularyMastery, Attendance, ParentNotification } = require('../models');
 
 const rules = require('../services/teacherRules');
 const access = require('../services/teacherAccess');
@@ -19,10 +19,8 @@ const ownClassOr403 = async (req, res, id) => { if (!validId(id)) { invalid(res,
 exports.getDashboard = async (req, res, next) => { try {
   const classes = await ClassRoom.find({ ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('students name status');
   const ids = [...new Map(classes.flatMap(c => c.students).map(id => [String(id), id])).values()];
-  const assignmentQuery = { ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: { $in: classes.map(c => c._id) } };
-  const [recentAssignments, allAssignments, resultStats, recentSessions, parentFeedback] = await Promise.all([
-    Assignment.find(assignmentQuery).sort({ createdAt: -1 }).limit(6).populate('classRoom', 'name').populate('lesson', 'title').populate('activity', 'title activityType'),
-    Assignment.find(assignmentQuery).select('status'), statsFor(ids),
+  const [resultStats, recentSessions, parentFeedback] = await Promise.all([
+    statsFor(ids),
     LearningSession.find({ child: { $in: ids } }).sort({ lastActivityAt: -1 }).limit(8).populate('child', 'name avatar avatarUrl').populate('lesson', 'title'),
     ParentNotification.find({
       ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }),
@@ -35,11 +33,9 @@ exports.getDashboard = async (req, res, next) => { try {
   ]);
   const assessed = resultStats.filter(s => s.hasAssessment);
   res.json({ success: true, data: { metrics: { classes: classes.length, students: ids.length,
-    activeAssignments: allAssignments.filter(a => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length,
-    completedAssignments: allAssignments.filter(a => a.status === 'COMPLETED').length,
     needingAttention: resultStats.filter(s => !s.hasAssessment || s.averageScore < 60).length, unassessedStudents: ids.length - assessed.length,
     activeLearners: assessed.length, averageScore: assessed.length ? Math.round(100 * assessed.reduce((n,s) => n+s.correctAnswers, 0) / assessed.reduce((n,s) => n+s.answeredCount, 0)) : null,
-    stars: resultStats.reduce((n,s) => n+s.stars, 0) }, recentAssignments, recentSessions, parentFeedback } });
+    stars: resultStats.reduce((n,s) => n+s.stars, 0) }, recentSessions, parentFeedback } });
 } catch(e) { next(e); } };
 
 exports.getTeacherClasses = async (req, res, next) => { try {
@@ -54,8 +50,48 @@ exports.getClassDetail = async (req, res, next) => { try {
   await classRoom.populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin createdAt contact parentContact status assignedClass', options: { sort: { name: 1 } } });
   // §1.1.2 — Mongo sorts by code point; re-sort with Vietnamese locale so accented names order correctly
   classRoom.students.sort(byNameVi);
-  const [resultStats, assignments] = await Promise.all([statsFor(classRoom.students.map(x => x._id)), Assignment.find({ classRoom: classRoom._id, teacher: req.user._id }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 })]); const map = new Map(resultStats.map(x => [String(x._id), x]));
-  res.json({ success: true, data: { ...classRoom.toObject(), students: classRoom.students.map(x => ({ ...x.toObject(), stats: map.get(String(x._id)) || { ...EMPTY_STATS } })), assignments } });
+  const [resultStats, recentSessions] = await Promise.all([
+    statsFor(classRoom.students.map(x => x._id)),
+    ClassroomSession.find({ classroom: classRoom._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).lean()
+  ]);
+  const map = new Map(resultStats.map(x => [String(x._id), x]));
+  const studentAttendanceSummary = classRoom.students.map(st => {
+    let present = 0, excused = 0, absent = 0, late = 0;
+    recentSessions.forEach(session => {
+      const score = (session.studentScores || []).find(sc => String(sc.student?._id || sc.student) === String(st._id));
+      if (score) {
+        if (score.attendance === 'PRESENT') present++;
+        else if (score.attendance === 'EXCUSED') excused++;
+        else if (score.attendance === 'ABSENT') absent++;
+        else if (score.attendance === 'LATE') late++;
+      }
+    });
+    const totalRecorded = present + excused + absent + late;
+    const rate = totalRecorded > 0 ? Math.round(((present + late) / totalRecorded) * 100) : 100;
+    return {
+      studentId: String(st._id),
+      present,
+      excused,
+      absent,
+      late,
+      totalSessions: totalRecorded,
+      attendanceRate: rate
+    };
+  });
+  const attMap = new Map(studentAttendanceSummary.map(x => [x.studentId, x]));
+  res.json({
+    success: true,
+    data: {
+      ...classRoom.toObject(),
+      students: classRoom.students.map(x => ({
+        ...x.toObject(),
+        stats: map.get(String(x._id)) || { ...EMPTY_STATS },
+        attendance: attMap.get(String(x._id)) || { present: 0, excused: 0, absent: 0, late: 0, totalSessions: 0, attendanceRate: 100 }
+      })),
+      recentSessions,
+      studentAttendanceSummary
+    }
+  });
 } catch (e) { next(e); } };
 
 exports.updateClass = async (req, res, next) => { try {
@@ -122,7 +158,46 @@ exports.saveClassAttendance = async (req, res, next) => { try {
 } catch(e) { next(e); } };
 
 exports.getStudents = async (req, res, next) => { try {
-  const ids = await studentsFor(req); const q = { _id: { $in: ids }, role: 'CHILD' }; if (req.query.classRoomId) { if (!(await classFor(req, req.query.classRoomId))) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' }); q.assignedClass = req.query.classRoomId; } if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.$or = [{ name: { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' } }, { username: { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' } }]; const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 }); const statMap = new Map((await statsFor(data.map(x => x._id))).map(x => [String(x._id), x])); res.json({ success: true, data: data.map(x => ({ ...x.toObject(), stats: statMap.get(String(x._id)) || { ...EMPTY_STATS } })) });
+  const ids = await studentsFor(req);
+  const q = { _id: { $in: ids }, role: 'CHILD' };
+  if (req.query.classRoomId) {
+    if (!(await classFor(req, req.query.classRoomId))) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' });
+    q.assignedClass = req.query.classRoomId;
+  }
+  if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode;
+  if (req.query.search) q.$or = [{ name: { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' } }, { username: { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' } }];
+  const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 });
+  const [resultStats, sessionRows] = await Promise.all([
+    statsFor(data.map(x => x._id)),
+    ClassroomSession.find({ 'studentScores.student': { $in: data.map(x => x._id) }, status: 'COMPLETED' }).select('date startedAt createdAt studentScores').lean()
+  ]);
+  const statMap = new Map(resultStats.map(x => [String(x._id), x]));
+  const attMap = new Map();
+  data.forEach(st => {
+    const sIdStr = String(st._id);
+    let present = 0, excused = 0, absent = 0, late = 0;
+    sessionRows.forEach(s => {
+      const row = (s.studentScores || []).find(sc => String(sc.student?._id || sc.student) === sIdStr);
+      if (row) {
+        if (row.attendance === 'PRESENT') present++;
+        else if (row.attendance === 'LATE') late++;
+        else if (row.attendance === 'EXCUSED') excused++;
+        else if (row.attendance === 'ABSENT') absent++;
+      }
+    });
+    const totalRecorded = present + excused + absent + late;
+    const rate = totalRecorded > 0 ? Math.round(((present + late) / totalRecorded) * 100) : 100;
+    attMap.set(sIdStr, { present, excused, absent, late, totalSessions: totalRecorded, attendanceRate: rate });
+  });
+
+  res.json({
+    success: true,
+    data: data.map(x => ({
+      ...x.toObject(),
+      stats: statMap.get(String(x._id)) || { ...EMPTY_STATS },
+      attendance: attMap.get(String(x._id)) || { present: 0, excused: 0, absent: 0, late: 0, totalSessions: 0, attendanceRate: 100 }
+    }))
+  });
 } catch (e) { next(e); } };
 
 exports.getStudentOverview = async (req, res, next) => {
@@ -130,16 +205,46 @@ exports.getStudentOverview = async (req, res, next) => {
     const student = await getStudent(req, req.params.studentId);
     if (!student) return res.status(403).json({ success: false, message: 'You do not have access to this child.' });
     const notesQuery = { student: student._id };
-    const [progressList, recentActivities, sessions, notes, assignments, [overallStat], masteryList, listeningResults] = await Promise.all([
+    const [progressList, recentActivities, sessions, notes, [overallStat], masteryList, listeningResults, attSessions] = await Promise.all([
       Progress.find({ child: student._id }).populate('lesson', 'title ageGroupCode').populate('topic', 'englishName vietnameseName').sort({ lastActivityAt: -1 }),
       ActivityResult.find({ child: student._id }).populate('activity', 'title activityType').populate('lesson', 'title').sort({ createdAt: -1 }).limit(30),
       LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15),
       TeacherNote.find(notesQuery).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 }),
-      Assignment.find({ ...(req.user.role === 'ADMIN' ? {} : { teacher: req.user._id }), classRoom: student.assignedClass, $and: [{ $or: [{ student: student._id }, { assignedToType: 'CLASS' }] }, { $or: [{ recipients: { $exists: false } }, { recipients: student._id }] }] }).populate('lesson', 'title').populate('activity', 'title activityType').sort({ createdAt: -1 }),
       statsFor([student._id]),
       VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean(),
-      ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity score stars duration').lean()
+      ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity score stars duration').lean(),
+      ClassroomSession.find({ classroom: student.assignedClass, 'studentScores.student': student._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).limit(30).lean()
     ]);
+
+    let attPresent = 0, attExcused = 0, attAbsent = 0, attLate = 0;
+    const attHistory = [];
+    (attSessions || []).forEach(s => {
+      const row = (s.studentScores || []).find(sc => String(sc.student?._id || sc.student) === String(student._id));
+      if (row) {
+        if (row.attendance === 'PRESENT') attPresent++;
+        else if (row.attendance === 'LATE') attLate++;
+        else if (row.attendance === 'EXCUSED') attExcused++;
+        else if (row.attendance === 'ABSENT') attAbsent++;
+        attHistory.push({
+          date: s.date || s.startedAt || s.createdAt,
+          type: 'SESSION',
+          title: s.title || 'Buổi dạy trực tiếp',
+          attendance: row.attendance || 'PRESENT',
+          note: row.note || ''
+        });
+      }
+    });
+    const totalRecorded = attPresent + attExcused + attAbsent + attLate;
+    const attRate = totalRecorded > 0 ? Math.round(((attPresent + attLate) / totalRecorded) * 100) : 100;
+    const attendanceSummary = {
+      present: attPresent,
+      late: attLate,
+      excused: attExcused,
+      absent: attAbsent,
+      totalSessions: totalRecorded,
+      attendanceRate: attRate,
+      history: attHistory
+    };
 
     // ─── Early Childhood Competency Report (3 Pillars) ────────────────────
     const totalStars = overallStat?.totalStars || 0;
@@ -302,11 +407,11 @@ exports.getStudentOverview = async (req, res, next) => {
           learningTime: overallStat?.learningTime || 0
         },
         competencyReport,
+        attendanceSummary,
         progressList,
         recentActivities: await require('../services/learningHistory').recentHistory(student._id,recentActivities),
         sessions,
-        notes,
-        assignments
+        notes
       }
     });
   } catch (e) {
@@ -346,7 +451,7 @@ exports.getContent = async (req, res, next) => { try {
   if (req.query.lessonId) lq._id = req.query.lessonId;
   if (req.query.difficulty) lq.difficulty = Number(req.query.difficulty);
   const lessons = await Lesson.find(lq).populate('topic', 'englishName vietnameseName').populate('vocabularyItems', 'english vietnamese imageUrl audioUrl status wordType visualType isTransparent').populate({ path: 'languageContents', match: { status: 'ACTIVE' } }).sort({ displayOrder: 1 }).lean();
-  const aq = { status: 'ACTIVE', lesson: { $in: lessons.map(x => x._id) } };
+  const aq = { status: 'ACTIVE', lesson: { $in: lessons.map(x => x._id) }, activityType: { $nin: ['LISTEN_CHOOSE', 'TRUE_FALSE', 'MISSING_OBJECT', 'BUBBLE_POP'] } };
   if (req.query.activityType) aq.activityType = req.query.activityType;
   const activities = await Activity.find(aq).select('title vietnameseTitle lesson activityType difficulty questionCount pointsPerQuestion instructions starConfig ageGroupCode').lean();
   const books = await CurriculumBook.find({ active: true, ...(req.user.role === 'ADMIN' ? {} : { _id: { $in: units.map(unit => unit.book?._id || unit.book).filter(Boolean) } }) }).sort({ bookNumber: 1 });
@@ -354,20 +459,6 @@ exports.getContent = async (req, res, next) => { try {
 } catch (e) { next(e); } };
 exports.getLesson = async (req, res, next) => { try { if (!validId(req.params.id)) return invalid(res, 'Invalid lesson id.'); const lesson = await Lesson.findOne({ _id: req.params.id, status: 'ACTIVE' }).populate('topic').populate('vocabularyItems').populate({ path: 'languageContents', match: { status: 'ACTIVE' } }).populate('curriculumUnits'); if (!lesson) return res.status(404).json({ success: false, message: 'Lesson not found.' }); const activities = await Activity.find({ lesson: lesson._id, status: 'ACTIVE' }); res.json({ success: true, data: { ...lesson.toObject(), activities } }); } catch (e) { next(e); } };
 exports.getActivity = async (req, res, next) => { try { if (!validId(req.params.id)) return invalid(res, 'Invalid activity id.'); const data = await Activity.findOne({ _id: req.params.id, status: 'ACTIVE' }).populate({ path: 'lesson', populate: ['topic', 'vocabularyItems'] }); if (!data || data.lesson?.status !== 'ACTIVE') return res.status(404).json({ success: false, message: 'Activity not found or lesson inactive.' }); res.json({ success: true, data }); } catch (e) { next(e); } };
-
-exports.createAssignment = require('./teacherAssignmentController').createAssignment;
-
-exports.getAssignments = require('./teacherAssignmentController').getAssignments;
-
-exports.getAssignment = require('./teacherAssignmentController').getAssignment;
-
-exports.reviewAssignmentSubmission = require('./teacherAssignmentController').reviewAssignmentSubmission;
-
-exports.deleteAssignment = require('./teacherAssignmentController').deleteAssignment;
-
-exports.updateAssignment = require('./teacherAssignmentController').updateAssignment;
-
-exports.updateAssignmentStatus = require('./teacherAssignmentController').updateAssignmentStatus;
 
 exports.createTeacherNote = async (req, res, next) => {
   try {

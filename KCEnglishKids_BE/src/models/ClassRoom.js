@@ -20,7 +20,8 @@ const classRoomSchema = new mongoose.Schema(
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+      default: null,
       index: true
     },
     ageGroup: {
@@ -60,6 +61,19 @@ const classRoomSchema = new mongoose.Schema(
       type: String,
       enum: ['ACTIVE', 'INACTIVE', 'COMPLETED', 'UPCOMING'],
       default: 'ACTIVE'
+    },
+    isRolledOver: {
+      type: Boolean,
+      default: false
+    },
+    rolledOverTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ClassRoom',
+      default: null
+    },
+    rolledOverAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

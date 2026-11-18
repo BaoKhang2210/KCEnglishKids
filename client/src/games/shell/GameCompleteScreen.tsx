@@ -38,7 +38,7 @@ export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
     <div className="story-surface story-game-complete w-full h-full flex flex-col items-center justify-between p-4 text-center select-none">
       <StoryBackdrop scene="celebration"/>
       {/* Top: Mascot & Celebration */}
-      <div className="story-completion-heading flex flex-col items-center gap-2 mt-2">
+      <div className="story-completion-heading flex flex-col items-center gap-1.5 mt-2">
         <h2 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md">
           Great Job! 🎉
         </h2>

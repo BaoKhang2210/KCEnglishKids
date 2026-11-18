@@ -3,7 +3,6 @@ export type AgeGroupCode = '3-4' | '4-5' | '5-6';
 
 export interface ParentNoteRequest {
   childId: string;
-  assignmentId?: string;
   resultId?: string;
 }
 
@@ -22,7 +21,7 @@ export interface ParentNoteSuggestions {
   generative: boolean;
   fallback: boolean;
   metrics: {
-    scope: 'all_time' | 'assignment';
+    scope: 'all_time';
     ageGroup: AgeGroupCode | null;
     averageAccuracy: number | null;
     completedLessons: number;
@@ -869,6 +868,7 @@ export interface ClassSchedule {
     ageGroupCode?: string;
     academicYear?: string;
     studentCount?: number;
+    status?: string;
     isActive?: boolean;
   } | string;
   teacher: {

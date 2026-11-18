@@ -1,4 +1,4 @@
-const { VocabularyMastery, Vocabulary, Lesson, ActivityResult, LearningEvent, MasteryEvent, Progress, Assignment, ClassRoom, User } = require('../models');
+const { VocabularyMastery, Vocabulary, Lesson, ActivityResult, LearningEvent, MasteryEvent, Progress, ClassRoom, User } = require('../models');
 const { vnDate, idOf } = require('./teacherRules');
 async function reviewPlan(childId) {
   const { reviewDueAt, ages } = require('./earlyLearning');
@@ -36,13 +36,7 @@ async function weeklySummary(childId){
 async function teacherTasks(req){
   const rooms=await ClassRoom.find({ ...require('./teacherAccess').classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('students').lean();
   const students=await User.find({_id:{$in:rooms.flatMap(room=>room.students)},role:'CHILD',status:'ACTIVE'}).select('name').lean();
-  const assignments=await Assignment.find({classRoom:{$in:rooms.map(room=>room._id)},status:{$in:['ASSIGNED','IN_PROGRESS']},...(req.user.role==='ADMIN'?{}:{teacher:req.user._id})}).sort({createdAt:-1}).limit(50).lean();
   const tasks=[];
-  for(const assignment of assignments){
-    const own=students.filter(student=>assignment.recipients?.some(id=>idOf(id)===idOf(student)));
-    const {data}=await require('./teacherAssignments').submissions(assignment,own);
-    for(const row of data)if(row.hasSubmitted&&!assignment.reviews?.some(review=>idOf(review.child)===idOf(row.student)))tasks.push({kind:'REVIEW',label:'Nhận xét bài của '+row.student.name,to:'/teacher/assignments/'+assignment._id});
-  }
   const models=require('../models');
   const [statistics,observations]=await Promise.all([
     require('./teacherStatistics').statsFor(students.map(student=>student._id)),
@@ -53,7 +47,7 @@ async function teacherTasks(req){
     const stats = evidence.get(idOf(student));
     const observation=observations.find(row=>idOf(row.child)===idOf(student));
     if(!observation)tasks.push({kind:'OBSERVE',label:student.name+': chưa có ghi nhận quan sát của cô',to:'/teacher/students/'+student._id});
-    if(stats?.hasAssessment&&stats.averageScore<60)tasks.push({kind:'HOMEWORK',label:student.name+': xem gợi ý ôn bài đã học',to:'/teacher/assignments?studentId='+student._id});
+    if(stats?.hasAssessment&&stats.averageScore<60)tasks.push({kind:'SUPPORT',label:student.name+': cần củng cố thêm từ vựng',to:'/teacher/students/'+student._id});
   }
   return tasks;
 }

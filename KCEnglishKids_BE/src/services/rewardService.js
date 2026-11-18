@@ -1,4 +1,4 @@
-const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, Assignment, HomePracticeCompletion } = require('../models');
+const { UnitCompletion, Progress, Lesson, Activity, ActivityResult, CurriculumUnit, AuditLog, ClassroomSession, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 const { computeStarLedger, resolveLessonStars } = require('./starLedgerService');
 
@@ -138,7 +138,7 @@ const computeRewards = async (childId) => {
       .populate('unit', 'bookNumber unitNumber bigQuestion storyTitle status')
       .sort({ completedAt: 1 }),
     ClassroomSession.find({ 'studentScores.student': childId, status: 'COMPLETED' }).select('studentScores'),
-    HomePracticeCompletion.find({ child: childId }).select('stars'),
+    HomePracticeCompletion.find({ child: childId }).select('stars lesson date'),
     computeStarLedger(childId)
   ]);
 
@@ -214,22 +214,26 @@ const computeRewards = async (childId) => {
     });
   }
 
-  const reviewedAssignments = await Assignment.find({ 'reviews.child': childId }).select('reviews');
-  const teacherStars = reviewedAssignments.reduce((sum, assignment) => sum + (assignment.reviews || [])
-    .filter(review => String(review.child) === String(childId)).reduce((n, review) => n + (review.bonusStars || 0), 0), 0);
-  const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => sum + (h.stars || 0), 0);
+  const teacherStars = 0;
+  const seenHomePracticeKeys = new Set();
+  const homePracticeStars = (homePracticeCompletions || []).reduce((sum, h) => {
+    const key = h.lesson ? `lesson:${String(h.lesson)}` : `date:${h.date}`;
+    if (seenHomePracticeKeys.has(key)) return sum;
+    seenHomePracticeKeys.add(key);
+    return sum + (h.stars || 3);
+  }, 0);
   const legacyBonusStars = completions.reduce((sum, completion) => {
     const reward = (completion.rewards || []).find(item => item.type === 'STAR');
     return sum + (reward ? reward.amount || 0 : 0);
   }, 0);
   const badgeProgressStars = legacyEarnedStars + legacyBonusStars + classroomStars + teacherStars + homePracticeStars;
-  const earnedStars = (starLedger?.units?.length ? starLedger.units.reduce((sum, unit) => sum + unit.lessonStars, 0) : legacyEarnedStars) || 0;
-  bonusStars = (starLedger?.units?.length ? starLedger.units.reduce((sum, unit) => sum + unit.bonusStars, 0) : 0) + legacyBonusStars;
+  const ledgerLessonStars = starLedger?.units?.reduce((sum, unit) => sum + unit.lessonStars, 0) || 0;
+  const earnedStars = (starLedger?.units?.length ? ledgerLessonStars : legacyEarnedStars) || 0;
+  const ledgerBonusStars = starLedger?.units?.reduce((sum, unit) => sum + unit.bonusStars, 0) || 0;
+  bonusStars = (starLedger?.units?.length ? ledgerBonusStars : legacyBonusStars) || 0;
   const homeStars = earnedStars + bonusStars + (teacherStars || 0) + (homePracticeStars || 0);
   const classStars = classroomStars;
-  const totalStars = starLedger?.units?.length
-    ? (starLedger?.totalStars || 0) + homePracticeStars
-    : homeStars + classStars;
+  const totalStars = homeStars + classStars;
 
   let explorerLevel = {
     level: 1,
@@ -238,10 +242,10 @@ const computeRewards = async (childId) => {
     icon: '🌱',
     minStars: 0,
     maxStars: 50,
-    currentStars: badgeProgressStars,
-    progressPercent: Math.min(100, Math.round((badgeProgressStars / 50) * 100))
+    currentStars: totalStars,
+    progressPercent: Math.min(100, Math.round((totalStars / 50) * 100))
   };
-  if (badgeProgressStars > 300) {
+  if (totalStars > 300) {
     explorerLevel = {
       level: 4,
       title: 'Đại Sứ Anh Ngữ Nhí',
@@ -249,10 +253,10 @@ const computeRewards = async (childId) => {
       icon: '👑',
       minStars: 300,
       maxStars: 500,
-      currentStars: badgeProgressStars,
+      currentStars: totalStars,
       progressPercent: 100
     };
-  } else if (badgeProgressStars > 150) {
+  } else if (totalStars > 150) {
     explorerLevel = {
       level: 3,
       title: 'Bạn Nhỏ Tự Tin',
@@ -260,10 +264,10 @@ const computeRewards = async (childId) => {
       icon: '🦁',
       minStars: 151,
       maxStars: 300,
-      currentStars: badgeProgressStars,
-      progressPercent: Math.min(100, Math.round(((badgeProgressStars - 150) / 150) * 100))
+      currentStars: totalStars,
+      progressPercent: Math.min(100, Math.round(((totalStars - 150) / 150) * 100))
     };
-  } else if (badgeProgressStars > 50) {
+  } else if (totalStars > 50) {
     explorerLevel = {
       level: 2,
       title: 'Thám Hiểm Tí Hon',
@@ -271,8 +275,8 @@ const computeRewards = async (childId) => {
       icon: '🎒',
       minStars: 51,
       maxStars: 150,
-      currentStars: badgeProgressStars,
-      progressPercent: Math.min(100, Math.round(((badgeProgressStars - 50) / 100) * 100))
+      currentStars: totalStars,
+      progressPercent: Math.min(100, Math.round(((totalStars - 50) / 100) * 100))
     };
   }
 

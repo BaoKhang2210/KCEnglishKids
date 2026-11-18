@@ -17,8 +17,6 @@ const TeacherLoginPage = lazy(() => import('./dashboards/teacher/TeacherLoginPag
 const TeacherLayout = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherLayout})));
 const TeacherDashboard = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherDashboard})));
 const TeacherContent = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherContent})));
-const TeacherAssignments = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAssignments})));
-const TeacherAssignmentDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAssignmentDetail})));
 const TeacherStudents = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherStudents})));
 const TeacherStudentDetail = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherStudentDetail})));
 const TeacherAnalytics = lazy(() => import('./dashboards/teacher/TeacherWorkspace').then(module => ({default:module.TeacherAnalytics})));
@@ -44,6 +42,7 @@ const AdminLogsPage = lazy(() => import('./dashboards/admin/AdminLogsPage').then
 const AdminAnalyticsPage = lazy(() => import('./dashboards/admin/AdminAnalyticsPage').then(module => ({default:module.AdminAnalyticsPage})));
 const AdminSchedulePage = lazy(() => import('./dashboards/admin/AdminSchedulePage').then(module => ({default:module.AdminSchedulePage})));
 const AdminGamesPage = lazy(() => import('./dashboards/admin/AdminGamesPage').then(module => ({default:module.AdminGamesPage})));
+const AdminBackupRestorePage = lazy(() => import('./dashboards/admin/AdminBackupRestorePage').then(module => ({default:module.AdminBackupRestorePage})));
 
 const MyLearningPage = lazy(() => import('./pages/child/MyLearningPage').then(module=>({default:module.MyLearningPage})));
 
@@ -169,11 +168,10 @@ export function App() {
           <Route path="/teacher" element={<ProtectedTeacherRoute><TeacherLayout /></ProtectedTeacherRoute>}>
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="schedule" element={<TeacherTeachingSchedule />} />
+            <Route path="schedules" element={<Navigate to="/teacher/schedule" replace />} />
             <Route path="classes" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="classes/:classId" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="content" element={<TeacherContent />} />
-            <Route path="assignments" element={<TeacherAssignments />} />
-            <Route path="assignments/:assignmentId" element={<TeacherAssignmentDetail />} />
             <Route path="students" element={<TeacherStudents />} />
             <Route path="students/:studentId" element={<TeacherStudentDetail />} />
             <Route path="analytics" element={<TeacherAnalytics />} />
@@ -183,9 +181,10 @@ export function App() {
             <Route path="sentences" element={<SentenceTeachingPage />} />
             <Route path="lesson-planner" element={<TeacherLegacyRedirect target="/teacher/content" />} />
             <Route path="learning-studio" element={<TeacherLegacyRedirect target="/teacher/content" />} />
-            <Route path="home-practice" element={<TeacherLegacyRedirect target="/teacher/assignments" />} />
+            <Route path="home-practice" element={<TeacherLegacyRedirect target="/teacher/dashboard" />} />
             <Route path="unit-review" element={<TeacherLegacyRedirect target="/teacher/analytics" />} />
             <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Route>
 
           {/* Teacher Session Routes — full screen, outside TeacherLayout */}
@@ -212,6 +211,7 @@ export function App() {
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="classrooms" element={<AdminClassroomsPage />} />
             <Route path="schedule" element={<AdminSchedulePage />} />
+            <Route path="schedules" element={<Navigate to="/admin/schedule" replace />} />
             <Route path="curriculum" element={<AdminCurriculumPage />} />
             <Route path="sentences" element={<Navigate to="/admin/curriculum" replace />} />
             <Route path="games" element={<AdminGamesPage />} />
@@ -220,11 +220,13 @@ export function App() {
             <Route path="recognitions" element={<ClassRecognitionsPage />} />
             <Route path="audit-logs" element={<AdminLogsPage />} />
             <Route path="logs" element={<AdminLogsPage />} />
+            <Route path="backup-restore" element={<AdminBackupRestorePage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<RoleAwareFallback />} />
           </Routes></Suspense>
           </ErrorBoundary>
         </Router>
@@ -235,6 +237,13 @@ export function App() {
 }
 
 export default App;
+
+function RoleAwareFallback() {
+  const { user } = useAuth();
+  if (user?.role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
+  if (user?.role === 'TEACHER') return <Navigate to="/teacher/dashboard" replace />;
+  return <Navigate to="/" replace />;
+}
 
 function TeacherLegacyRedirect({ target }: { target: string }) {
   const { search } = useLocation();

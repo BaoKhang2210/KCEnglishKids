@@ -13,7 +13,6 @@ const LearningSession = require('./LearningSession');
 const ActivityResult = require('./ActivityResult');
 const Progress = require('./Progress');
 const AuditLog = require('./AuditLog');
-const Assignment = require('./Assignment');
 const TeacherNote = require('./TeacherNote');
 // Phase 2 — new models
 const ClassroomSession = require('./ClassroomSession');
@@ -37,6 +36,7 @@ module.exports = {
   HomePracticeCompletion: require('./HomePracticeCompletion'),
   LearningObservation: require('./LearningObservation'),
   GameCatalogSetting: require('./GameCatalogSetting'),
+  ClassRecognition: require('./ClassRecognition'),
   SchoolRecognition: require('./SchoolRecognition'),
   LearningEvent: require('./LearningEvent'),
   StageStarGrant: require('./StageStarGrant'),
@@ -56,7 +56,6 @@ module.exports = {
   ActivityResult,
   Progress,
   AuditLog,
-  Assignment,
   TeacherNote,
   ClassroomSession,
   VocabularyMastery,

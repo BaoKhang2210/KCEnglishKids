@@ -164,7 +164,10 @@ export const AdminLogsPage: React.FC = () => {
       UPDATE_TOPIC_STATUS: 'Đổi trạng thái chủ đề',
       CREATE_REWARD: 'Tạo phần thưởng',
       UPDATE_REWARD: 'Cập nhật phần thưởng',
-      REWARD_GRANTED: 'Trao thưởng cho trẻ'
+      REWARD_GRANTED: 'Trao thưởng cho trẻ',
+      EXPORT_SYSTEM_BACKUP: 'Xuất sao lưu hệ thống',
+      RESTORE_SYSTEM_BACKUP: 'Khôi phục dữ liệu hệ thống',
+      CREATE_SERVER_SNAPSHOT: 'Tạo bản sao lưu máy chủ'
     };
     return map[action] || action;
   };
@@ -173,6 +176,16 @@ export const AdminLogsPage: React.FC = () => {
     const { action, details } = log;
     if (!details || Object.keys(details).length === 0) return '—';
     if (typeof details === 'string') return details;
+
+    if (action === 'EXPORT_SYSTEM_BACKUP') {
+      return `Trích xuất gói sao lưu toàn hệ thống (${details.totalCollections || 37} bảng dữ liệu BSON)`;
+    }
+    if (action === 'RESTORE_SYSTEM_BACKUP') {
+      return `Khôi phục hệ thống từ "${details.sourceName || 'File JSON'}" (${details.totalDocumentsRestored || 0} bản ghi / ${details.totalCollections || 37} bảng)`;
+    }
+    if (action === 'CREATE_SERVER_SNAPSHOT') {
+      return `Tạo Snapshot trên máy chủ: "${details.filename || 'Snapshot'}" (${details.totalDocuments || 0} bản ghi)`;
+    }
 
     if (action === 'BULK_IMPORT_STUDENTS') {
       return `Nhập ${details.importedCount ?? details.successCount ?? 0} học sinh vào hệ thống${details.className ? ` (Lớp: ${details.className})` : ''}`;

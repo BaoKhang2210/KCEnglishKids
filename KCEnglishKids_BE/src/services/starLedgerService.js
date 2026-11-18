@@ -12,6 +12,7 @@ function resolveLessonStars(progress, activityRating) {
   const source = progress.completionSnapshot?.source;
   const stageBased = source === 'STAGES' || progress.stage1Completed || progress.stage2Completed || progress.stage3Completed || (progress.stage3Games || []).length > 0;
   if (stageBased) {
+    // Stage completion is the sole source of truth for 3-stage lessons.
     return Math.min(3, completedStageCount(progress));
   }
   const stars = source === 'CURRENT_ACTIVITIES' || source === 'LEGACY_PROGRESS'

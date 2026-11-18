@@ -199,7 +199,7 @@ async function auditData(data, models) {
       if (activity && id(activity.lesson) !== id(session.lesson)) add('ERROR', 'CLASS_SESSION_ACTIVITY_LESSON', 'ClassroomSession', session, 'activities');
     }
   }
-  for (const assignment of data.Assignment) {
+  for (const assignment of (data.Assignment || [])) {
     const activity = get('Activity', assignment.activity);
     if (activity && id(activity.lesson) !== id(assignment.lesson)) add('ERROR', 'ASSIGNMENT_ACTIVITY_LESSON', 'Assignment', assignment, 'activity');
     if (assignment.assignedToType === 'STUDENT' && !assignment.student) add('ERROR', 'ASSIGNMENT_WITHOUT_STUDENT', 'Assignment', assignment, 'student');

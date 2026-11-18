@@ -3,12 +3,10 @@ import { TeacherTasks } from './TeacherTasks';
 import { StoryBanner } from '../../components/StoryScene';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bell, BellRing, BookOpen, CalendarDays, ClipboardCheck, KeyRound, MessageSquare, Play, Users } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, BookOpen, CalendarDays, KeyRound, MessageSquare, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authApi, classroomSessionApi, teacherApi } from '../../services/api';
 import { vietnamClock, vietnamDate } from '../../utils/vietnamTime';
-
-const status: Record<string, string> = { ASSIGNED: 'Đã giao', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Đã hoàn thành', CANCELLED: 'Đã hủy' };
 
 // Self-service password recovery: the code is shown once and unlocks the "Quên mật khẩu?" flow later.
 const AccountSecurity = () => {
@@ -69,7 +67,7 @@ const ScheduleReminders = ({ slots }: { slots: any[] }) => {
         <Bell size={15} /> Bật thông báo
       </button>
     )}
-    <Link className="teacher-button primary" to={`/teacher/classes/${upcoming.classroom?._id}/sessions/new`}>Vào chuẩn bị <ArrowRight size={15} /></Link>
+    <Link className="teacher-button primary" to={`/teacher/classes/${upcoming.classroom?._id}/sessions/new`}>Vào lớp dạy <ArrowRight size={15} /></Link>
   </div>;
 };
 
@@ -179,7 +177,7 @@ export const TeacherDashboard = () => {
   const m = data.metrics;
   const firstName = user?.name?.split(' ').filter(Boolean).slice(-1)[0] || '';
   return <div className="teacher-home">
-    <StoryBanner scene="classroom" title={`Xin chào, ${firstName || 'thầy cô'}`} eyebrow="MỖI BUỔI HỌC · MỘT BƯỚC TIẾN NHỎ"><p>Cùng chuẩn bị những trải nghiệm vui vẻ và vừa sức. Quan sát điều bé làm được, khích lệ sự cố gắng.</p><div className="teacher-welcome-actions"><Link className="teacher-button primary" to="/teacher/classroom-sessions/new"><Play size={17}/> Chuẩn bị buổi dạy</Link><Link className="teacher-button" to="/teacher/content">Giáo trình & in tranh</Link></div></StoryBanner>
+    <StoryBanner scene="classroom" title={`Xin chào, ${firstName || 'thầy cô'}`} eyebrow="MỖI BUỔI HỌC · MỘT BƯỚC TIẾN NHỎ"><p>Cùng chuẩn bị những trải nghiệm vui vẻ và vừa sức. Quan sát điều bé làm được, khích lệ sự cố gắng.</p><div className="teacher-welcome-actions"><Link className="teacher-button primary" to="/teacher/schedule"><CalendarDays size={17}/> Xem thời khóa biểu</Link><Link className="teacher-button" to="/teacher/content">Giáo trình & in tranh</Link></div></StoryBanner>
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 my-6">
       {[
         {
@@ -201,10 +199,10 @@ export const TeacherDashboard = () => {
           numColor: 'text-teal-950'
         },
         {
-          label: 'Bài giao đang mở',
-          value: m.activeAssignments,
-          icon: ClipboardCheck,
-          to: 'assignments',
+          label: 'Lớp phụ trách',
+          value: m.classes,
+          icon: BookOpen,
+          to: 'schedule',
           theme: 'from-amber-50/90 to-orange-50/40 border-amber-200/90',
           badge: 'bg-amber-600 text-white shadow-xs',
           numColor: 'text-amber-950'
@@ -312,56 +310,8 @@ export const TeacherDashboard = () => {
         )}
       </section>
     </div>
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      {/* Cột 1: Bài giao gần đây */}
-      <section className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-            <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-amber-50 text-amber-700 font-bold">
-                <ClipboardCheck size={18} />
-              </span>
-              <h2 className="text-base font-black text-slate-900">Bài giao gần đây</h2>
-            </div>
-            <Link to="/teacher/assignments" className="text-xs font-bold text-teal-800 hover:underline flex items-center gap-0.5">
-              Tất cả <ArrowRight size={13} />
-            </Link>
-          </div>
-          {data.recentAssignments.length ? (
-            <div className="divide-y divide-slate-100">
-              {data.recentAssignments.map((a: any) => (
-                <Link
-                  to={`/teacher/assignments/${a._id}`}
-                  key={a._id}
-                  className="py-2.5 flex items-center justify-between gap-2 group hover:bg-slate-50 -mx-2 px-2 rounded-xl transition-colors"
-                >
-                  <div className="min-w-0">
-                    <strong className="block text-xs font-black text-slate-900 group-hover:text-teal-900 truncate">
-                      {a.activity?.title || a.lesson?.title || 'Bài tập'}
-                    </strong>
-                    <small className="text-[11px] font-semibold text-slate-500">
-                      {a.classRoom?.name || 'Lớp học'}
-                    </small>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
-                    a.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-950 border border-emerald-200' :
-                    a.status === 'CANCELLED' ? 'bg-rose-100 text-rose-950 border border-rose-200' :
-                    'bg-amber-100 text-amber-950 border border-amber-200'
-                  }`}>
-                    {status[a.status] || a.status}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-500 py-6 text-center">
-              Chưa có bài giao. Hãy chọn hoạt động ngắn, phù hợp để bé ôn cùng gia đình.
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* Cột 2: Góc theo dõi học tập */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* Cột 1: Góc theo dõi học tập */}
       <section className="bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/50 rounded-3xl border border-indigo-200/90 p-5 shadow-xs flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between pb-3 border-b border-indigo-100 mb-3">

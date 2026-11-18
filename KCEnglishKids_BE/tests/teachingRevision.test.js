@@ -111,7 +111,8 @@ test('closing a classroom releases its teacher without erasing the historical te
   await require('../src/services/adminIntegrity').syncTeacher(room, id(2));
   assert.equal(room.teacher, id(2));
   assert.equal(unsetFilter.assignedClass, id(1));
-  assert.equal(scheduleUpdate.$set.isActive, false);
+  assert.equal(scheduleUpdate.$set.isActive, true);
+  assert.ok(scheduleUpdate.$set.effectiveTo instanceof Date);
 });
 
 test('a live class cannot be closed or handed to a different teacher', async t => {

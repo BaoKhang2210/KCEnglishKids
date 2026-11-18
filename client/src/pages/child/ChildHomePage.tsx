@@ -182,8 +182,11 @@ export const ChildHomePage: React.FC = () => {
 
   // 5-minute daily home review summary
   const [homeReviewSummary, setHomeReviewSummary] = useState<{
+    lessonId?: string;
     lessonTitle?: string;
     lessonVietnameseTitle?: string;
+    teacherName?: string;
+    classroomName?: string;
     completedToday?: boolean;
   } | null>(null);
 
@@ -260,19 +263,26 @@ export const ChildHomePage: React.FC = () => {
           } catch (stErr) {
             console.warn('Could not fetch daily streak:', stErr);
           }
-          // Fetch 5-minute home review status
+          // Fetch 5-minute home review status (strictly for lessons taught on class)
           api.get(`/children/${childId}/home-practice`)
             .then((res: any) => {
               const rev = res.data?.homeReview;
-              if (rev) {
+              if (rev && rev.lessonId) {
                 setHomeReviewSummary({
+                  lessonId: rev.lessonId,
                   lessonTitle: rev.lessonTitle,
                   lessonVietnameseTitle: rev.lessonVietnameseTitle,
-                  completedToday: rev.completedToday
+                  teacherName: rev.teacherName,
+                  classroomName: rev.classroomName,
+                  completedToday: Boolean(rev.completedToday || rev.isCompleted)
                 });
+              } else {
+                setHomeReviewSummary(null);
               }
             })
-            .catch(() => {});
+            .catch(() => {
+              setHomeReviewSummary(null);
+            });
 
           try {
             const dueRes = await vocabReviewApi.getDue(childId, 1);
@@ -297,9 +307,9 @@ export const ChildHomePage: React.FC = () => {
     refreshRewards();
   }, [refreshRewards]);
 
-  // The star ledger is the sole source for displayed journey stars.
+  // The star ledger is the source for journey stars; rewards.totalStars includes home practice & classroom stars.
   const ledger = rewards?.starLedger;
-  const totalStars = ledger?.totalStars ?? 0;
+  const totalStars = rewards?.totalStars ?? (ledger?.totalStars ?? 0);
   const completedLessons = rewards?.completedLessons ?? ledger?.completedLessons ?? 0;
   const totalUnits = ledger?.units.length ?? units.length;
   const completedUnits = rewards?.completedUnits ?? ledger?.completedUnits ?? 0;
@@ -375,64 +385,72 @@ export const ChildHomePage: React.FC = () => {
         <div className={activeTab === 'vocab' ? 'flex h-full min-h-0 w-full flex-col px-4 py-3 sm:px-8 lg:px-12' : 'w-full px-4 sm:px-8 lg:px-12 py-4 pb-28 xl:pb-12'}>
         {activeTab !== 'videos' && activeTab !== 'vocab' && activeTab !== 'diary' && activeTab !== 'history' && (
           <>
-            {/* 5-MINUTE DAILY HOME PRACTICE HERO BANNER */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                sfx.playPop();
-                navigate('/my-learning');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+            {/* 5-MINUTE DAILY HOME PRACTICE HERO BANNER - CHỈ HIỂN THỊ KHI GIÁO VIÊN ĐÃ DẠY BÀI TRÊN LỚP */}
+            {homeReviewSummary?.lessonId ? (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
                   sfx.playPop();
-                  navigate('/my-learning');
-                }
-              }}
-              className="relative mb-4 cursor-pointer overflow-hidden rounded-3xl border-3 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-4 sm:p-5 text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-xl active:scale-[0.99] group"
-            >
-              {/* Playful background decorative shapes */}
-              <div className="absolute -right-6 -bottom-6 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
-              <div className="absolute top-2 right-16 w-20 h-20 rounded-full bg-yellow-200/20 blur-md pointer-events-none" />
-
-              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-white/30 flex-shrink-0 animate-bounce">
-                    ⚡
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider bg-white/25 backdrop-blur-md border border-white/30 text-amber-50">
-                        🌱 5 Phút Ôn Tập Ở Nhà Cùng Ba Mẹ
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black bg-yellow-300 text-amber-950 flex items-center gap-1 shadow-sm">
-                        ⭐ Thưởng +3 Sao
-                      </span>
+                  navigate(`/my-learning?lessonId=${homeReviewSummary.lessonId}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    sfx.playPop();
+                    navigate(`/my-learning?lessonId=${homeReviewSummary.lessonId}`);
+                  }
+                }}
+                className="relative mb-4 cursor-pointer overflow-hidden rounded-3xl border-2 border-amber-300 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-4 sm:p-5 text-white shadow-md transition-all duration-300 hover:scale-[1.01] hover:shadow-lg active:scale-[0.99] group"
+              >
+                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl sm:text-2xl shadow-inner border border-white/30 shrink-0">
+                      ⚡
                     </div>
-                    <h2 className="text-base sm:text-lg lg:text-xl font-black text-white drop-shadow-sm">
-                      {homeReviewSummary?.lessonVietnameseTitle 
-                        ? `Bài vừa học ở lớp: ${homeReviewSummary.lessonVietnameseTitle} (${homeReviewSummary.lessonTitle})`
-                        : 'Cùng Ba Mẹ ôn lại kiến thức buổi học gần nhất!'}
-                    </h2>
-                    <p className="text-xs sm:text-sm text-amber-100 font-bold">
-                      Bé ôn từ vựng với trò chơi mini & cùng ba mẹ luyện mẫu câu đàm thoại 👨‍👩‍👧
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider bg-white/25 backdrop-blur-md text-amber-50">
+                          🌱 5 Phút Ôn Tập
+                        </span>
+                        {homeReviewSummary?.completedToday ? (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-500 text-white flex items-center gap-1 shadow-2xs">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" /> Đã nhận 3 sao
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-yellow-300 text-amber-950 flex items-center gap-1 shadow-2xs">
+                            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-600" /> Thưởng +3 sao
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="text-base sm:text-lg font-black text-white drop-shadow-xs">
+                        {homeReviewSummary?.lessonVietnameseTitle || homeReviewSummary?.lessonTitle || 'Bài học vừa học trên lớp'}
+                        {homeReviewSummary?.lessonVietnameseTitle && homeReviewSummary?.lessonTitle && (
+                          <span className="text-amber-100 font-bold text-sm sm:text-base ml-1.5">
+                            ({homeReviewSummary.lessonTitle})
+                          </span>
+                        )}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-amber-100 font-medium">
+                        {homeReviewSummary?.teacherName ? `Cô ${homeReviewSummary.teacherName} • ` : ''}
+                        {homeReviewSummary?.classroomName || 'Lớp học'}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="self-end sm:self-center flex-shrink-0">
-                  {homeReviewSummary?.completedToday ? (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md border border-emerald-300">
-                      <Check className="w-4 h-4 stroke-[3]" /> Đã nhận 3⭐ (Bấm ôn lại)
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-orange-600 font-black text-xs sm:text-sm shadow-md hover:bg-yellow-50 group-hover:scale-105 transition-transform">
-                      Bắt đầu ngay <ArrowRight className="w-4 h-4" />
-                    </span>
-                  )}
+                  <div className="self-end sm:self-center shrink-0">
+                    {homeReviewSummary?.completedToday ? (
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white text-emerald-800 font-bold text-xs sm:text-sm shadow-xs hover:bg-emerald-50 group-hover:scale-105 transition-transform">
+                        Ôn lại bài <ArrowRight className="w-4 h-4" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white text-orange-600 font-bold text-xs sm:text-sm shadow-xs hover:bg-yellow-50 group-hover:scale-105 transition-transform">
+                        Bắt đầu ngay <ArrowRight className="w-4 h-4" />
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
             <ChildRecognitions />
           </>
         )}
@@ -877,7 +895,14 @@ export const ChildHomePage: React.FC = () => {
                   {rewardTab === 'stars' && rewards && <p className="text-sm font-bold text-slate-500">Tổng sao hành trình gồm sao bài học và thưởng Unit. Thưởng lớp và huy hiệu được tính riêng.</p>}
 
                   {rewardTab === 'stars' ? (
-                    <StarCollectionSection ledger={ledger} loading={rewardsLoading} error={rewardsError} onRetry={refreshRewards} />
+                    <StarCollectionSection
+                      ledger={ledger}
+                      totalStars={totalStars}
+                      homePracticeStars={rewards?.homePracticeStars || 0}
+                      loading={rewardsLoading}
+                      error={rewardsError}
+                      onRetry={refreshRewards}
+                    />
                   ) : rewardTab === 'badges' ? (
                     <>
                       {/* Badges Category Pills */}

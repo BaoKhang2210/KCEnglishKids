@@ -14,7 +14,9 @@ const schema = new mongoose.Schema({
     _id: false,
     child: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
-    stars: { type: Number, required: true, min: 1 },
+    stars: { type: Number, required: true, min: 0 },
+    awardTitle: { type: String, default: 'Bé Chăm Ngoan' },
+    awardSymbol: { type: String, default: '⭐' },
     sessions: Number,
     starsPerSession: Number,
     readAt: { type: Date, default: null }

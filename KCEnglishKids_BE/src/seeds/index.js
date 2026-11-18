@@ -27,7 +27,6 @@ const {
   Schedule,
   LearningObservation,
   HomePracticePlan,
-  Assignment,
   LearningEvent,
   MasteryEvent,
   TeacherNote,
@@ -176,7 +175,6 @@ async function seedDatabase() {
       Schedule.deleteMany({}),
       LearningObservation.deleteMany({}),
       HomePracticePlan.deleteMany({}),
-      Assignment.deleteMany({}),
       LearningEvent.deleteMany({}),
       MasteryEvent.deleteMany({}),
       TeacherNote.deleteMany({}),
@@ -743,10 +741,11 @@ async function seedDatabase() {
     class3.students = [childToby._id, ...class3Kids.map(k => k._id)];
     await class3.save();
 
-    // 9.6 Learning Lessons references
+    // 9.6 Learning Lessons references: Leo's class curriculum starts at Unit 1 (School)
+    const schoolLesson = lessonsMapByKey.get('B1_U1_L1');
     const petAnimalsLesson = lessonsMapByKey.get('B1_U5_L1');
-    const b2Lesson = lessonsMapByKey.get('B2_U1_L1') || petAnimalsLesson;
-    const b3Lesson = lessonsMapByKey.get('B3_U1_L1') || petAnimalsLesson;
+    const b2Lesson = lessonsMapByKey.get('B2_U1_L1') || schoolLesson || petAnimalsLesson;
+    const b3Lesson = lessonsMapByKey.get('B3_U1_L1') || schoolLesson || petAnimalsLesson;
 
     const petAnimalsActivities = petAnimalsLesson
       ? await Activity.find({ lesson: petAnimalsLesson._id }).sort({ order: 1 })
@@ -754,7 +753,7 @@ async function seedDatabase() {
 
     const petSession = await LearningSession.create({
       child: childLeo._id,
-      lesson: petAnimalsLesson._id,
+      lesson: (schoolLesson || petAnimalsLesson)._id,
       status: 'COMPLETED',
       score: 100,
       stars: 3,
@@ -764,15 +763,19 @@ async function seedDatabase() {
       lastActivityAt: today
     });
 
-    if (petAnimalsLesson) {
+    // Seed Leo's initial completed progress for Lesson 1 (Things at School)
+    if (schoolLesson) {
       await Progress.create({
         child: childLeo._id,
-        topic: topicsMap.animals._id,
-        lesson: petAnimalsLesson._id,
+        topic: schoolLesson.topic || topicsMap.school?._id || topicsMap.animals._id,
+        lesson: schoolLesson._id,
         completed: true,
         stars: 3,
         highestScore: 100,
-        attempts: 1
+        attempts: 1,
+        stage1Completed: true,
+        stage2Completed: true,
+        stage3Completed: true
       });
     }
 
@@ -1351,19 +1354,6 @@ async function seedDatabase() {
       ]
     });
 
-    // 9.13 Homework Assignments
-    await Assignment.create({
-      teacher: teacher1._id,
-      classRoom: class1._id,
-      lesson: petAnimalsLesson._id,
-      activity: petAnimalsActivities[0]?._id || null,
-      assignedToType: 'CLASS',
-      completionMode: 'ACTIVITY',
-      dueDate: new Date(Date.now() + 7 * 86400000),
-      startDate: new Date(),
-      status: 'ASSIGNED'
-    });
-
     // 9.14 Parent Notifications
     await ParentNotification.create({
       teacher: teacher1._id,
@@ -1410,31 +1400,8 @@ async function seedDatabase() {
       content: 'Leo rất hào hứng với các hình ảnh động vật cưng, giơ tay nhiệt tình và động viên các bạn cùng bàn.'
     });
 
-    // 9.16 Class Recognition Trophy
-    await ClassRecognition.create({
-      classroom: class1._id,
-      className: class1.name,
-      kind: 'WEEK',
-      periodStart: new Date(Date.now() - 7 * 86400000),
-      periodEnd: new Date(),
-      publishedBy: teacher1._id,
-      reward: {
-        title: 'Ngôi sao chăm chỉ tuần này',
-        symbol: '⭐',
-        description: 'Bé tích cực học tập và tham gia đầy đủ buổi học',
-        suggestion: 'Dành tặng bé 1 cái ôm và lời khen từ ba mẹ!'
-      },
-      winners: [
-        {
-          child: childLeo._id,
-          name: 'Leo',
-          stars: 15
-        }
-      ],
-      ranking: [
-        { rank: 1, name: 'Leo', stars: 15 }
-      ]
-    });
+    // 9.16 Class Recognition Trophy (Published dynamically by teacher in dashboard)
+    // ClassRecognition will be generated when teachers publish awards.
 
     // =========================================================================
     // FINAL VERIFICATION REPORT (Section 20 of prompt)

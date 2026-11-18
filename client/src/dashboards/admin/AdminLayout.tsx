@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, School, BookOpen,  Users, ClipboardList, LogOut, Menu, X, ShieldCheck, ChevronRight, BarChart3, CalendarDays, Gamepad2, Award } from 'lucide-react';
+import { LayoutDashboard, School, BookOpen, Users, ClipboardList, LogOut, Menu, X, ShieldCheck, ChevronRight, BarChart3, CalendarDays, Gamepad2, Award, Database } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../services/api';
 import '../../styles/admin.css';
@@ -19,7 +19,8 @@ const navigation = [
   ] },
   { title: 'Quản trị hệ thống', items: [
     { label: 'Báo cáo phân tích', path: '/admin/analytics', icon: BarChart3 },
-    { label: 'Nhật ký hoạt động', path: '/admin/audit-logs', icon: ClipboardList }
+    { label: 'Nhật ký hoạt động', path: '/admin/audit-logs', icon: ClipboardList },
+    { label: 'Sao lưu & Phục hồi', path: '/admin/backup-restore', icon: Database }
   ] }
 ];
 

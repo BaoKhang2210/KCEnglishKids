@@ -1,4 +1,3 @@
-import { SessionClosureForm, type Coverage } from '../../components/teacher/SessionClosureForm';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -22,7 +21,6 @@ import {
   MessageSquare,
   HelpCircle,
   EyeOff,
-  ExternalLink,
   Flame,
   Play,
   RotateCcw,
@@ -44,11 +42,6 @@ import type { SentencePattern } from './SentenceTeachingPage';
 import { getSentenceIllustration } from '../../utils/sentenceIllustrations';
 import { getPreschoolTprGesture } from '../../utils/tprGestures';
 import { compareLessons } from '../../utils/curriculumLessons';
-
-const elapsedMin = (startedAt?: string) => {
-  if (!startedAt) return 0;
-  return Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
-};
 
 type AnswerMap = Record<string, 'CORRECT' | 'INCORRECT' | 'NOT_ANSWERED'>;
 type ViewTab = 'warmup' | 'presentation' | 'sentences' | 'games' | 'wrapup';
@@ -107,6 +100,7 @@ export const LiveSessionPage: React.FC = () => {
   const [spotlightPromptOverride, setSpotlightPromptOverride] = useState<string | null>(null);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showWarn, setShowWarn] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasSetInitialTabRef = useRef(false);
@@ -124,9 +118,9 @@ export const LiveSessionPage: React.FC = () => {
   const [isOvertimeModalOpen, setIsOvertimeModalOpen] = useState(false);
   const [overtimeSnoozeUntil, setOvertimeSnoozeUntil] = useState<number>(0);
 
-  // Exit / End Session Modal state
+  // Exit & Finish Session Modal states
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
-  const [coverage, setCoverage] = useState<Coverage>('CONTINUE');
+  const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
 
   // Classroom teaching views
   const [activeTab, setActiveTab] = useState<ViewTab>('presentation');
@@ -153,7 +147,7 @@ export const LiveSessionPage: React.FC = () => {
   const [isWarmupRevealed, setIsWarmupRevealed] = useState(false);
   const [warmupPatterns, setWarmupPatterns] = useState<SentencePattern[]>([]);
   const [currentWarmupPatternIndex, setCurrentWarmupPatternIndex] = useState(0);
-  const [isWarmupPatternRevealed, setIsWarmupPatternRevealed] = useState(false);
+  const [, setIsWarmupPatternRevealed] = useState(false);
   const [warmupSection, setWarmupSection] = useState<'vocab' | 'patterns' | 'freeze-dance'>('vocab');
   const [freezeState, setFreezeState] = useState<'idle' | 'dancing' | 'frozen'>('idle');
   const [freezeCountdown, setFreezeCountdown] = useState<number>(5);
@@ -189,6 +183,7 @@ export const LiveSessionPage: React.FC = () => {
 
   // Late Attendance Modal
   const [isLateAttendanceModalOpen, setIsLateAttendanceModalOpen] = useState(false);
+  const [attendanceModalTab, setAttendanceModalTab] = useState<'ABSENT' | 'ATTENDING'>('ABSENT');
 
   // Mini-game in classroom state (7 Trò chơi tương tác Koko)
   const [gamesCategory, setGamesCategory] = useState<'curriculum' | 'interactive'>('curriculum');
@@ -292,6 +287,13 @@ export const LiveSessionPage: React.FC = () => {
       const s: ClassroomSession = res.data;
       setPageError('');
       if (s.status === 'COMPLETED') { navigate(`/teacher/classroom-sessions/${sessionId}/summary`, { replace: true }); return; }
+      if (s.status === 'SCHEDULED') {
+        try {
+          await classroomSessionApi.startSession(sessionId);
+          s.status = 'LIVE';
+          s.startedAt = new Date().toISOString();
+        } catch (_) {}
+      }
       setSession(s);
 
       // Auto-activate warm-up tab on initial start if configured
@@ -414,26 +416,61 @@ export const LiveSessionPage: React.FC = () => {
   }, [load]);
 
 
-  // Elapsed timer
+  // Live elapsed timer ticking every 1 second
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setElapsed(elapsedMin(session?.startedAt));
-    }, 30000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [session?.startedAt]);
+    if (!session || session.status === 'COMPLETED') return;
+
+    const getElapsedSeconds = (startedAt?: string | null, createdAt?: string) => {
+      const start = startedAt ? new Date(startedAt).getTime() : createdAt ? new Date(createdAt).getTime() : 0;
+      if (!start) return 0;
+      return Math.max(0, Math.floor((Date.now() - start) / 1000));
+    };
+
+    const updateElapsed = () => {
+      const secs = getElapsedSeconds(session.startedAt, session.createdAt);
+      setElapsedSeconds(secs);
+      setElapsed(Math.floor(secs / 60));
+    };
+
+    updateElapsed();
+    timerRef.current = setInterval(updateElapsed, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [session?.startedAt, session?.createdAt, session?.status]);
+
+  const formatTimer = (totalSecs: number) => {
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   // Check if session has exceeded planned duration
   useEffect(() => {
-    if (!session || session.status === 'COMPLETED' || isOvertimeModalOpen || isExitModalOpen) return;
+    if (!session || session.status === 'COMPLETED' || ending) return;
     const planned = session.plannedDuration || 35;
     if (elapsed >= planned && !showWarn) {
       setShowWarn(true);
     }
-    // Offer a reminder after 15 extra minutes, without ending the session.
-    if (elapsed >= planned + 15 && Date.now() > overtimeSnoozeUntil) {
+    // Auto-close after 90 minutes to prevent a live session from hanging overnight
+    if (elapsed >= 90) {
+      setEnding(true);
+      const allGoalKeys = (session?.teachingGuide?.goals || []).map((g: any) => g.key);
+      classroomSessionApi.endSession(sessionId, {
+        coverage: 'COMPLETE',
+        goalsCovered: allGoalKeys,
+        reflection: 'Hệ thống tự động kết thúc buổi dạy sau 90 phút.'
+      })
+        .then(() => navigate(`/teacher/classroom-sessions/${sessionId}/summary`))
+        .catch(() => setEnding(false));
+      return;
+    }
+    // Offer a reminder at 60 minutes (or planned + 15 minutes)
+    if (!isOvertimeModalOpen && !isExitModalOpen && elapsed >= Math.min(60, planned + 15) && Date.now() > overtimeSnoozeUntil) {
       setIsOvertimeModalOpen(true);
     }
-  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen, isExitModalOpen]);
+  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen, isExitModalOpen, ending, sessionId, navigate]);
 
   // Safe vocabulary pool from lesson or built-in preschool dataset
   const activeVocabList = useMemo(() => {
@@ -455,7 +492,63 @@ export const LiveSessionPage: React.FC = () => {
   const currentWarmupVocab = warmupVocabList[currentWarmupIndex] || warmupVocabList[0];
   const activeWarmupPatterns = warmupPatterns;
   const currentWarmupPattern = activeWarmupPatterns[currentWarmupPatternIndex] || activeWarmupPatterns[0];
-  const currentLessonId = typeof session?.lesson === 'object' ? (session?.lesson as any)?._id : session?.lesson;
+
+  // Split dialogue question and answers cleanly for Warmup Pattern presentation
+  const warmupDialogueData = useMemo(() => {
+    if (!currentWarmupPattern) return null;
+    let questionEn = currentWarmupPattern.english || '';
+    let questionVi = currentWarmupPattern.vietnamese || '';
+    let answers: Array<{ english: string; vietnamese?: string; audioUrl?: string | null; imageUrl?: string | null }> = [];
+
+    if (currentWarmupPattern.answers && currentWarmupPattern.answers.length > 0) {
+      answers = currentWarmupPattern.answers.map((a: any) => ({
+        english: a.english || '',
+        vietnamese: a.vietnamese || '',
+        audioUrl: a.audioUrl || null,
+        imageUrl: a.imageUrl || null
+      })).filter((a: any) => Boolean(a.english));
+    }
+
+    // If no answers array but english has a question mark with trailing response (e.g. "Is it big? Yes, it is.")
+    if (answers.length === 0 && questionEn.includes('?')) {
+      const parts = questionEn.split('?');
+      if (parts.length > 1 && parts[1].trim()) {
+        questionEn = parts[0].trim() + '?';
+        const ansText = parts.slice(1).join('?').trim();
+        let ansVi = '';
+        if (questionVi.includes('?')) {
+          const viParts = questionVi.split('?');
+          questionVi = viParts[0].trim() + '?';
+          ansVi = viParts.slice(1).join('?').trim();
+        }
+        answers.push({
+          english: ansText,
+          vietnamese: ansVi,
+          audioUrl: null,
+          imageUrl: null
+        });
+      }
+    }
+
+    // Preschool scaffolding: If it's a question without answer, provide the standard preschool response
+    if (answers.length === 0 && (questionEn.includes('?') || /^(what|how|who|where|is|are|can|do)\b/i.test(questionEn))) {
+      if (/^is\s/i.test(questionEn) || /^are\s/i.test(questionEn)) {
+        answers.push({ english: 'Yes, it is! / No, it isn\'t.', vietnamese: 'Vâng, đúng rồi! / Không phải đâu.' });
+      } else if (/^what\s+is\s+this/i.test(questionEn) || /^what's\s+this/i.test(questionEn)) {
+        answers.push({ english: 'It is a...', vietnamese: 'Đó là một...' });
+      } else if (/^what\s+color/i.test(questionEn)) {
+        answers.push({ english: 'It is...', vietnamese: 'Nó có màu...' });
+      } else if (/^how\s+many/i.test(questionEn)) {
+        answers.push({ english: 'There are...', vietnamese: 'Có...' });
+      } else if (/^can\s+you/i.test(questionEn)) {
+        answers.push({ english: 'Yes, I can!', vietnamese: 'Có, mình làm được!' });
+      } else {
+        answers.push({ english: 'Listen and answer together!', vietnamese: 'Cùng nghe và trả lời nhé!' });
+      }
+    }
+
+    return { questionEn, questionVi, answers };
+  }, [currentWarmupPattern]);
 
   // Current Vocabulary TPR Physical Mime Action from Lesson Plan or Rich Preschool TPR Map
   const currentTprGesture = useMemo(() => {
@@ -612,7 +705,7 @@ export const LiveSessionPage: React.FC = () => {
   };
 
   // ── Per-student scoring with Joyous Celebration & Instant Real-time Feedback ──────
-    const handleMarkAttendance = async (studentId: string, attendanceStatus: 'PRESENT' | 'LATE' = 'LATE') => {
+    const handleMarkAttendance = async (studentId: string, attendanceStatus: 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED' = 'LATE') => {
     try {
       await classroomSessionApi.updateStudentAttendance(sessionId, studentId, attendanceStatus);
       const matches = (row: StudentSessionScore) => (typeof row.student === 'string' ? row.student : row.student._id) === studentId;
@@ -623,7 +716,11 @@ export const LiveSessionPage: React.FC = () => {
       const row = session?.studentScores.find(matches);
       const name = row && typeof row.student === 'object' ? row.student.name : 'bé';
       sfx.playPop();
-      showToast(`Đã điểm danh cho ${name} vào lớp (${attendanceStatus === 'LATE' ? 'Đến trễ' : 'Có mặt'})! 🎉`);
+      if (attendanceStatus === 'ABSENT') {
+        showToast(`Đã chuyển ${name} về trạng thái VẮNG mặt (Hoàn tác thành công).`);
+      } else {
+        showToast(`Đã điểm danh cho ${name} vào lớp (${attendanceStatus === 'LATE' ? 'Đến trễ' : 'Có mặt'})! 🎉`);
+      }
     } catch (e: any) {
       showToast(e?.message || 'Không thể cập nhật điểm danh. Vui lòng thử lại.');
     }
@@ -720,9 +817,14 @@ export const LiveSessionPage: React.FC = () => {
     });
   };
 
-  // ── Mở modal tùy chọn kết thúc hoặc thoát buổi dạy ────────────────────────
-  const handleEnd = () => {
+  // ── Mở modal thoát buổi dạy ────────────────────────
+  const handleOpenExit = () => {
     setIsExitModalOpen(true);
+  };
+
+  // ── Mở modal kết thúc buổi dạy ─────────────────────
+  const handleOpenFinish = () => {
+    setIsFinishModalOpen(true);
   };
 
   // ── 1. Hoàn tất tiết học & Xuất báo cáo (chuyển sang trang summary) ────────
@@ -731,14 +833,12 @@ export const LiveSessionPage: React.FC = () => {
     setEnding(true);
     try {
       const allGoalKeys = (session?.teachingGuide?.goals || []).map((g: any) => g.key);
-      const effectiveGoals = coverage === 'COMPLETE' ? allGoalKeys : [];
-
       await classroomSessionApi.endSession(sessionId, {
-        coverage,
-        goalsCovered: effectiveGoals,
+        coverage: 'COMPLETE',
+        goalsCovered: allGoalKeys,
         reflection: ''
       });
-      setIsExitModalOpen(false);
+      setIsFinishModalOpen(false);
       navigate(`/teacher/classroom-sessions/${sessionId}/summary`);
     } catch (e: any) {
       showToast(e.message || 'Chưa lưu được tổng kết. Vui lòng thử lại.');
@@ -756,7 +856,7 @@ export const LiveSessionPage: React.FC = () => {
   const handleOvertimeClosure = () => {
     setIsOvertimeModalOpen(false);
     setOvertimeSnoozeUntil(Date.now() + 15 * 60 * 1000);
-    setIsExitModalOpen(true);
+    setIsFinishModalOpen(true);
   };
 
   if (pageError && !session) return <div className="min-h-screen p-8"><div className="teacher-error" role="alert">{pageError}<button onClick={() => void load()}>Thử lại</button></div><Link to="/teacher/classroom-sessions" className="teacher-button mt-5">Về nhật ký buổi dạy</Link></div>;
@@ -769,8 +869,6 @@ export const LiveSessionPage: React.FC = () => {
       </div>
     );
   }
-
-  if (session.status === 'SCHEDULED') return <div className="min-h-screen bg-slate-50 p-8"><div className="teacher-panel mx-auto max-w-xl"><p className="teacher-eyebrow">KẾ HOẠCH ĐÃ LƯU</p><h1 className="text-2xl font-bold">{session.title}</h1><p className="my-4">Buổi học chưa bắt đầu. Hãy kiểm tra danh sách trước khi mở lớp.</p><p className="text-sm text-slate-500 mb-5">{session.studentScores.length} học sinh · {session.plannedDuration} phút</p>{pageError && <p role="alert" className="text-red-700 mb-4">{pageError}</p>}<div className="flex flex-wrap gap-3"><button className="teacher-button primary" disabled={ending} onClick={async () => { setEnding(true); try { await classroomSessionApi.startSession(sessionId); await load(); } catch(e: any) { setPageError(e.message); } finally { setEnding(false); } }}>Bắt đầu buổi dạy</button><Link className="teacher-button" to="/teacher/classroom-sessions">Về nhật ký</Link></div></div></div>;
 
   const scores = (session.studentScores || []).filter(row => !['ABSENT', 'EXCUSED'].includes(row.attendance || ''));
   const absentScores = (session.studentScores || []).filter(row => ['ABSENT', 'EXCUSED'].includes(row.attendance || ''));
@@ -812,9 +910,9 @@ export const LiveSessionPage: React.FC = () => {
 
           {/* Prominent Live Stats Bar (Phút · Đúng · Sao) */}
           <div className="flex items-center gap-1.5 rounded-2xl border border-amber-400/30 bg-slate-950/90 px-2.5 py-1 shadow-inner">
-            <span className="flex items-center gap-1 rounded-xl bg-sky-500/20 border border-sky-400/30 px-2.5 py-0.5 text-xs font-black text-sky-300" title="Thời gian buổi học đã diễn ra">
-              <Clock size={13} className="text-sky-400" />
-              <span>{elapsed > 0 ? `${elapsed} phút` : '0 phút'}</span>
+            <span className="flex items-center gap-1 rounded-xl bg-sky-500/20 border border-sky-400/30 px-2.5 py-0.5 text-xs font-black text-sky-300" title="Thời gian buổi học đang diễn ra">
+              <Clock size={13} className="text-sky-400 animate-pulse" />
+              <span className="font-mono text-xs sm:text-[13px] tracking-wide">{formatTimer(elapsedSeconds)}</span>
             </span>
             <span className="flex items-center gap-1 rounded-xl bg-emerald-500/20 border border-emerald-400/40 px-2.5 py-0.5 text-xs font-black text-emerald-300" title="Tổng số lượt trả lời đúng">
               <CheckCircle2 size={13} className="text-emerald-400" />
@@ -825,17 +923,19 @@ export const LiveSessionPage: React.FC = () => {
               <span>{totalStars} sao</span>
             </span>
 
-            {absentScores.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setIsLateAttendanceModalOpen(true)}
-                className="flex items-center gap-1 rounded-xl bg-rose-500/25 hover:bg-rose-500/35 border border-rose-400/50 px-2 py-0.5 text-xs font-black text-rose-300 cursor-pointer active:scale-95 transition-all animate-pulse"
-                title="Có học sinh vắng. Nhấn để điểm danh cho bé đến trễ vào lớp"
-              >
-                <UserCheck size={13} className="text-rose-400" />
-                <span>{absentScores.length} vắng • Vào lớp</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsLateAttendanceModalOpen(true)}
+              className={`flex items-center gap-1 rounded-xl px-2.5 py-0.5 text-xs font-black cursor-pointer active:scale-95 transition-all ${
+                absentScores.length > 0
+                  ? 'bg-rose-500/25 hover:bg-rose-500/35 border border-rose-400/50 text-rose-300 animate-pulse'
+                  : 'bg-white/10 hover:bg-white/20 border border-white/20 text-slate-300'
+              }`}
+              title="Điểm danh và xử lý bé đến trễ / vắng mặt"
+            >
+              <UserCheck size={13} className={absentScores.length > 0 ? 'text-rose-400' : 'text-emerald-400'} />
+              <span>{absentScores.length > 0 ? `${absentScores.length} vắng • Điểm danh` : 'Điểm danh lớp'}</span>
+            </button>
           </div>
         </div>
 
@@ -910,9 +1010,9 @@ export const LiveSessionPage: React.FC = () => {
         <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
           <button
             type="button"
-            onClick={() => setIsExitModalOpen(true)}
+            onClick={handleOpenExit}
             className="flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs sm:text-sm font-black text-slate-200 border border-white/15 transition-all cursor-pointer active:scale-95"
-            title="Thoát hoặc tạm dừng buổi dạy"
+            title="Thoát ra danh sách buổi dạy (Điểm số vẫn được lưu tự động)"
           >
             <LogOut size={15} className="text-amber-300" />
             <span>Thoát</span>
@@ -920,10 +1020,10 @@ export const LiveSessionPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={handleEnd}
+            onClick={handleOpenFinish}
             disabled={ending}
-            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3.5 py-1.5 text-xs sm:text-sm font-black text-white active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-            title="Kết thúc hoặc dừng buổi dạy"
+            className="flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3.5 py-1.5 text-xs sm:text-sm font-black text-white active:scale-95 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+            title="Hoàn thành bài học và kết thúc buổi dạy"
           >
             <StopCircle size={15} />
             <span>{ending ? 'Đang hoàn tất…' : 'Kết thúc'}</span>
@@ -1196,99 +1296,156 @@ export const LiveSessionPage: React.FC = () => {
               )}
 
               {/* Main Flashcard for Warm-up: Sentence Patterns */}
-              {warmupSection === 'patterns' && currentWarmupPattern && (
-                <div className="flex flex-col items-center text-center my-auto w-full">
-                  {/* Pattern Illustration Frame */}
-                  <div className="relative mb-2 flex h-[clamp(6.5rem,18vh,11.5rem)] w-[clamp(6.5rem,18vh,11.5rem)] items-center justify-center rounded-3xl border-4 border-amber-400/60 bg-white/10 p-2.5">
-                    <img src={getSentenceIllustration(currentWarmupPattern.english)} alt="" className="w-full h-full object-contain" />
-                    <button
-                      onClick={() => {
-                        sfx.playPop();
-                        const qText = currentWarmupPattern.english;
-                        const ansList = currentWarmupPattern.answers && currentWarmupPattern.answers.length > 0
-                          ? currentWarmupPattern.answers
-                          : [];
-                        void playDialogueAudio(
-                          qText,
-                          ansList,
-                          currentWarmupPattern.audioUrl || undefined
-                        );
-                      }}
-                      className="absolute -bottom-2.5 -right-2.5 w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 hover:from-amber-400 text-white flex items-center justify-center active:scale-90 transition-transform cursor-pointer ring-4 ring-amber-300/40"
-                      title="Phát âm cả câu hỏi và tất cả câu trả lời"
-                    >
-                      <Volume2 size={20} />
-                    </button>
+              {warmupSection === 'patterns' && currentWarmupPattern && warmupDialogueData && (
+                <div className="flex flex-col items-center my-auto w-full max-w-3xl space-y-3">
+                  {/* ── CARD 1: CÂU HỎI (QUESTION CARD) ── */}
+                  <div className="w-full rounded-3xl bg-white/10 border-2 border-amber-400/50 p-4 sm:p-5 backdrop-blur-xs shadow-lg relative">
+                    <div className="flex items-center justify-between mb-3 border-b border-amber-400/20 pb-2.5">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/80 px-3 py-1 rounded-full border border-amber-400/40 flex items-center gap-1.5">
+                        <span>❓</span>
+                        <span>CÂU HỎI ÔN TẬP</span>
+                      </span>
+
+                      {/* Question Audio Controls */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playPop();
+                            playWordAudio(warmupDialogueData.questionEn, currentWarmupPattern.audioUrl || undefined);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 text-xs font-bold transition-all cursor-pointer"
+                          title="Chỉ phát âm câu hỏi"
+                        >
+                          <Volume2 size={14} />
+                          <span>Chỉ câu hỏi</span>
+                        </button>
+
+                        {warmupDialogueData.answers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playPop();
+                              void playDialogueAudio(
+                                warmupDialogueData.questionEn,
+                                warmupDialogueData.answers,
+                                currentWarmupPattern.audioUrl || undefined
+                              );
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer active:scale-95 transition-all"
+                            title="Nghe lần lượt câu hỏi và tất cả câu trả lời"
+                          >
+                            <Volume2 size={15} />
+                            <span>Đọc cả Hỏi &amp; Đáp 💬</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                      {/* Question Illustration Frame */}
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-2 border-3 border-amber-400/70 shrink-0 shadow-md flex items-center justify-center">
+                        <img
+                          src={getSentenceIllustration(warmupDialogueData.questionEn, currentWarmupPattern.imageUrl, false)}
+                          alt={warmupDialogueData.questionEn}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+
+                      <div className="text-center sm:text-left flex-1 min-w-0">
+                        {/* Question English Text */}
+                        <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-amber-300 font-display tracking-wide mb-1.5 leading-snug">
+                          &ldquo;{warmupDialogueData.questionEn}&rdquo;
+                        </h2>
+
+                        {/* Pronunciation & Vietnamese Meaning */}
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm font-semibold">
+                          {warmupDialogueData.questionVi && (
+                            <span className="text-amber-100 bg-amber-900/60 px-3 py-0.5 rounded-lg border border-amber-400/30">
+                              {warmupDialogueData.questionVi}
+                            </span>
+                          )}
+                          {currentWarmupPattern.pronunciation && (
+                            <span className="text-slate-300 font-mono text-xs bg-white/10 px-2.5 py-0.5 rounded-lg">
+                              /{currentWarmupPattern.pronunciation}/
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Sentence English Text */}
-                  <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-amber-300 font-display tracking-wide uppercase mb-1 max-w-2xl">
-                    &ldquo;{currentWarmupPattern.english}&rdquo;
-                  </h2>
-
-                  {/* Dual Audio Actions */}
-                  {currentWarmupPattern.answers && currentWarmupPattern.answers.length > 0 && (
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playPop();
-                          const qText = currentWarmupPattern.english;
-                          const ansList = currentWarmupPattern.answers;
-                          void playDialogueAudio(
-                            qText,
-                            ansList,
-                            currentWarmupPattern.audioUrl || undefined
-                          );
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs active:scale-95 transition-all cursor-pointer shadow-sm"
-                        title="Nghe lần lượt câu hỏi và tất cả câu trả lời"
-                      >
-                        <Volume2 size={14} />
-                        <span>
-                          {currentWarmupPattern.answers.length > 1
-                            ? `Đọc cả Hỏi & ${currentWarmupPattern.answers.length} Đáp 💬`
-                            : 'Đọc cả Hỏi & Đáp 💬'}
+                  {/* ── CARD 2: CÂU TRẢ LỜI (ANSWER CARD - TÁCH BIỆT RÕ RÀNG) ── */}
+                  {warmupDialogueData.answers.length > 0 && (
+                    <div className="w-full rounded-3xl bg-gradient-to-r from-emerald-950/70 via-teal-900/60 to-emerald-950/70 border-2 border-emerald-400/80 p-4 sm:p-5 backdrop-blur-xs shadow-lg animate-fade-in">
+                      <div className="flex items-center justify-between mb-3 border-b border-emerald-400/20 pb-2.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-400/40 flex items-center gap-1.5">
+                          <span>✨</span>
+                          <span>CÂU TRẢ LỜI CỦA BÉ</span>
                         </span>
-                      </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playPop();
+                            void playDialogueAudio('', warmupDialogueData.answers);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md cursor-pointer active:scale-90 transition-transform"
+                          title="Phát âm câu trả lời"
+                        >
+                          <Volume2 size={14} />
+                          <span>Nghe câu trả lời</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {warmupDialogueData.answers.map((ans, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 rounded-2xl p-3 border border-emerald-400/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white p-1 border-2 border-emerald-400 shrink-0 flex items-center justify-center shadow-xs">
+                                <img
+                                  src={getSentenceIllustration(ans.english, ans.imageUrl, true)}
+                                  alt={ans.english}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+
+                              <div className="text-left min-w-0">
+                                <p className="text-base sm:text-xl font-black text-white tracking-wide">
+                                  {ans.english}
+                                </p>
+                                {ans.vietnamese && (
+                                  <p className="text-xs text-emerald-200 font-semibold mt-0.5">
+                                    {ans.vietnamese}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sfx.playPop();
+                                playWordAudio(ans.english, ans.audioUrl || undefined);
+                              }}
+                              className="p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-400/40 active:scale-90 transition-transform cursor-pointer shrink-0"
+                              title="Nghe câu trả lời này"
+                            >
+                              <Volume2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* Pronunciation & Vietnamese Meaning */}
-                  <div className="flex flex-col items-center justify-center gap-1.5 mb-2.5">
-                    {currentWarmupPattern.pronunciation && (
-                      <span className="text-xs text-slate-300 font-mono bg-white/10 px-3 py-0.5 rounded-full">
-                        {currentWarmupPattern.pronunciation}
-                      </span>
-                    )}
-
-                    {isWarmupPatternRevealed ? (
-                      <div className="flex items-center gap-2 bg-white/15 px-3.5 py-1 rounded-2xl text-sm sm:text-base font-bold text-white border border-white/20 animate-fade-in">
-                        <span>{currentWarmupPattern.vietnamese}</span>
-                        <button
-                          onClick={() => setIsWarmupPatternRevealed(false)}
-                          className="ml-1 text-xs text-slate-400 hover:text-white"
-                        >
-                          <EyeOff size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          sfx.playPop();
-                          setIsWarmupPatternRevealed(true);
-                        }}
-                        className="flex items-center gap-1.5 px-3.5 py-1 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 text-xs font-bold hover:bg-amber-500/30 cursor-pointer transition-all"
-                      >
-                        <Sparkles size={14} /> Đố bé mẫu câu này nghĩa là gì? (Bấm để xem)
-                      </button>
-                    )}
-                  </div>
-
                   {/* Practice speaking Sentence with Koko */}
-                  <div className="flex items-center justify-center w-full max-w-xl">
+                  <div className="flex items-center justify-center w-full max-w-xl pt-1">
                     <KokoSpeakingCoach
-                      targetWord={currentWarmupPattern.english}
+                      targetWord={warmupDialogueData.answers[0]?.english || warmupDialogueData.questionEn}
                       audioUrl={currentWarmupPattern.audioUrl || undefined}
                       ageGroup={session.ageGroup}
                       contextKey={`${sessionId}:warmup-pattern:${currentWarmupPatternIndex}`}
@@ -1756,19 +1913,6 @@ export const LiveSessionPage: React.FC = () => {
                 </span>
 
                 <div className="flex items-center gap-1.5">
-                  {currentLessonId && (
-                    <a
-                      href={`/teacher/sentences?lessonId=${currentLessonId}&mode=classroom`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-400/30 text-xs font-bold transition-all cursor-pointer"
-                      title="Mở màn hình học mẫu câu độc lập ở tab mới"
-                    >
-                      <ExternalLink size={13} />
-                      <span className="hidden sm:inline">Học mẫu câu ↗</span>
-                    </a>
-                  )}
-
                   <button
                     onClick={() => {
                       sfx.playPop();
@@ -3358,7 +3502,7 @@ export const LiveSessionPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={handleEnd}
+                    onClick={handleOpenFinish}
                     disabled={ending}
                     className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 text-slate-950 font-black text-sm sm:text-base px-6 py-3 rounded-2xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                   >
@@ -3525,103 +3669,116 @@ export const LiveSessionPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Modal Xác Nhận Kết Thúc Hoặc Thoát Buổi Học ────────────────── */}
+      {/* ── Modal Xác Nhận Thoát Buổi Học ────────────────── */}
       {isExitModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Ghi nhận nội dung và kết thúc buổi học"
-            className="relative w-full max-w-xl max-h-[96dvh] bg-slate-900 border-2 border-white/20 rounded-3xl p-4 sm:p-5 text-white space-y-3 animate-pop-in shadow-2xl"
+            aria-label="Xác nhận thoát buổi học"
+            className="relative w-full max-w-md bg-slate-900 border-2 border-white/20 rounded-3xl p-5 sm:p-6 text-white space-y-4 animate-pop-in shadow-2xl"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl shrink-0">
-                  🛑
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg font-black text-white truncate">Kết Thúc Hoặc Tạm Dừng Buổi Học</h3>
-                  <p className="text-xs text-slate-400 font-medium truncate">Chọn trạng thái để lưu kết quả và kết thúc buổi dạy</p>
-                </div>
+            <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl shrink-0">
+                🚪
               </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-white">Bạn có muốn thoát ra ngoài?</h3>
+                <p className="text-xs text-slate-400 font-medium">Toàn bộ điểm số và sao đã được tự động lưu</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Bạn có thể thoát ra ngoài xem các lớp học khác hoặc thời khóa biểu. Buổi học này vẫn được giữ ở trạng thái đang diễn ra và bạn có thể mở lại tiếp tục dạy bất cứ lúc nào.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setIsExitModalOpen(false)}
-                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 transition-colors cursor-pointer shrink-0"
+                className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer text-center"
               >
-                ✕
+                Ở lại dạy tiếp
               </button>
-            </div>
-
-            {/* Session Progress Selection */}
-            <SessionClosureForm guide={session.teachingGuide} coverage={coverage} onCoverage={setCoverage} />
-
-            {/* Action Options in 2 Columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Option 1: Complete and view summary */}
-              <button
-                type="button"
-                onClick={handleCompleteAndExit}
-                disabled={ending}
-                className="flex flex-col justify-between p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 border-2 border-emerald-500/50 transition-all cursor-pointer group active:scale-[0.99] disabled:opacity-50 text-left"
-              >
-                <div>
-                  <div className="flex items-center gap-2 text-emerald-300 font-black text-sm mb-1">
-                    <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                    <span>{ending ? 'Đang lưu tổng kết…' : 'Kết Thúc & Xem Tổng Kết'}</span>
-                  </div>
-                  <p className="text-xs text-slate-300 leading-snug">
-                    Lưu số sao và tiến độ buổi dạy, chuyển sang màn hình tổng kết để gửi phụ huynh.
-                  </p>
-                </div>
-              </button>
-
-              {/* Option 2: Pause and exit to sessions */}
               <button
                 type="button"
                 onClick={handlePauseAndExit}
-                className="flex flex-col justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border-2 border-white/15 hover:border-amber-400/50 transition-all cursor-pointer group active:scale-[0.99] text-left"
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm transition-colors cursor-pointer text-center shadow-md shadow-amber-500/20"
               >
-                <div>
-                  <div className="flex items-center gap-2 text-amber-300 font-black text-sm mb-1">
-                    <Clock size={16} className="text-amber-400 shrink-0" />
-                    <span>Tạm Dừng & Thoát Ra</span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-snug">
-                    Lưu điểm số hiện tại và thoát ra ngoài. Bạn có thể mở lại tiếp tục dạy bất cứ lúc nào.
-                  </p>
-                </div>
-              </button>
-            </div>
-
-            {/* Footer */}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">💡 Điểm số và sao của bé đều đã được tự động lưu.</span>
-              <button
-                type="button"
-                onClick={() => setIsExitModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
-              >
-                Tiếp tục ở lại dạy học
+                Xác nhận thoát
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Late Attendance Modal (Cho bé đến trễ vào lớp) ───────────── */}
+      {/* ── Modal Xác Nhận Kết Thúc Buổi Học ────────────────── */}
+      {isFinishModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xác nhận kết thúc buổi học"
+            className="relative w-full max-w-md bg-slate-900 border-2 border-emerald-500/30 rounded-3xl p-5 sm:p-6 text-white space-y-4 animate-pop-in shadow-2xl"
+          >
+            <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-xl shrink-0">
+                🏁
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-white">Kết Thúc & Hoàn Thành Buổi Học</h3>
+                <p className="text-xs text-slate-400 font-medium">Hoàn thành bài giảng và chuyển sang tổng kết</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Bạn có chắc chắn muốn kết thúc buổi dạy? Hệ thống sẽ ghi nhận <span className="font-black text-emerald-400">hoàn thành trọn vẹn bài học</span>, chốt số sao đạt được của học sinh và chuyển sang màn hình tổng kết để gửi báo cáo phụ huynh.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsFinishModalOpen(false)}
+                disabled={ending}
+                className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer text-center disabled:opacity-50"
+              >
+                Ở lại dạy tiếp
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteAndExit}
+                disabled={ending}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm transition-all cursor-pointer text-center shadow-lg shadow-emerald-600/30 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {ending ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span>Đang hoàn tất…</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={16} />
+                    <span>Xác nhận kết thúc</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Late Attendance Modal (Cho bé đến trễ vào lớp & Xử lý bấm nhầm) ───────────── */}
       {isLateAttendanceModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-emerald-400/50 p-6 shadow-2xl text-white">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border-2 border-emerald-400/50 p-6 shadow-2xl text-white">
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <UserCheck size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Điểm Danh Bé Đến Trễ</h3>
-                  <p className="text-xs text-slate-400 font-medium">Bấm vào tên để cho bé vào lớp học ngay</p>
+                  <h3 className="text-base font-black text-white">Điểm Danh & Học Sinh Vào Trễ</h3>
+                  <p className="text-xs text-slate-400 font-medium">Cho bé vào lớp hoặc hoàn tác đánh dấu vắng nếu bấm nhầm</p>
                 </div>
               </div>
               <button
@@ -3633,49 +3790,150 @@ export const LiveSessionPage: React.FC = () => {
               </button>
             </div>
 
-            {absentScores.length === 0 ? (
-              <div className="py-8 text-center text-slate-400">
-                <CheckCircle2 size={40} className="mx-auto mb-2 text-emerald-400" />
-                <p className="font-bold text-white">Cả lớp đã có mặt đầy đủ!</p>
-                <p className="text-xs mt-1">Không còn bé nào vắng mặt trong buổi học này.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {absentScores.map((sc) => {
-                  const stu = sc.student as User;
-                  const sId = typeof sc.student === 'string' ? sc.student : stu?._id || '';
-                  const sName = stu?.name || 'Học sinh';
-                  return (
-                    <div
-                      key={sId}
-                      className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-400/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <StudentAvatar student={stu} size="sm" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-extrabold text-white truncate">{sName}</p>
-                          <span className="text-[10px] font-bold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">
-                            Đang ghi nhận: Vắng
-                          </span>
+            {/* Sub-tabs: Absent vs Attending */}
+            <div className="flex rounded-xl bg-white/10 p-1 mb-4 gap-1">
+              <button
+                type="button"
+                onClick={() => setAttendanceModalTab('ABSENT')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  attendanceModalTab === 'ABSENT'
+                    ? 'bg-rose-500/80 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>Chưa vào lớp</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/30">
+                  {absentScores.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAttendanceModalTab('ATTENDING')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  attendanceModalTab === 'ATTENDING'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>Đang trong lớp</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/30">
+                  {scores.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Tab 1: Absent Students */}
+            {attendanceModalTab === 'ABSENT' && (
+              absentScores.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <CheckCircle2 size={40} className="mx-auto mb-2 text-emerald-400" />
+                  <p className="font-bold text-white">Tất cả các bé đều đã có mặt!</p>
+                  <p className="text-xs mt-1">Không còn bé nào vắng mặt trong buổi học này.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {absentScores.map((sc) => {
+                    const stu = sc.student as User;
+                    const sId = typeof sc.student === 'string' ? sc.student : stu?._id || '';
+                    const sName = stu?.name || 'Học sinh';
+                    return (
+                      <div
+                        key={sId}
+                        className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-400/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <StudentAvatar student={stu} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-white truncate">{sName}</p>
+                            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">
+                              Đang ghi nhận: Vắng
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleMarkAttendance(sId, 'PRESENT');
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold transition-all cursor-pointer"
+                            title="Ghi nhận có mặt đúng giờ"
+                          >
+                            Có mặt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleMarkAttendance(sId, 'LATE');
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer transition-all"
+                            title="Ghi nhận bé đến trễ và cho vào học"
+                          >
+                            <UserCheck size={13} />
+                            <span>Vào trễ</span>
+                          </button>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleMarkAttendance(sId, 'PRESENT');
-                        }}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
-                      >
-                        <UserCheck size={14} />
-                        <span>Vào lớp</span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )
             )}
 
-            <div className="mt-5 pt-3 border-t border-white/10 flex justify-end">
+            {/* Tab 2: Attending Students (Allows Undo if Clicked by Mistake) */}
+            {attendanceModalTab === 'ATTENDING' && (
+              scores.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <p className="font-bold text-white">Chưa có bé nào vào lớp.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {scores.map((sc) => {
+                    const stu = sc.student as User;
+                    const sId = typeof sc.student === 'string' ? sc.student : stu?._id || '';
+                    const sName = stu?.name || 'Học sinh';
+                    return (
+                      <div
+                        key={sId}
+                        className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <StudentAvatar student={stu} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-white truncate">{sName}</p>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                              sc.attendance === 'LATE'
+                                ? 'text-amber-300 bg-amber-500/25 border border-amber-400/40'
+                                : 'text-emerald-400 bg-emerald-500/20'
+                            }`}>
+                              {sc.attendance === 'LATE' ? 'Đến trễ' : 'Có mặt'}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Bạn có chắc muốn chuyển bé "${sName}" về trạng thái VẮNG (xử lý bấm nhầm)?`)) {
+                              void handleMarkAttendance(sId, 'ABSENT');
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-300 hover:text-white font-extrabold text-xs active:scale-95 cursor-pointer transition-all shrink-0"
+                          title="Bấm để hoàn tác nếu bạn lỡ bấm nhầm bé vào học"
+                        >
+                          <X size={13} />
+                          <span>Bấm nhầm: Đánh dấu vắng</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 font-medium">
+                💡 Thay đổi trạng thái sẽ đồng bộ ngay lập tức.
+              </span>
               <button
                 type="button"
                 onClick={() => setIsLateAttendanceModalOpen(false)}

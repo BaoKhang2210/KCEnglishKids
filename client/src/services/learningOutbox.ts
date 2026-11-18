@@ -2,7 +2,16 @@ import { api } from './api';
 type Entry = { childId: string; lessonId: string; payload: Record<string, unknown>; error?: string };
 const key = 'kc_learning_outbox_v1';
 let running: Promise<void> | null = null;
-const read = (): Entry[] => { try { const rows=JSON.parse(localStorage.getItem(key) || '[]');return Array.isArray(rows)?rows.filter(row=>row?.childId&&row?.lessonId&&row?.payload):[]; } catch { return []; } };
+const read = (): Entry[] => {
+  try {
+    const rows = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(rows)
+      ? rows.filter(row => row?.childId && row?.lessonId && row?.payload && !row?.error?.includes?.('Submission key already used') && !row?.error?.includes?.('already used for different evidence'))
+      : [];
+  } catch {
+    return [];
+  }
+};
 const notify = () => window.dispatchEvent(new Event('kc_learning_sync'));
 const save = (rows: Entry[]) => localStorage.setItem(key, JSON.stringify(rows));
 async function ensureStage2Token(row: Entry): Promise<Entry> {
@@ -79,6 +88,11 @@ export const learningOutbox = {
             break;
           }
           if(status>=400&&status<500){
+            if (status === 409 && (message.includes('Submission key already used') || message.includes('already used for different evidence'))) {
+              localStorage.setItem(key, JSON.stringify(read().filter(item => item.payload.submissionId !== row.payload.submissionId)));
+              notify();
+              continue;
+            }
             localStorage.setItem(key,JSON.stringify(read().map(item=>item.payload.submissionId===row.payload.submissionId?{...item,error:message}:item)));
             blocked.add(row.lessonId);notify();
             if(status===401)break;
@@ -93,7 +107,12 @@ export const learningOutbox = {
     } finally { running = null; notify(); }
   },
   async retryRejected(childId: string) {
-    save(read().map(row =>
+    save(read().filter(row => {
+      if (row.childId === childId && row.error && (row.error.includes('Submission key already used') || row.error.includes('already used for different evidence'))) {
+        return false;
+      }
+      return true;
+    }).map(row =>
       row.childId === childId && row.error ? { ...row, error: undefined } : row
     ));
     notify();

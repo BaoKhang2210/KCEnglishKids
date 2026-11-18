@@ -8,7 +8,7 @@ echo.
 echo [1/2] Khoi dong Backend API (Port 5000, nodemon tu tai dong khi sua code)...
 start "KCEnglishKids - Backend (Port 5000)" cmd /k "cd /d %~dp0KCEnglishKids_BE && npm run dev"
 
-timeout /t 3 /nobreak >nul
+timeout /t 5 /nobreak >nul
 
 echo [2/2] Khoi dong He thong Web App (Port 5173)...
 start "KCEnglishKids - Web App (Port 5173)" cmd /k "cd /d %~dp0client && npm run dev"

@@ -112,7 +112,7 @@ test('retrying an imported row skips its account and does not re-expose credenti
   assert.deepEqual(result.credentials, []);
 });
 test('older game forms preserve metadata, vocabulary and option audio when saved', async t => {
-  t.mock.method(models.Assignment, 'exists', async () => null);
+  if (models.Assignment) t.mock.method(models.Assignment, 'exists', async () => null);
   t.mock.method(models.ActivityResult, 'exists', async () => null);
   const activity = new Activity({ lesson: id(2), title: 'Game', activityType: 'COUNT_OBJECTS', ageGroup: id(3), ageGroupCode: '3-4', questions: [{ promptText: 'Count', correctAnswer: '3', vocabulary: id(4), metadata: { quantity: 3 }, options: [{ id: 'one', text: '3', isCorrect: true, audioUrl: '/three.mp3' }] }] });
   t.mock.method(activity, 'save', async () => activity);
@@ -159,8 +159,11 @@ test('inactive or wrong-age lessons cannot be assigned as the current class less
 test('classroom cleanup reports failures and resumes the saved work list on retry', async t => {
   const room = { _id: id(2), name: 'Room', status: 'ACTIVE', deletionPending: false, save: async () => {} };
   t.mock.method(ClassRoom, 'findById', async () => room);
+  t.mock.method(models.ClassroomSession, 'countDocuments', async () => 0);
   t.mock.method(User, 'find', () => query([{ _id: id(1) }]));
-  for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent', 'LearningObservation', 'HomePracticePlan', 'TeacherNote', 'VocabularyMastery', 'Assignment', 'HomePracticeCompletion', 'ParentNotification', 'Attendance', 'ClassroomSession', 'ChildClientState']) t.mock.method(models[name], 'deleteMany', async () => ({}));
+  for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent', 'LearningObservation', 'HomePracticePlan', 'TeacherNote', 'VocabularyMastery', 'Assignment', 'HomePracticeCompletion', 'ParentNotification', 'Attendance', 'ClassroomSession', 'ChildClientState']) {
+    if (models[name]) t.mock.method(models[name], 'deleteMany', async () => ({}));
+  }
   for (const name of ['Attendance', 'ClassroomSession', 'ClassRoom', 'User']) t.mock.method(models[name], 'updateMany', async () => ({}));
   t.mock.method(User, 'deleteMany', async () => ({}));
   t.mock.method(ClassRecognition, 'deleteMany', async () => ({}));
@@ -193,14 +196,14 @@ test('PIN, username and calendar validation handle leading zeroes and impossible
   assert.match(await I.username('Đỗ An'), /^doan\d{5}$/);
 });
 test('admin analytics uses best Lesson stars and includes homework awards without summing retries', async t => {
-  t.mock.method(User, 'findById', () => query({ _id: id(1), ageGroupCode: '3-4', role: 'CHILD', status: 'ACTIVE' }));
-  t.mock.method(models.CurriculumUnit, 'find', () => query([]));
-  t.mock.method(models.Assignment, 'find', () => query([{ reviews: [{ child: id(1), bonusStars: 2 }] }]));
+  if (models.Assignment) t.mock.method(models.Assignment, 'find', () => query([{ reviews: [{ child: id(1), bonusStars: 2 }] }]));
   t.mock.method(User, 'find', () => query([{ _id: id(1), name: 'Child', assignedClass: { _id: id(2), name: 'Room' } }]));
+  t.mock.method(User, 'findById', () => query({ _id: id(1), role: 'CHILD', status: 'ACTIVE', ageGroupCode: '3-4' }));
+  t.mock.method(models.CurriculumUnit, 'find', () => query([]));
   t.mock.method(ClassRoom, 'find', () => query([{ _id: id(2), name: 'Room', teacher: { name: 'Teacher' } }]));
   t.mock.method(models.Progress, 'find', () => query([{ lesson: id(3), completed: true, stars: 3 }]));
   t.mock.method(models.UnitCompletion, 'find', () => query([]));
-  t.mock.method(models.HomePracticeCompletion, 'find', () => query([]));
+  t.mock.method(models.HomePracticeCompletion, 'find', () => query([{ stars: 2, lesson: id(3) }]));
   t.mock.method(models.ClassroomSession, 'find', filter => { assert.equal(filter.status, 'COMPLETED'); return query([]); });
   t.mock.method(Activity, 'find', () => query([{ _id: id(4), lesson: id(3), questions: [{}], pointsPerQuestion: 10 }]));
   t.mock.method(models.ActivityResult, 'find', () => query([{ activity: id(4), lesson: id(3), score: 10, stars: 3 }, { activity: id(4), lesson: id(3), score: 10, stars: 3 }]));
@@ -213,7 +216,9 @@ test('admin analytics uses best Lesson stars and includes homework awards withou
 });
 test('a new child competency report has no fabricated vocabulary or pronunciation measurements', async t => {
   t.mock.method(User, 'findOne', () => query({ _id: id(1), name: 'New child' }));
-  for (const name of ['Progress', 'UnitCompletion', 'ClassroomSession', 'ActivityResult', 'VocabularyMastery', 'Assignment', 'HomePracticeCompletion']) t.mock.method(models[name], 'find', () => query([]));
+  for (const name of ['Progress', 'UnitCompletion', 'ClassroomSession', 'ActivityResult', 'VocabularyMastery', 'Assignment', 'HomePracticeCompletion']) {
+    if (models[name]) t.mock.method(models[name], 'find', () => query([]));
+  }
   t.mock.method(models.Progress, 'countDocuments', async () => 0);
   const res = await invoke(C.getStudentCompetency, {}, { id: id(1) });
   assert.equal(res.error, undefined);

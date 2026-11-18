@@ -412,12 +412,43 @@ export const adminApi = {
     api.patch(`/admin/lessons/${id}/status`),
 
   getLessonReadiness: (id: string) => api.get(`/admin/curriculum/lessons/${id}/readiness`),
-  generateAiCurriculum: (data: { topic: string; ageGroup: string }) =>
+  generateAiCurriculum: (data: { topic: string; ageGroup: string; mode?: 'unit' | 'lesson'; unitId?: string; existingLessonCount?: number }) =>
     api.post('/admin/curriculum/ai-generate', data),
   applyAiCurriculum: (data: {
+    createNewUnit?: boolean;
+    bookNumber?: number;
     lessonId?: string;
     unitId?: string;
+    existingLessonCount?: number;
     ageGroupCode?: string;
+    bigQuestion?: string;
+    storyTitle?: string;
+    values?: string;
+    description?: string;
+    unitLessons?: Array<{
+      lessonOrder?: number;
+      title: string;
+      vietnameseTitle?: string;
+      description?: string;
+      focus?: string;
+      vocabularies?: Array<{
+        english: string;
+        vietnamese: string;
+        pronunciation?: string;
+        wordType?: string;
+        category?: string;
+        imageUrl?: string;
+        imagePrompt?: string;
+      }>;
+      sentencePairs?: Array<{
+        questionEnglish: string;
+        questionVietnamese?: string;
+        questionPronunciation?: string;
+        answerEnglish: string;
+        answerVietnamese?: string;
+        answerPronunciation?: string;
+      }>;
+    }>;
     suggestedLessonTitle?: string;
     suggestedVietnameseTitle?: string;
     category?: string;
@@ -506,8 +537,14 @@ export const adminApi = {
     api.delete(`/admin/classrooms/${id}`),
   assignStudentsToClassroom: (id: string, studentIds: string[]) =>
     api.post(`/admin/classrooms/${id}/assign-students`, { studentIds }),
-  addStudentToClassroom: (id: string, studentId: string) =>
-    api.post(`/admin/classrooms/${id}/students`, { studentId }),
+  addStudentToClassroom: (id: string, studentId: string, autoUpgradeAge?: boolean) =>
+    api.post(`/admin/classrooms/${id}/students`, { studentId, autoUpgradeAge }),
+  promoteStudentsToClassroom: (id: string, targetClassroomId: string, studentIds?: string[]) =>
+    api.post(`/admin/classrooms/${id}/promote-students`, { targetClassroomId, studentIds }),
+  rolloverClassroom: (
+    id: string,
+    data: { name: string; academicYear?: string; teacherId?: string; selectedStudentIds?: string[] }
+  ) => api.post(`/admin/classrooms/${id}/rollover`, data),
   addIndividualStudentToClassroom: (
     id: string,
     data: { name: string; dob?: string; pin?: string; contact?: string; parentContact?: string }
@@ -526,6 +563,24 @@ export const adminApi = {
     api.put(`/admin/classrooms/${id}/curriculum-progress`, data),
   exportSystemBackup: () =>
     api.get('/admin/system/backup'),
+  getBackupRestoreOverview: () =>
+    api.get('/admin/system/backup/overview'),
+  validateSystemBackup: (payload: { backupRaw?: string; backupData?: any; snapshotFilename?: string }) =>
+    api.post('/admin/system/restore/validate', payload),
+  restoreSystemBackup: (payload: {
+    backupRaw?: string;
+    backupData?: any;
+    snapshotFilename?: string;
+    fileName?: string;
+    adminPassword?: string;
+    confirmText?: string;
+  }) => api.post('/admin/system/restore', payload),
+  createServerSnapshot: (note?: string) =>
+    api.post('/admin/system/snapshots', { note }),
+  downloadServerSnapshot: (filename: string) =>
+    api.get(`/admin/system/snapshots/${encodeURIComponent(filename)}`),
+  deleteServerSnapshot: (filename: string) =>
+    api.delete(`/admin/system/snapshots/${encodeURIComponent(filename)}`),
   importStudentsFromExcel: (
     classId: string,
     students: Array<{
@@ -682,7 +737,12 @@ export const adminApi = {
   createActivity: (data: any) => api.post('/admin/activities', data),
   updateActivity: (id: string, data: any) => api.put(`/admin/activities/${id}`, data),
   deleteActivity: (id: string) => api.delete(`/admin/activities/${id}`),
-  toggleActivityStatus: (id: string) => api.patch(`/admin/activities/${id}/status`)
+  toggleActivityStatus: (id: string) => api.patch(`/admin/activities/${id}/status`),
+  getGameCatalog: () => api.get('/admin/game-catalog'),
+  getGameCatalogPreview: (lessonId: string) => api.get(`/admin/game-catalog/preview?lessonId=${lessonId}`),
+  updateGameCatalog: (data: { revision: number; games: Array<{ gameId: string; enabled: boolean; displayOrder: number }> }) => api.put('/admin/game-catalog', data),
+  getGameAnalytics: () => api.get('/admin/game-catalog/analytics'),
+  getGameReadiness: () => api.get('/admin/game-catalog/readiness')
 };
 
 // Teacher API
@@ -690,6 +750,7 @@ export const teacherApi = {
   getDashboard: () => api.get('/teacher/dashboard'),
   getClasses: () => api.get('/teacher/classes'),
   getClassDetail: (id: string) => api.get(`/teacher/classes/${id}`),
+  getClassCurriculumProgress: (id: string) => api.get(`/teacher/classes/${id}/curriculum-progress`),
   updateClass: (id: string, data: any) => api.put(`/teacher/classes/${id}`, data),
   getEligibleStudents: (id: string, search?: string) => api.get(`/teacher/classes/${id}/eligible-students${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   addStudents: (id: string, studentIds: string[]) => api.post(`/teacher/classes/${id}/students`, { studentIds }),
@@ -715,32 +776,6 @@ export const teacherApi = {
   getStudentNotes: (studentId: string) => api.get(`/teacher/students/${studentId}/notes`),
   createTeacherNote: (data: { studentId: string; lessonId?: string; noteType: string; content: string }) =>
     api.post('/teacher/notes', data),
-  getAssignments: (classRoomId?: string, status?: string) => {
-    const params = new URLSearchParams();
-    if (classRoomId) params.append('classRoomId', classRoomId);
-    if (status) params.append('status', status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return api.get(`/teacher/assignments${query}`);
-  },
-  getAssignment: (id: string) => api.get(`/teacher/assignments/${id}`),
-  updateAssignment: (id: string, data: any) => api.put(`/teacher/assignments/${id}`, data),
-  createAssignment: (data: {
-    classRoomId: string;
-    assignedToType?: string;
-    studentId?: string;
-    lessonId: string;
-    activityId?: string;
-    minigameId?: string;
-    dueDate?: string;
-    instructions?: string;
-  }) => api.post('/teacher/assignments', data),
-  updateAssignmentStatus: (id: string, status: string) =>
-    api.patch(`/teacher/assignments/${id}/status`, { status }),
-  cancelAssignment: (id: string) =>
-    api.patch(`/teacher/assignments/${id}/status`, { status: 'CANCELLED' }),
-  deleteAssignment: (id: string) => api.delete(`/teacher/assignments/${id}`),
-  reviewSubmission: (assignmentId: string, childId: string, data: { comment?: string; bonusStars?: number; notifyParent?: boolean }) =>
-    api.post(`/teacher/assignments/${assignmentId}/submissions/${childId}/review`, data),
   getCurriculumOptions: (ageGroupCode?: string) => {
     const query = ageGroupCode ? `?ageGroupCode=${ageGroupCode}` : '';
     return api.get(`/teacher/curriculum-options${query}`);
@@ -977,8 +1012,6 @@ export const parentNotificationApi = {
     api.post(`/children/${childId}/parent-notifications/${id}/feedback`, data),
   getParentFeedback: () =>
     api.get('/teacher/parent-feedback'),
-  getChildAssignments: (childId: string) =>
-    api.get(`/children/${childId}/assignments`),
   getChildSchedule: (childId: string) =>
     api.get(`/children/${childId}/schedule`)
 };

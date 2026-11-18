@@ -41,6 +41,69 @@ function rewardFor(kind) {
       };
 }
 
+function determinePreschoolAward(row, totalSessions, maxStars) {
+  const isTopStar = maxStars > 0 && row.stars === maxStars;
+  const isPerfect = totalSessions > 0 && row.sessions >= totalSessions;
+
+  // 1. Bé đạt điểm sao cao nhất kỳ
+  if (isTopStar) {
+    return {
+      awardTitle: 'Ngôi Sao Tỏa Sáng',
+      awardSymbol: '👑',
+      awardBadge: 'star-champion',
+      awardTier: 'GOLD',
+      awardCategory: 'CHAMPION',
+      awardDescription: 'Thành tích xuất sắc nhất kỳ'
+    };
+  }
+
+  // 2. Bé đi học chuyên cần 100%
+  if (isPerfect) {
+    return {
+      awardTitle: 'Đại Sứ Chuyên Cần',
+      awardSymbol: '🏆',
+      awardBadge: 'perfect-attendance',
+      awardTier: 'SILVER',
+      awardCategory: 'ATTENDANCE',
+      awardDescription: 'Đi học chuyên cần đầy đủ 100%'
+    };
+  }
+
+  // 3. Bé tự giác làm bài tập ở nhà
+  if (row.homeStars >= 3) {
+    return {
+      awardTitle: 'Ong Vàng Chăm Chỉ',
+      awardSymbol: '🐝',
+      awardBadge: 'home-explorer',
+      awardTier: 'BRONZE',
+      awardCategory: 'HOME',
+      awardDescription: 'Tự giác hoàn thành bài ôn tập ở nhà'
+    };
+  }
+
+  // 4. Bé tích lũy tốt hoặc đạt điểm khá
+  if (row.totalStars >= 10 || row.stars >= 6) {
+    return {
+      awardTitle: 'Bé Chăm Ngoan',
+      awardSymbol: '⭐',
+      awardBadge: 'active-learner',
+      awardTier: 'HONOR',
+      awardCategory: 'LEARNER',
+      awardDescription: 'Chăm ngoan và tích cực học tập'
+    };
+  }
+
+  // 5. Bé đang nỗ lực tiến bộ
+  return {
+    awardTitle: 'Hạt Giống Tiến Bộ',
+    awardSymbol: '🌱',
+    awardBadge: 'rising-star',
+    awardTier: 'ENCOURAGE',
+    awardCategory: 'PROGRESS',
+    awardDescription: 'Nỗ lực học tập và tiến bộ mỗi ngày'
+  };
+}
+
 function rankClassroomStars(students, sessions) {
   const totals = new Map(students.map(student => [String(student._id), {
     child: String(student._id),
@@ -90,47 +153,78 @@ function rankClassroomStars(students, sessions) {
 
   return ranking.map((row, idx, arr) => {
     if (idx > 0 && row.stars < arr[idx - 1].stars) {
-      currentRank = idx + 1;
+      currentRank += 1;
     }
     const hasStars = row.stars > 0 && (row.sessions > 0 || row.homeStars > 0);
     const isWinner = maximum > 0 && row.stars === maximum && hasStars;
+    const award = determinePreschoolAward(row, totalSessions, maximum);
+
     return {
       ...row,
       rank: hasStars ? currentRank : null,
       winner: isWinner,
-      awardTier: isWinner ? 'GOLD' : (currentRank === 2 && hasStars ? 'SILVER' : (currentRank === 3 && hasStars ? 'BRONZE' : null))
+      ...award
     };
   });
 }
 
 function rankSchoolStars(students, sessions, minimumSessions = 0) {
+  const useRateRanking = minimumSessions > 0;
   const rows = rankClassroomStars(students, sessions).map(row => ({
     ...row,
-    eligible: (row.stars > 0 || row.classStars > 0) && (row.sessions >= minimumSessions || row.homeStars > 0),
-    starsPerSession: row.sessions ? Math.round(100 * (row.classStars || row.stars) / row.sessions) / 100 : null,
+    eligible: useRateRanking
+      ? row.stars > 0 && row.sessions >= minimumSessions
+      : (row.stars > 0 || row.classStars > 0) && (row.sessions >= minimumSessions || row.homeStars > 0),
+    starsPerSession: row.sessions ? Math.round(100 * (row.classStars || row.stars) / row.sessions) / 100 : 0,
     winner: false
   }));
 
-  // Compare exact fractions; rounded display values must never create or break ties.
-  rows.sort((a, b) => Number(b.eligible) - Number(a.eligible) ||
-    ((b.classStars || b.stars) * (a.sessions || 1) - (a.classStars || a.stars) * (b.sessions || 1)) ||
+  if (useRateRanking) {
+    rows.sort((a, b) =>
+      Number(b.eligible) - Number(a.eligible) ||
+      b.stars * (a.sessions || 1) - a.stars * (b.sessions || 1) ||
+      b.stars - a.stars ||
+      b.sessions - a.sessions ||
+      a.name.localeCompare(b.name, 'vi')
+    );
+    const best = rows.find(row => row.eligible);
+    const bestStars = best?.stars || 0;
+    const sameRate = (a, b) => a.eligible && b.eligible && a.stars * b.sessions === b.stars * a.sessions;
+    let rank = 1;
+    return rows.map((row, index) => {
+      if (index > 0 && !sameRate(row, rows[index - 1])) rank = index + 1;
+      const isWinner = Boolean(best && sameRate(row, best));
+      const award = determinePreschoolAward(row, 0, bestStars);
+      return { ...row, rank: row.eligible ? rank : null, winner: isWinner, ...award };
+    });
+  }
+
+  rows.sort((a, b) =>
+    Number(b.eligible) - Number(a.eligible) ||
     b.stars - a.stars ||
     b.sessions - a.sessions ||
-    a.name.localeCompare(b.name, 'vi'));
+    b.homeStars - a.homeStars ||
+    b.totalStars - a.totalStars ||
+    a.name.localeCompare(b.name, 'vi')
+  );
 
-  const best = rows.find(row => row.eligible && (row.classStars > 0 || row.stars > 0));
-  for (const row of rows) {
-    const starA = row.classStars || row.stars;
-    const starBest = best ? (best.classStars || best.stars) : 0;
-    const sessA = row.sessions || 1;
-    const sessBest = best ? (best.sessions || 1) : 1;
-    row.winner = Boolean(best && row.eligible && starA * sessBest === starBest * sessA);
-    row.rank = row.eligible && starA > 0
-      ? 1 + rows.filter(other => other.eligible && (other.classStars || other.stars) * sessA > starA * (other.sessions || 1)).length
-      : null;
-    row.awardTier = row.winner ? 'GOLD' : (row.rank === 2 && row.eligible ? 'SILVER' : (row.rank === 3 && row.eligible ? 'BRONZE' : null));
-  }
-  return rows;
+  const bestStars = rows.find(r => r.eligible)?.stars || 0;
+  let currentRank = 1;
+
+  return rows.map((row, idx, arr) => {
+    if (idx > 0 && row.stars < arr[idx - 1].stars) {
+      currentRank += 1;
+    }
+    const isWinner = bestStars > 0 && row.eligible && row.stars === bestStars;
+    const award = determinePreschoolAward(row, 0, bestStars);
+
+    return {
+      ...row,
+      rank: row.eligible ? currentRank : null,
+      winner: isWinner,
+      ...award
+    };
+  });
 }
 
 module.exports = { recognitionPeriod, rewardFor, rankClassroomStars, rankSchoolStars };

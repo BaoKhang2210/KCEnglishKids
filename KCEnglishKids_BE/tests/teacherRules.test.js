@@ -69,7 +69,7 @@ test('summary distinguishes absent, unobserved and observed students needing pra
   item.studentScores[0].correctCount = 1; item.studentScores[0].incorrectCount = 4;
   item.studentScores[0].stars = 3; item.studentScores[1].stars = 100;
   const summary = rules.summarize(item);
-  assert.equal(summary.participationCount, 1);
+  assert.equal(summary.participationCount, 2);
   assert.equal(summary.averageAccuracy, 20);
   assert.equal(summary.totalStars, 3);
   assert.deepEqual(summary.studentsNeedingPractice, [id(1)]);

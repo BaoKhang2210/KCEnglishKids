@@ -89,10 +89,12 @@ export const LessonDetailPage: React.FC = () => {
           }
           setLesson(res.data);
 
+          let progData: any = null;
           try {
             const progRes = await stageProgressApi.getLessonProgress(childId, id);
             if (cancelled) return;
-            setLessonProgress(progRes.data || null);
+            progData = progRes?.data || null;
+            setLessonProgress(progData);
             const hasPending = learningOutbox.pending(childId).some(row => row.lessonId === id);
             if (hasPending) setCompletedGames(JSON.parse(cache.getItem(`kc_stage3_games_${childId}_${id}`) || '[]'));
             if (!hasPending && !progRes.data) {
@@ -143,18 +145,27 @@ export const LessonDetailPage: React.FC = () => {
             }
           }
 
-          const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
-          const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+          const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true' || Boolean(progData?.stage1Completed) || Boolean(progData?.completed);
+          const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true' || Boolean(progData?.stage2Completed) || Boolean(progData?.completed);
+          const isStudied = Boolean(progData?.completed || progData?.stage3Completed || (progData?.stage1Completed && progData?.stage2Completed));
 
           const savedActive = serverActiveStage ? String(serverActiveStage) : cache.getItem(`kc_stage_active_${childId}_${id}`);
-          if (requestedGameParam && (savedStage2 || user.role !== 'CHILD')) {
+          const requestedStage = searchParams.get('stage');
+
+          if (requestedGameParam && (savedStage2 || isStudied || user.role !== 'CHILD')) {
             setActiveStage(3);
             setActiveGameId(requestedGameParam);
-          } else if (savedActive === '3' && savedStage2) {
+          } else if (requestedStage === '3') {
             setActiveStage(3);
-          } else if (savedActive === '2' && savedStage1) {
+          } else if (requestedStage === '2' && (savedStage1 || isStudied)) {
             setActiveStage(2);
-          } else if (savedStage2) {
+          } else if (requestedStage === '1') {
+            setActiveStage(1);
+          } else if (savedActive === '3' && (savedStage2 || isStudied)) {
+            setActiveStage(3);
+          } else if (savedActive === '2' && (savedStage1 || isStudied)) {
+            setActiveStage(2);
+          } else if (savedStage2 || isStudied) {
             setActiveStage(3);
           } else if (savedStage1) {
             setActiveStage(2);
@@ -194,18 +205,28 @@ export const LessonDetailPage: React.FC = () => {
     }
   });
 
+  const isLessonLearned = Boolean(
+    lessonProgress?.completed ||
+    lessonProgress?.stage3Completed ||
+    (lessonProgress?.stage1Completed && lessonProgress?.stage2Completed)
+  );
+
   const isStage1Completed =
+    cache.getItem(`kc_stage1_${childId}_${id}`) === 'true' ||
     Boolean(lessonProgress?.stage1Completed) ||
-    cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
+    isLessonLearned;
 
   const isStage2Completed =
+    cache.getItem(`kc_stage2_${childId}_${id}`) === 'true' ||
     Boolean(lessonProgress?.stage2Completed) ||
-    cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
+    isLessonLearned;
 
   const isStage3Completed =
     Boolean(lessonProgress?.stage3Completed) ||
     completedGames.length >= REQUIRED_GAMES_TO_COMPLETE ||
-    cache.getItem(`kc_stage3_${childId}_${id}`) === 'true';
+    cache.getItem(`kc_stage3_${childId}_${id}`) === 'true' ||
+    Boolean(lessonProgress?.stage3Completed) ||
+    isLessonLearned;
 
   const persistStage = async (payload: Record<string, unknown>) => {
     if (!id) return false;
@@ -395,7 +416,10 @@ export const LessonDetailPage: React.FC = () => {
       {/* LEFT: Back button + Lesson title */}
       <div className="flex items-center gap-2 min-w-0 max-w-[150px] sm:max-w-[200px] md:max-w-[240px]">
         <button
-          onClick={() => { sfx.playPop(); navigate(-1); }}
+          onClick={() => {
+            sfx.playPop();
+            navigate(-1);
+          }}
           aria-label="Quay lại"
           className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-50 hover:bg-amber-100 border-2 border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer shadow-2xs active:scale-95 transition-all shrink-0"
         >
@@ -563,9 +587,13 @@ export const LessonDetailPage: React.FC = () => {
                     }}
                     unitNumber={unitNumber}
                     lessonNumber={lessonNumber}
-                    onExit={() => setActiveGameId(null)}
+                    onExit={() => {
+                      setActiveGameId(null);
+                    }}
                     onGameComplete={handleGameCompleted}
-                    onNextGame={(nextId) => setActiveGameId(nextId as GameId)}
+                    onNextGame={(nextId) => {
+                      setActiveGameId(nextId as GameId);
+                    }}
                   />
                 ) : (
                   <GamesTab

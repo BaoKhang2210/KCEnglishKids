@@ -9,6 +9,7 @@ router.post('/school/publish', authorize('ADMIN'), c.schoolPublish);
 router.get('/mine', authorize('CHILD'), c.childInbox);
 router.patch('/mine/:id/read', authorize('CHILD'), c.read);
 router.get('/classes', authorize('TEACHER', 'ADMIN'), c.classes);
+router.get('/child/:childId', authorize('TEACHER', 'ADMIN'), c.childRecognitionsByTeacher);
 router.get('/classes/:classId', authorize('TEACHER', 'ADMIN'), c.preview);
 router.post('/classes/:classId/publish', authorize('TEACHER', 'ADMIN'), c.publish);
 module.exports = router;

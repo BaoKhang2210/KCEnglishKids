@@ -1,4 +1,4 @@
-import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, getSequentialLessonForSlot } from '../../utils/teachingSchedule';
+import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -178,6 +178,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
   });
 
   const handleOpenReportOff = (classroomId: string, className: string, dateString: string, timeSlot?: { startTime: string; endTime: string }, sessionId?: string) => {
+    const todayStr = vietnamDate();
+    const currentVnTimeString = `${String(currentVnTime.getHours()).padStart(2, '0')}:${String(currentVnTime.getMinutes()).padStart(2, '0')}`;
+    if (dateString < todayStr) {
+      alert('Không thể báo nghỉ cho buổi học trong quá khứ.');
+      return;
+    }
+    if (dateString === todayStr && timeSlot?.startTime && currentVnTimeString >= timeSlot.startTime) {
+      alert(`Đã quá thời gian bắt đầu ca dạy (${timeSlot.startTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`);
+      return;
+    }
+
     setReportOffModal({
       isOpen: true,
       classroomId,
@@ -194,6 +205,20 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   const handleSubmitReportOff = async () => {
     if (!reportOffModal.classroomId) return;
+    const todayStr = vietnamDate();
+    const currentVnTimeString = `${String(currentVnTime.getHours()).padStart(2, '0')}:${String(currentVnTime.getMinutes()).padStart(2, '0')}`;
+    if (reportOffModal.dateString < todayStr) {
+      setReportOffModal(prev => ({ ...prev, loading: false, error: 'Không thể báo nghỉ cho buổi học trong quá khứ.' }));
+      return;
+    }
+    if (reportOffModal.dateString === todayStr && reportOffModal.timeSlot?.startTime && currentVnTimeString >= reportOffModal.timeSlot.startTime) {
+      setReportOffModal(prev => ({
+        ...prev,
+        loading: false,
+        error: `Đã quá thời gian bắt đầu ca dạy (${reportOffModal.timeSlot?.startTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`
+      }));
+      return;
+    }
     try {
       setReportOffModal(prev => ({ ...prev, loading: true, error: null }));
       if (reportOffModal.sessionId) {
@@ -428,8 +453,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
             todaySlot = slot;
             if (!activeClassroom) activeClassroom = sch.classroom;
           }
-          // Active slot window: 15 minutes before start up to 30 minutes after end
-          if (currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
+          // Active slot window: 30 minutes before start up to max(start + 20m, end)
+          if (currentMinutes >= (startMin - 30) && currentMinutes <= Math.max(startMin + 20, endMin)) {
             activeSlot = slot;
             activeClassroom = sch.classroom;
           }
@@ -472,18 +497,31 @@ export const TeacherTeachingSchedule: React.FC = () => {
       };
     }
 
-    const effectiveSlot = activeSlot || todaySlot;
-    if (effectiveSlot) {
-      const isExactWindow = !!activeSlot;
+    if (activeSlot) {
       return {
         canTeachNow: true,
-        activeSlot: effectiveSlot,
-        activeClassroom: activeClassroom || effectiveSlot.classroom,
+        activeSlot,
+        activeClassroom: activeClassroom || activeSlot.classroom,
         nextSlotText: null,
         hasSchedule: true,
-        reason: isExactWindow
-          ? `Đang trong khung giờ dạy (${effectiveSlot.startTime} - ${effectiveSlot.endTime})`
-          : `Lịch dạy hôm nay: ${DAY_LABELS[effectiveSlot.dayOfWeek]} (${effectiveSlot.startTime} - ${effectiveSlot.endTime}) - Đã sẵn sàng mở lớp`
+        reason: `Đang trong khung giờ mở lớp (${activeSlot.startTime} - ${activeSlot.endTime})`
+      };
+    }
+
+    if (todaySlot) {
+      const [tH, tM] = (todaySlot.startTime || '00:00').split(':').map(Number);
+      const tStartMin = tH * 60 + tM;
+      const openFromMin = Math.max(0, tStartMin - 30);
+      const openTimeStr = `${String(Math.floor(openFromMin / 60)).padStart(2, '0')}:${String(openFromMin % 60).padStart(2, '0')}`;
+      return {
+        canTeachNow: false,
+        activeSlot: null,
+        activeClassroom: activeClassroom || todaySlot.classroom,
+        nextSlotText: `${todaySlot.startTime} - ${todaySlot.endTime}`,
+        hasSchedule: true,
+        reason: currentMinutes < tStartMin - 30
+          ? `Chưa đến giờ mở lớp dạy hôm nay (${todaySlot.startTime} - ${todaySlot.endTime}). Giáo viên được mở lớp từ ${openTimeStr} (sớm tối đa 30 phút).`
+          : `Đã quá khung giờ mở lớp hôm nay (${todaySlot.startTime} - ${todaySlot.endTime}). Vui lòng báo nghỉ hoặc liên hệ quản trị viên.`
       };
     }
 
@@ -665,7 +703,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
               )}
               {classes.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name} ({c.ageGroupCode} tuổi) {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
+                  {c.name} {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
                 </option>
               ))}
             </select>
@@ -708,12 +746,12 @@ export const TeacherTeachingSchedule: React.FC = () => {
       {/* ── Requirement 10: Real-Time Schedule Gate Alert Banner ──────────────── */}
       {scheduleLiveTiming.canTeachNow ? (
         <div className="rounded-2xl border-2 border-emerald-400 bg-emerald-50/90 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-start sm:items-center gap-3.5">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-white font-black">
               <Play size={22} className="fill-white" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-block h-3 w-3 rounded-full bg-emerald-700 animate-ping" />
                 <h3 className="text-base sm:text-lg font-black text-emerald-950">
                   ĐANG TRONG KHUNG GIỜ GIẢNG DẠY THEO THỜI KHÓA BIỂU
@@ -773,7 +811,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
             <p className="text-sm text-slate-700 mt-1">
               {scheduleLiveTiming.nextSlotText ? (
                 <span>
-                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 15 phút để giáo viên chuẩn bị học cụ và điểm danh.
+                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 30 phút để giáo viên chuẩn bị học cụ và điểm danh.
                 </span>
               ) : (
                 <span>{scheduleLiveTiming.reason}</span>
@@ -924,49 +962,64 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         const cObj = typeof schedule.classroom === 'object' ? schedule.classroom : null;
                         const cId = String(cObj?._id || schedule.classroom || selectedClassId || '');
                         const cName = cObj?.name || 'Lớp';
-                        const seqLesson = getSequentialLessonForSlot(schedule, slot, day.dateString, bookRoadmap.lessons);
-                        const effectiveLesson =
-                          day.isToday && nextLessonToTeach && (!slot.lesson || seqLesson.lesson?.isCompleted)
-                            ? {
-                                lesson: nextLessonToTeach,
-                                lessonNumber: nextLessonToTeach.bookOrderIndex || seqLesson.lessonNumber || 1,
-                                title: nextLessonToTeach.title,
-                                vietnameseTitle: nextLessonToTeach.vietnameseTitle
-                              }
-                            : seqLesson;
-                        const lessonDisplayTitle = (effectiveLesson.title ? `${effectiveLesson.title}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}` : '') || 'Buổi học tiếng Anh';
+                        const effectiveLesson = resolveDynamicSlotLesson(schedule, slot, day.dateString, bookRoadmap.lessons, sessions, vietnamDate());
+                        const lessonDisplayTitle = effectiveLesson.title || effectiveLesson.vietnameseTitle || 'English Lesson';
 
                         const matchedSession = daySessions.find(
                           (s: any) => String(s.classroom?._id || s.classroom) === cId
                         );
                         const isCancelled = matchedSession?.status === 'CANCELLED';
 
+                        const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
+                        const [eH, eM] = (slot.endTime || '23:59').split(':').map(Number);
+                        const startMin = sH * 60 + sM;
+                        const endMin = eH * 60 + eM;
+                        const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
+                        const isPastDay = day.dateString < vietnamDate();
+
+                        // Khoảng 30 phút trước giờ bắt đầu cho tới hết ca học thì cho phép mở lớp:
+                        const isSlotOpenToTeach = day.isToday && currentMinutes >= (startMin - 30) && currentMinutes <= endMin;
+                        const isSlotEndedOrPast = isPastDay || (day.isToday && currentMinutes > endMin);
+                        const isSlotStartedOrPast = isPastDay || (day.isToday && currentMinutes >= startMin);
+
                         return (
                           <div
                             key={fIdx}
                             className={`rounded-xl border px-3 py-2 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-1.5`}
                           >
-                            <div className="flex items-center justify-between gap-1.5">
-                              <p className="text-sm font-black break-words">{cName}</p>
-                              <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex flex-wrap items-start justify-between gap-1.5">
+                              <p className="text-sm font-black break-words flex-1 min-w-[110px]">{cName}</p>
+                              <div className="flex flex-wrap items-center gap-1 shrink-0">
                                 {isCancelled && (
                                   <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 border border-amber-300">
                                     🚫 Báo nghỉ
                                   </span>
                                 )}
-                                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
-                                  Bài #{effectiveLesson.lessonNumber}
-                                </span>
+                                {effectiveLesson.isUnheld ? (
+                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 border border-slate-300">
+                                    Chưa dạy
+                                  </span>
+                                ) : effectiveLesson.lessonNumber > 0 ? (
+                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
+                                    Lesson #{effectiveLesson.lessonNumber}
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                             <p className="font-black text-slate-900">{slot.startTime} – {slot.endTime}</p>
                             {slot.room && <p className="text-[11px]">🏫 Phòng: {slot.room}</p>}
                             <div className="mt-1 pt-1.5 border-t border-black/10">
                               <p className="text-[10px] uppercase tracking-wider opacity-75 font-black">
-                                🎯 {day.dateString < vietnamDate() ? 'Bài theo lịch:' : 'Bài học dự kiến:'}
+                                🎯 {effectiveLesson.isTaught
+                                  ? '✅ Đã dạy:'
+                                  : effectiveLesson.isUnheld
+                                  ? '⚠️ Buổi chưa tổ chức'
+                                  : day.dateString === vietnamDate()
+                                  ? 'Bài học hôm nay:'
+                                  : 'Bài học dự kiến:'}
                               </p>
-                              <p className="font-black text-slate-900 text-xs mt-0.5 break-words" title={lessonDisplayTitle}>
-                                Bài {effectiveLesson.lessonNumber}: {lessonDisplayTitle}
+                              <p className="font-black text-slate-900 text-xs mt-0.5 break-words" title={`${lessonDisplayTitle}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}`}>
+                                {effectiveLesson.isUnheld ? 'Buổi học chưa diễn ra thực tế' : `Lesson ${effectiveLesson.lessonNumber}: ${lessonDisplayTitle}`}
                               </p>
                             </div>
 
@@ -998,31 +1051,63 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                       )}
                                     </div>
 
-                                    {/* Row 3: Action Button full-width */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRestoreSession(matchedSession._id)}
-                                      className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
-                                      title="Hủy báo nghỉ và mở lại lịch dạy ca này"
-                                    >
-                                      <span>↩ Hủy báo nghỉ</span>
-                                    </button>
+                                    {/* Row 3: Action Button full-width (chỉ được hủy nếu chưa qua giờ dạy) */}
+                                    {!isSlotStartedOrPast && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRestoreSession(matchedSession._id)}
+                                        className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
+                                        title="Hủy báo nghỉ và mở lại lịch dạy ca này"
+                                      >
+                                        <span>↩ Hủy báo nghỉ</span>
+                                      </button>
+                                    )}
                                   </div>
                                 ) : day.dateString >= vietnamDate() ? (
-                                  <div className="space-y-1">
-                                    <Link
-                                      to={`/teacher/classes/${cId}/sessions/new${effectiveLesson.lesson?._id ? `?lessonId=${effectiveLesson.lesson._id}` : ''}`}
-                                      className="block w-full text-center rounded-lg bg-white/90 hover:bg-white text-slate-900 border border-black/15 py-1.5 text-xs font-black transition-colors"
-                                    >
-                                      {day.isToday ? 'Bắt đầu / Chuẩn bị ca dạy ➔' : 'Soạn kế hoạch dạy trước'}
-                                    </Link>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
-                                      className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1 text-[11px] font-bold transition-colors cursor-pointer"
-                                    >
-                                      Báo nghỉ ca này
-                                    </button>
+                                  <div className="space-y-1.5">
+                                    {isSlotEndedOrPast ? (
+                                      <div className="p-2 rounded-lg bg-slate-100/90 border border-slate-300/80 text-slate-700 text-[11px] font-bold text-center">
+                                        ⏰ Đã qua giờ ca học ({slot.startTime} – {slot.endTime})
+                                      </div>
+                                    ) : isSlotOpenToTeach ? (
+                                      <>
+                                        <Link
+                                          to={`/teacher/classes/${cId}/sessions/new${effectiveLesson.lesson?._id ? `?lessonId=${effectiveLesson.lesson._id}` : ''}`}
+                                          className="block w-full text-center rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white py-2 text-xs font-black transition-all shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500/20"
+                                        >
+                                          Vào dạy ca này ngay ➔
+                                        </Link>
+                                        <div className="text-[10px] text-center font-bold text-emerald-800">
+                                          {currentMinutes >= startMin
+                                            ? `🔴 Đang trong giờ dạy (${slot.startTime} – ${slot.endTime})`
+                                            : `🟢 Đã mở lớp trước giờ dạy (Lớp bắt đầu lúc ${slot.startTime})`}
+                                        </div>
+                                        {!isSlotStartedOrPast && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
+                                            className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-600 border border-black/10 py-1 text-[11px] font-bold transition-colors cursor-pointer"
+                                          >
+                                            Báo nghỉ ca này
+                                          </button>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {day.isToday && (
+                                          <div className="text-[10px] text-center font-bold text-amber-800 bg-amber-50/80 py-1 px-2 rounded-lg border border-amber-200/80">
+                                            ⏳ Ca hôm nay lúc {slot.startTime} (Chưa đến giờ)
+                                          </div>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
+                                          className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1.5 text-xs font-bold transition-colors cursor-pointer"
+                                        >
+                                          Báo nghỉ ca này
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 ) : null}
                               </div>

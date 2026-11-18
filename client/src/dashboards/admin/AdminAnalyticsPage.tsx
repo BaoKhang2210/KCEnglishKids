@@ -226,7 +226,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                           {c.totalStars} ⭐
                         </span>
                         <span className="text-[11px] font-semibold text-slate-500">
-                          Lớp: <strong className="text-teal-700">{c.classSessionStars ?? c.classStars ?? 0}</strong> • Nhà:{' '}
+                          Lớp: <strong className="text-teal-700">{c.classStars ?? 0}</strong> • Nhà:{' '}
                           <strong className="text-purple-700">{c.homeStars ?? 0}</strong>
                         </span>
                       </div>

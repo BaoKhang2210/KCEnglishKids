@@ -59,46 +59,11 @@ router.delete('/:childId/client-state/vocab-stats', protect, ownChildOr403(), cl
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');
-const { Assignment, User, ClassRoom, Schedule } = require('../models');
+const { User, ClassRoom, Schedule, ClassroomSession } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
 router.patch('/:childId/parent-notifications/:id/read', protect, ownChildOr403(), pn.markAsReadByParent);
 router.post('/:childId/parent-notifications/:id/feedback', protect, ownChildOr403(), pn.sendParentFeedback);
-
-// Child assignments (Bài cô giáo giao)
-router.get('/:childId/assignments', protect, ownChildOr403(), async (req, res, next) => {
-  try {
-    const { childId } = req.params;
-    const child = await User.findById(childId).select('assignedClass');
-    if (!child) return res.status(404).json({ success: false, message: 'Child not found' });
-    const q = {
-      status: { $in: ['ASSIGNED', 'IN_PROGRESS'] },
-      classRoom: child.assignedClass || null,
-      $and: [
-        { $or: [{ student: childId }, { assignedToType: 'CLASS' }] },
-        { $or: [{ recipients: { $exists: false } }, { recipients: childId }] },
-        { $or: [{ startDate: null }, { startDate: { $lte: new Date() } }] }
-      ]
-    };
-    const assignments = await Assignment.find(q)
-      .populate({ path: 'lesson', select: 'title vietnameseTitle', match: { status: 'ACTIVE' } })
-      .populate('activity', 'title activityType instructions passingScore maxScore')
-      .populate('teacher', 'name')
-      .sort({ createdAt: -1 });
-
-    const dataWithStatus = await Promise.all(assignments.filter(a => a.lesson).map(async a => {
-      const aObj = a.toObject();
-      const { data } = await require('../services/teacherAssignments').submissions(a, [{ _id: childId }]);
-      aObj.isCompleted = data[0]?.hasSubmitted || false;
-      aObj.result = data[0]?.submission || null;
-      return aObj;
-    }));
-
-    res.json({ success: true, count: dataWithStatus.length, data: dataWithStatus });
-  } catch (e) {
-    next(e);
-  }
-});
 
 // Child school schedule (Thời khóa biểu trên lớp)
 router.get('/:childId/schedule', protect, ownChildOr403(), async (req, res, next) => {
@@ -112,25 +77,49 @@ router.get('/:childId/schedule', protect, ownChildOr403(), async (req, res, next
         success: true,
         data: {
           classroom: null,
-          schedule: null
+          schedule: null,
+          cancelledSessions: []
         }
       });
     }
 
-    const classroom = await ClassRoom.findById(child.assignedClass)
-      .populate('teacher', 'name email avatar')
-      .lean();
+    const [classroom, schedule, rawCancelledSessions] = await Promise.all([
+      ClassRoom.findById(child.assignedClass)
+        .populate('teacher', 'name email avatar')
+        .lean(),
+      Schedule.findOne({ classroom: child.assignedClass, isActive: true })
+        .populate('teacher', 'name email avatar')
+        .populate('classroom', 'name room academicYear ageGroup')
+        .sort({ createdAt: -1 })
+        .lean(),
+      ClassroomSession.find({ classroom: child.assignedClass, status: 'CANCELLED' })
+        .select('startedAt endedAt createdAt cancellationReason cancellationNote status')
+        .sort({ startedAt: -1 })
+        .limit(30)
+        .lean()
+    ]);
 
-    const schedule = await Schedule.findOne({ classroom: child.assignedClass, isActive: true })
-      .populate('teacher', 'name email avatar')
-      .populate('classroom', 'name room academicYear ageGroup')
-      .lean();
+    const cancelledSessions = (rawCancelledSessions || []).map(sess => {
+      const sDate = sess.startedAt || sess.createdAt;
+      const dateStr = sDate
+        ? new Date(sDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
+        : '';
+      const dayOfWeek = sDate
+        ? new Date(new Date(sDate).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })).getDay()
+        : null;
+      return {
+        ...sess,
+        dateString: dateStr,
+        dayOfWeek
+      };
+    });
 
     return res.json({
       success: true,
       data: {
         classroom,
-        schedule
+        schedule,
+        cancelledSessions
       }
     });
   } catch (e) {

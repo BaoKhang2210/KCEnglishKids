@@ -24,11 +24,11 @@ function templateOptions(facts) {
   const lesson = cleanLabel(facts.recentLesson, 120);
   const greeting = `Chào gia đình bé ${name}!`;
   const accuracy = facts.averageAccuracy == null ? ''
-    : ` Độ đúng trên các câu đã ghi nhận ${facts.scope === 'assignment' ? 'trong lượt làm này' : 'trung bình toàn quá trình'} là ${facts.averageAccuracy}%.`;
+    : ` Độ đúng trên các câu đã ghi nhận trung bình toàn quá trình là ${facts.averageAccuracy}%.`;
   const totals = ` Trong toàn bộ hành trình, bé đã hoàn thành ${facts.completedLessons} bài và có ${facts.totalStars} sao được ghi nhận.`;
   const streak = facts.streak ? ` Chuỗi hoạt động gần nhất là ${facts.streak} ngày.` : '';
-  const recent = lesson ? ` Bài ${facts.scope === 'assignment' ? 'đang xem' : 'được ghi nhận gần nhất'} là “${lesson}”.` : '';
-  const stars = facts.scope === 'assignment' ? [3, 2, 1] : [5, 4, 3];
+  const recent = lesson ? ` Bài được ghi nhận gần nhất là “${lesson}”.` : '';
+  const stars = [5, 4, 3];
   return [
     {
       id: 'praise', type: 'praise', badge: 'Ghi nhận cố gắng', title: 'Niềm vui nhỏ của bé', suggestedStars: stars[0],
@@ -59,7 +59,7 @@ function validOptions(value, scope) {
       typeof option[key] === 'string' && option[key].trim().length > 0 &&
       option[key].length <= (key === 'content' ? 1200 : 100) && !/[<>\p{Cc}]/u.test(option[key])) &&
       Number.isInteger(option.suggestedStars) && option.suggestedStars >= 1 &&
-      option.suggestedStars <= (scope === 'assignment' ? 3 : 5);
+      option.suggestedStars <= 5;
   });
 }
 
@@ -851,7 +851,117 @@ const PRESCHOOL_TOPIC_BANK = [
           answerPronunciation: '/aɪ ɡoʊ tuː skuːl baɪ bʌs wɪð maɪ frendz/'
         }
       ]
-    }
+    },
+    lessonPacks: [
+      {
+        lessonOrder: 1,
+        subTitleEn: 'Vocabulary & Phonics',
+        subTitleVi: 'Từ vựng & Phát âm',
+        focus: 'VOCABULARY',
+        descriptionVi: 'Làm quen các phương tiện giao thông quen thuộc và phát âm chuẩn',
+        vocabularies: [
+          { english: 'Car', vietnamese: 'Ô tô', pronunciation: '/kɑːr/', wordType: 'noun' },
+          { english: 'Bus', vietnamese: 'Xe buýt', pronunciation: '/bʌs/', wordType: 'noun' },
+          { english: 'Train', vietnamese: 'Tàu hỏa', pronunciation: '/treɪn/', wordType: 'noun' },
+          { english: 'Bike', vietnamese: 'Xe đạp', pronunciation: '/baɪk/', wordType: 'noun' }
+        ],
+        qaByAge: {
+          '3-4': [
+            { questionEnglish: 'What is it?', questionVietnamese: 'Đây là cái gì?', questionPronunciation: '/wɒt ɪz ɪt/', answerEnglish: 'It is a car.', answerVietnamese: 'Đó là chiếc ô tô.', answerPronunciation: '/ɪt ɪz ə kɑːr/' },
+            { questionEnglish: 'What can you see?', questionVietnamese: 'Con nhìn thấy gì?', questionPronunciation: '/wɒt kæn juː siː/', answerEnglish: 'I can see a red bus.', answerVietnamese: 'Con nhìn thấy chiếc xe buýt màu đỏ.', answerPronunciation: '/aɪ kæn siː ə red bʌs/' }
+          ],
+          '4-5': [
+            { questionEnglish: 'What is it?', questionVietnamese: 'Đây là cái gì?', questionPronunciation: '/wɒt ɪz ɪt/', answerEnglish: 'It is a red car.', answerVietnamese: 'Đó là một chiếc ô tô màu đỏ.', answerPronunciation: '/ɪt ɪz ə red kɑːr/' },
+            { questionEnglish: 'What can you see?', questionVietnamese: 'Con nhìn thấy gì?', questionPronunciation: '/wɒt kæn juː siː/', answerEnglish: 'I can see a long train.', answerVietnamese: 'Con thấy một đoàn tàu hỏa dài.', answerPronunciation: '/aɪ kæn siː ə lɒŋ treɪn/' }
+          ],
+          '5-6': [
+            { questionEnglish: 'What vehicles do you see?', questionVietnamese: 'Con nhìn thấy những xe gì?', questionPronunciation: '/wɒt ˈviː.ɪ.kəlz duː juː siː/', answerEnglish: 'I can see a red bus and a blue car.', answerVietnamese: 'Con thấy một chiếc xe buýt đỏ và một chiếc ô tô xanh.', answerPronunciation: '/aɪ kæn siː ə red bʌs ænd ə bluː kɑːr/' },
+            { questionEnglish: 'Do you like the train?', questionVietnamese: 'Con có thích đi tàu hỏa không?', questionPronunciation: '/duː juː laɪk ðə treɪn/', answerEnglish: 'Yes, I like the train very much.', answerVietnamese: 'Dạ có, con rất thích đi tàu hỏa.', answerPronunciation: '/jes aɪ laɪk ðə treɪn ˈver.i mʌtʃ/' }
+          ]
+        }
+      },
+      {
+        lessonOrder: 2,
+        subTitleEn: 'Sentence Patterns & Speaking',
+        subTitleVi: 'Mẫu câu & Giao tiếp',
+        focus: 'SPEAKING',
+        descriptionVi: 'Thực hành hỏi đáp về cách di chuyển và các phương tiện trên không, dưới nước',
+        vocabularies: [
+          { english: 'Boat', vietnamese: 'Thuyền', pronunciation: '/boʊt/', wordType: 'noun' },
+          { english: 'Plane', vietnamese: 'Máy bay', pronunciation: '/pleɪn/', wordType: 'noun' },
+          { english: 'Truck', vietnamese: 'Xe tải', pronunciation: '/trʌk/', wordType: 'noun' },
+          { english: 'Helicopter', vietnamese: 'Trực thăng', pronunciation: '/ˈhel.əˌkɑːp.tər/', wordType: 'noun' }
+        ],
+        qaByAge: {
+          '3-4': [
+            { questionEnglish: 'How do you go?', questionVietnamese: 'Con đi bằng phương tiện gì?', questionPronunciation: '/haʊ duː juː ɡoʊ/', answerEnglish: 'I go by bike.', answerVietnamese: 'Con đi bằng xe đạp.', answerPronunciation: '/aɪ ɡoʊ baɪ baɪk/' },
+            { questionEnglish: 'Look up! What is it?', questionVietnamese: 'Nhìn lên kìa! Đó là cái gì?', questionPronunciation: '/lʊk ʌp wɒt ɪz ɪt/', answerEnglish: 'It is a big plane.', answerVietnamese: 'Đó là một chiếc máy bay to.', answerPronunciation: '/ɪt ɪz ə bɪɡ pleɪn/' }
+          ],
+          '4-5': [
+            { questionEnglish: 'How do you go to school?', questionVietnamese: 'Con đi học bằng gì?', questionPronunciation: '/haʊ duː juː ɡoʊ tuː skuːl/', answerEnglish: 'I go to school by bus.', answerVietnamese: 'Con đến trường bằng xe buýt.', answerPronunciation: '/aɪ ɡoʊ tuː skuːl baɪ bʌs/' },
+            { questionEnglish: 'Where is the boat?', questionVietnamese: 'Chiếc thuyền ở đâu?', questionPronunciation: '/wer ɪz ðə boʊt/', answerEnglish: 'The boat is on the water.', answerVietnamese: 'Chiếc thuyền đang ở trên mặt nước.', answerPronunciation: '/ðə boʊt ɪz ɒn ðə ˈwɔː.tər/' }
+          ],
+          '5-6': [
+            { questionEnglish: 'How do you travel with family?', questionVietnamese: 'Gia đình con đi du lịch bằng gì?', questionPronunciation: '/haʊ duː juː ˈtræv.əl wɪð ˈfæm.əl.i/', answerEnglish: 'We go to the beach by plane.', answerVietnamese: 'Cả nhà con đi máy bay ra bãi biển.', answerPronunciation: '/wiː ɡoʊ tuː ðə biːtʃ baɪ pleɪn/' },
+            { questionEnglish: 'What does a truck carry?', questionVietnamese: 'Xe tải chở những gì?', questionPronunciation: '/wɒt dʌz ə trʌk ˈkær.i/', answerEnglish: 'The big truck carries heavy boxes.', answerVietnamese: 'Chiếc xe tải to chở các thùng hàng nặng.', answerPronunciation: '/ðə bɪɡ trʌk ˈkær.iz ˈhev.i ˈbɒk.sɪz/' }
+          ]
+        }
+      },
+      {
+        lessonOrder: 3,
+        subTitleEn: 'Story, Song & Good Values',
+        subTitleVi: 'Câu chuyện, Bài hát & Lễ giáo',
+        focus: 'STORY_VALUES',
+        descriptionVi: 'Kể chuyện về bạn xe nhỏ, học an toàn giao thông và biết nhường nhịn bạn bè',
+        vocabularies: [
+          { english: 'Stop', vietnamese: 'Dừng lại', pronunciation: '/stɑːp/', wordType: 'verb' },
+          { english: 'Go', vietnamese: 'Đi tiếp', pronunciation: '/ɡoʊ/', wordType: 'verb' },
+          { english: 'Traffic light', vietnamese: 'Đèn giao thông', pronunciation: '/ˈtræf.ɪk laɪt/', wordType: 'noun' },
+          { english: 'Helmet', vietnamese: 'Mũ bảo hiểm', pronunciation: '/ˈhel.mɪt/', wordType: 'noun' }
+        ],
+        qaByAge: {
+          '3-4': [
+            { questionEnglish: 'What does red light say?', questionVietnamese: 'Đèn đỏ báo hiệu gì?', questionPronunciation: '/wɒt dʌz red laɪt seɪ/', answerEnglish: 'Red light says stop!', answerVietnamese: 'Đèn đỏ bảo dừng lại!', answerPronunciation: '/red laɪt sez stɑːp/' },
+            { questionEnglish: 'Wear your helmet, please.', questionVietnamese: 'Bé nhớ đội mũ bảo hiểm nhé.', questionPronunciation: '/wer jʊər ˈhel.mɪt pliːz/', answerEnglish: 'Yes, I wear my helmet.', answerVietnamese: 'Vâng, con đội mũ bảo hiểm.', answerPronunciation: '/jes aɪ wer maɪ ˈhel.mɪt/' }
+          ],
+          '4-5': [
+            { questionEnglish: 'When do we stop?', questionVietnamese: 'Khi nào chúng ta phải dừng lại?', questionPronunciation: '/wen duː wiː stɑːp/', answerEnglish: 'We stop at the red light.', answerVietnamese: 'Chúng ta dừng lại khi có đèn đỏ.', answerPronunciation: '/wiː stɑːp æt ðə red laɪt/' },
+            { questionEnglish: 'Why do we wear helmets?', questionVietnamese: 'Tại sao chúng mình cần đội mũ bảo hiểm?', questionPronunciation: '/waɪ duː wiː wer ˈhel.mɪts/', answerEnglish: 'A helmet keeps our head safe.', answerVietnamese: 'Mũ bảo hiểm bảo vệ đầu an toàn.', answerPronunciation: '/ə ˈhel.mɪt kiːps ˈaʊ.ər hed seɪf/' }
+          ],
+          '5-6': [
+            { questionEnglish: 'How do you cross the street safely?', questionVietnamese: 'Làm sao để qua đường an toàn?', questionPronunciation: '/haʊ duː juː krɒs ðə striːt ˈseɪf.li/', answerEnglish: 'I hold my teacher\'s hand and look both ways.', answerVietnamese: 'Con nắm tay cô giáo và quan sát hai bên đường.', answerPronunciation: '/aɪ hoʊld maɪ ˈtiː.tʃərz hænd ænd lʊk boʊθ weɪz/' },
+            { questionEnglish: 'What should we do on the school bus?', questionVietnamese: 'Chúng mình cần làm gì khi ngồi trên xe buýt?', questionPronunciation: '/wɒt ʃʊd wiː duː ɒn ðə skuːl bʌs/', answerEnglish: 'We sit quietly and fasten our seatbelt.', answerVietnamese: 'Chúng mình ngồi trật tự và thắt dây an toàn.', answerPronunciation: '/wiː sɪt ˈkwaɪət.li ænd ˈfæs.ən ˈaʊ.ər ˈsiːt.belt/' }
+          ]
+        }
+      },
+      {
+        lessonOrder: 4,
+        subTitleEn: 'Fun Mini Games & Review',
+        subTitleVi: 'Ôn tập & Trò chơi củng cố',
+        focus: 'REVIEW_GAMES',
+        descriptionVi: 'Ôn tập tổng kết toàn Unit, nhận biết bến đỗ và tham gia trò chơi lái xe vui nhộn',
+        vocabularies: [
+          { english: 'Road', vietnamese: 'Con đường', pronunciation: '/roʊd/', wordType: 'noun' },
+          { english: 'Station', vietnamese: 'Nhà ga', pronunciation: '/ˈsteɪ.ʃən/', wordType: 'noun' },
+          { english: 'Airport', vietnamese: 'Sân bay', pronunciation: '/ˈer.pɔːrt/', wordType: 'noun' },
+          { english: 'Ticket', vietnamese: 'Vé xe', pronunciation: '/ˈtɪk.ɪt/', wordType: 'noun' }
+        ],
+        qaByAge: {
+          '3-4': [
+            { questionEnglish: 'Where is the bus going?', questionVietnamese: 'Chiếc xe buýt đang đi đâu đấy?', questionPronunciation: '/wer ɪz ðə bʌs ˈɡoʊ.ɪŋ/', answerEnglish: 'The bus goes to school.', answerVietnamese: 'Xe buýt đang đến trường học.', answerPronunciation: '/ðə bʌs ɡoʊz tuː skuːl/' },
+            { questionEnglish: 'Show me your ticket!', questionVietnamese: 'Bé cho cô xem vé xe nào!', questionPronunciation: '/ʃoʊ miː jʊər ˈtɪk.ɪt/', answerEnglish: 'Here is my little ticket!', answerVietnamese: 'Đây là chiếc vé nhỏ của con!', answerPronunciation: '/hɪr ɪz maɪ ˈlɪt.əl ˈtɪk.ɪt/' }
+          ],
+          '4-5': [
+            { questionEnglish: 'Where do we catch the train?', questionVietnamese: 'Chúng ta đón tàu hỏa ở đâu?', questionPronunciation: '/wer duː wiː kætʃ ðə treɪn/', answerEnglish: 'We catch the train at the station.', answerVietnamese: 'Chúng mình đón tàu ở nhà ga.', answerPronunciation: '/wiː kætʃ ðə treɪn æt ðə ˈsteɪ.ʃən/' },
+            { questionEnglish: 'Are you ready for the trip?', questionVietnamese: 'Bé đã sẵn sàng cho chuyến đi chưa?', questionPronunciation: '/ɑːr juː ˈred.i fɔːr ðə trɪp/', answerEnglish: 'Yes, I have my ticket and bag.', answerVietnamese: 'Dạ rồi, con đã có vé và túi xách.', answerPronunciation: '/jes aɪ hæv maɪ ˈtɪk.ɪt ænd bæɡ/' }
+          ],
+          '5-6': [
+            { questionEnglish: 'Where do airplanes take off and land?', questionVietnamese: 'Máy bay cất cánh và hạ cánh ở đâu?', questionPronunciation: '/wer duː ˈer.pleɪnz teɪk ɒf ænd lænd/', answerEnglish: 'Airplanes take off and land at the airport.', answerVietnamese: 'Máy bay cất cánh và hạ cánh ở sân bay.', answerPronunciation: '/ˈer.pleɪnz teɪk ɒf ænd lænd æt ði ˈer.pɔːrt/' },
+            { questionEnglish: 'What vehicle did you like best in this unit?', questionVietnamese: 'Trong Unit này con thích phương tiện nào nhất?', questionPronunciation: '/wɒt ˈviː.ɪ.kəl dɪd juː laɪk best ɪn ðɪs ˈjuː.nɪt/', answerEnglish: 'I like the red bus because it takes me to school.', answerVietnamese: 'Con thích xe buýt đỏ nhất vì xe đưa con đi học.', answerPronunciation: '/aɪ laɪk ðə red bʌs bɪˈkəz ɪt teɪks miː tuː skuːl/' }
+          ]
+        }
+      }
+    ]
   },
   {
     keywords: ['animal', 'pet', 'farm', 'zoo', 'động vật', 'con vật', 'thú'],
@@ -1079,6 +1189,112 @@ function buildDefaultQaPairsForAge(words, ageGroupCode) {
   ];
 }
 
+function buildDistinctFourLessonsForTopic({
+  matchedTemplate,
+  safeAge,
+  suggestedLessonTitle,
+  suggestedVietnameseTitle,
+  category,
+  storyTitle
+}) {
+  if (Array.isArray(matchedTemplate?.lessonPacks) && matchedTemplate.lessonPacks.length === 4) {
+    return matchedTemplate.lessonPacks.map(lp => {
+      const vocabList = lp.vocabularies.map((item, idx) => ({
+        order: idx + 1,
+        english: item.english,
+        vietnamese: item.vietnamese,
+        pronunciation: item.pronunciation,
+        wordType: item.wordType || 'noun',
+        category,
+        imageUrl: resolveVocabIllustrationUrl(item.english),
+        imagePrompt: buildFlashcardImagePrompt(item.english, item.vietnamese, `${suggestedVietnameseTitle} - ${lp.subTitleVi}`)
+      }));
+      const sents = lp.qaByAge?.[safeAge]
+        ? structuredClone(lp.qaByAge[safeAge])
+        : buildDefaultQaPairsForAge(vocabList, safeAge);
+
+      return {
+        lessonOrder: lp.lessonOrder,
+        title: `${suggestedLessonTitle} - Lesson ${lp.lessonOrder}: ${lp.subTitleEn}`,
+        vietnameseTitle: `${suggestedVietnameseTitle} - Bài ${lp.lessonOrder}: ${lp.subTitleVi}`,
+        description: lp.descriptionVi,
+        focus: lp.focus,
+        vocabularies: vocabList,
+        sentencePairs: sents
+      };
+    });
+  }
+
+  // Dynamic fallback generator that guarantees 4 distinct lessons with distinct vocabularies and questions
+  const baseVocabs = Array.isArray(matchedTemplate?.vocabularies) ? matchedTemplate.vocabularies : [];
+  const part1 = baseVocabs.slice(0, 2);
+  const part2 = baseVocabs.slice(2, 4);
+  const part3 = baseVocabs.slice(4, 6);
+  const part4 = [
+    { english: 'Play', vietnamese: 'Chơi đùa', pronunciation: '/pleɪ/', wordType: 'verb' },
+    { english: 'Happy', vietnamese: 'Vui vẻ', pronunciation: '/ˈhæp.i/', wordType: 'adjective' }
+  ];
+
+  const partitions = [
+    {
+      order: 1,
+      en: 'Vocabulary & Phonics',
+      vi: 'Từ vựng & Phát âm',
+      desc: `Làm quen từ vựng cốt lõi và phát âm chuẩn chủ đề ${suggestedVietnameseTitle}`,
+      focus: 'VOCABULARY',
+      words: part1.length > 0 ? part1 : [{ english: 'Star', vietnamese: 'Ngôi sao', pronunciation: '/stɑːr/', wordType: 'noun' }]
+    },
+    {
+      order: 2,
+      en: 'Sentence Patterns & Speaking',
+      vi: 'Mẫu câu & Giao tiếp',
+      desc: `Thực hành hỏi đáp phản xạ giao tiếp tự tin chủ đề ${suggestedVietnameseTitle}`,
+      focus: 'SPEAKING',
+      words: part2.length > 0 ? part2 : [{ english: 'Sun', vietnamese: 'Mặt trời', pronunciation: '/sʌn/', wordType: 'noun' }]
+    },
+    {
+      order: 3,
+      en: 'Story, Song & Good Values',
+      vi: 'Câu chuyện, Bài hát & Lễ giáo',
+      desc: `Kể chuyện "${storyTitle}", hát vận động và bài học lễ giáo mầm non`,
+      focus: 'STORY_VALUES',
+      words: part3.length > 0 ? part3 : [{ english: 'Friend', vietnamese: 'Bạn bè', pronunciation: '/frend/', wordType: 'noun' }]
+    },
+    {
+      order: 4,
+      en: 'Fun Mini Games & Review',
+      vi: 'Ôn tập & Trò chơi củng cố',
+      desc: `Tổng hợp kiến thức toàn Unit qua trò chơi tương tác vui nhộn`,
+      focus: 'REVIEW_GAMES',
+      words: part4
+    }
+  ];
+
+  return partitions.map(p => {
+    const vocabList = p.words.map((item, idx) => ({
+      order: idx + 1,
+      english: item.english,
+      vietnamese: item.vietnamese,
+      pronunciation: item.pronunciation,
+      wordType: item.wordType || 'noun',
+      category,
+      imageUrl: resolveVocabIllustrationUrl(item.english),
+      imagePrompt: buildFlashcardImagePrompt(item.english, item.vietnamese, `${suggestedVietnameseTitle} - ${p.vi}`)
+    }));
+    const sents = buildDefaultQaPairsForAge(vocabList, safeAge);
+
+    return {
+      lessonOrder: p.order,
+      title: `${suggestedLessonTitle} - Lesson ${p.order}: ${p.en}`,
+      vietnameseTitle: `${suggestedVietnameseTitle} - Bài ${p.order}: ${p.vi}`,
+      description: p.desc,
+      focus: p.focus,
+      vocabularies: vocabList,
+      sentencePairs: sents
+    };
+  });
+}
+
 function generateCurriculumDraft({ topic = '', ageGroup = '3-4' } = {}) {
   const safeAge = ['3-4', '4-5', '5-6'].includes(ageGroup) ? ageGroup : '3-4';
   const rawTopic = String(topic || '').trim() || 'Các phương tiện giao thông (Vehicles)';
@@ -1125,6 +1341,19 @@ function generateCurriculumDraft({ topic = '', ageGroup = '3-4' } = {}) {
 
   const ageRule = AGE_CURRICULUM_RULES[safeAge];
 
+  const bigQuestion = matchedTemplate.bigQuestion || `What can we discover about ${suggestedLessonTitle}?`;
+  const storyTitle = `The Little ${vocabularies[0]?.english || 'Friend'}'s Adventure`;
+  const values = 'Curiosity, sharing with friends, and kindness (Ham học hỏi, biết chia sẻ và yêu thương bạn bè)';
+
+  const unitLessons = buildDistinctFourLessonsForTopic({
+    matchedTemplate,
+    safeAge,
+    suggestedLessonTitle,
+    suggestedVietnameseTitle,
+    category,
+    storyTitle
+  });
+
   return {
     topicInput: rawTopic,
     ageGroupCode: safeAge,
@@ -1132,6 +1361,10 @@ function generateCurriculumDraft({ topic = '', ageGroup = '3-4' } = {}) {
     suggestedLessonTitle,
     suggestedVietnameseTitle,
     category,
+    bigQuestion,
+    storyTitle,
+    values,
+    unitLessons,
     vocabularies,
     sentencePairs,
     source: 'pedagogical_engine',
@@ -1152,24 +1385,76 @@ async function generateCurriculumDraftWithAI(params = {}, { signal } = {}) {
         ageGroupCode: base.ageGroupCode,
         ageGuideline: ageRule.ruleSummary
       },
-      instruction: `Generate a preschool English lesson draft for topic "${base.topicInput}" and age group ${base.ageGroupCode}. Return exactly 6 short, concrete, easy-to-pronounce core vocabulary words with accurate international IPA pronunciation (enclosed in slashes like /kɑːr/) and a consistent 3D Pixar-style cartoon flashcard imagePrompt for each word. Return exactly 2 short Question-Answer communication pairs appropriate for age ${base.ageGroupCode} (for 3-4 years old keep answers 2-5 words; for 4-5 years old 4-6 words like "What can you see?" -> "I can see a red bus."; for 5-6 years old 6-9 words).`
+      instruction: `Generate a preschool English Unit & 4-Lesson curriculum pack for topic "${base.topicInput}" and age group ${base.ageGroupCode}. Return a clear English topic title, Vietnamese title, 6 short concrete easy-to-pronounce core vocabulary words with accurate international IPA pronunciation (enclosed in slashes like /kɑːr/) and a consistent 3D Pixar-style cartoon flashcard imagePrompt for each word. Return 2 short Question-Answer communication pairs appropriate for age ${base.ageGroupCode} (for 3-4 years old keep answers 2-5 words; for 4-5 years old 4-6 words like "What can you see?" -> "I can see a red bus."; for 5-6 years old 6-9 words).`
     });
     if (Array.isArray(generated.vocabularies) && generated.vocabularies.length === 6 && Array.isArray(generated.sentencePairs) && generated.sentencePairs.length >= 2) {
+      const enTitle = generated.suggestedLessonTitle || base.suggestedLessonTitle;
+      const viTitle = generated.suggestedVietnameseTitle || base.suggestedVietnameseTitle;
+      const storyTitle = `The Little ${generated.vocabularies[0]?.english || 'Friend'}'s Adventure`;
+
+      const formattedVocabs = generated.vocabularies.slice(0, 6).map((v, idx) => ({
+        order: idx + 1,
+        english: v.english,
+        vietnamese: v.vietnamese,
+        pronunciation: v.pronunciation?.startsWith('/') ? v.pronunciation : `/${v.pronunciation || ''}/`,
+        wordType: v.wordType || 'noun',
+        category: generated.category || base.category,
+        imageUrl: resolveVocabIllustrationUrl(v.english),
+        imagePrompt: v.imagePrompt || buildFlashcardImagePrompt(v.english, v.vietnamese, base.topicInput)
+      }));
+
+      // Build 4 distinct lessons with distinct vocabularies and sentence pairs
+      let unitLessons = base.unitLessons;
+      if (Array.isArray(generated.unitLessons) && generated.unitLessons.length === 4 && generated.unitLessons.every(l => Array.isArray(l.vocabularies) && l.vocabularies.length > 0)) {
+        unitLessons = generated.unitLessons.map((l, lIdx) => ({
+          lessonOrder: l.lessonOrder || lIdx + 1,
+          title: l.title || `${enTitle} - Lesson ${lIdx + 1}`,
+          vietnameseTitle: l.vietnameseTitle || `${viTitle} - Bài ${lIdx + 1}`,
+          description: l.description || `Bài học số ${lIdx + 1} của Unit ${enTitle}`,
+          focus: l.focus || (lIdx === 0 ? 'VOCABULARY' : lIdx === 1 ? 'SPEAKING' : lIdx === 2 ? 'STORY_VALUES' : 'REVIEW_GAMES'),
+          vocabularies: (l.vocabularies || []).map((v, vIdx) => ({
+            order: vIdx + 1,
+            english: v.english,
+            vietnamese: v.vietnamese,
+            pronunciation: v.pronunciation?.startsWith('/') ? v.pronunciation : `/${v.pronunciation || ''}/`,
+            wordType: v.wordType || 'noun',
+            category: generated.category || base.category,
+            imageUrl: resolveVocabIllustrationUrl(v.english),
+            imagePrompt: v.imagePrompt || buildFlashcardImagePrompt(v.english, v.vietnamese, `${viTitle} - Bài ${lIdx + 1}`)
+          })),
+          sentencePairs: (l.sentencePairs || []).map(p => ({
+            questionEnglish: p.questionEnglish,
+            questionVietnamese: p.questionVietnamese || '',
+            questionPronunciation: p.questionPronunciation || '',
+            answerEnglish: p.answerEnglish,
+            answerVietnamese: p.answerVietnamese || '',
+            answerPronunciation: p.answerPronunciation || ''
+          }))
+        }));
+      } else {
+        // Distribute the generated content distinctly across the 4 lessons
+        unitLessons = buildDistinctFourLessonsForTopic({
+          matchedTemplate: {
+            vocabularies: formattedVocabs,
+            qaByAge: { [base.ageGroupCode]: generated.sentencePairs }
+          },
+          safeAge: base.ageGroupCode,
+          suggestedLessonTitle: enTitle,
+          suggestedVietnameseTitle: viTitle,
+          category: generated.category || base.category,
+          storyTitle
+        });
+      }
+
       return {
         ...base,
-        suggestedLessonTitle: generated.suggestedLessonTitle || base.suggestedLessonTitle,
-        suggestedVietnameseTitle: generated.suggestedVietnameseTitle || base.suggestedVietnameseTitle,
+        suggestedLessonTitle: enTitle,
+        suggestedVietnameseTitle: viTitle,
         category: generated.category || base.category,
-        vocabularies: generated.vocabularies.slice(0, 6).map((v, idx) => ({
-          order: idx + 1,
-          english: v.english,
-          vietnamese: v.vietnamese,
-          pronunciation: v.pronunciation?.startsWith('/') ? v.pronunciation : `/${v.pronunciation || ''}/`,
-          wordType: v.wordType || 'noun',
-          category: generated.category || base.category,
-          imageUrl: resolveVocabIllustrationUrl(v.english),
-          imagePrompt: v.imagePrompt || buildFlashcardImagePrompt(v.english, v.vietnamese, base.topicInput)
-        })),
+        bigQuestion: `What can we discover about ${enTitle}?`,
+        storyTitle,
+        unitLessons,
+        vocabularies: formattedVocabs,
         sentencePairs: generated.sentencePairs.slice(0, 2),
         source: 'gemini',
         generative: true
@@ -1177,6 +1462,148 @@ async function generateCurriculumDraftWithAI(params = {}, { signal } = {}) {
     }
   } catch {
     // Fallback to deterministic pedagogical curriculum creator
+  }
+  return base;
+}
+
+function generateLessonDraft({
+  topic = '',
+  ageGroup = '3-4',
+  unitId,
+  unitNumber,
+  unitBigQuestion,
+  existingLessonCount = 0,
+  existingWords = []
+} = {}) {
+  const safeAge = ['3-4', '4-5', '5-6'].includes(ageGroup) ? ageGroup : '3-4';
+  const rawTopic = String(topic || '').trim() || (unitBigQuestion ? `Mở rộng ${unitBigQuestion}` : 'Các phương tiện giao thông (Vehicles)');
+  const lowerTopic = rawTopic.toLowerCase();
+
+  const matchedTemplate = PRESCHOOL_TOPIC_BANK.find(entry =>
+    entry.keywords.some(kw => lowerTopic.includes(kw))
+  ) || PRESCHOOL_TOPIC_BANK[0];
+
+  const parenMatch = rawTopic.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  const customViTitle = parenMatch ? parenMatch[1].trim() : rawTopic;
+  const customEnTitle = parenMatch ? parenMatch[2].trim() : matchedTemplate.suggestedLessonTitle;
+
+  const isMatchedByKeyword = PRESCHOOL_TOPIC_BANK.some(entry =>
+    entry.keywords.some(kw => lowerTopic.includes(kw))
+  );
+
+  const nextOrder = (Number(existingLessonCount) || 0) + 1;
+  const unitPrefix = unitNumber ? `Unit ${unitNumber} - ` : '';
+  const suggestedLessonTitle = `${unitPrefix}Lesson ${nextOrder}: ${isMatchedByKeyword && !parenMatch ? matchedTemplate.suggestedLessonTitle : customEnTitle}`;
+  const suggestedVietnameseTitle = `Bài ${nextOrder}: ${isMatchedByKeyword && !parenMatch ? matchedTemplate.suggestedVietnameseTitle : customViTitle}`;
+  const category = isMatchedByKeyword ? matchedTemplate.category : (parenMatch ? customEnTitle : 'General');
+
+  // Filter out words already present in the Unit to prevent duplication
+  const existingSet = new Set((existingWords || []).map(w => String(w).toLowerCase().trim()));
+  let pool = matchedTemplate.vocabularies.filter(v => !existingSet.has(v.english.toLowerCase().trim()));
+  if (pool.length < 3) {
+    pool = matchedTemplate.vocabularies;
+  }
+  const chosenWords = pool.slice(0, 4);
+
+  const vocabularies = chosenWords.map((item, idx) => {
+    const imageUrl = resolveVocabIllustrationUrl(item.english);
+    return {
+      order: idx + 1,
+      english: item.english,
+      vietnamese: item.vietnamese,
+      pronunciation: item.pronunciation,
+      wordType: item.wordType || 'noun',
+      category,
+      imageUrl,
+      imagePrompt: buildFlashcardImagePrompt(item.english, item.vietnamese, `${suggestedVietnameseTitle} (${suggestedLessonTitle})`)
+    };
+  });
+
+  const sentencePairs = matchedTemplate.qaByAge?.[safeAge]
+    ? structuredClone(matchedTemplate.qaByAge[safeAge]).slice(0, 2)
+    : buildDefaultQaPairsForAge(vocabularies, safeAge).slice(0, 2);
+
+  const ageRule = AGE_CURRICULUM_RULES[safeAge];
+  const description = `Bài học số ${nextOrder} giúp bé làm quen từ vựng và mẫu câu chủ đề ${suggestedVietnameseTitle} (${safeAge} tuổi)`;
+
+  return {
+    topicInput: rawTopic,
+    ageGroupCode: safeAge,
+    ageRule,
+    unitId: unitId || null,
+    unitNumber: unitNumber || null,
+    suggestedLessonTitle,
+    suggestedVietnameseTitle,
+    description,
+    category,
+    vocabularies,
+    sentencePairs,
+    source: 'pedagogical_engine',
+    generative: false
+  };
+}
+
+async function generateLessonDraftWithAI(params = {}, { signal } = {}) {
+  const base = generateLessonDraft(params);
+  if (!gemini.configuration().enabled) return base;
+  try {
+    const ageRule = base.ageRule;
+    const nextOrder = (Number(params.existingLessonCount) || 0) + 1;
+    const unitInfo = params.unitNumber ? `Unit ${params.unitNumber} ("${params.unitBigQuestion || ''}")` : 'Preschool Curriculum';
+    const generated = await gemini.generateJson({
+      signal,
+      schema: gemini.lessonDraftSchema,
+      data: {
+        topic: base.topicInput,
+        unitContext: unitInfo,
+        nextLessonNumber: nextOrder,
+        ageGroupCode: base.ageGroupCode,
+        ageGuideline: ageRule.ruleSummary,
+        existingWordsToAvoid: params.existingWords || []
+      },
+      instruction: `Generate a single preschool English lesson for ${unitInfo}. Lesson topic: "${base.topicInput}", age group: ${base.ageGroupCode}. Return a clear English lesson title (e.g. "Unit ${params.unitNumber || 1} - Lesson ${nextOrder}: ..."), Vietnamese title (e.g. "Bài ${nextOrder}: ..."), short description in Vietnamese, category, 3-4 concrete easy-to-pronounce core vocabulary words suitable for ${base.ageGroupCode} years old with accurate IPA pronunciation and 3D Pixar cartoon style imagePrompt, and 1-2 short Question-Answer communication pairs appropriate for age ${base.ageGroupCode} (answers 2-5 words for 3-4, 4-6 words for 4-5, 6-9 words for 5-6).`
+    });
+
+    if (Array.isArray(generated.vocabularies) && generated.vocabularies.length >= 3 && Array.isArray(generated.sentencePairs) && generated.sentencePairs.length >= 1) {
+      const enTitle = generated.suggestedLessonTitle || base.suggestedLessonTitle;
+      const viTitle = generated.suggestedVietnameseTitle || base.suggestedVietnameseTitle;
+      const desc = generated.description || base.description;
+      const cat = generated.category || base.category;
+
+      const formattedVocabs = generated.vocabularies.slice(0, 4).map((v, idx) => ({
+        order: idx + 1,
+        english: v.english,
+        vietnamese: v.vietnamese,
+        pronunciation: v.pronunciation?.startsWith('/') ? v.pronunciation : `/${v.pronunciation || ''}/`,
+        wordType: v.wordType || 'noun',
+        category: cat,
+        imageUrl: resolveVocabIllustrationUrl(v.english),
+        imagePrompt: v.imagePrompt || buildFlashcardImagePrompt(v.english, v.vietnamese, base.topicInput)
+      }));
+
+      const formattedPairs = generated.sentencePairs.slice(0, 2).map(p => ({
+        questionEnglish: p.questionEnglish,
+        questionVietnamese: p.questionVietnamese || '',
+        questionPronunciation: p.questionPronunciation || '',
+        answerEnglish: p.answerEnglish,
+        answerVietnamese: p.answerVietnamese || '',
+        answerPronunciation: p.answerPronunciation || ''
+      }));
+
+      return {
+        ...base,
+        suggestedLessonTitle: enTitle,
+        suggestedVietnameseTitle: viTitle,
+        description: desc,
+        category: cat,
+        vocabularies: formattedVocabs,
+        sentencePairs: formattedPairs,
+        source: 'gemini',
+        generative: true
+      };
+    }
+  } catch {
+    // Fallback to deterministic pedagogical engine
   }
   return base;
 }
@@ -1388,5 +1815,7 @@ module.exports = {
   applyReviewFocus,
   generateCurriculumDraft,
   generateCurriculumDraftWithAI,
+  generateLessonDraft,
+  generateLessonDraftWithAI,
   auditLessonAgeAppropriateness
 };

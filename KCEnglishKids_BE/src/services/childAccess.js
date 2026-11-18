@@ -29,8 +29,7 @@ async function activeLesson(childId, lessonId) {
     { curriculumUnits: { $in: lesson.curriculumUnits || [] }, displayOrder: { $lt: lesson.displayOrder } },
     { curriculumUnits: { $in: earlierUnits.map(unit=>unit._id) } }
   ] }).select('_id').lean();
-  const assigned = child.assignedClass && await require('../models').Assignment.exists({lesson:lessonId,classRoom:child.assignedClass,status:{$in:['ASSIGNED','IN_PROGRESS']},$and:[{$or:[{student:childId},{assignedToType:'CLASS'}]},{$or:[{recipients:{$exists:false}},{recipients:childId}]},{$or:[{startDate:null},{startDate:{$lte:new Date()}}]}]});
-  if (!assigned && preceding.length && await Progress.countDocuments({ child: childId, lesson: { $in: preceding.map(x => x._id) }, completed: true }) !== preceding.length) fail('Complete earlier lessons first.', 409);
+  if (preceding.length && await Progress.countDocuments({ child: childId, lesson: { $in: preceding.map(x => x._id) }, completed: true }) !== preceding.length) fail('Complete earlier lessons first.', 409);
   return lesson;
 }
 module.exports = { assertChildAccess, privateChildQuery, activeLesson, fail };
