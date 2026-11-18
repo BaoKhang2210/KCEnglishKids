@@ -143,30 +143,37 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
         const lessonId = String(lesson._id);
         const serverProg = progressByLessonId.get(lessonId);
 
+        // Stage flags: prefer serverProg (source of truth from DB), fallback to lesson.stages from starLedger
         const stage1Completed = Boolean(
-          lesson.stages?.stage1?.completed ?? serverProg?.stage1Completed
+          serverProg?.stage1Completed ?? lesson.stages?.stage1?.completed
         );
         const stage2Completed = Boolean(
-          lesson.stages?.stage2?.completed ?? serverProg?.stage2Completed
+          serverProg?.stage2Completed ?? lesson.stages?.stage2?.completed
         );
         const stage3Games = Array.from(
-          new Set<string>([...(serverProg?.stage3Games || [])])
+          new Set<string>([...(serverProg?.stage3Games || []), ...(lesson.stages?.stage3?.completedGames ? [] : [])])
         );
         const stage3Completed = Boolean(
-          lesson.stages?.stage3?.completed ??
-          (serverProg?.stage3Completed || stage3Games.length >= 2)
+          serverProg?.stage3Completed ||
+          stage3Games.length >= 2 ||
+          lesson.stages?.stage3?.completed
         );
         const hasStageData = Boolean(
-          lesson.stages ||
           serverProg?.stage1Completed ||
           serverProg?.stage2Completed ||
           serverProg?.stage3Completed ||
-          stage3Games.length > 0
+          stage3Games.length > 0 ||
+          lesson.stages?.stage1?.completed ||
+          lesson.stages?.stage2?.completed ||
+          lesson.stages?.stage3?.completed
         );
-        const completed = isUnitUnlocked && (
-          hasStageData
-            ? Boolean(stage1Completed && stage2Completed && stage3Completed)
-            : Boolean(lesson.completed && serverProg?.completed)
+        // completed: use lesson.completed from displayUnits (starLedger, server-computed) as source of truth.
+        // Fall back to stage-based calculation only when starLedger data isn't available.
+        const completed = isUnitUnlocked && Boolean(
+          lesson.completed ??
+          (hasStageData
+            ? (stage1Completed && stage2Completed && stage3Completed)
+            : (serverProg?.completed))
         );
 
         const computedStars = hasStageData
