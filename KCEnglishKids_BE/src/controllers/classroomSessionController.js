@@ -44,11 +44,11 @@ async function checkTiming(req, classroom) {
   if (!todaySlots.length) {
     fail('Chưa đến giờ dạy theo thời khóa biểu. Lớp học không có ca dạy hôm nay.', 409);
   }
-  const activeSlot = todaySlots.find(slot => clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= Math.max(mins(slot.startTime) + 20, mins(slot.endTime)));
+  const activeSlot = todaySlots.find(slot => clock.minutes >= mins(slot.startTime) - 30 && clock.minutes <= Math.max(mins(slot.startTime) + 20, mins(slot.endTime)));
   if (!activeSlot) {
     const earliest = todaySlots.slice().sort((a, b) => mins(a.startTime) - mins(b.startTime))[0];
-    if (clock.minutes < mins(earliest.startTime) - 15) {
-      fail(`Chưa đến giờ mở lớp dạy. Ca học bắt đầu lúc ${earliest.startTime} (chỉ được mở lớp sớm tối đa 15 phút).`, 409);
+    if (clock.minutes < mins(earliest.startTime) - 30) {
+      fail(`Chưa đến giờ mở lớp dạy. Ca học bắt đầu lúc ${earliest.startTime} (chỉ được mở lớp sớm tối đa 30 phút).`, 409);
     }
     fail(`Đã quá khung giờ mở lớp dạy theo thời khóa biểu (${earliest.startTime} - ${earliest.endTime}). Vui lòng liên hệ quản trị viên hoặc báo nghỉ.`, 409);
   }
