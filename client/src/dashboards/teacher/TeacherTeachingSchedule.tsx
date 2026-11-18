@@ -180,14 +180,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   const handleOpenReportOff = (classroomId: string, className: string, dateString: string, timeSlot?: { startTime: string; endTime: string }, sessionId?: string) => {
     const todayStr = vietnamDate();
-    const currentVnTimeString = `${String(currentVnTime.getHours()).padStart(2, '0')}:${String(currentVnTime.getMinutes()).padStart(2, '0')}`;
+    const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
     if (dateString < todayStr) {
       alert('Không thể báo nghỉ cho buổi học trong quá khứ.');
       return;
     }
-    if (dateString === todayStr && timeSlot?.startTime && currentVnTimeString >= timeSlot.startTime) {
-      alert(`Đã quá thời gian bắt đầu ca dạy (${timeSlot.startTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`);
-      return;
+    if (dateString === todayStr && timeSlot?.startTime) {
+      const [sH, sM] = timeSlot.startTime.split(':').map(Number);
+      if (currentMinutes >= sH * 60 + sM - 30) {
+        alert(`Đã quá thời hạn báo nghỉ cho ca dạy (${timeSlot.startTime}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`);
+        return;
+      }
     }
 
     setReportOffModal({
@@ -207,18 +210,21 @@ export const TeacherTeachingSchedule: React.FC = () => {
   const handleSubmitReportOff = async () => {
     if (!reportOffModal.classroomId) return;
     const todayStr = vietnamDate();
-    const currentVnTimeString = `${String(currentVnTime.getHours()).padStart(2, '0')}:${String(currentVnTime.getMinutes()).padStart(2, '0')}`;
+    const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
     if (reportOffModal.dateString < todayStr) {
       setReportOffModal(prev => ({ ...prev, loading: false, error: 'Không thể báo nghỉ cho buổi học trong quá khứ.' }));
       return;
     }
-    if (reportOffModal.dateString === todayStr && reportOffModal.timeSlot?.startTime && currentVnTimeString >= reportOffModal.timeSlot.startTime) {
-      setReportOffModal(prev => ({
-        ...prev,
-        loading: false,
-        error: `Đã quá thời gian bắt đầu ca dạy (${reportOffModal.timeSlot?.startTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`
-      }));
-      return;
+    if (reportOffModal.dateString === todayStr && reportOffModal.timeSlot?.startTime) {
+      const [sH, sM] = reportOffModal.timeSlot.startTime.split(':').map(Number);
+      if (currentMinutes >= sH * 60 + sM - 30) {
+        setReportOffModal(prev => ({
+          ...prev,
+          loading: false,
+          error: `Đã quá thời hạn báo nghỉ cho ca dạy (${reportOffModal.timeSlot?.startTime}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`
+        }));
+        return;
+      }
     }
     try {
       setReportOffModal(prev => ({ ...prev, loading: true, error: null }));
@@ -454,8 +460,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
             todaySlot = slot;
             if (!activeClassroom) activeClassroom = sch.classroom;
           }
-          // Active slot window: 30 minutes before start up to max(start + 20m, end)
-          if (currentMinutes >= (startMin - 30) && currentMinutes <= Math.max(startMin + 20, endMin)) {
+          // Active slot window: 15 minutes before start up to max(start + 20m, end)
+          if (currentMinutes >= (startMin - 15) && currentMinutes <= Math.max(startMin + 20, endMin)) {
             activeSlot = slot;
             activeClassroom = sch.classroom;
           }
@@ -818,7 +824,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
             <p className="text-sm text-slate-700 mt-1">
               {scheduleLiveTiming.nextSlotText ? (
                 <span>
-                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 30 phút để giáo viên chuẩn bị học cụ và điểm danh.
+                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 15 phút để giáo viên chuẩn bị học cụ và điểm danh.
                 </span>
               ) : (
                 <span>{scheduleLiveTiming.reason}</span>
@@ -984,10 +990,11 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
                         const isPastDay = day.dateString < vietnamDate();
 
-                        // Khoảng 30 phút trước giờ bắt đầu cho tới hết ca học thì cho phép mở lớp:
-                        const isSlotOpenToTeach = day.isToday && currentMinutes >= (startMin - 30) && currentMinutes <= endMin;
+                        // Khoảng 15 phút trước giờ bắt đầu cho tới hết ca học thì cho phép mở lớp; báo nghỉ phải trước giờ bắt đầu ít nhất 30 phút:
+                        const isSlotOpenToTeach = day.isToday && currentMinutes >= (startMin - 15) && currentMinutes <= endMin;
                         const isSlotEndedOrPast = isPastDay || (day.isToday && currentMinutes > endMin);
                         const isSlotStartedOrPast = isPastDay || (day.isToday && currentMinutes >= startMin);
+                        const canReportOffSlot = day.dateString > vietnamDate() || (day.isToday && currentMinutes < (startMin - 30));
 
                         return (
                           <div
@@ -1095,7 +1102,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                             ? `🔴 Đang trong giờ dạy (${slot.startTime} – ${slot.endTime})`
                                             : `🟢 Đã mở lớp trước giờ dạy (Lớp bắt đầu lúc ${slot.startTime})`}
                                         </div>
-                                        {!isSlotStartedOrPast && (
+                                        {canReportOffSlot && (
                                           <button
                                             type="button"
                                             onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
@@ -1109,16 +1116,18 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                       <>
                                         {day.isToday && (
                                           <div className="text-[10px] text-center font-bold text-amber-800 bg-amber-50/80 py-1 px-2 rounded-lg border border-amber-200/80">
-                                            ⏳ Ca hôm nay lúc {slot.startTime} (Chưa đến giờ)
+                                            ⏳ Ca hôm nay lúc {slot.startTime} (Mở lớp trước 15 phút)
                                           </div>
                                         )}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
-                                          className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1.5 text-xs font-bold transition-colors cursor-pointer"
-                                        >
-                                          Báo nghỉ ca này
-                                        </button>
+                                        {canReportOffSlot && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
+                                            className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1.5 text-xs font-bold transition-colors cursor-pointer"
+                                          >
+                                            Báo nghỉ ca này
+                                          </button>
+                                        )}
                                       </>
                                     )}
                                   </div>

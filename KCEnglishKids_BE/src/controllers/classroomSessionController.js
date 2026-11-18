@@ -44,11 +44,11 @@ async function checkTiming(req, classroom) {
   if (!todaySlots.length) {
     fail('Chưa đến giờ dạy theo thời khóa biểu. Lớp học không có ca dạy hôm nay.', 409);
   }
-  const activeSlot = todaySlots.find(slot => clock.minutes >= mins(slot.startTime) - 30 && clock.minutes <= Math.max(mins(slot.startTime) + 20, mins(slot.endTime)));
+  const activeSlot = todaySlots.find(slot => clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= Math.max(mins(slot.startTime) + 20, mins(slot.endTime)));
   if (!activeSlot) {
     const earliest = todaySlots.slice().sort((a, b) => mins(a.startTime) - mins(b.startTime))[0];
-    if (clock.minutes < mins(earliest.startTime) - 30) {
-      fail(`Chưa đến giờ mở lớp dạy. Ca học bắt đầu lúc ${earliest.startTime} (chỉ được mở lớp sớm tối đa 30 phút).`, 409);
+    if (clock.minutes < mins(earliest.startTime) - 15) {
+      fail(`Chưa đến giờ mở lớp dạy. Ca học bắt đầu lúc ${earliest.startTime} (chỉ được mở lớp sớm tối đa 15 phút).`, 409);
     }
     fail(`Đã quá khung giờ mở lớp dạy theo thời khóa biểu (${earliest.startTime} - ${earliest.endTime}). Vui lòng liên hệ quản trị viên hoặc báo nghỉ.`, 409);
   }
@@ -381,9 +381,10 @@ exports.reportOff = wrap(async (req, res) => {
     }
   }
 
-  if (date === todayVn && slotStartTime) {
-    if (vnTimeStr >= slotStartTime) {
-      fail(`Đã quá thời gian bắt đầu ca dạy (${slotStartTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`, 400);
+  if (date === todayVn && slotStartTime && /^\d{2}:\d{2}$/.test(slotStartTime)) {
+    const toMins = (v) => v.split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
+    if (toMins(vnTimeStr) >= toMins(slotStartTime) - 30) {
+      fail(`Đã quá thời hạn báo nghỉ cho ca dạy (${slotStartTime}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`, 400);
     }
   }
 
@@ -448,8 +449,11 @@ exports.cancelSession = wrap(async (req, res) => {
     if (sessionDateStr < todayVn) {
       fail('Không thể báo nghỉ cho buổi học trong quá khứ.', 400);
     }
-    if (sessionDateStr === todayVn && vnTimeStr >= sessionTimeStr) {
-      fail(`Đã quá thời gian bắt đầu ca dạy (${sessionTimeStr}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`, 400);
+    if (sessionDateStr === todayVn && /^\d{2}:\d{2}$/.test(sessionTimeStr)) {
+      const toMins = (v) => v.split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
+      if (toMins(vnTimeStr) >= toMins(sessionTimeStr) - 30) {
+        fail(`Đã quá thời hạn báo nghỉ cho ca dạy (${sessionTimeStr}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`, 400);
+      }
     }
   }
 
