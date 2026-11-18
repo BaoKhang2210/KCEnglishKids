@@ -1034,10 +1034,12 @@ export const TeacherTeachingSchedule: React.FC = () => {
                               )}
                             </div>
 
-                            {/* Row 2: Class name + Room on a single clean line (never wraps vertically) */}
-                            <div className="flex items-center justify-between gap-2 text-[11px] text-slate-700 font-bold">
-                              <span className="truncate font-extrabold text-slate-900" title={cName}>{cName}</span>
-                              {roomText && <span className="shrink-0 whitespace-nowrap text-slate-600">{roomText}</span>}
+                            {/* Row 2: Full Class name (never truncated) + Room */}
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-extrabold text-slate-900 leading-snug">{cName}</p>
+                              {roomText && (
+                                <p className="text-[11px] font-semibold text-slate-600">{roomText}</p>
+                              )}
                             </div>
 
                             {/* Row 3: Lesson info (only when not redundant with cancellation box) */}
@@ -1052,7 +1054,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                     ? 'Bài học hôm nay'
                                     : 'Bài học dự kiến'}
                                 </p>
-                                <p className="font-black text-slate-900 text-xs mt-0.5 truncate" title={`${lessonDisplayTitle}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}`}>
+                                <p className="font-black text-slate-900 text-xs mt-0.5 leading-snug" title={`${lessonDisplayTitle}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}`}>
                                   {effectiveLesson.isUnheld
                                     ? 'Buổi học chưa diễn ra thực tế'
                                     : lessonDisplayTitle}
