@@ -138,7 +138,7 @@ async function prepareDemoAtlas() {
   await M.LearningObservation.deleteMany({});
   await M.HomePracticePlan.deleteMany({});
 
-  // Create 3 ACTIVE classrooms + 1 COMPLETED (ready for Rollover demo) + 1 UPCOMING (ready for activation demo)
+  // Create 3 clean ACTIVE classrooms (1 per age group) with 100% consistent teachers, students & sessions
   const class1 = await M.ClassRoom.create({
     _id: new mongoose.Types.ObjectId('6af1fcff9b357c62ef641115'),
     name: 'Little Stars Class (Age 3–4)',
@@ -179,34 +179,6 @@ async function prepareDemoAtlas() {
     completedLessons: [b3Lessons[0]?._id, b3Lessons[1]?._id].filter(Boolean),
     currentLesson: b3Lessons[2]?._id || b3Lessons[0]?._id,
     status: 'ACTIVE'
-  });
-
-  const classCompletedDemo = await M.ClassRoom.create({
-    name: 'Happy Seedlings (Age 3–4 - Khóa 2025)',
-    teacher: teacherSarah._id,
-    ageGroup: ageGroupsMap['3-4']?._id,
-    ageGroupCode: '3-4',
-    curriculumBook: booksMap['3-4']?._id,
-    academicYear: '2025-2026',
-    students: [],
-    completedLessons: b1Lessons.slice(0, 12).map(l => l._id),
-    currentLesson: b1Lessons[11]?._id || b1Lessons[0]?._id,
-    status: 'COMPLETED',
-    isRolledOver: false
-  });
-
-  const classUpcomingDemo = await M.ClassRoom.create({
-    name: 'Future Buds Class (Age 4–5)',
-    teacher: null,
-    ageGroup: ageGroupsMap['4-5']?._id,
-    ageGroupCode: '4-5',
-    curriculumBook: booksMap['4-5']?._id,
-    academicYear: '2026-2027',
-    students: [],
-    completedLessons: [],
-    currentLesson: b2Lessons[0]?._id,
-    status: 'UPCOMING',
-    isRolledOver: false
   });
 
   // Update teachers' assignedClass & assignedClasses
@@ -405,21 +377,6 @@ async function prepareDemoAtlas() {
       { dayOfWeek: 2, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Full Sentences - ${b3Lessons[1]?.title || ''}`, lesson: b3Lessons[1]?._id, lessonNumber: 2, lessonTitle: b3Lessons[1]?.title || '' },
       { dayOfWeek: 4, startTime: '08:00', endTime: '21:00', room: 'Phòng Lá 3', subjectNote: `Show & Tell - ${b3Lessons[2]?.title || ''}`, lesson: b3Lessons[2]?._id, lessonNumber: 3, lessonTitle: b3Lessons[2]?.title || '' },
       { dayOfWeek: 5, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Weekly Challenge - ${b3Lessons[3]?.title || ''}`, lesson: b3Lessons[3]?._id, lessonNumber: 4, lessonTitle: b3Lessons[3]?.title || '' }
-    ]
-  });
-
-  // Historical schedule for COMPLETED class (ended last month)
-  await M.Schedule.create({
-    classroom: classCompletedDemo._id,
-    teacher: teacherSarah._id,
-    academicYear: '2025-2026',
-    colorTag: 'amber',
-    effectiveFrom: new Date('2026-08-01T00:00:00.000+07:00'),
-    effectiveTo: new Date('2026-11-10T23:59:59.999+07:00'),
-    isActive: true,
-    weeklySlots: [
-      { dayOfWeek: 2, startTime: '14:00', endTime: '14:45', room: 'Phòng Mầm 2', subjectNote: 'Khóa học Mầm 2025 đã hoàn thành' },
-      { dayOfWeek: 4, startTime: '14:00', endTime: '14:45', room: 'Phòng Mầm 2', subjectNote: 'Khóa học Mầm 2025 đã hoàn thành' }
     ]
   });
 
@@ -710,35 +667,6 @@ async function prepareDemoAtlas() {
       totalPoints: 296,
       studentsNeedingPractice: [class3Kids[4]._id],
       topPerformers: [childToby._id, class3Kids[0]._id]
-    }
-  });
-
-  // Historical session for the COMPLETED class (Happy Seedlings) so its "Nhật Ký Các Buổi Dạy Gần Đây" looks great!
-  await M.ClassroomSession.create({
-    classroom: classCompletedDemo._id,
-    teacher: teacherSarah._id,
-    lesson: b1Lessons[11]?._id || b1Lessons[0]?._id,
-    title: 'Buổi tổng kết khóa học & Trao giấy chứng nhận hoàn thành lộ trình 3–4 tuổi',
-    ageGroup: '3-4',
-    status: 'COMPLETED',
-    sessionNumber: 12,
-    startedAt: new Date('2026-11-10T14:00:00.000+07:00'),
-    endedAt: new Date('2026-11-10T14:45:00.000+07:00'),
-    plannedDuration: 45,
-    studentScores: [],
-    teachingOutcome: {
-      coverage: 'COMPLETE',
-      goalsCovered: ['Tổng kết từ vựng toàn khóa 3-4 tuổi', 'Đánh giá năng lực đầu ra để chuẩn bị lên lớp 4-5 tuổi'],
-      reflection: 'Lớp đã hoàn thành xuất sắc chương trình học, đủ điều kiện thực hiện Lên lớp (Rollover) sang khối 4–5 tuổi.',
-      recordedAt: new Date('2026-11-10T14:45:00.000+07:00')
-    },
-    summary: {
-      participationCount: 6,
-      averageAccuracy: 92,
-      totalStars: 24,
-      totalPoints: 290,
-      studentsNeedingPractice: [],
-      topPerformers: []
     }
   });
 
