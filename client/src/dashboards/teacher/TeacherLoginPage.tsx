@@ -75,7 +75,7 @@ export const TeacherLoginPage: React.FC = () => {
           <div className="flex items-center justify-between mb-6">
             <button type="button" onClick={() => { setRecoverStep('NONE'); setError(null); }} className="inline-flex items-center gap-1.5 text-xs font-black text-teal-800 bg-slate-100 hover:bg-white px-3.5 py-1.5 rounded-full border border-teal-200 transition-colors cursor-pointer">
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>← Về đăng nhập</span>
+              <span>Về đăng nhập</span>
             </button>
           </div>
           <div className="text-center mb-6">
@@ -166,7 +166,7 @@ export const TeacherLoginPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 text-xs font-black text-teal-800 hover:text-teal-900 bg-slate-100 hover:bg-white px-3.5 py-1.5 rounded-full border border-teal-200 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>← Bé Học Tại Nhà</span>
+            <span>Bé Học Tại Nhà</span>
           </Link>
         </div>
 
