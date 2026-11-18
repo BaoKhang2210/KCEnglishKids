@@ -51,7 +51,24 @@ interface CurriculumLesson {
   vocabularyItems?: any[];
   activityCount?: number;
   completed: boolean;
+  unlocked?: boolean;
   stars: number;
+  stages?: {
+    stage1: { completed: boolean; stars?: number; unlocked: boolean };
+    stage2: { completed: boolean; stars?: number; unlocked: boolean };
+    stage3: { completed: boolean; stars?: number; completedGames?: number; requiredGames?: number; unlocked: boolean };
+  };
+}
+
+function hasLessonStageProgress(lesson?: CurriculumLesson | null): boolean {
+  if (!lesson) return false;
+  return Boolean(
+    (lesson.stars || 0) > 0 ||
+    lesson.stages?.stage1?.completed ||
+    lesson.stages?.stage2?.completed ||
+    lesson.stages?.stage3?.completed ||
+    (lesson.stages?.stage3?.completedGames || 0) > 0
+  );
 }
 
 interface CurriculumUnit {
@@ -203,7 +220,13 @@ export const ChildHomePage: React.FC = () => {
             pathRes.data.forEach((unit: CurriculumUnit, unitIdx: number) => {
               const isUnitAccessible = unitIdx === 0 || !!pathRes.data[unitIdx - 1]?.isCompleted;
               (unit.lessons || []).forEach((lesson: CurriculumLesson, lessonIdx: number) => {
-                const isLessonAccessible = isUnitAccessible && (lesson.completed || lessonIdx === 0 || !!unit.lessons[lessonIdx - 1]?.completed);
+                const isLessonAccessible = isUnitAccessible && (
+                  lesson.completed ||
+                  lesson.unlocked ||
+                  hasLessonStageProgress(lesson) ||
+                  lessonIdx === 0 ||
+                  !!unit.lessons[lessonIdx - 1]?.completed
+                );
                 if ((lesson.completed || isLessonAccessible) && Array.isArray(lesson.vocabularyItems)) {
                   lesson.vocabularyItems.forEach(v => {
                     if (v && (v._id || v.word || v.english)) journeyVocabs.push(v);
@@ -263,13 +286,24 @@ export const ChildHomePage: React.FC = () => {
   const ledgerUnitsById = new Map((ledger?.units || []).map(unit => [unit.id, unit]));
   const displayUnits = units.map(unit => {
     const starUnit = ledgerUnitsById.get(String(unit._id));
-    if (!starUnit) return { ...unit, lessons: unit.lessons.map(lesson => ({ ...lesson, stars: 0 })) };
+    if (!starUnit) return { ...unit, lessons: unit.lessons.map(lesson => ({ ...lesson, stars: lesson.stars || 0 })) };
     const lessonsById = new Map(starUnit.lessons.map(lesson => [lesson.id, lesson]));
-    return { ...unit, isCompleted: starUnit.completed,
+    return {
+      ...unit,
+      isCompleted: starUnit.completed,
       lessons: unit.lessons.map(lesson => {
         const starLesson = lessonsById.get(String(lesson._id));
-        return starLesson ? { ...lesson, completed: starLesson.completed, stars: starLesson.stars } : lesson;
-      }) };
+        return starLesson
+          ? {
+              ...lesson,
+              completed: starLesson.completed,
+              unlocked: starLesson.unlocked,
+              stars: starLesson.stars,
+              stages: starLesson.stages
+            }
+          : lesson;
+      })
+    };
   });
 
   // §1.2.16 — stickers are only granted by server chests (+ starter sticker)
@@ -419,6 +453,8 @@ export const ChildHomePage: React.FC = () => {
                     const ledgerUnit = ledgerUnitsById.get(String(unit._id));
                     const isUnitUnlocked = !!ledgerUnit?.unlocked || !!ledgerUnit?.completed || (unitIdx === 0 || !!displayUnits[unitIdx - 1]?.isCompleted);
                     const completedLessonCount = unit.lessons.filter(l => l.completed).length;
+                    const inProgressLessonCount = unit.lessons.filter(l => !l.completed && hasLessonStageProgress(l)).length;
+                    const unitStarsCount = ledgerUnit?.stars ?? unit.lessons.reduce((sum, l) => sum + (l.stars || 0), 0);
                     const totalLessonCount = unit.lessons.length;
 
                     const theme = UNIT_THEMES[unitIdx % UNIT_THEMES.length];
@@ -467,8 +503,8 @@ export const ChildHomePage: React.FC = () => {
                               {topicArt(unit.topicSlug) ? <img src={topicArt(unit.topicSlug)} alt="" className="w-full h-full object-cover rounded-xl" /> : unit.topicIcon || theme.accentEmoji}
                             </div>
                             <div className="min-w-0 flex-1">
-                              {/* Dòng 1: Status Badge & Big Question Tag (Đã bỏ tag Unit bị trùng lặp) */}
-                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                              {/* Dòng 1: Status Badge (Đồng nhất Tiếng Anh, gọn gàng) */}
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 {!isUnitUnlocked ? (
                                   <span className="bg-slate-200 text-slate-600 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-300">
                                     <LockKeyhole className="w-3.5 h-3.5" /> Locked
@@ -478,14 +514,8 @@ export const ChildHomePage: React.FC = () => {
                                     <Check className="w-3.5 h-3.5 stroke-[3]" /> Completed
                                   </span>
                                 ) : (
-                                  <span className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1.5 border border-amber-300 animate-pulse">
+                                  <span className="bg-amber-100 text-amber-900 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1.5 border border-amber-300">
                                     <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-500" /> Exploring
-                                  </span>
-                                )}
-
-                                {unit.bigQuestion && (
-                                  <span className="bg-purple-100 text-purple-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-purple-200">
-                                    Big Question
                                   </span>
                                 )}
                               </div>
@@ -497,17 +527,31 @@ export const ChildHomePage: React.FC = () => {
 
                               {/* Dòng 3: Big Question / Subtitle đặc trưng giáo trình */}
                               <p className="text-xs sm:text-sm font-bold text-slate-600 mt-1 truncate">
-                                {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.topicVietnameseName ? `${unit.topicVietnameseName}` : unit.storyTitle || ''}
+                                {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : unit.storyTitle || ''}
                               </p>
                             </div>
                           </div>
 
-                          {/* Right: lesson completion and action */}
+                          {/* Right: lesson completion and action (English consistent) */}
                           <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
                             <div className="text-right">
                               <span className="text-xs sm:text-sm font-black text-slate-700 block" aria-label={ledger && totalLessonCount ? `${completedLessonCount} trên ${totalLessonCount} bài học hoàn thành` : undefined}>
-                                {ledger ? totalLessonCount ? `${completedLessonCount}/${totalLessonCount} Lessons` : 'Chưa có Lessons' : rewardsLoading ? 'Đang tải tiến độ bài học…' : 'Chưa có tiến độ bài học'}
+                                {ledger ? totalLessonCount ? `${completedLessonCount}/${totalLessonCount} Lessons` : '0 Lessons' : rewardsLoading ? 'Loading…' : `${completedLessonCount}/${totalLessonCount} Lessons`}
                               </span>
+                              {isUnitUnlocked && (inProgressLessonCount > 0 || unitStarsCount > 0) && (
+                                <div className="mt-1 flex items-center justify-end gap-1.5 flex-wrap">
+                                  {inProgressLessonCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-black text-amber-900">
+                                      🚀 {inProgressLessonCount} In Progress
+                                    </span>
+                                  )}
+                                  {unitStarsCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 border border-amber-300 px-2 py-0.5 text-[11px] font-black text-amber-900">
+                                      ⭐ {unitStarsCount} Stars
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             <button
@@ -903,7 +947,8 @@ export const ChildHomePage: React.FC = () => {
 
         {/* Unit Journey Stepping Stones Popup Modal */}
         {selectedUnitModal && (() => {
-          const { unit, unitIndex, theme, isUnitUnlocked } = selectedUnitModal;
+          const { unitIndex, theme, isUnitUnlocked } = selectedUnitModal;
+          const unit = displayUnits[unitIndex] || selectedUnitModal.unit;
           const firstIncompleteIdx = unit.lessons.findIndex(l => !l.completed);
 
           // §1.2 — chest state for THIS unit (server truth)
@@ -923,20 +968,10 @@ export const ChildHomePage: React.FC = () => {
                       {topicArt(unit.topicSlug) ? <img src={topicArt(unit.topicSlug)} alt="" className="w-full h-full object-cover rounded-xl" /> : unit.topicIcon || theme.accentEmoji}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[11px] sm:text-xs font-black uppercase px-2.5 py-0.5 rounded-full border shadow-2xs ${theme.headerBadge}`}>
-                          Unit {unit.unitNumber} • {theme.tag}
-                        </span>
-                        {unit.isCompleted && (
-                          <span className="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-300">
-                            <Check className="w-3 h-3 stroke-[3]" /> Hoàn thành
-                          </span>
-                        )}
-                      </div>
                       <h3 className="font-black text-xl sm:text-2xl text-slate-800 font-display">
                         Unit {unit.unitNumber}: {unit.topicName || unit.storyTitle || 'Lesson'}
                       </h3>
-                      <p className="text-xs sm:text-sm font-bold text-slate-600">
+                      <p className="text-xs sm:text-sm font-bold text-slate-600 mt-0.5">
                         {unit.topicVietnameseName ? `${unit.topicVietnameseName} • ` : ''}
                         {unit.bigQuestion ? `💬 "${unit.bigQuestion}"` : ''}
                       </p>
@@ -965,8 +1000,21 @@ export const ChildHomePage: React.FC = () => {
                     <div className="w-full max-w-xl flex flex-col gap-6 relative z-10">
                       {unit.lessons.map((lesson, idx) => {
                         const isAlternateRight = idx % 2 === 1;
-                        const isLessonUnlocked = isUnitUnlocked && (idx === 0 || !!unit.lessons[idx - 1]?.completed);
+                        const isStarted = hasLessonStageProgress(lesson);
+                        const isInProgress = !lesson.completed && isStarted;
+                        const isLessonUnlocked = isUnitUnlocked && (
+                          lesson.completed ||
+                          lesson.unlocked ||
+                          isStarted ||
+                          idx === 0 ||
+                          !!unit.lessons[idx - 1]?.completed
+                        );
                         const isCurrent = isUnitUnlocked && !lesson.completed && (firstIncompleteIdx === idx || firstIncompleteIdx === -1);
+                        const stage1Done = Boolean(lesson.stages?.stage1?.completed || lesson.completed);
+                        const stage2Done = Boolean(lesson.stages?.stage2?.completed || lesson.completed);
+                        const stage3Done = Boolean(lesson.stages?.stage3?.completed || lesson.completed);
+                        const stage3GamesCount = lesson.stages?.stage3?.completedGames ?? (stage3Done ? 2 : 0);
+                        const stage3ReqCount = lesson.stages?.stage3?.requiredGames ?? 2;
 
                         return (
                           <motion.div
@@ -997,11 +1045,11 @@ export const ChildHomePage: React.FC = () => {
                                 setSelectedUnitModal(null);
                                 navigate(`/lessons/${lesson._id}`);
                               }}
-                              className={`group flex items-center gap-3.5 p-3.5 sm:p-4 rounded-[24px] border-3 text-left transition-all duration-300 cursor-pointer w-full max-w-[340px] sm:max-w-[400px] relative ${
+                              className={`group flex items-center gap-3.5 p-3.5 sm:p-4 rounded-[24px] border-3 text-left transition-all duration-300 cursor-pointer w-full max-w-[360px] sm:max-w-[430px] relative ${
                                 lesson.completed
                                   ? 'bg-white border-emerald-300 hover:border-emerald-400 hover:shadow-xl hover:scale-103 shadow-sm'
-                                  : isCurrent
-                                  ? 'bg-gradient-to-r from-amber-50 via-white to-orange-50 border-amber-400 ring-3 ring-amber-300 animate-active-stone shadow-lg scale-103'
+                                  : isCurrent || isInProgress
+                                  ? 'bg-gradient-to-r from-amber-50 via-white to-orange-50 border-amber-400 ring-3 ring-amber-300/80 shadow-lg hover:scale-103'
                                   : isLessonUnlocked
                                   ? 'bg-white border-amber-200/90 hover:border-amber-400 hover:shadow-md hover:scale-102 shadow-xs'
                                   : 'bg-slate-100/90 border-slate-200 opacity-60'
@@ -1012,7 +1060,7 @@ export const ChildHomePage: React.FC = () => {
                                 className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shadow-sm flex-shrink-0 transition-transform ${
                                   lesson.completed
                                     ? 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white'
-                                    : isCurrent
+                                    : isCurrent || isInProgress
                                     ? 'bg-gradient-to-tr from-amber-400 via-yellow-400 to-orange-500 text-amber-950 group-hover:scale-110'
                                     : isLessonUnlocked
                                     ? 'bg-gradient-to-br from-amber-100 to-yellow-200 text-amber-900 border border-amber-300'
@@ -1030,16 +1078,30 @@ export const ChildHomePage: React.FC = () => {
 
                               {/* Lesson Info */}
                               <div className="min-w-0 pr-2 flex-1">
-                                <div className="flex items-center gap-1.5 mb-0.5">
+                                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                                   <span className="text-[10px] font-black uppercase text-slate-400">
                                     Lesson {lesson.lessonNumber || idx + 1}
                                   </span>
-                                  {lesson.completed ? (
-                                    <span className="flex items-center text-amber-500 text-xs">
-                                      {/* §1.2.18 — never render fake stars (|| 3) */}
-                                      {[...Array(lesson.stars || 0)].map((_, i) => (
-                                        <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                                  {(lesson.completed || (lesson.stars || 0) > 0) && (
+                                    <span className="flex items-center gap-0.5 text-amber-500 text-xs">
+                                      {[0, 1, 2].map((i) => (
+                                        <Star
+                                          key={i}
+                                          className={`w-3.5 h-3.5 ${
+                                            i < (lesson.stars || 0)
+                                              ? 'fill-amber-400 text-amber-500'
+                                              : 'fill-slate-100 text-slate-300'
+                                          }`}
+                                        />
                                       ))}
+                                      <span className="ml-0.5 text-[10px] font-black text-amber-800">
+                                        {lesson.stars || 0}/3
+                                      </span>
+                                    </span>
+                                  )}
+                                  {isInProgress ? (
+                                    <span className="text-[10px] font-black text-amber-900 bg-amber-200 border border-amber-300 px-2 py-0.5 rounded-full">
+                                      Đang học dở 🚀
                                     </span>
                                   ) : isCurrent ? (
                                     <span className="text-[10px] font-black text-amber-900 bg-amber-300 px-2 py-0.5 rounded-full animate-pulse">
@@ -1058,6 +1120,19 @@ export const ChildHomePage: React.FC = () => {
                                   {lesson.vietnameseTitle ? `${lesson.vietnameseTitle} • ` : ''}
                                   {lesson.vocabularyItems?.length || 4} từ vựng
                                 </p>
+                                {isInProgress && (
+                                  <div className="mt-1.5 flex items-center gap-1 flex-wrap text-[10px] font-black">
+                                    <span className={`px-1.5 py-0.5 rounded-md border ${stage1Done ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                                      Chặng 1 {stage1Done ? '✓' : '…'}
+                                    </span>
+                                    <span className={`px-1.5 py-0.5 rounded-md border ${stage2Done ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                                      Chặng 2 {stage2Done ? '✓' : '…'}
+                                    </span>
+                                    <span className={`px-1.5 py-0.5 rounded-md border ${stage3Done ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-100 border-amber-300 text-amber-950'}`}>
+                                      Chặng 3: {stage3GamesCount}/{stage3ReqCount} minigame
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </button>
                           </motion.div>

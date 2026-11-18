@@ -18,7 +18,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { parentNotificationApi } from '../../services/api';
-import { type Stage2PracticeSession } from '../../services/vocabStatsService';
+import { vocabStatsService, type Stage2PracticeSession } from '../../services/vocabStatsService';
 import { sfx } from '../../utils/audio';
 
 interface ReplyItem {
@@ -122,6 +122,9 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [practiceSessions, setPracticeSessions] = useState<Stage2PracticeSession[]>(() =>
+    vocabStatsService.getAllStage2Sessions(childId)
+  );
 
   const loadNotifications = async () => {
     try {
@@ -165,6 +168,12 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
     void loadNotifications();
     void loadAssignments();
     void loadSchedule();
+    void vocabStatsService.syncFromServer(childId).then(() => {
+      setPracticeSessions(vocabStatsService.getAllStage2Sessions(childId));
+    });
+    const onSaved = () => setPracticeSessions(vocabStatsService.getAllStage2Sessions(childId));
+    window.addEventListener('kc_stage2_session_saved', onSaved);
+    return () => window.removeEventListener('kc_stage2_session_saved', onSaved);
   }, [childId]);
 
   const handleStartAssignment = (assignment: any) => {
@@ -646,24 +655,7 @@ export const ParentNotebookModal: React.FC<ParentNotebookModalProps> = ({
           {/* TAB 4: PRACTICE SESSION HISTORY */}
           {activeTab === 'PRACTICE' && (
             (() => {
-              // Gather all session keys from localStorage for this child
-              const prefix = `kc_stage2_sessions_${childId}_`;
-              const allSessions: Stage2PracticeSession[] = [];
-              try {
-                for (let i = 0; i < localStorage.length; i++) {
-                  const key = localStorage.key(i);
-                  if (key && key.startsWith(prefix)) {
-                    const raw = localStorage.getItem(key);
-                    if (raw) {
-                      const list = JSON.parse(raw);
-                      if (Array.isArray(list)) allSessions.push(...list);
-                    }
-                  }
-                }
-              } catch {}
-
-              // Sort by newest completedAt
-              allSessions.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+              const allSessions = practiceSessions;
 
               if (allSessions.length === 0) {
                 return (

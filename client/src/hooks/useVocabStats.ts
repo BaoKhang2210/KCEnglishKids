@@ -14,6 +14,7 @@ export function useVocabStats(childId: string) {
   );
 
   useEffect(() => {
+    void vocabStatsService.syncFromServer(childId);
     const handleUpdate = (e: any) => {
       if (e.detail?.childId === childId) {
         setStatsMap(vocabStatsService.getStats(childId));

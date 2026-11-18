@@ -6,6 +6,7 @@ const {
   updateStageProgress
 } = require('../controllers/progressController');
 const vocabMasteryController = require('../controllers/vocabMasteryController');
+const clientStateController = require('../controllers/clientStateController');
 const { getChildRewards, revealChildChest } = require('../controllers/rewardController');
 const { protect, ownChildOr403, childRewardReadAccess } = require('../middlewares/authMiddleware');
 const early = require('../controllers/earlyLearningController');
@@ -48,6 +49,11 @@ router.post('/:childId/vocabulary-review/:vocabId', protect, ownChildOr403(), vo
 // §1.2 — rewards (stars + chests + stickers)
 router.get('/:childId/rewards', protect, childRewardReadAccess, getChildRewards);
 router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(), revealChildChest);
+
+// Cross-device MongoDB Client State (vocabStats, stage2Sessions, lesson checkpoints, self-marks, preferences)
+router.get('/:childId/client-state', protect, ownChildOr403(), clientStateController.getClientState);
+router.put('/:childId/client-state', protect, ownChildOr403(), clientStateController.updateClientState);
+router.delete('/:childId/client-state/vocab-stats', protect, ownChildOr403(), clientStateController.clearVocabStats);
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');

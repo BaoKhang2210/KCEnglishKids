@@ -14,6 +14,8 @@ import type { Vocabulary } from '../../../types';
 import { playWordAudio, stopWordAudio, sfx } from '../../../utils/audio';
 import { wordArt } from '../../../utils/learningArt';
 import { KokoMascot } from '../KokoMascot';
+import { useAuth } from '../../../context/AuthContext';
+import { clientStateApi } from '../../../services/api';
 
 /**
  * CẤU HÌNH PHÁT ÂM KHI CHUYỂN THẺ
@@ -223,9 +225,21 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
   const [imageErrorMap, setImageErrorMap] = useState<Record<string, boolean>>({});
   const [slideDirection, setSlideDirection] = useState<'next' | 'prev' | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const { user } = useAuth();
+  const childId = (user as any)?._id || (user as any)?.id || '';
   const [hasInteracted, setHasInteracted] = useState<boolean>(() => {
     return localStorage.getItem('kc_flashcard_flip_guided') === 'true';
   });
+
+  useEffect(() => {
+    if (!childId || !/^[0-9a-fA-F]{24}$/.test(childId)) return;
+    void clientStateApi.getClientState(childId).then((res) => {
+      if (res?.data?.preferences?.flashcardFlipGuided) {
+        setHasInteracted(true);
+        try { localStorage.setItem('kc_flashcard_flip_guided', 'true'); } catch {}
+      }
+    }).catch(() => {});
+  }, [childId]);
 
   // §3.4 — Chế độ "Cùng Koko đọc truyện": Koko dẫn chuyện qua từng thẻ (Epic!-style).
   const [isStorytelling, setIsStorytelling] = useState(false);
@@ -321,6 +335,9 @@ export const ExploreSceneStage: React.FC<ExploreSceneStageProps> = ({
         localStorage.setItem('kc_flashcard_flip_guided', 'true');
       } catch {
         /* storage fallback */
+      }
+      if (childId && /^[0-9a-fA-F]{24}$/.test(childId)) {
+        void clientStateApi.updateClientState(childId, { preferences: { flashcardFlipGuided: true } }).catch(() => {});
       }
     }
 

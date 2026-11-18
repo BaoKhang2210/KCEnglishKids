@@ -112,11 +112,22 @@ const getCurriculumPath = async (req, res, next) => {
       const ledgerLessons = new Map((ledgerUnit?.lessons || []).map(row => [row.id, row]));
       const displayLessons = ledgerUnit ? unitLessons.map(lesson => {
         const starLesson = ledgerLessons.get(String(lesson._id));
-        return starLesson ? { ...lesson, completed: starLesson.completed, stars: starLesson.stars, stages: starLesson.stages } : lesson;
+        return starLesson
+          ? {
+              ...lesson,
+              completed: starLesson.completed,
+              unlocked: starLesson.unlocked,
+              stars: starLesson.stars,
+              stages: starLesson.stages
+            }
+          : lesson;
       }) : unitLessons;
       const unitTopic = unitLessons[0]?.topic || null;
-      const completedLessons = ledgerUnit?.completedLessons ?? unitLessons.filter(l => l.completed).length;
-      const totalUnitStars = ledgerUnit?.stars ?? unitLessons.reduce((sum, l) => sum + (l.stars || 0), 0);
+      const completedLessons = ledgerUnit?.completedLessons ?? displayLessons.filter(l => l.completed).length;
+      const inProgressLessons = displayLessons.filter(
+        l => !l.completed && ((l.stars || 0) > 0 || l.stages?.stage1?.completed || l.stages?.stage2?.completed || (l.stages?.stage3?.completedGames || 0) > 0)
+      ).length;
+      const totalUnitStars = ledgerUnit?.stars ?? displayLessons.reduce((sum, l) => sum + (l.stars || 0), 0);
 
       return {
         _id: unit._id,
@@ -132,6 +143,7 @@ const getCurriculumPath = async (req, res, next) => {
         lessons: displayLessons,
         totalLessons: displayLessons.length,
         completedLessons,
+        inProgressLessons,
         maxUnitStars: ledgerUnit?.maxStars,
         totalUnitStars,
         isCompleted: ledgerUnit?.completed ?? (unitLessons.length > 0 && completedLessons === unitLessons.length)

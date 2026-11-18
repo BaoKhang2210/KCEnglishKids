@@ -29,6 +29,7 @@ import type {
 } from '../../types';
 import { vocabReviewService } from '../../services/vocabReviewService';
 import { vocabMasteryService } from '../../services/vocabMasteryService';
+import { clientStateApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { playWordAudio, preloadWordAudio, sfx, stopWordAudio } from '../../utils/audio';
 import { childSpeechEngine } from '../../utils/speechRecognition';
@@ -77,8 +78,12 @@ const readOpinions = (childId: string): Record<string, number> => {
 };
 const saveOpinion = (childId: string, vocabId: string) => {
   const rows = readOpinions(childId);
-  rows[vocabId] = Date.now();
+  const ts = Date.now();
+  rows[vocabId] = ts;
   localStorage.setItem(opinionKey(childId), JSON.stringify(rows));
+  if (childId && childId !== 'guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+    void clientStateApi.updateClientState(childId, { vocabSelfMarks: { [vocabId]: ts } }).catch(() => {});
+  }
 };
 
 const emptyNotebook = (ageGroup: AgeGroupCode, words: VocabReviewWord[]): VocabNotebook => ({
@@ -358,6 +363,14 @@ export const ChildVocabNotebookSection: React.FC<ChildVocabNotebookSectionProps>
   useEffect(() => {
     aliveRef.current = true;
     setOpinions(readOpinions(childId));
+    if (childId && childId !== 'guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+      void clientStateApi.getClientState(childId).then((res) => {
+        if (!aliveRef.current || !res?.success || !res.data?.vocabSelfMarks) return;
+        const merged = { ...readOpinions(childId), ...res.data.vocabSelfMarks };
+        localStorage.setItem(opinionKey(childId), JSON.stringify(merged));
+        setOpinions(merged);
+      }).catch(() => {});
+    }
     setLoading(true);
     void vocabReviewService.flush(childId).finally(() => { void refresh(); });
     const onUpdate = (event: Event) => {

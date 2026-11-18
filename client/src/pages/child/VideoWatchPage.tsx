@@ -29,7 +29,7 @@ import { VideoExercisePanel } from '../../components/child/video/VideoExercisePa
 import { VideoLessonSidebar } from '../../components/child/video/VideoLessonSidebar';
 import { YouTubeBadge } from '../../components/child/video/YouTubeBadge';
 import { useAuth } from '../../context/AuthContext';
-import { videoApi } from '../../services/api';
+import { videoApi, clientStateApi } from '../../services/api';
 import { playWordAudio, sfx } from '../../utils/audio';
 import type {
   AgeGroupCode,
@@ -80,6 +80,18 @@ export const VideoWatchPage: React.FC = () => {
     }
     return Boolean(videoConfig.autoNext?.enabledByDefault);
   });
+
+  useEffect(() => {
+    const cid = (user as any)?._id || (user as any)?.id || '';
+    if (!cid || !/^[0-9a-fA-F]{24}$/.test(cid)) return;
+    void clientStateApi.getClientState(cid).then((res) => {
+      if (typeof res?.data?.preferences?.videoAutoNext === 'boolean') {
+        const val = res.data.preferences.videoAutoNext;
+        setAutoNext(val);
+        try { window.localStorage.setItem('kc_video_autonext', val ? '1' : '0'); } catch {}
+      }
+    }).catch(() => {});
+  }, [user]);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownTargetRef = useRef<{ fromEpisodeId: string; episodeNumber: number } | null>(null);
   const [hasEnded, setHasEnded] = useState(false);
@@ -427,6 +439,10 @@ export const VideoWatchPage: React.FC = () => {
         window.localStorage.setItem('kc_video_autonext', next ? '1' : '0');
       } catch {
         // Preference is optional.
+      }
+      const cid = (user as any)?._id || (user as any)?.id || '';
+      if (cid && /^[0-9a-fA-F]{24}$/.test(cid)) {
+        void clientStateApi.updateClientState(cid, { preferences: { videoAutoNext: next } }).catch(() => {});
       }
       if (!next) setCountdown(null);
       return next;

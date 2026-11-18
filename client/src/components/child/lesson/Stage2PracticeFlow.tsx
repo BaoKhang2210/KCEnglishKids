@@ -25,6 +25,7 @@ import { X, Volume2, Check, ThumbsUp, ThumbsDown } from 'lucide-react';
 import type { Vocabulary, AgeGroupCode, ActivityQuestion } from '../../../types';
 import { sfx, playWordAudio, preloadWordAudio } from '../../../utils/audio';
 import { useAuth } from '../../../context/AuthContext';
+import { clientStateApi } from '../../../services/api';
 import { useVocabStats } from '../../../hooks/useVocabStats';
 import {
   vocabStatsService,
@@ -931,7 +932,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   useEffect(() => {
     if (isCompleted || showSavedSummary || showResumePrompt || showSessionIntro || roundTransition || !questions.length) return;
     try {
-      localStorage.setItem(checkpointKey, JSON.stringify({
+      const cpPayload: Stage2Checkpoint = {
         lessonId,
         sessionId: practiceSessionIdRef.current || undefined,
         vocabularyIds: vocabulary.map((word) => word._id || (word as any).id || word.english),
@@ -945,7 +946,11 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         sessionWordStats,
         startedAt: sessionStartTime,
         round2: round2State,
-      } satisfies Stage2Checkpoint));
+      };
+      localStorage.setItem(checkpointKey, JSON.stringify(cpPayload));
+      if (lessonId && childId && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+        void clientStateApi.updateClientState(childId, { lessonId, lessonState: { stage2Checkpoint: cpPayload } }).catch(() => {});
+      }
     } catch { /* Continue practice when storage is unavailable. */ }
   }, [checkpointKey, lessonId, vocabulary, questions, variantByWordId, requeuedWordIds, currentIdx, wrongCount, totalWrongAttempts, sessionWordStats, sessionStartTime, isCompleted, showSavedSummary, showResumePrompt, showSessionIntro, roundTransition, round2State]);
 
@@ -1250,6 +1255,10 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
       if (result?.confirmed) {
         setSummaryReport(result);
         setSummaryError('');
+        try { localStorage.removeItem(checkpointKey); } catch { /* optional storage */ }
+        if (lessonId && childId && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+          void clientStateApi.updateClientState(childId, { lessonId, lessonState: { stage2Checkpoint: null } }).catch(() => {});
+        }
       } else {
         setSummaryError('Kết quả đang chờ máy chủ xác nhận. Bé thử đồng bộ lại nhé.');
       }
@@ -1273,7 +1282,7 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
 
   const saveAndExit = () => {
     try {
-      localStorage.setItem(checkpointKey, JSON.stringify({
+      const cpPayload: Stage2Checkpoint = {
         lessonId,
         sessionId: practiceSessionIdRef.current || undefined,
         vocabularyIds: vocabulary.map((word) => word._id || (word as any).id || word.english),
@@ -1287,7 +1296,11 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
         sessionWordStats,
         startedAt: sessionStartTime,
         round2: round2State,
-      } satisfies Stage2Checkpoint));
+      };
+      localStorage.setItem(checkpointKey, JSON.stringify(cpPayload));
+      if (lessonId && childId && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+        void clientStateApi.updateClientState(childId, { lessonId, lessonState: { stage2Checkpoint: cpPayload } }).catch(() => {});
+      }
     } catch { /* Saving is best effort; the child can still leave. */ }
     if (onBackToStage1) onBackToStage1();
     else setShowSessionIntro(true);
@@ -1337,6 +1350,9 @@ export const Stage2PracticeFlow: React.FC<Stage2PracticeFlowProps> = ({
   const restartFromBeginning = () => {
     sfx.playPop();
     try { localStorage.removeItem(checkpointKey); } catch { /* optional storage */ }
+    if (lessonId && childId && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+      void clientStateApi.updateClientState(childId, { lessonId, lessonState: { stage2Checkpoint: null } }).catch(() => {});
+    }
     setCurrentIdx(0);
     setQuestionOverride(plan.questions);
     setRequeuedWordIds(new Set());

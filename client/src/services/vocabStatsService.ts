@@ -7,6 +7,7 @@
  */
 
 import { vocabMasteryService } from './vocabMasteryService';
+import { clientStateApi } from './api';
 import type { Vocabulary } from '../types';
 
 export type ActivityType = 'LT' | 'FS' | 'GK' | 'YN' | 'SS' | 'LOOK_WORD' | 'WIPE' | 'MEMORY' | 'TRACE' | 'SLIDE' | 'DELIVER' | 'PUPPET' | 'SEQUENCE' | 'PATH' | 'MATCH_LINES';
@@ -256,6 +257,10 @@ export const vocabStatsService = {
       console.warn('Failed to save vocab stats:', e);
     }
 
+    if (childId && childId !== 'default' && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+      void clientStateApi.updateClientState(childId, { vocabStats: { [wordId]: cur } }).catch(() => {});
+    }
+
     // Sync one completed round outcome to the notebook and server, not every wrong tap.
     if (payload.vocab && payload.affectsMastery !== false) {
       vocabMasteryService.registerJourneyWords(childId,[payload.vocab]);
@@ -301,6 +306,83 @@ export const vocabStatsService = {
     } catch (e) {
       console.warn('Failed to clear stats:', e);
     }
+    if (childId && childId !== 'default' && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+      void clientStateApi.clearVocabStats(childId).catch(() => {});
+    }
+  },
+
+  async syncFromServer(childId: string): Promise<void> {
+    if (!childId || childId === 'default' || childId === 'child_guest' || !/^[0-9a-fA-F]{24}$/.test(childId)) {
+      return;
+    }
+    try {
+      const res = await clientStateApi.getClientState(childId);
+      if (!res?.success || !res.data) return;
+      const serverStats = res.data.vocabStats || {};
+      const localStats = this.getStats(childId);
+      const merged: ChildVocabStatsMap = { ...serverStats };
+      for (const [wId, lStat] of Object.entries(localStats)) {
+        const sStat = serverStats[wId];
+        if (!sStat || (lStat.updatedAt || 0) > (sStat.updatedAt || 0)) {
+          merged[wId] = lStat;
+        }
+      }
+      localStorage.setItem(getStatsStorageKey(childId), JSON.stringify(merged));
+      window.dispatchEvent(
+        new CustomEvent('kc_vocab_stats_updated', { detail: { childId } })
+      );
+
+      const serverSessions: Stage2PracticeSession[] = Array.isArray(res.data.stage2Sessions)
+        ? res.data.stage2Sessions
+        : [];
+      const byLesson = new Map<string, Stage2PracticeSession[]>();
+      for (const s of serverSessions) {
+        if (!s?.lessonId) continue;
+        const lid = String(s.lessonId);
+        byLesson.set(lid, [...(byLesson.get(lid) || []), s]);
+      }
+      for (const [lid, sList] of byLesson.entries()) {
+        const existing = this.getStage2Sessions(childId, lid);
+        const map = new Map<string, Stage2PracticeSession>();
+        for (const item of [...sList, ...existing]) {
+          if (item?.sessionId && !map.has(item.sessionId)) map.set(item.sessionId, item);
+        }
+        const combined = [...map.values()]
+          .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))
+          .slice(0, 20);
+        localStorage.setItem(getStage2SessionsStorageKey(childId, lid), JSON.stringify(combined));
+      }
+      window.dispatchEvent(new CustomEvent('kc_stage2_session_saved', { detail: { childId } }));
+    } catch {
+      /* offline fallback uses local cache */
+    }
+  },
+
+  getAllStage2Sessions(childId: string): Stage2PracticeSession[] {
+    const prefix = `${STAGE2_SESSIONS_PREFIX}${childId || 'default'}_`;
+    const allSessions: Stage2PracticeSession[] = [];
+    const seen = new Set<string>();
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              for (const item of list) {
+                const sid = item?.sessionId || `${item?.lessonId}_${item?.completedAt}`;
+                if (!seen.has(sid)) {
+                  seen.add(sid);
+                  allSessions.push(item);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+    return allSessions.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
   },
 
   getStage2Sessions(childId: string, lessonId: string): Stage2PracticeSession[] {
@@ -328,6 +410,9 @@ export const vocabStatsService = {
       );
     } catch (e) {
       console.warn('Failed to save stage2 session:', e);
+    }
+    if (session.childId && session.childId !== 'default' && session.childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(session.childId)) {
+      void clientStateApi.updateClientState(session.childId, { stage2Session: session }).catch(() => {});
     }
   },
 };

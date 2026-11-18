@@ -148,15 +148,13 @@ export const PictureBuilderGame: React.FC<GameComponentProps> = ({
       {/* Puzzle Board */}
       <div className="flex-1 flex flex-col items-center justify-center gap-2 min-h-0">
         <div
-          className={`relative grid gap-1.5 p-2 w-[min(64vmin,280px)] ${
-            rows === 1 ? 'h-[min(34vmin,150px)]' : 'h-[min(64vmin,280px)]'
-          } bg-slate-900/70 border-4 rounded-3xl overflow-hidden shadow-2xl transition-all ${
-            isComplete
+          className={`relative grid gap-1.5 p-2 w-[min(64vmin,280px)] ${rows === 1 ? 'h-[min(34vmin,150px)]' : 'h-[min(64vmin,280px)]'
+            } bg-slate-900/70 border-4 rounded-3xl overflow-hidden shadow-2xl transition-all ${isComplete
               ? 'border-emerald-300 ring-8 ring-emerald-400/40 scale-105'
               : attemptCount >= 2
-              ? 'border-amber-300 ring-6 ring-amber-300/40'
-              : 'border-white/30'
-          }`}
+                ? 'border-amber-300 ring-6 ring-amber-300/40'
+                : 'border-white/30'
+            }`}
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
@@ -164,9 +162,8 @@ export const PictureBuilderGame: React.FC<GameComponentProps> = ({
         >
           {/* Ghost guide or Peek full image */}
           <div
-            className={`pointer-events-none absolute inset-2 flex items-center justify-center transition-opacity duration-300 z-0 ${
-              peeking ? 'opacity-90 z-20 bg-indigo-950/90 rounded-2xl' : 'opacity-20'
-            }`}
+            className={`pointer-events-none absolute inset-2 flex items-center justify-center transition-opacity duration-300 z-0 ${peeking ? 'opacity-90 z-20 bg-indigo-950/90 rounded-2xl' : 'opacity-20'
+              }`}
           >
             <VocabImage vocab={targetVocab} className="w-[82%] h-[82%]" />
           </div>
@@ -184,15 +181,14 @@ export const PictureBuilderGame: React.FC<GameComponentProps> = ({
                     placePiece(selectedPiece, idx);
                   }
                 }}
-                className={`relative z-10 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex items-center justify-center ${
-                  value !== null
-                    ? 'border-emerald-300/70 shadow-inner'
-                    : isTargetSlotForSelected
+                className={`relative z-10 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex items-center justify-center ${value !== null
+                  ? 'border-emerald-300/70 shadow-inner'
+                  : isTargetSlotForSelected
                     ? 'border-amber-300 bg-amber-300/20 ring-4 ring-amber-300 animate-pulse'
                     : selectedPiece !== null
-                    ? 'border-dashed border-amber-200/70 bg-white/10 hover:bg-white/20'
-                    : 'border-dashed border-white/25 bg-slate-950/40'
-                } ${wobbleSlot === idx ? 'animate-gentle-wobble border-rose-400' : ''}`}
+                      ? 'border-dashed border-amber-200/70 bg-white/10 hover:bg-white/20'
+                      : 'border-dashed border-white/25 bg-slate-950/40'
+                  } ${wobbleSlot === idx ? 'animate-gentle-wobble border-rose-400' : ''}`}
               >
                 {value !== null ? (
                   renderTileArt(value)
@@ -225,13 +221,11 @@ export const PictureBuilderGame: React.FC<GameComponentProps> = ({
               onClick={() => {
                 setSelectedPiece((prev) => (prev === id ? null : id));
               }}
-              className={`relative w-[clamp(74px,16vmin,105px)] ${
-                rows === 1 ? 'h-[clamp(74px,16vmin,105px)]' : 'h-[clamp(74px,16vmin,105px)]'
-              } rounded-2xl border-3 overflow-hidden shadow-lg cursor-grab transition-transform ${
-                isSelected
+              className={`relative w-[clamp(74px,16vmin,105px)] ${rows === 1 ? 'h-[clamp(74px,16vmin,105px)]' : 'h-[clamp(74px,16vmin,105px)]'
+                } rounded-2xl border-3 overflow-hidden shadow-lg cursor-grab transition-transform ${isSelected
                   ? 'border-amber-300 ring-4 ring-amber-300 -translate-y-2 scale-105'
                   : 'border-white/40 hover:scale-105'
-              }`}
+                }`}
             >
               {renderTileArt(id)}
               <span className="absolute top-1 left-1.5 px-1.5 py-0.5 rounded-md bg-slate-950/75 text-[11px] font-black text-amber-300">

@@ -141,7 +141,7 @@ exports.deleteClassroom = handler(async (req, res) => {
   }
   const ids = room.deletionStudentIds || [];
   await I.atomic(async () => {
-    for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent']) await models[name].deleteMany({ child: { $in: ids } });
+    for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent', 'ChildClientState']) await models[name].deleteMany({ child: { $in: ids } });
     await models.LearningObservation.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
     await models.HomePracticePlan.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
     for (const name of ['TeacherNote', 'VocabularyMastery']) await models[name].deleteMany({ student: { $in: ids } });

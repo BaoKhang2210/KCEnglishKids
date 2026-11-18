@@ -32,6 +32,7 @@ const VideoFavorite = require('./VideoFavorite');
 const VideoReport = require('./VideoReport');
 
 module.exports = {
+  ChildClientState: require('./ChildClientState'),
   HomePracticePlan: require('./HomePracticePlan'),
   LearningObservation: require('./LearningObservation'),
   GameCatalogSetting: require('./GameCatalogSetting'),

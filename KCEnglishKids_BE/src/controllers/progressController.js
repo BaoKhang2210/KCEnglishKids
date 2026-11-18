@@ -4,12 +4,9 @@ const { completedStageCount } = require('../services/stageStarPolicy');
 function normalizeStageProgress(doc) {
   if (!doc) return doc;
   const raw = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
-  const stageBased = raw.completionSnapshot?.source === 'STAGES'
-    || raw.stage1Completed
-    || raw.stage2Completed
-    || raw.stage3Completed
-    || (raw.stage3Games || []).length > 0;
-  if (stageBased) {
+  const isLegacyActivity = raw.completionSnapshot?.source === 'CURRENT_ACTIVITIES'
+    || raw.completionSnapshot?.source === 'LEGACY_PROGRESS';
+  if (!isLegacyActivity) {
     const stage3Done = Boolean(raw.stage3Completed || new Set(raw.stage3Games || []).size >= 2);
     raw.stage3Completed = stage3Done;
     raw.completed = Boolean(raw.stage1Completed && raw.stage2Completed && stage3Done);

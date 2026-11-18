@@ -50,24 +50,9 @@ function formatVnDateTime(value?: string | Date): string {
   }
 }
 
-function readLocalStageCache(childId: string, lessonId: string) {
-  try {
-    const s1 = localStorage.getItem(`kc_stage1_${childId}_${lessonId}`) === 'true';
-    const s2 = localStorage.getItem(`kc_stage2_${childId}_${lessonId}`) === 'true';
-    const s3 = localStorage.getItem(`kc_stage3_${childId}_${lessonId}`) === 'true';
-    const gamesRaw = localStorage.getItem(`kc_stage3_games_${childId}_${lessonId}`);
-    const games: string[] = gamesRaw ? JSON.parse(gamesRaw) : [];
-    return { s1, s2, s3, games };
-  } catch {
-    return { s1: false, s2: false, s3: false, games: [] };
-  }
-}
-
 export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps> = ({
   units = [],
-  totalStars = 0,
   completedLessons = 0,
-  streakDays = 1,
 }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -157,34 +142,32 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
       (unit.lessons || []).forEach((lesson: any, lessonIdx: number) => {
         const lessonId = String(lesson._id);
         const serverProg = progressByLessonId.get(lessonId);
-        const localCache = readLocalStageCache(childId, lessonId);
 
         const stage1Completed = Boolean(
-          lesson.stages?.stage1?.completed ?? (serverProg?.stage1Completed || localCache.s1)
+          lesson.stages?.stage1?.completed ?? serverProg?.stage1Completed
         );
         const stage2Completed = Boolean(
-          lesson.stages?.stage2?.completed ?? (serverProg?.stage2Completed || localCache.s2)
+          lesson.stages?.stage2?.completed ?? serverProg?.stage2Completed
         );
         const stage3Games = Array.from(
-          new Set([...(serverProg?.stage3Games || []), ...localCache.games])
+          new Set<string>([...(serverProg?.stage3Games || [])])
         );
         const stage3Completed = Boolean(
           lesson.stages?.stage3?.completed ??
-          (serverProg?.stage3Completed || localCache.s3 || stage3Games.length >= 2)
+          (serverProg?.stage3Completed || stage3Games.length >= 2)
         );
         const hasStageData = Boolean(
           lesson.stages ||
           serverProg?.stage1Completed ||
           serverProg?.stage2Completed ||
           serverProg?.stage3Completed ||
-          stage3Games.length > 0 ||
-          localCache.s1 ||
-          localCache.s2 ||
-          localCache.s3
+          stage3Games.length > 0
         );
-        const completed = hasStageData
-          ? Boolean(stage1Completed && stage2Completed && stage3Completed)
-          : Boolean(lesson.completed || serverProg?.completed);
+        const completed = isUnitUnlocked && (
+          hasStageData
+            ? Boolean(stage1Completed && stage2Completed && stage3Completed)
+            : Boolean(lesson.completed && serverProg?.completed)
+        );
 
         const computedStars = hasStageData
           ? (stage1Completed ? 1 : 0) + (stage2Completed ? 1 : 0) + (stage3Completed ? 1 : 0)
@@ -264,22 +247,27 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
     [inProgressLessons, enrichedLessons]
   );
 
+  // Active/Participated lessons only (Hoàn thành hoặc Đang học dở)
+  const activeDiaryLessons = useMemo(
+    () => enrichedLessons.filter((l) => l.status === 'completed' || l.status === 'in_progress'),
+    [enrichedLessons]
+  );
+
   const filteredLessons = useMemo(() => {
-    return enrichedLessons.filter((l) => {
-      if (selectedUnitFilter !== 'all' && l.unitId !== selectedUnitFilter) return false;
-      if (lessonFilter === 'completed') return l.status === 'completed';
-      if (lessonFilter === 'in_progress') return l.status === 'in_progress' || l.status === 'unlocked';
-      if (lessonFilter === 'needs_review') return l.weakCount > 0;
-      return true;
-    });
-  }, [enrichedLessons, selectedUnitFilter, lessonFilter]);
+      return activeDiaryLessons.filter((l) => {
+        if (selectedUnitFilter !== 'all' && l.unitId !== selectedUnitFilter) return false;
+        if (lessonFilter === 'completed') return l.status === 'completed';
+        if (lessonFilter === 'in_progress') return l.status === 'in_progress';
+        if (lessonFilter === 'needs_review') return l.weakCount > 0;
+        return true;
+      });
+  }, [activeDiaryLessons, selectedUnitFilter, lessonFilter]);
 
   const recentEvents: any[] = progressData?.recentActivityResults || [];
   const totalLessonCount = enrichedLessons.length;
-  const effectiveCompletedCount = Math.max(
-    completedLessons,
-    enrichedLessons.filter((l) => l.completed).length
-  );
+  const effectiveCompletedCount = enrichedLessons.length > 0
+    ? enrichedLessons.filter((l) => l.completed).length
+    : completedLessons;
 
   return (
     <div className="space-y-6 pb-8">
@@ -320,25 +308,8 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
           </div>
         </div>
 
-        {/* 4 KPI Milestone Cards */}
-        <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 relative z-10">
-          <div className="rounded-2xl bg-white/95 border-2 border-amber-200 p-3.5 sm:p-4 flex items-center gap-3 shadow-2xs">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl shrink-0">
-              ⭐
-            </div>
-            <div>
-              <span className="text-[11px] font-black uppercase text-slate-500 block">
-                Sao hành trình
-              </span>
-              <span className="text-xl sm:text-2xl font-black text-amber-700">
-                {totalStars}{' '}
-                <span className="text-xs font-bold text-slate-500">
-                  / {progressData?.maxStars || totalLessonCount * 3 || 135} sao
-                </span>
-              </span>
-            </div>
-          </div>
-
+        {/* Learning progress cards */}
+        <div className="relative z-10 mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <div className="rounded-2xl bg-white/95 border-2 border-emerald-200 p-3.5 sm:p-4 flex items-center gap-3 shadow-2xs">
             <div className="w-12 h-12 rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-2xl shrink-0">
               📚
@@ -351,6 +322,23 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                 {effectiveCompletedCount}{' '}
                 <span className="text-xs font-bold text-slate-500">
                   / {totalLessonCount} Lesson
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/95 border-2 border-amber-200 p-3.5 sm:p-4 flex items-center gap-3 shadow-2xs">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl shrink-0">
+              🚀
+            </div>
+            <div>
+              <span className="text-[11px] font-black uppercase text-slate-500 block">
+                Bài đang học dở
+              </span>
+              <span className="text-xl sm:text-2xl font-black text-amber-700">
+                {inProgressLessons.length}{' '}
+                <span className="text-xs font-bold text-slate-500">
+                  Lesson
                 </span>
               </span>
             </div>
@@ -370,19 +358,6 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/95 border-2 border-orange-200 p-3.5 sm:p-4 flex items-center gap-3 shadow-2xs">
-            <div className="w-12 h-12 rounded-2xl bg-orange-100 border border-orange-300 flex items-center justify-center text-2xl shrink-0">
-              🔥
-            </div>
-            <div>
-              <span className="text-[11px] font-black uppercase text-slate-500 block">
-                Chuỗi ngày học
-              </span>
-              <span className="text-xl sm:text-2xl font-black text-orange-600">
-                {streakDays} <span className="text-xs font-bold text-slate-500">ngày liên tiếp</span>
-              </span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -512,7 +487,7 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               }`}
           >
             <Trophy className="w-4 h-4" />
-            <span>Kết quả từng Bài học ({enrichedLessons.length})</span>
+            <span>Kết quả từng Bài học ({activeDiaryLessons.length})</span>
           </button>
 
           <button
@@ -559,39 +534,39 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
           {/* Status Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {[
-              { id: 'all', label: `📋 Tất cả (${enrichedLessons.length})` },
+              { id: 'all', label: `📋 Tất cả đã học (${activeDiaryLessons.length})` },
               {
                 id: 'completed',
-                label: `✅ Đã hoàn thành (${enrichedLessons.filter((l) => l.status === 'completed').length
+                label: `✅ Đã hoàn thành (${activeDiaryLessons.filter((l) => l.status === 'completed').length
                   })`,
               },
               {
                 id: 'in_progress',
-                label: `🚀 Đang học & Đã mở (${enrichedLessons.filter(
-                  (l) => l.status === 'in_progress' || l.status === 'unlocked'
-                ).length
-                  })`,
+                label: `🚀 Đang học dở (${activeDiaryLessons.filter(
+                    (l) => l.status === 'in_progress'
+                  ).length
+            })`,
               },
-              {
-                id: 'needs_review',
-                label: `💡 Có từ cần ôn (${enrichedLessons.filter((l) => l.weakCount > 0).length
-                  })`,
+            {
+              id: 'needs_review',
+                label: `💡 Có từ cần ôn (${activeDiaryLessons.filter((l) => l.weakCount > 0).length
+            })`,
               },
             ].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => {
-                  sfx.playPop();
-                  setLessonFilter(f.id as LessonFilter);
-                }}
-                className={`px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 cursor-pointer transition-all border-2 ${lessonFilter === f.id
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
-                  }`}
-              >
-                {f.label}
-              </button>
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => {
+                sfx.playPop();
+                setLessonFilter(f.id as LessonFilter);
+              }}
+              className={`px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 cursor-pointer transition-all border-2 ${lessonFilter === f.id
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
+                }`}
+            >
+              {f.label}
+            </button>
             ))}
           </div>
 

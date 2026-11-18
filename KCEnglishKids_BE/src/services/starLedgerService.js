@@ -23,6 +23,7 @@ function resolveLessonStars(progress, activityRating) {
 function buildUnitLedgerRow(unit, lessonRows, grant, completed, unlocked, title = `Unit ${unit.unitNumber}`) {
   const effectiveLessons = unlocked ? lessonRows : lessonRows.map(lesson => ({
     ...lesson,
+    completed: false,
     stars: 0,
     ...(lesson.stages ? { stages: { ...lesson.stages, stage2: { ...lesson.stages.stage2, stars: 0 } } } : {})
   }));
@@ -122,13 +123,16 @@ async function computeStarLedger(childId) {
       const stage3Completed = !!progress?.stage3Completed || completedGames.length >= REQUIRED_STAGE3_GAMES;
       const source = progress?.completionSnapshot?.source;
       const stageBased = source === 'STAGES' || stage1Completed || stage2Completed || stage3Completed || completedGames.length > 0;
-      const completed = stageBased
-        ? (stage1Completed && stage2Completed && stage3Completed)
-        : !!progress?.completed;
       // Old activity lessons are rated once from best scores; they never stack
       // with a stage score for the same lesson.
       const rating = calculateLessonStars(activitiesByLesson.get(String(lesson._id)) || [], resultsByLesson.get(String(lesson._id)) || []);
-      const stars = resolveLessonStars(progress, rating);
+      const legacyCompleted = (source === 'CURRENT_ACTIVITIES' || source === 'LEGACY_PROGRESS')
+        ? !!progress?.completed
+        : Boolean(progress?.completed && rating?.completed);
+      const completed = stageBased
+        ? (stage1Completed && stage2Completed && stage3Completed)
+        : legacyCompleted;
+      const stars = completed || stageBased ? resolveLessonStars(progress, rating) : 0;
       // A previously completed or already-started lesson stays available for review even if an
       // earlier lesson is incomplete (for example, after curriculum reordering).
       const lessonUnlocked = previousUnitCompleted && (previousLessonCompleted || completed || stageBased);
@@ -153,6 +157,7 @@ async function computeStarLedger(childId) {
     const unlocked = previousUnitCompleted;
     const currentLessonRows = unlocked ? lessonRows : lessonRows.map(lesson => ({
       ...lesson,
+      completed: false,
       stars: 0,
       stages: { ...lesson.stages, stage2: { ...lesson.stages.stage2, stars: 0 } }
     }));

@@ -5,6 +5,7 @@ const models = require('../src/models');
 const ClassRecognition = require('../src/models/ClassRecognition');
 function validateBackup(payload) {
   if (payload.system !== 'KCEnglishKids' || !['3.0.0','3.1.0','3.2.0','3.3.0','3.4.0'].includes(payload.version) || payload.format !== 'mongodb-extended-json') throw new Error('Unsupported or incomplete backup. Extended JSON version 3 is required.');
+  if(payload.collections&&payload.collections[models.ChildClientState.collection.name]===undefined)payload.collections[models.ChildClientState.collection.name]=[];
   if(payload.version!=='3.4.0'&&payload.collections&&payload.collections[models.HomePracticePlan.collection.name]===undefined)payload.collections[models.HomePracticePlan.collection.name]=[];
   if (['3.0.0','3.1.0','3.2.0'].includes(payload.version) && payload.collections && payload.collections[models.LearningObservation.collection.name] === undefined) payload.collections[models.LearningObservation.collection.name] = [];
   if(payload.version==='3.0.0'&&payload.collections){

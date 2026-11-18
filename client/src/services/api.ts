@@ -822,6 +822,43 @@ export const rewardsApi = {
     api.post(`/children/${childId}/rewards/chests/${unitId}/reveal`, {})
 };
 
+// Cross-device MongoDB Client State API (replaces isolated localStorage for vocabStats, stage2Sessions, checkpoints, selfMarks, preferences)
+export const clientStateApi = {
+  getClientState: (childId: string) =>
+    api.get(`/children/${childId}/client-state`) as Promise<{
+      success: boolean;
+      data: {
+        child: string;
+        vocabStats: Record<string, any>;
+        vocabSelfMarks: Record<string, number>;
+        lessonStates: Record<string, any>;
+        stage2Sessions: any[];
+        preferences: {
+          videoAutoNext: boolean;
+          flashcardFlipGuided: boolean;
+          enableSpeakCoach: boolean;
+        };
+      };
+    }>,
+  updateClientState: (
+    childId: string,
+    payload: {
+      vocabStats?: Record<string, any>;
+      vocabSelfMarks?: Record<string, number>;
+      lessonId?: string;
+      lessonState?: Record<string, any>;
+      stage2Session?: any;
+      preferences?: {
+        videoAutoNext?: boolean;
+        flashcardFlipGuided?: boolean;
+        enableSpeakCoach?: boolean;
+      };
+    }
+  ) => api.put(`/children/${childId}/client-state`, payload),
+  clearVocabStats: (childId: string) =>
+    api.delete(`/children/${childId}/client-state/vocab-stats`),
+};
+
 // Sentence-pattern teaching API (teacher classroom screen, Mongo languagecontents)
 export const sentenceApi = {
   getPatterns: (params: {

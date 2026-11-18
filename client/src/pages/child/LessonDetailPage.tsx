@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Droplets, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRewards } from '../../context/RewardContext';
-import { lessonsApi, stageProgressApi, topicsApi, vocabReviewApi } from '../../services/api';
+import { lessonsApi, stageProgressApi, topicsApi, vocabReviewApi, clientStateApi } from '../../services/api';
 import type { Lesson, Vocabulary } from '../../types';
 import { sfx, stopWordAudio } from '../../utils/audio';
 import { ExploreSceneStage } from '../../components/child/lesson/ExploreSceneStage';
@@ -124,10 +124,27 @@ export const LessonDetailPage: React.FC = () => {
             /* The warm-up is only a suggestion; offline keeps lesson flow intact. */
           }
 
+          let serverActiveStage: number | null = null;
+          if (childId && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+            try {
+              const csRes = await clientStateApi.getClientState(childId);
+              const lState = csRes?.data?.lessonStates?.[id];
+              if (lState?.activeStage && [1, 2, 3].includes(Number(lState.activeStage))) {
+                serverActiveStage = Number(lState.activeStage);
+                cache.setItem(`kc_stage_active_${childId}_${id}`, String(serverActiveStage));
+              }
+              if (lState?.stage2Checkpoint) {
+                cache.setItem(`kc_stage2_checkpoint_${childId}_${id}`, JSON.stringify(lState.stage2Checkpoint));
+              }
+            } catch {
+              /* offline fallback */
+            }
+          }
+
           const savedStage1 = cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
           const savedStage2 = cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
-          const savedActive = cache.getItem(`kc_stage_active_${childId}_${id}`);
+          const savedActive = serverActiveStage ? String(serverActiveStage) : cache.getItem(`kc_stage_active_${childId}_${id}`);
           if (requestedGameParam && (savedStage2 || user.role !== 'CHILD')) {
             setActiveStage(3);
             setActiveGameId(requestedGameParam);
@@ -176,12 +193,15 @@ export const LessonDetailPage: React.FC = () => {
   });
 
   const isStage1Completed =
+    Boolean(lessonProgress?.stage1Completed) ||
     cache.getItem(`kc_stage1_${childId}_${id}`) === 'true';
 
   const isStage2Completed =
+    Boolean(lessonProgress?.stage2Completed) ||
     cache.getItem(`kc_stage2_${childId}_${id}`) === 'true';
 
   const isStage3Completed =
+    Boolean(lessonProgress?.stage3Completed) ||
     completedGames.length >= REQUIRED_GAMES_TO_COMPLETE ||
     cache.getItem(`kc_stage3_${childId}_${id}`) === 'true';
 
@@ -309,6 +329,9 @@ export const LessonDetailPage: React.FC = () => {
     setLockedStage(null);
     setActiveStage(stage);
     cache.setItem(`kc_stage_active_${childId}_${id}`, stage.toString());
+    if (id && childId && childId !== 'child_guest' && /^[0-9a-fA-F]{24}$/.test(childId)) {
+      void clientStateApi.updateClientState(childId, { lessonId: id, lessonState: { activeStage: stage } }).catch(() => {});
+    }
   };
 
   const handleCompleteStage1 = async () => {
