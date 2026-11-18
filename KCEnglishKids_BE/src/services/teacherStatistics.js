@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { ActivityResult, Progress, ClassroomSession, UnitCompletion, Activity, LearningEvent, HomePracticeCompletion } = require('../models');
 const { calculateLessonStars } = require('./starService');
 const { resolveLessonStars } = require('./starLedgerService');
@@ -9,9 +10,16 @@ function combineAssessment(sources) {
 }
 const statsFor = async ids => {
   if (!ids.length) return [];
+  const objectIds = ids.map(id => {
+    try {
+      return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+    } catch {
+      return id;
+    }
+  });
   const [resultStats, progressStats, classroomStats, unitStats, completedProgress, eventStats, homePracticeStats] = await Promise.all([
     ActivityResult.aggregate([
-      { $match: { child: { $in: ids }, completed: true } },
+      { $match: { child: { $in: objectIds }, completed: true } },
       { $group: {
           _id: '$child',
           correctAnswers: { $sum: '$correctCount' },
@@ -23,7 +31,7 @@ const statsFor = async ids => {
       } }
     ]),
     Progress.aggregate([
-      { $match: { child: { $in: ids } } },
+      { $match: { child: { $in: objectIds } } },
       { $group: {
           _id: '$child',
           completedLessons: { $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] } },
@@ -33,7 +41,7 @@ const statsFor = async ids => {
     ClassroomSession.aggregate([
       { $match: { status: 'COMPLETED' } },
       { $unwind: '$studentScores' },
-      { $match: { 'studentScores.student': { $in: ids }, 'studentScores.attendance': { $nin: ['ABSENT', 'EXCUSED'] } } },
+      { $match: { 'studentScores.student': { $in: objectIds }, 'studentScores.attendance': { $nin: ['ABSENT', 'EXCUSED'] } } },
       { $group: {
           _id: '$studentScores.student',
           classroomStars: { $sum: '$studentScores.stars' },
@@ -45,7 +53,7 @@ const statsFor = async ids => {
       } }
     ]),
     UnitCompletion.aggregate([
-      { $match: { child: { $in: ids } } },
+      { $match: { child: { $in: objectIds } } },
       { $unwind: '$rewards' },
       { $match: { 'rewards.type': 'STAR' } },
       { $group: {
@@ -53,9 +61,18 @@ const statsFor = async ids => {
           bonusStars: { $sum: '$rewards.amount' }
       } }
     ]),
-    Progress.find({ child: { $in: ids }, completed: true }).select('child lesson stars completionSnapshot stage1Completed stage2Completed stage3Completed stage3Games').lean(),
+    Progress.find({
+      child: { $in: objectIds },
+      $or: [
+        { completed: true },
+        { stars: { $gt: 0 } },
+        { stage1Completed: true },
+        { stage2Completed: true },
+        { 'stage3Games.0': { $exists: true } }
+      ]
+    }).select('child lesson stars completionSnapshot stage1Completed stage2Completed stage3Completed stage3Games').lean(),
     LearningEvent.aggregate([
-      { $match: { child: { $in: ids } } },
+      { $match: { child: { $in: objectIds } } },
       { $group: { _id: '$child', attempts: { $sum: { $cond: [{ $in: ['$stage', [2, 3]] }, 1, 0] } }, lastActivity: { $max: '$createdAt' },
         learningTime: { $sum: '$durationSeconds' },
         timedEvents: { $sum: { $cond: [{ $isNumber: '$durationSeconds' }, 1, 0] } },
@@ -65,7 +82,7 @@ const statsFor = async ids => {
       } }
     ]),
     HomePracticeCompletion ? HomePracticeCompletion.aggregate([
-      { $match: { child: { $in: ids } } },
+      { $match: { child: { $in: objectIds } } },
       { $group: {
           _id: { child: '$child', lesson: { $ifNull: ['$lesson', '$date'] } },
           stars: { $first: '$stars' }
@@ -84,7 +101,7 @@ const statsFor = async ids => {
       Activity.find({ lesson: { $in: lessonIds }, status: 'ACTIVE' })
         .select('_id lesson questions questionCount pointsPerQuestion')
         .lean(),
-      ActivityResult.find({ child: { $in: ids }, lesson: { $in: lessonIds }, completed: true })
+      ActivityResult.find({ child: { $in: objectIds }, lesson: { $in: lessonIds }, completed: true })
         .select('child lesson activity score')
         .lean()
     ])

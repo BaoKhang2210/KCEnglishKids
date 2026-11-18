@@ -30,12 +30,20 @@ const keyFor = (classroom, period) => ({ classroom: classroom._id, kind: period.
 async function periodHomeStars(studentIds, period) {
   if (!studentIds || !studentIds.length) return new Map();
 
+  const objectIds = studentIds.map(id => {
+    try {
+      return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+    } catch {
+      return id;
+    }
+  });
+
   const [homePractices, unitCompletions, progressDocs] = await Promise.all([
     HomePracticeCompletion && typeof HomePracticeCompletion.aggregate === 'function'
       ? HomePracticeCompletion.aggregate([
           {
             $match: {
-              child: { $in: studentIds },
+              child: { $in: objectIds },
               $or: [
                 { completedAt: { $gte: period.start, $lt: period.end } },
                 { date: { $gte: period.date, $lte: period.lastDate } }
@@ -55,7 +63,7 @@ async function periodHomeStars(studentIds, period) {
       ? UnitCompletion.aggregate([
           {
             $match: {
-              child: { $in: studentIds },
+              child: { $in: objectIds },
               completedAt: { $gte: period.start, $lt: period.end }
             }
           },
@@ -72,14 +80,23 @@ async function periodHomeStars(studentIds, period) {
 
     Progress && typeof Progress.find === 'function'
       ? Progress.find({
-          child: { $in: studentIds },
-          completed: true,
+          child: { $in: objectIds },
           $or: [
-            { 'completionSnapshot.recordedAt': { $gte: period.start, $lt: period.end } },
-            { lastActivityAt: { $gte: period.start, $lt: period.end } },
-            { updatedAt: { $gte: period.start, $lt: period.end } }
+            { completed: true },
+            { stars: { $gt: 0 } },
+            { stage1Completed: true },
+            { stage2Completed: true }
+          ],
+          $and: [
+            {
+              $or: [
+                { 'completionSnapshot.recordedAt': { $gte: period.start, $lt: period.end } },
+                { lastActivityAt: { $gte: period.start, $lt: period.end } },
+                { updatedAt: { $gte: period.start, $lt: period.end } }
+              ]
+            }
           ]
-        }).select('child stars').lean()
+        }).select('child stars stage1Completed stage2Completed stage3Completed stage3Games').lean()
       : Promise.resolve([])
   ]);
 
@@ -105,7 +122,9 @@ async function periodHomeStars(studentIds, period) {
   for (const p of progressDocs || []) {
     const cid = String(p.child);
     if (map.has(cid)) {
-      map.set(cid, map.get(cid) + (Number(p.stars) || 0));
+      const stageCount = (p.stage1Completed ? 1 : 0) + (p.stage2Completed ? 1 : 0) + (p.stage3Completed ? 1 : 0);
+      const earned = Math.max(Number(p.stars) || 0, stageCount);
+      map.set(cid, map.get(cid) + earned);
     }
   }
 
@@ -168,6 +187,7 @@ exports.publish = async (req, res, next) => {
     let published = await ClassRecognition.findOne(key).lean();
     if (!published) {
       const ranking = await calculate(classroom, period);
+      if (!ranking.some(row => row.winner)) return fail(res, 400, 'Kỳ này chưa có hoạt động đạt sao để công bố.');
       const winners = ranking.map(({ child, name, stars, totalStars, awardTitle, awardSymbol }) => ({
         child,
         name,
@@ -199,6 +219,32 @@ exports.childInbox = async (req, res, next) => {
     const documents = lists.flat().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 100);
     const data = documents.map(doc => {
       const own = doc.winners.find(winner => String(winner.child) === String(req.user._id));
+      return {
+        _id: doc._id, className: doc.className, kind: doc.kind,
+        periodStart: doc.periodStart, periodEnd: doc.periodEnd, publishedAt: doc.publishedAt,
+        reward: {
+          ...doc.reward,
+          title: own?.awardTitle || doc.reward?.title || 'Bé Chăm Ngoan',
+          symbol: own?.awardSymbol || doc.reward?.symbol || '⭐'
+        },
+        name: own?.name, stars: own?.stars, readAt: own?.readAt,
+        awardTitle: own?.awardTitle, awardSymbol: own?.awardSymbol
+      };
+    });
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+exports.childRecognitionsByTeacher = async (req, res, next) => {
+  try {
+    const { childId } = req.params;
+    if (!validId(childId)) return fail(res, 400, 'Mã học sinh không hợp lệ.');
+    const lists = await Promise.all([ClassRecognition, SchoolRecognition].map(Model => Model.find({ 'winners.child': childId })
+      .select('className kind periodStart periodEnd publishedAt reward winners')
+      .sort({ publishedAt: -1 }).limit(100).lean()));
+    const documents = lists.flat().sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 100);
+    const data = documents.map(doc => {
+      const own = doc.winners.find(winner => String(winner.child) === String(childId));
       return {
         _id: doc._id, className: doc.className, kind: doc.kind,
         periodStart: doc.periodStart, periodEnd: doc.periodEnd, publishedAt: doc.publishedAt,

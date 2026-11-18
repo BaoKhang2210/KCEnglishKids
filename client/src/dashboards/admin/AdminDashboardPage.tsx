@@ -9,13 +9,13 @@ import {
   ArrowRight,
   ShieldAlert,
   Activity,
-  Layers,
   Award,
   CalendarDays,
   Calendar,
   AlertTriangle,
   Radio,
-  Gamepad2
+  Gamepad2,
+  Clock
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
@@ -108,7 +108,9 @@ export const AdminDashboardPage: React.FC = () => {
       gradient: 'from-rose-50/90 via-white to-pink-50/40 border-rose-200/90',
       badge: 'bg-rose-600 text-white shadow-xs',
       valueColor: 'text-rose-950',
-      sub: `Toàn trường · ${metrics.completedSessions || 0}/${metrics.totalSessions || 0} buổi đã tạo`
+      sub: (metrics.totalSessions > 0 || metrics.cancelledSessions > 0)
+        ? `Toàn trường · ${metrics.completedSessions || 0} hoàn thành · ${metrics.cancelledSessions || 0} báo nghỉ`
+        : 'Toàn trường · Chưa có buổi học nào'
     }
   ];
 
@@ -299,11 +301,86 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
               </div>
               <Link
-                to="/admin/schedules"
+                to="/admin/schedule"
                 className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-colors"
               >
                 Xem thời khóa biểu
               </Link>
+            </div>
+          )}
+
+          {/* Cảnh báo: Ca học trong tuần chưa tổ chức (Chưa có buổi dạy thực tế) */}
+          {stats.teachingMonitor.unheldClasses && stats.teachingMonitor.unheldClasses.length > 0 && (
+            <div className="mt-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-amber-100/30 border border-amber-300 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-black text-amber-950">
+                        Cảnh báo: Có {stats.teachingMonitor.unheldClasses.length} lớp có ca học chưa tổ chức trong tuần
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full bg-amber-200/90 text-amber-900 text-3xs font-black">
+                        {stats.teachingMonitor.unheldCount || stats.teachingMonitor.unheldClasses.length} ca chưa dạy
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-800/90 mt-0.5">
+                      Đã qua ngày theo thời khóa biểu nhưng chưa có buổi dạy thực tế (Cần xếp bù hoặc nhắc nhở)
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/admin/schedule"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-colors shadow-xs"
+                >
+                  <span>Xem TKB &amp; Xếp bù</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-3.5">
+                {stats.teachingMonitor.unheldClasses.map((u: any, idx: number) => (
+                  <div
+                    key={u.classroomId || idx}
+                    className="p-3.5 bg-white/95 rounded-xl border border-amber-200 shadow-2xs hover:border-amber-300 transition-all flex flex-col justify-between gap-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-slate-900 truncate flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                          <span>{u.className}</span>
+                          {u.ageGroupCode && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold text-[10px]">
+                              {u.ageGroupCode} tuổi
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-2xs font-semibold text-slate-600 mt-1 flex items-center gap-1">
+                          <span className="text-slate-400">Giáo viên:</span>
+                          <span className="font-bold text-slate-700">{u.teacherName}</span>
+                        </p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-3xs font-black shrink-0">
+                        {u.unheldCount} ca chưa dạy
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-2xs">
+                      {u.slots.map((s: any, sIdx: number) => (
+                        <span
+                          key={sIdx}
+                          className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-700 font-bold text-3xs flex items-center gap-1"
+                        >
+                          <Clock size={10} className="text-amber-600" />
+                          <span>{s.dayName} ({s.dateStr}): {s.timeText}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

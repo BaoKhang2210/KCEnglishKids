@@ -13,10 +13,7 @@ import {
   Trash2,
   UserPlus,
   UserMinus,
-  UserCheck,
   Check,
-  ChevronDown,
-  ChevronUp,
   X,
   AlertCircle,
   FileSpreadsheet,
@@ -25,18 +22,24 @@ import {
   CheckCircle2,
   BookOpen,
   Sparkles,
-  Database,
   CalendarDays,
   Clock,
   KeyRound,
   Phone,
   User,
   Info,
-  ArrowRight
+  GraduationCap,
+  Lock
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminApi } from '../../services/api';
 import { StudentAvatar } from '../../components/common/StudentAvatar';
+
+const AGE_RANK: Record<string, number> = {
+  '3-4': 1,
+  '4-5': 2,
+  '5-6': 3
+};
 
 export const AdminClassroomsPage: React.FC = () => {
   const [issuedCredentials, setIssuedCredentials] = useState<IssuedCredential[]>([]);
@@ -59,6 +62,13 @@ export const AdminClassroomsPage: React.FC = () => {
   const [resetPinTarget, setResetPinTarget] = useState<any | null>(null);
   const [newPinValue, setNewPinValue] = useState('');
   const [resettingPin, setResettingPin] = useState(false);
+  const [removeStudentConfirm, setRemoveStudentConfirm] = useState<{
+    studentId: string;
+    studentName: string;
+    classroomName: string;
+    classroomId: string;
+  } | null>(null);
+  const [isRemovingStudent, setIsRemovingStudent] = useState(false);
 
   // Form states for Create/Edit
   const [formData, setFormData] = useState({
@@ -88,7 +98,6 @@ export const AdminClassroomsPage: React.FC = () => {
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [studentFilterScope, setStudentFilterScope] = useState<'MATCH' | 'ALL' | 'UNASSIGNED'>('MATCH');
   const [addingStudentId, setAddingStudentId] = useState<string | null>(null);
-  const [showManualCreateFallback, setShowManualCreateFallback] = useState(false);
   const [singleStudentForm, setSingleStudentForm] = useState({
     name: '',
     dob: '',
@@ -106,7 +115,35 @@ export const AdminClassroomsPage: React.FC = () => {
 
   // Toast alert
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [backingUp, setBackingUp] = useState(false);
+
+  // Smart Upgrade & Admission
+  const [smartUpgradeConfirm, setSmartUpgradeConfirm] = useState<{ student: any; targetClass: any } | null>(null);
+  const [smartUpgrading, setSmartUpgrading] = useState(false);
+
+  // Promote whole class modal state
+  const [promoteModal, setPromoteModal] = useState<{
+    isOpen: boolean;
+    mode: 'direct' | 'existing';
+    fromClass: any | null;
+    targetClassId: string;
+    newClassName: string;
+    newAcademicYear: string;
+    newTeacherId: string;
+    selectedStudentIds: string[];
+    submitting: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    mode: 'direct',
+    fromClass: null,
+    targetClassId: '',
+    newClassName: '',
+    newAcademicYear: '',
+    newTeacherId: '',
+    selectedStudentIds: [],
+    submitting: false,
+    error: null
+  });
 
   useEffect(() => {
     loadData();
@@ -193,21 +230,16 @@ export const AdminClassroomsPage: React.FC = () => {
       return;
     }
 
-    if (!formData.teacherId) {
-      setFormError('Vui lòng phân công giáo viên phụ trách lớp.');
-      return;
-    }
-
     try {
       setFormSubmitting(true);
       const validStudents = createExcelRows.filter((r) => r.isValid);
       const payload: any = {
         name: formData.name.trim(),
         ageGroupCode: formData.ageGroupCode,
-        teacherId: formData.teacherId,
+        teacherId: formData.teacherId || undefined,
         academicYear: formData.academicYear.trim(),
         description: formData.description.trim(),
-        status: formData.status
+        status: formData.teacherId ? (formData.status || 'ACTIVE') : 'UPCOMING'
       };
 
       if (validStudents.length > 0) {
@@ -306,7 +338,6 @@ export const AdminClassroomsPage: React.FC = () => {
       setExcelFileName('');
       setStudentSearchTerm('');
       setSingleStudentForm({ name: '', dob: '', pin: '', contact: '' });
-      setShowManualCreateFallback(false);
       setRosterSearchTerm('');
       loadAvailableStudents();
       // Fetch latest class details
@@ -322,6 +353,17 @@ export const AdminClassroomsPage: React.FC = () => {
   // Add existing student into classroom (Thêm từ tài khoản có sẵn trong hệ thống)
   const handleAddExistingStudent = async (student: any) => {
     if (!manageStudentsModal) return;
+    const currentClassObj = typeof student.assignedClass === 'object' ? student.assignedClass : null;
+    if (currentClassObj?.status === 'COMPLETED') {
+      if (currentClassObj.ageGroupCode === '5-6' || student.ageGroupCode === '5-6') {
+        showAlert('error', `Bé "${student.name}" đã hoàn thành chương trình mầm non (Lớp 5-6 tuổi đã kết thúc), không thể thêm vào lớp học mới.`);
+        return;
+      }
+      if (student.ageGroupCode === manageStudentsModal.ageGroupCode) {
+        showAlert('error', `Bé "${student.name}" đã hoàn thành lớp ${currentClassObj.name} (${student.ageGroupCode} tuổi), không thể xếp lại vào lớp cùng lứa tuổi.`);
+        return;
+      }
+    }
     if (student.ageGroupCode && manageStudentsModal.ageGroupCode && student.ageGroupCode !== manageStudentsModal.ageGroupCode) {
       showAlert('error', `Không thể thêm học sinh khác độ tuổi vào lớp. Lớp "${manageStudentsModal.name}" dành cho lứa tuổi ${manageStudentsModal.ageGroupCode}, nhưng học sinh "${student.name}" thuộc nhóm ${student.ageGroupCode} tuổi.`);
       return;
@@ -343,6 +385,161 @@ export const AdminClassroomsPage: React.FC = () => {
       showAlert('error', err?.message || 'Không thể thêm học sinh vào lớp.');
     } finally {
       setAddingStudentId(null);
+    }
+  };
+
+  // Smart Upgrade Student age and add to target classroom
+  const handleConfirmSmartUpgrade = async () => {
+    if (!smartUpgradeConfirm) return;
+    const { student, targetClass } = smartUpgradeConfirm;
+    const currentClassObj = typeof student.assignedClass === 'object' ? student.assignedClass : null;
+    if (currentClassObj?.status === 'COMPLETED' && (currentClassObj.ageGroupCode === '5-6' || student.ageGroupCode === '5-6')) {
+      showAlert('error', `Bé "${student.name}" đã hoàn thành chương trình mầm non (Lớp 5-6 tuổi đã kết thúc), không thể thêm vào lớp học mới.`);
+      setSmartUpgradeConfirm(null);
+      return;
+    }
+    try {
+      setSmartUpgrading(true);
+      const res = await adminApi.addStudentToClassroom(targetClass._id, student._id, true);
+      if (res.success) {
+        if (res.credentials?.length) setIssuedCredentials(res.credentials);
+        showAlert('success', res.message || `Đã thăng hạng bé "${student.name}" lên ${targetClass.ageGroupCode} tuổi và xếp vào lớp ${targetClass.name}!`);
+        const refresh = await adminApi.getClassroomById(targetClass._id);
+        if (refresh.success && refresh.data) {
+          setManageStudentsModal(refresh.data);
+        }
+        await loadAvailableStudents();
+        await loadData();
+        setSmartUpgradeConfirm(null);
+      } else {
+        showAlert('error', res.message || 'Không thể thăng hạng học sinh.');
+      }
+    } catch (err: any) {
+      showAlert('error', err?.message || 'Có lỗi xảy ra khi thăng hạng học sinh.');
+    } finally {
+      setSmartUpgrading(false);
+    }
+  };
+
+  // Open Promote Class Modal
+  const handleOpenPromoteModal = (classroom: any) => {
+    if (classroom.status !== 'COMPLETED') {
+      showAlert('error', 'Chỉ lớp học ở trạng thái "Đã hoàn thành" mới được phép lên lớp niên khóa mới. Vui lòng kết thúc khóa học của lớp trước khi thăng hạng.');
+      return;
+    }
+    if (classroom.isRolledOver) {
+      showAlert('error', 'Lớp học này đã hoàn tất lên lớp niên khóa mới trước đó. Mỗi lớp chỉ được phép lên lớp 1 lần duy nhất để tránh trùng lặp dữ liệu.');
+      return;
+    }
+    if (classroom.ageGroupCode === '5-6') return;
+    const studentIds = (classroom.students || []).map((s: any) => (typeof s === 'object' ? s._id : s));
+    const nextAge = classroom.ageGroupCode === '3-4' ? '4-5' : '5-6';
+
+    let suggestedName = classroom.name;
+    if (suggestedName.includes('3-4') || suggestedName.includes('3–4')) {
+      suggestedName = suggestedName.replace(/3[–-]4/g, nextAge);
+    } else if (suggestedName.includes('4-5') || suggestedName.includes('4–5')) {
+      suggestedName = suggestedName.replace(/4[–-]5/g, nextAge);
+    } else {
+      suggestedName = `${suggestedName} (${nextAge} tuổi)`;
+    }
+
+    let suggestedYear = '2027-2028';
+    if (classroom.academicYear) {
+      const match = String(classroom.academicYear).match(/^(\d{4})-(\d{4})$/);
+      if (match) {
+        suggestedYear = `${Number(match[1]) + 1}-${Number(match[2]) + 1}`;
+      }
+    }
+
+    setPromoteModal({
+      isOpen: true,
+      mode: 'direct',
+      fromClass: classroom,
+      targetClassId: '',
+      newClassName: suggestedName,
+      newAcademicYear: suggestedYear,
+      newTeacherId: classroom.teacher?._id || classroom.teacher || '',
+      selectedStudentIds: studentIds,
+      submitting: false,
+      error: null
+    });
+  };
+
+  // Confirm Promote / Rollover
+  const handleConfirmPromoteClass = async () => {
+    if (!promoteModal.fromClass) return;
+    if (promoteModal.selectedStudentIds.length === 0) {
+      setPromoteModal((prev) => ({ ...prev, error: 'Vui lòng chọn ít nhất 1 học sinh để chuyển lớp.' }));
+      return;
+    }
+    try {
+      setPromoteModal((prev) => ({ ...prev, submitting: true, error: null }));
+
+      if (promoteModal.mode === 'direct') {
+        if (!promoteModal.newClassName.trim()) {
+          setPromoteModal((prev) => ({ ...prev, error: 'Vui lòng nhập tên lớp mới.', submitting: false }));
+          return;
+        }
+        const res = await adminApi.rolloverClassroom(promoteModal.fromClass._id, {
+          name: promoteModal.newClassName.trim(),
+          academicYear: promoteModal.newAcademicYear.trim() || '2027-2028',
+          teacherId: promoteModal.newTeacherId || undefined,
+          selectedStudentIds: promoteModal.selectedStudentIds
+        });
+        if (res.success) {
+          showAlert('success', res.message || 'Đã nâng cấp lớp học thành công!');
+          setPromoteModal({
+            isOpen: false,
+            mode: 'direct',
+            fromClass: null,
+            targetClassId: '',
+            newClassName: '',
+            newAcademicYear: '',
+            newTeacherId: '',
+            selectedStudentIds: [],
+            submitting: false,
+            error: null
+          });
+          await loadData();
+          await loadAvailableStudents();
+        } else {
+          setPromoteModal((prev) => ({ ...prev, error: res.message || 'Không thể nâng cấp lớp học.' }));
+        }
+      } else {
+        if (!promoteModal.targetClassId) {
+          setPromoteModal((prev) => ({ ...prev, error: 'Vui lòng chọn lớp học tiếp nhận.', submitting: false }));
+          return;
+        }
+        const res = await adminApi.promoteStudentsToClassroom(
+          promoteModal.fromClass._id,
+          promoteModal.targetClassId,
+          promoteModal.selectedStudentIds
+        );
+        if (res.success) {
+          showAlert('success', res.message || 'Đã chuyển học sinh lên lớp mới thành công!');
+          setPromoteModal({
+            isOpen: false,
+            mode: 'direct',
+            fromClass: null,
+            targetClassId: '',
+            newClassName: '',
+            newAcademicYear: '',
+            newTeacherId: '',
+            selectedStudentIds: [],
+            submitting: false,
+            error: null
+          });
+          await loadData();
+          await loadAvailableStudents();
+        } else {
+          setPromoteModal((prev) => ({ ...prev, error: res.message || 'Không thể chuyển lớp.' }));
+        }
+      }
+    } catch (err: any) {
+      setPromoteModal((prev) => ({ ...prev, error: err?.message || 'Có lỗi xảy ra khi chuyển lớp.' }));
+    } finally {
+      setPromoteModal((prev) => ({ ...prev, submitting: false }));
     }
   };
 
@@ -368,40 +565,56 @@ export const AdminClassroomsPage: React.FC = () => {
     });
   }, [availableStudents, studentFilterScope, studentSearchTerm, manageStudentsModal]);
 
-  // Remove Student from Classroom
-  const handleRemoveStudent = async (studentId: string, studentName: string) => {
+  // Remove Student from Classroom Prompt & Handler
+  const handlePromptRemoveStudent = (studentId: string, studentName: string) => {
     if (!manageStudentsModal) return;
-    if (
-      !window.confirm(
-        `Bạn có chắc chắn muốn xóa học sinh "${studentName}" ra khỏi lớp ${manageStudentsModal.name}?`
-      )
-    ) {
+    if (manageStudentsModal.status === 'COMPLETED') {
+      showAlert('error', 'Lớp học đã hoàn thành niên khóa, danh sách học sinh đã được đóng băng lưu trữ và không thể xóa khỏi lớp.');
       return;
     }
+    setRemoveStudentConfirm({
+      studentId,
+      studentName,
+      classroomName: manageStudentsModal.name,
+      classroomId: manageStudentsModal._id
+    });
+  };
+
+  const handleExecuteRemoveStudent = async () => {
+    if (!removeStudentConfirm) return;
+    setIsRemovingStudent(true);
     try {
-      const res = await adminApi.removeStudentFromClassroom(manageStudentsModal._id, studentId);
+      const res = await adminApi.removeStudentFromClassroom(removeStudentConfirm.classroomId, removeStudentConfirm.studentId);
       if (res.success) {
         if (res.credentials?.length) setIssuedCredentials(res.credentials);
-        showAlert('success', `Đã chuyển học sinh "${studentName}" ra khỏi lớp thành công.`);
-        const refresh = await adminApi.getClassroomById(manageStudentsModal._id);
+        showAlert('success', `Đã rút học sinh "${removeStudentConfirm.studentName}" ra khỏi lớp ${removeStudentConfirm.classroomName} thành công.`);
+        const refresh = await adminApi.getClassroomById(removeStudentConfirm.classroomId);
         if (refresh.success) setManageStudentsModal(refresh.data);
+        setRemoveStudentConfirm(null);
         loadData();
       }
     } catch (err: any) {
       showAlert('error', err?.message || 'Xóa học sinh khỏi lớp thất bại.');
+    } finally {
+      setIsRemovingStudent(false);
     }
   };
 
   // Reset Student PIN
   const handleConfirmResetPin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetPinTarget || !/^\d{4}$/.test(newPinValue.trim())) {
+    const pin = newPinValue.trim();
+    if (!resetPinTarget || !/^\d{4}$/.test(pin)) {
       showAlert('error', 'Mã PIN mới phải gồm đúng 4 chữ số (0-9).');
+      return;
+    }
+    if (/^(1234|(\d)\2{3})$/.test(pin)) {
+      showAlert('error', 'Mã PIN quá dễ đoán (không được dùng 1234 hoặc 4 chữ số trùng nhau như 0000, 1111...). Vui lòng chọn mã PIN bảo mật hơn.');
       return;
     }
     setResettingPin(true);
     try {
-      const res = await adminApi.resetChildPin(resetPinTarget._id, newPinValue.trim());
+      const res = await adminApi.resetChildPin(resetPinTarget._id, pin);
       if (res.success) {
         showAlert('success', res.message || `Đã đặt lại mã PIN mới thành công cho bé ${resetPinTarget.name}!`);
         setResetPinTarget(null);
@@ -680,33 +893,6 @@ export const AdminClassroomsPage: React.FC = () => {
     }
   };
 
-  // System Backup Trigger
-  const handleTriggerBackup = async () => {
-    try {
-      setBackingUp(true);
-      const res = await adminApi.exportSystemBackup();
-      const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json;charset=utf-8' });
-      const downloadUrl = URL.createObjectURL(blob);
-      const downloadAnchor = document.createElement('a');
-      const timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      downloadAnchor.setAttribute('href', downloadUrl);
-      downloadAnchor.setAttribute('download', `KCEnglishKids_Backup_${timeStr}.json`);
-      try {
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-      } finally {
-        downloadAnchor.remove();
-        // Release the URL after the browser has started the download.
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-      }
-      showAlert('success', 'Đã tải xuống gói sao lưu toàn bộ hệ thống (.json) thành công!');
-    } catch (err: any) {
-      showAlert('error', 'Lỗi khi xuất sao lưu: ' + (err?.message || 'Thất bại'));
-    } finally {
-      setBackingUp(false);
-    }
-  };
-
   // Filtered Classrooms
   const filteredClassrooms = useMemo(() => {
     return classrooms.filter((c) => {
@@ -721,11 +907,6 @@ export const AdminClassroomsPage: React.FC = () => {
       return matchSearch && matchAge && matchStatus;
     });
   }, [classrooms, search, filterAge, filterStatus]);
-
-  // Classes that had a scheduled slot today but teacher missed / hasn't taught yet
-  const missedClasses = useMemo(() => {
-    return classrooms.filter((c) => c.todayTeachingStatus === 'MISSED');
-  }, [classrooms]);
 
   // Total statistics
   const totalStudents = useMemo(() => {
@@ -767,17 +948,6 @@ export const AdminClassroomsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <button
-            type="button"
-            disabled={backingUp}
-            onClick={handleTriggerBackup}
-            className="py-3 px-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm sm:text-base flex items-center gap-2.5 transition-all cursor-pointer border border-slate-200"
-            title="Tải toàn bộ cơ sở dữ liệu hệ thống ra file JSON để bảo lưu an toàn"
-          >
-            <Database size={18} className={backingUp ? 'animate-spin text-indigo-800' : 'text-slate-600'} />
-            <span>{backingUp ? 'Đang trích xuất...' : 'Sao Lưu Hệ Thống (Backup)'}</span>
-          </button>
-
           <button
             type="button"
             onClick={handleOpenCreate}
@@ -879,35 +1049,6 @@ export const AdminClassroomsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Cảnh báo Giảng dạy Hôm nay (MISSED SCHEDULE ALERT) ── */}
-      {missedClasses.length > 0 && (
-        <div className="px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-            <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-black text-xs uppercase tracking-wide">
-              Cảnh báo hôm nay
-            </span>
-            <span className="font-bold text-rose-900">
-              Có {missedClasses.length} lớp quá giờ chưa vào dạy:
-            </span>
-            <span className="font-semibold text-rose-800">
-              {missedClasses.map((c) => `${c.name} (${c.todayTeachingNote || 'Chưa dạy'})`).join(', ')}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {missedClasses.map((c) => (
-              <button
-                key={c._id}
-                type="button"
-                onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
-                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors cursor-pointer"
-              >
-                Kiểm tra {c.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Classroom Cards Grid ──────────────────────────────────────────── */}
       {loading ? (
         <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center">
@@ -950,14 +1091,16 @@ export const AdminClassroomsPage: React.FC = () => {
                     </span>
                     <span
                       className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 ${
-                        c.status === 'ACTIVE'
+                        c.status === 'COMPLETED'
+                          ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                          : c.status === 'ACTIVE'
                           ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                           : c.status === 'UPCOMING'
                           ? 'bg-sky-50 text-sky-800 border border-sky-200'
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {c.status === 'ACTIVE' ? 'Đang học' : c.status === 'UPCOMING' ? 'Sắp mở' : 'Tạm dừng'}
+                      {c.status === 'COMPLETED' ? '🟣 Đã hoàn thành' : c.status === 'ACTIVE' ? 'Đang học' : c.status === 'UPCOMING' ? 'Sắp khai giảng' : 'Tạm dừng'}
                     </span>
                   </div>
 
@@ -983,7 +1126,7 @@ export const AdminClassroomsPage: React.FC = () => {
                       title="Lớp đã báo nghỉ ca dạy hôm nay. Bấm để xem chi tiết lý do và lịch học"
                     >
                       <span className="truncate">
-                        🚫 {c.todayTeachingNote || 'Đã báo nghỉ ca dạy hôm nay'}
+                        🚫 {c.todayTeachingNote ? c.todayTeachingNote.replace(/^[🚫\s]+/, '') : 'Đã báo nghỉ ca dạy hôm nay'}
                       </span>
                       <span className="underline shrink-0 text-amber-800 font-extrabold text-[11px]">Chi tiết</span>
                     </div>
@@ -1036,15 +1179,36 @@ export const AdminClassroomsPage: React.FC = () => {
                     <div className="text-xs font-black text-slate-600 uppercase tracking-wider">
                       Giáo Viên Phụ Trách
                     </div>
-                    <div className="flex items-center gap-3 pt-0.5">
-                      <div className="h-10 w-10 rounded-xl bg-indigo-700 text-white font-black text-sm flex items-center justify-center shrink-0">
-                        {teacherName[0] || 'T'}
+                    {c.teacher ? (
+                      <div className="flex items-center gap-3 pt-0.5">
+                        <div className="h-10 w-10 rounded-xl bg-indigo-700 text-white font-black text-sm flex items-center justify-center shrink-0">
+                          {teacherName[0] || 'T'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-900 truncate">{teacherName}</p>
+                          <p className="text-xs text-slate-600 font-semibold truncate">{teacherEmail}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-900 truncate">{teacherName}</p>
-                        <p className="text-xs text-slate-600 font-semibold truncate">{teacherEmail}</p>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-9 w-9 rounded-xl bg-amber-100 text-amber-700 font-bold text-xs flex items-center justify-center shrink-0 border border-amber-200">
+                            ?
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-amber-800">Chưa phân công GV</p>
+                            <p className="text-[11px] text-slate-500">Lớp sắp khai giảng</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(c)}
+                          className="px-2.5 py-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors shadow-xs cursor-pointer"
+                        >
+                          + Gán GV
+                        </button>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Class Info Snippet */}
@@ -1072,7 +1236,7 @@ export const AdminClassroomsPage: React.FC = () => {
                       className="py-2.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Users size={16} />
-                      <span>Quản lý Học sinh</span>
+                      <span>{c.status === 'COMPLETED' ? 'Danh sách học sinh' : 'Quản lý Học sinh'}</span>
                     </button>
 
                     <button
@@ -1084,6 +1248,26 @@ export const AdminClassroomsPage: React.FC = () => {
                       <span>Xem Chi Tiết Lớp</span>
                     </button>
                   </div>
+
+                  {/* Nút Lên lớp niên khóa mới (Promote Class - Chỉ dành cho lớp ĐÃ HOÀN THÀNH và không phải lớp 5-6 tuổi) */}
+                  {c.status === 'COMPLETED' && c.ageGroupCode !== '5-6' && (
+                    c.isRolledOver ? (
+                      <div className="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle2 size={16} className="text-emerald-600" />
+                        <span>Đã Lên Lớp Niên Khóa Mới</span>
+                      </div>
+                    ) : studentCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPromoteModal(c)}
+                        className="w-full py-2.5 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                        title="Chuyển cả lớp lên khóa mới và tự động cập nhật độ tuổi"
+                      >
+                        <GraduationCap size={16} className="text-amber-300" />
+                        <span>Lên Lớp Niên Khóa Mới ({studentCount} bé)</span>
+                      </button>
+                    ) : null
+                  )}
 
                   <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/50">
                     <button
@@ -1106,17 +1290,26 @@ export const AdminClassroomsPage: React.FC = () => {
                         <Edit2 size={16} />
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDeleteTargetClass(c);
-                          setDeleteConfirmText('');
-                        }}
-                        className="p-2 rounded-xl text-rose-800 hover:text-rose-800 hover:bg-rose-50 transition-colors cursor-pointer"
-                        title="Xóa vĩnh viễn lớp học và toàn bộ học sinh"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {c.status === 'COMPLETED' ? (
+                        <div
+                          className="p-2 rounded-xl text-purple-400 cursor-default"
+                          title="Lớp đã hoàn thành và lưu trữ vĩnh viễn (không thể xóa)"
+                        >
+                          <Lock size={16} />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteTargetClass(c);
+                            setDeleteConfirmText('');
+                          }}
+                          className="p-2 rounded-xl text-rose-700 hover:text-rose-900 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Xóa lớp học"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1177,16 +1370,22 @@ export const AdminClassroomsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                    Giáo Viên Phụ Trách <span className="text-rose-600">*</span>
+                    Giáo Viên Phụ Trách
                   </label>
                   <select
-                    required
                     value={formData.teacherId}
-                    onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({
+                        ...formData,
+                        teacherId: val,
+                        status: val ? (formData.status || 'ACTIVE') : 'UPCOMING'
+                      });
+                    }}
                     className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all truncate"
                   >
-                    <option value="" disabled>
-                      -- Chọn giáo viên phụ trách --
+                    <option value="">
+                      -- Chưa phân công giáo viên (Sắp khai giảng) --
                     </option>
                     {teachers.map((t) => (
                       <option
@@ -1197,6 +1396,21 @@ export const AdminClassroomsPage: React.FC = () => {
                         {t.name} ({t.email})
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Trạng Thái Khởi Tạo
+                  </label>
+                  <select
+                    value={formData.teacherId ? formData.status : 'UPCOMING'}
+                    disabled={!formData.teacherId}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold focus:border-indigo-600 focus:bg-white focus:outline-none transition-all disabled:opacity-60"
+                  >
+                    <option value="UPCOMING">Sắp khai giảng (Upcoming)</option>
+                    <option value="ACTIVE">Đang học (Active)</option>
                   </select>
                 </div>
 
@@ -1354,14 +1568,14 @@ export const AdminClassroomsPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Giáo Viên Phụ Trách *
+                  Giáo Viên Phụ Trách
                 </label>
                 <select
-                  required
                   value={formData.teacherId}
                   onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
                   className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600"
                 >
+                  <option value="">-- Chưa phân công giáo viên --</option>
                   {teachers.map((t) => (
                     <option
                       key={t._id}
@@ -1392,20 +1606,37 @@ export const AdminClassroomsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                    Trạng Thái
+                    Trạng Thái Vòng Đời Lớp
                   </label>
                   <select
                     value={formData.status}
+                    disabled={editClassModal.status === 'COMPLETED'}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold"
+                    className="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold disabled:opacity-60"
                   >
-                    <option value="ACTIVE">🟢 Đang học</option>
-                    <option value="UPCOMING">🔵 Sắp mở</option>
-                    <option value="COMPLETED">🟣 Hoàn thành</option>
-                    <option value="INACTIVE">⚪ Vô hiệu hóa</option>
+                    <option value="ACTIVE">🟢 Đang học (Active)</option>
+                    {editClassModal.status === 'UPCOMING' && (
+                      <option value="UPCOMING">🔵 Sắp khai giảng (Upcoming)</option>
+                    )}
+                    {editClassModal.status !== 'UPCOMING' && (
+                      <option value="COMPLETED">🟣 Đã hoàn thành khóa học (Completed)</option>
+                    )}
+                    <option value="INACTIVE">⚪ Tạm dừng (Inactive)</option>
                   </select>
                 </div>
               </div>
+
+              {editClassModal.status === 'COMPLETED' && (
+                <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold">
+                  🎓 Lớp học này đã hoàn thành khóa học và đóng hồ sơ lưu trữ. Toàn bộ lịch sử giảng dạy và học bạ được bảo tồn nguyên vẹn.
+                </div>
+              )}
+
+              {editClassModal.status !== 'COMPLETED' && formData.status === 'COMPLETED' && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold leading-relaxed">
+                  📌 <b>Chốt khóa học (Completed):</b> Hệ thống sẽ giữ nguyên 100% lịch sử thời khóa biểu và nhật ký các buổi đã dạy trong quá khứ, đồng thời tự động đóng các ca học tương lai để giải phóng giáo viên và phòng học.
+                </div>
+              )}
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
@@ -1437,12 +1668,22 @@ export const AdminClassroomsPage: React.FC = () => {
               <div>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
                   <Users className="text-indigo-800" size={26} />
-                  <span>Quản Lý Học Sinh: {manageStudentsModal.name}</span>
+                  <span>
+                    {manageStudentsModal.status === 'COMPLETED'
+                      ? `Danh Sách Học Sinh: ${manageStudentsModal.name} (Đã Đóng Băng Lưu Trữ)`
+                      : `Quản Lý Học Sinh: ${manageStudentsModal.name}`}
+                  </span>
                 </h2>
                 <div className="flex flex-wrap items-center gap-2.5 text-sm font-semibold text-slate-600 mt-1">
                   <span className="px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-800 font-bold">
                     Lớp độ tuổi: {manageStudentsModal.ageGroupCode} tuổi
                   </span>
+                  {manageStudentsModal.status === 'COMPLETED' && (
+                    <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-black text-xs flex items-center gap-1">
+                      <Lock size={12} />
+                      Đã hoàn thành niên khóa
+                    </span>
+                  )}
                   <span>•</span>
                   <span>
                     Sĩ số hiện tại: <strong className="text-indigo-800 font-black">{manageStudentsModal.students?.length || 0} học sinh</strong>
@@ -1461,197 +1702,265 @@ export const AdminClassroomsPage: React.FC = () => {
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-7 min-h-0 pt-4 overflow-y-auto lg:overflow-hidden">
               {/* CỘT TRÁI (6/12): TIẾP NHẬN & THÊM HỌC SINH */}
               <div className="lg:col-span-6 flex flex-col min-h-0 border-b lg:border-b-0 lg:border-r border-slate-200 lg:pr-7 pb-4 lg:pb-0">
-                {/* Tabs */}
-                <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-slate-100 shrink-0 mb-3.5">
-                  <button
-                    type="button"
-                    onClick={() => setSingleStudentTab('existing')}
-                    className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      singleStudentTab === 'existing'
-                        ? 'bg-white text-indigo-700 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Users size={15} />
-                    <span className="truncate">Chọn Có Sẵn</span>
-                  </button>
+                {manageStudentsModal.status === 'COMPLETED' ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center rounded-2xl bg-amber-50/80 border border-amber-200 my-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-3.5 shadow-2xs">
+                      <GraduationCap size={28} />
+                    </div>
+                    <h4 className="text-base font-black text-amber-950">Lớp Học Đã Hoàn Thành Khóa Học</h4>
+                    <p className="text-xs text-amber-900/90 font-semibold max-w-sm mt-1.5 leading-relaxed">
+                      Lớp học này đã kết thúc và đóng băng hồ sơ lưu trữ để bảo toàn học bạ. 
+                      Không thể thêm học sinh mới vào lớp, bạn chỉ có thể xem danh sách hoặc chuyển học sinh sang lớp học niên khóa mới.
+                    </p>
+                    {manageStudentsModal.ageGroupCode !== '5-6' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const c = manageStudentsModal;
+                          setManageStudentsModal(null);
+                          handleOpenPromoteModal(c);
+                        }}
+                        className="mt-4 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                      >
+                        <GraduationCap size={16} />
+                        <span>Lên Lớp Niên Khóa Mới</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Tabs */}
+                    <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-slate-100 shrink-0 mb-3.5">
+                      <button
+                        type="button"
+                        onClick={() => setSingleStudentTab('existing')}
+                        className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          singleStudentTab === 'existing'
+                            ? 'bg-white text-indigo-700 shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Users size={15} />
+                        <span className="truncate">Chọn Có Sẵn</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSingleStudentTab('single')}
-                    className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      singleStudentTab === 'single'
-                        ? 'bg-white text-indigo-700 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <UserPlus size={15} />
-                    <span className="truncate">Thêm Lẻ Mới</span>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setSingleStudentTab('single')}
+                        className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          singleStudentTab === 'single'
+                            ? 'bg-white text-indigo-700 shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <UserPlus size={15} />
+                        <span className="truncate">Thêm Lẻ Mới</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSingleStudentTab('excel')}
-                    className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      singleStudentTab === 'excel'
-                        ? 'bg-white text-indigo-700 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <FileSpreadsheet size={15} />
-                    <span className="truncate">Nạp Từ Excel</span>
-                  </button>
-                </div>
-
-                {/* TAB 1: CHỌN TỪ TÀI KHOẢN CÓ SẴN TRÊN HỆ THỐNG */}
-                {singleStudentTab === 'existing' && (
-                  <div className="flex-1 flex flex-col min-h-0 space-y-3">
-                    {/* Filter buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
-                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
-                        Chọn tài khoản có sẵn
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setStudentFilterScope('MATCH')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                            studentFilterScope === 'MATCH'
-                              ? 'bg-indigo-700 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                          title={`Chỉ hiển thị các bé ${manageStudentsModal.ageGroupCode} tuổi`}
-                        >
-                          Đúng tuổi lớp
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStudentFilterScope('UNASSIGNED')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                            studentFilterScope === 'UNASSIGNED'
-                              ? 'bg-indigo-700 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          Chưa có lớp
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStudentFilterScope('ALL')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                            studentFilterScope === 'ALL'
-                              ? 'bg-indigo-700 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          Tất cả
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSingleStudentTab('excel')}
+                        className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          singleStudentTab === 'excel'
+                            ? 'bg-white text-indigo-700 shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileSpreadsheet size={15} />
+                        <span className="truncate">Nạp Từ Excel</span>
+                      </button>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="relative shrink-0">
-                      <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        value={studentSearchTerm}
-                        onChange={(e) => setStudentSearchTerm(e.target.value)}
-                        placeholder="Tìm theo tên học sinh, mã tài khoản hoặc SĐT..."
-                        className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
-                      />
-                      {studentSearchTerm && (
-                        <button
-                          type="button"
-                          onClick={() => setStudentSearchTerm('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* List of existing students (Scrollable) */}
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px]">
-                      {availableStudentsLoading ? (
-                        <div className="py-8 text-center text-xs font-bold text-slate-600">
-                          <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                          Đang tải danh sách học sinh...
-                        </div>
-                      ) : filteredAvailableStudents.length === 0 ? (
-                        <div className="py-8 text-center text-xs font-semibold text-slate-600 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                          Không tìm thấy học sinh nào phù hợp.
-                        </div>
-                      ) : (
-                        filteredAvailableStudents.slice(0, 60).map((st: any) => {
-                          const currentClassId = typeof st.assignedClass === 'object' ? st.assignedClass?._id : st.assignedClass;
-                          const isInThisClass = currentClassId === manageStudentsModal._id ||
-                            manageStudentsModal.students?.some((currSt: any) => currSt._id === st._id);
-                          const isAdding = addingStudentId === st._id;
-                          const isAgeMismatch = Boolean(
-                            st.ageGroupCode &&
-                            manageStudentsModal.ageGroupCode &&
-                            st.ageGroupCode !== manageStudentsModal.ageGroupCode
-                          );
-
-                          return (
-                            <div
-                              key={st._id}
-                              className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
-                                isAgeMismatch
-                                  ? 'bg-slate-50/70 border-slate-200/60 opacity-60'
-                                  : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-xs'
+                    {/* TAB 1: CHỌN TỪ TÀI KHOẢN CÓ SẴN TRÊN HỆ THỐNG */}
+                    {singleStudentTab === 'existing' && (
+                      <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                        {/* Filter buttons - Bỏ nút "Tất cả", chỉ giữ Đúng tuổi và Chưa có lớp */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                            Chọn tài khoản có sẵn
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setStudentFilterScope('MATCH')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                                studentFilterScope === 'MATCH'
+                                  ? 'bg-indigo-700 text-white'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                              title={`Chỉ hiển thị các bé ${manageStudentsModal.ageGroupCode} tuổi`}
+                            >
+                              Đúng tuổi lớp
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setStudentFilterScope('UNASSIGNED')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                                studentFilterScope === 'UNASSIGNED'
+                                  ? 'bg-indigo-700 text-white'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <StudentAvatar student={st} size="md" />
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
-                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-600 mt-1">
-                                    <span className="font-mono text-indigo-800 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded">
-                                      {st.username || 'N/A'}
-                                    </span>
-                                    {st.ageGroupCode && (
-                                      <span className={`px-1.5 py-0.2 rounded font-semibold ${
-                                        isAgeMismatch
-                                          ? 'bg-rose-50 text-rose-800 font-bold border border-rose-200'
-                                          : 'bg-slate-100 text-slate-700'
-                                      }`}>
-                                        {st.ageGroupCode} tuổi
-                                      </span>
-                                    )}
-                                    {isInThisClass ? (
-                                      <span className="bg-emerald-50 text-emerald-800 font-black px-1.5 py-0.2 rounded flex items-center gap-1 border border-emerald-200">
-                                        <Check size={11} /> Đang ở lớp này
-                                      </span>
-                                    ) : st.assignedClass ? (
-                                      <span className="bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
-                                        Lớp: {typeof st.assignedClass === 'object' ? st.assignedClass.name : 'Khác'}
-                                      </span>
-                                    ) : (
-                                      <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                                        Chưa có lớp
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
+                              Chưa có lớp
+                            </button>
+                          </div>
+                        </div>
 
-                              <div className="shrink-0">
-                                {isInThisClass ? (
+                        {/* Search Bar */}
+                        <div className="relative shrink-0">
+                          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={studentSearchTerm}
+                            onChange={(e) => setStudentSearchTerm(e.target.value)}
+                            placeholder="Tìm theo tên học sinh, mã tài khoản hoặc SĐT..."
+                            className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                          />
+                          {studentSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => setStudentSearchTerm('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* List of existing students (Scrollable) */}
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
+                          {availableStudentsLoading ? (
+                            <div className="py-8 text-center text-xs font-bold text-slate-600">
+                              <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                              Đang tải danh sách học sinh...
+                            </div>
+                          ) : filteredAvailableStudents.length === 0 ? (
+                            <div className="py-8 text-center text-xs font-semibold text-slate-600 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                              Không tìm thấy học sinh nào phù hợp.
+                            </div>
+                          ) : (
+                            filteredAvailableStudents.slice(0, 60).map((st: any) => {
+                              const currentClassId = typeof st.assignedClass === 'object' ? st.assignedClass?._id : st.assignedClass;
+                              const currentClassObj = typeof st.assignedClass === 'object' ? st.assignedClass : null;
+                              const isCurrentClassCompleted = currentClassObj?.status === 'COMPLETED';
+                              const isInThisClass = currentClassId === manageStudentsModal._id ||
+                                manageStudentsModal.students?.some((currSt: any) => currSt._id === st._id);
+                              const isAdding = addingStudentId === st._id;
+                              const studentRank = AGE_RANK[st.ageGroupCode] || 1;
+                              const classRank = AGE_RANK[manageStudentsModal.ageGroupCode] || 1;
+                              const isSameAge = studentRank === classRank;
+                              const isYounger = studentRank < classRank;
+                              const isOlder = studentRank > classRank;
+                              const isAgeMismatch = !isSameAge;
+
+                              // Kiểm tra tốt nghiệp mầm non (đã hoàn thành lớp 5-6)
+                              const isGraduated = isCurrentClassCompleted && (currentClassObj?.ageGroupCode === '5-6' || st.ageGroupCode === '5-6');
+
+                              // Kiểm tra đã hoàn thành tuổi này (lớp cũ cùng độ tuổi đã hoàn thành)
+                              const isCompletedThisAge = isCurrentClassCompleted && isSameAge;
+
+                              return (
+                                <div
+                                  key={st._id}
+                                  className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                                    isGraduated
+                                      ? 'bg-purple-50/50 border-purple-200/80 opacity-75'
+                                      : isAgeMismatch
+                                      ? 'bg-slate-50/70 border-slate-200/60 opacity-60'
+                                      : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-xs'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <StudentAvatar student={st} size="md" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{st.name}</p>
+                                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-600 mt-1">
+                                        {/* Bỏ tên mã nhỏ bên dưới */}
+                                        {st.ageGroupCode && (
+                                          <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                                            isGraduated
+                                              ? 'bg-purple-100 text-purple-900 font-bold border border-purple-200'
+                                              : isAgeMismatch
+                                              ? 'bg-rose-50 text-rose-800 font-bold border border-rose-200'
+                                              : 'bg-slate-100 text-slate-700'
+                                          }`}>
+                                            {st.ageGroupCode} tuổi
+                                          </span>
+                                        )}
+                                        {isGraduated ? (
+                                          <span className="bg-purple-50 text-purple-800 font-black px-1.5 py-0.2 rounded flex items-center gap-1 border border-purple-200">
+                                            🎓 Đã tốt nghiệp mầm non
+                                          </span>
+                                        ) : isInThisClass ? (
+                                          <span className="bg-emerald-50 text-emerald-800 font-black px-1.5 py-0.2 rounded flex items-center gap-1 border border-emerald-200">
+                                            <Check size={11} /> Đang ở lớp này
+                                          </span>
+                                        ) : st.assignedClass ? (
+                                          <span className={`px-1.5 py-0.2 rounded border ${
+                                            isCurrentClassCompleted
+                                              ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                                          }`}>
+                                            {isCurrentClassCompleted ? 'Lớp cũ đã xong: ' : 'Lớp: '}
+                                            {currentClassObj?.name || 'Khác'}
+                                          </span>
+                                        ) : (
+                                          <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                                            Chưa có lớp
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                              <div className="shrink-0 flex items-center sm:self-auto self-end">
+                                {isGraduated ? (
+                                  <span
+                                    className="py-1.5 px-3 rounded-xl bg-purple-50 text-purple-800 font-bold text-xs border border-purple-200 select-none cursor-not-allowed flex items-center gap-1"
+                                    title={`Bé ${st.name} đã hoàn thành chương trình mầm non (Lớp 5-6 tuổi đã kết thúc).`}
+                                  >
+                                    <GraduationCap size={13} className="text-purple-600" />
+                                    <span>Đã Tốt Nghiệp</span>
+                                  </span>
+                                ) : isInThisClass ? (
                                   <span
                                     className="py-1.5 px-3 rounded-xl bg-emerald-50 text-emerald-800 font-black text-xs border border-emerald-200 flex items-center gap-1 select-none"
                                   >
                                     <Check size={12} />
                                     <span>Đã Trong Lớp</span>
                                   </span>
-                                ) : isAgeMismatch ? (
+                                ) : isOlder ? (
                                   <span
-                                    className="py-1.5 px-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs border border-slate-200 flex items-center gap-1 select-none"
-                                    title={`Học sinh này thuộc độ tuổi ${st.ageGroupCode}, không thể xếp vào lớp ${manageStudentsModal.ageGroupCode} tuổi`}
+                                    className="py-1.5 px-2.5 rounded-xl bg-rose-50 text-rose-700 font-black text-xs border border-rose-200 select-none cursor-not-allowed"
+                                    title={`Bé ${st.name} đã ${st.ageGroupCode} tuổi, không thể hạ tuổi để vào lớp ${manageStudentsModal.ageGroupCode} tuổi.`}
                                   >
-                                    <AlertCircle size={12} className="text-amber-500" />
-                                    <span>Khác độ tuổi</span>
+                                    Quá tuổi lớp
                                   </span>
+                                ) : classRank > studentRank + 1 ? (
+                                  <span
+                                    className="py-1.5 px-2.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 select-none cursor-not-allowed"
+                                    title={`Bé ${st.name} hiện ở nhóm ${st.ageGroupCode} tuổi, không thể nhảy cóc lên lớp ${manageStudentsModal.ageGroupCode} tuổi (chỉ được lên tối đa lớp kế tiếp).`}
+                                  >
+                                    Chưa đủ tuổi
+                                  </span>
+                                ) : isCompletedThisAge ? (
+                                  <span
+                                    className="py-1.5 px-2.5 rounded-xl bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200 select-none cursor-not-allowed"
+                                    title={`Bé ${st.name} đã hoàn thành lớp ${st.ageGroupCode} tuổi, không thể học lại lớp cùng lứa tuổi. Vui lòng nâng lớp cho bé lên lớp kế tiếp (+1 tuổi).`}
+                                  >
+                                    Đã xong tuổi này
+                                  </span>
+                                ) : isYounger ? (
+                                  <button
+                                    type="button"
+                                    disabled={isAdding || smartUpgrading}
+                                    onClick={() => setSmartUpgradeConfirm({ student: st, targetClass: manageStudentsModal })}
+                                    className="py-1.5 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                                    title={`Bé ${st.name} hiện ở nhóm ${st.ageGroupCode} tuổi. Bấm để nâng tuổi lên ${manageStudentsModal.ageGroupCode} và xếp vào lớp này.`}
+                                  >
+                                    <Sparkles size={13} className="text-purple-600" />
+                                    <span>Thăng hạng &amp; Vào lớp</span>
+                                  </button>
                                 ) : (
                                   <button
                                     type="button"
@@ -1681,19 +1990,6 @@ export const AdminClassroomsPage: React.FC = () => {
                           );
                         })
                       )}
-                    </div>
-
-                    {/* Bottom Helper */}
-                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">
-                      <span>Chưa có tài khoản trên hệ thống?</span>
-                      <button
-                        type="button"
-                        onClick={() => setSingleStudentTab('single')}
-                        className="text-indigo-700 hover:text-indigo-900 font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>+ Thêm lẻ học sinh mới</span>
-                        <ArrowRight size={13} />
-                      </button>
                     </div>
                   </div>
                 )}
@@ -1858,7 +2154,9 @@ export const AdminClassroomsPage: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
+              </>
+            )}
+          </div>
 
               {/* CỘT PHẢI (6/12): DANH SÁCH HỌC SINH ĐANG HỌC TRONG LỚP */}
               <div className="lg:col-span-6 flex flex-col min-h-0 space-y-3">
@@ -1970,15 +2268,25 @@ export const AdminClassroomsPage: React.FC = () => {
                             <span>Đổi PIN</span>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveStudent(st._id, st.name)}
-                            className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1.5 border border-rose-200/80 shadow-2xs transition-all cursor-pointer"
-                            title="Xóa học sinh ra khỏi lớp"
-                          >
-                            <UserMinus size={13} />
-                            <span>Xóa khỏi lớp</span>
-                          </button>
+                          {manageStudentsModal.status === 'COMPLETED' ? (
+                            <span
+                              className="py-1.5 px-2.5 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs flex items-center gap-1 border border-slate-200/80 cursor-not-allowed select-none"
+                              title="Lớp đã hoàn thành niên khóa, danh sách học sinh được đóng băng lưu trữ hồ sơ"
+                            >
+                              <Lock size={12} className="text-slate-400" />
+                              <span>Đã lưu trữ</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handlePromptRemoveStudent(st._id, st.name)}
+                              className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1.5 border border-rose-200/80 shadow-2xs transition-all cursor-pointer"
+                              title="Xóa học sinh ra khỏi lớp"
+                            >
+                              <UserMinus size={13} />
+                              <span>Xóa khỏi lớp</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     ));
@@ -2049,8 +2357,8 @@ export const AdminClassroomsPage: React.FC = () => {
                 }`}
               >
                 <CalendarDays size={16} />
-                <span>Giám Sát Lịch Dạy &amp; Bài Học Hôm Nay</span>
-                {curriculumData?.todayStatus?.warning && (
+                <span>Theo Dõi Lịch Dạy &amp; Tiến Trình Buổi Học</span>
+                {curriculumData?.todayStatus?.warning && (curriculumData?.classroom?.status || curriculumProgressModal?.status) !== 'COMPLETED' && (
                   <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white animate-ping ml-0.5" />
                 )}
               </button>
@@ -2224,39 +2532,59 @@ export const AdminClassroomsPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* ── TAB 1: GIÁM SÁT LỊCH DẠY & BÀI HỌC HÔM NAY ─────────────────── */}
+                {/* ── TAB 1: THEO DÕI LỊCH DẠY & TIẾN TRÌNH BUỔI HỌC ─────────────────── */}
                 {classDetailTab === 'schedule' && (
                   <div className="space-y-6">
-                    {/* Tiêu điểm: Đúng hôm nay phải học bài nào? */}
-                    <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200/90 space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
-                        <div className="flex items-center gap-2.5">
-                          <span className="p-2 rounded-xl bg-indigo-700 text-white font-black text-xs">
-                            <Clock size={16} />
-                          </span>
-                          <div>
-                            <h4 className="text-base font-black text-slate-900">
-                              Đúng Hôm Nay Phải Học Đến Bài Nào?
-                            </h4>
-                            <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                              Hệ thống đối chiếu Thời khóa biểu hôm nay với tiến độ thực tế giảng dạy
-                            </p>
-                          </div>
-                        </div>
-
-                        <span className="px-3 py-1 rounded-xl bg-indigo-100/70 text-indigo-900 font-extrabold text-xs self-start sm:self-auto">
-                          {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </span>
-                      </div>
-
-                      {curriculumData.todayStatus?.hasSchedule ? (
-                        <div className="space-y-3.5">
-                          {/* Bài học quy định của ngày hôm nay */}
-                          <div className="p-4 rounded-2xl bg-white border border-indigo-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                              <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
-                                Bài Học Quy Định Hôm Nay (Theo TKB)
+                    {(curriculumData?.classroom?.status || curriculumProgressModal?.status) !== 'COMPLETED' && (
+                      <>
+                        {/* Tiêu điểm: Trạng thái ca dạy & Bài học kế tiếp */}
+                        <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200/90 space-y-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                            <div className="flex items-center gap-2.5">
+                              <span className="p-2 rounded-xl bg-indigo-700 text-white font-black text-xs">
+                                <Clock size={16} />
                               </span>
+                              <div>
+                                <h4 className="text-base font-black text-slate-900">
+                                  Trạng Thái Ca Dạy &amp; Bài Học Kế Tiếp
+                                </h4>
+                                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                                  Theo dõi tiến trình bài học và trạng thái ca dạy thực tế (đã tự động cập nhật khi có buổi báo nghỉ / bảo lưu bài)
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="px-3 py-1 rounded-xl bg-indigo-100/70 text-indigo-900 font-extrabold text-xs self-start sm:self-auto">
+                              {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                          </div>
+
+                          {curriculumData.todayStatus?.hasSchedule ? (
+                            <div className="space-y-3.5">
+                              {/* Bài học dự kiến / bài học của ngày hôm nay */}
+                              <div className="p-4 rounded-2xl bg-white border border-indigo-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                  <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${
+                                    curriculumData.todayStatus?.status === 'CANCELLED'
+                                      ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                      : curriculumData.todayStatus?.status === 'TAUGHT'
+                                      ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                                      : curriculumData.todayStatus?.status === 'LIVE'
+                                      ? 'bg-sky-50 text-sky-900 border-sky-200'
+                                      : curriculumData.todayStatus?.status === 'MISSED'
+                                      ? 'bg-rose-50 text-rose-900 border-rose-200'
+                                      : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                  }`}>
+                                    {curriculumData.todayStatus?.status === 'CANCELLED'
+                                      ? '🚫 Bài Học Được Bảo Lưu Do Lớp Báo Nghỉ'
+                                      : curriculumData.todayStatus?.status === 'TAUGHT'
+                                      ? '✅ Đã Dạy Xong Hôm Nay'
+                                      : curriculumData.todayStatus?.status === 'LIVE'
+                                      ? '🔴 Đang Trong Giờ Dạy Trực Tiếp'
+                                      : curriculumData.todayStatus?.status === 'MISSED'
+                                      ? '⏰ Ca Dạy Hôm Nay: Quá Giờ Bắt Đầu'
+                                      : '🎯 Bài Học Dự Kiến Ca Hôm Nay'}
+                                  </span>
                               <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-2 flex items-center gap-2">
                                 <span>🎯 {curriculumData.todayStatus?.scheduledLesson?.title || curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}</span>
                               </h3>
@@ -2275,7 +2603,7 @@ export const AdminClassroomsPage: React.FC = () => {
                             <div className="sm:text-right shrink-0 bg-slate-50 p-3 rounded-xl border border-slate-200">
                               <p className="text-xs font-bold text-slate-500">Thứ tự trong giáo trình:</p>
                               <p className="text-lg font-black text-indigo-900 mt-0.5">
-                                Bài #{curriculumData.todayStatus?.scheduledLesson?.syllabusOrder || 1} / {curriculumData.totalLessons || 36}
+                                Bài #{curriculumData.todayStatus?.scheduledLesson?.syllabusOrder || curriculumData.currentLesson?.displayOrder || 1} / {curriculumData.totalLessons || 36}
                               </p>
                             </div>
                           </div>
@@ -2299,7 +2627,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                   <span className="font-black text-indigo-900">
                                     "{curriculumData.todayStatus?.scheduledLesson?.title || curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}"
                                   </span>{' '}
-                                  sẽ được tự động giảng dạy vào buổi học kế tiếp trên thời khóa biểu. Lớp không bị mất bài.
+                                  sẽ được tự động giảng dạy vào buổi học kế tiếp trên thời khóa biểu. Lớp không bị mất bài hay lệch tiến độ.
                                 </p>
                               </div>
                             </div>
@@ -2337,7 +2665,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                 Đã hoàn thành buổi dạy bài này hôm nay!
                               </h4>
                               <p className="text-xs text-emerald-800 font-semibold mt-0.5">
-                                Giáo viên {curriculumData.classroom?.teacher?.name} đã hoàn tất phiên giảng dạy theo đúng bài quy định trên thời khóa biểu.
+                                Giáo viên {curriculumData.classroom?.teacher?.name} đã hoàn tất phiên giảng dạy theo đúng tiến độ bài học của lớp.
                               </p>
                             </div>
                           )}
@@ -2365,23 +2693,36 @@ export const AdminClassroomsPage: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="p-4 rounded-2xl bg-white border border-slate-200 text-slate-700">
-                          <h4 className="text-base font-black text-slate-800">
-                            Hôm nay không có lịch học theo thời khóa biểu
-                          </h4>
-                          <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                            Lớp {curriculumProgressModal.name} không có ca dạy vào ngày hôm nay. Buổi học kế tiếp sẽ học bài: <span className="font-bold text-indigo-900">{curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}</span>.
-                          </p>
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 text-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                              Hôm Nay Không Có Ca Dạy Theo TKB
+                            </span>
+                            <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-2 flex items-center gap-2">
+                              <span>🎯 Bài học kế tiếp: {curriculumData.currentLesson?.title || 'Bài học theo lộ trình'}</span>
+                            </h3>
+                            <p className="text-xs text-slate-600 font-semibold mt-1">
+                              Lớp {curriculumProgressModal.name} sẽ tiếp tục học bài này vào ca dạy tiếp theo trên thời khóa biểu.
+                            </p>
+                          </div>
+                          {curriculumData.currentLesson && (
+                            <div className="sm:text-right shrink-0 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                              <p className="text-xs font-bold text-slate-500">Thứ tự trong giáo trình:</p>
+                              <p className="text-lg font-black text-indigo-900 mt-0.5">
+                                Bài #{curriculumData.currentLesson?.displayOrder || 1} / {curriculumData.totalLessons || 36}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
 
-                    {/* Thời khóa biểu cố định trong tuần & Bài học gắn vào từng buổi */}
+                    {/* Thời khóa biểu cố định trong tuần */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                           <CalendarDays size={16} className="text-indigo-800" />
-                          <span>Thời Khóa Biểu Trong Tuần &amp; Bài Học Được Gán</span>
+                          <span>Thời Khóa Biểu Cố Định Trong Tuần</span>
                         </h4>
                         <span className="text-xs font-bold text-indigo-800">
                           {curriculumData.schedule?.weeklySlots?.length || 0} ca học / tuần
@@ -2390,7 +2731,7 @@ export const AdminClassroomsPage: React.FC = () => {
 
                       {(!curriculumData.schedule?.weeklySlots || curriculumData.schedule.weeklySlots.length === 0) ? (
                         <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs font-semibold text-slate-500">
-                          Lớp chưa được cài đặt thời khóa biểu cố định. Bấm nút "⚡ Gán Bài Học Vào TKB 3 Lớp" ở trên để tự động phân bổ ngay.
+                          Lớp chưa được cài đặt thời khóa biểu cố định.
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -2410,7 +2751,9 @@ export const AdminClassroomsPage: React.FC = () => {
                                 key={idx}
                                 className={`p-4 rounded-2xl border transition-all ${
                                   isToday
-                                    ? curriculumData.todayStatus?.status === 'MISSED'
+                                    ? curriculumData.todayStatus?.status === 'CANCELLED'
+                                      ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-500/20'
+                                      : curriculumData.todayStatus?.status === 'MISSED'
                                       ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-500/30'
                                       : 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20'
                                     : 'bg-white border-slate-200'
@@ -2422,46 +2765,34 @@ export const AdminClassroomsPage: React.FC = () => {
                                   </span>
                                   {isToday && (
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                      curriculumData.todayStatus?.status === 'MISSED'
+                                      curriculumData.todayStatus?.status === 'CANCELLED'
+                                        ? 'bg-amber-700 text-white'
+                                        : curriculumData.todayStatus?.status === 'MISSED'
                                         ? 'bg-rose-600 text-white animate-pulse'
                                         : 'bg-indigo-700 text-white'
                                     }`}>
-                                      {curriculumData.todayStatus?.status === 'MISSED' ? 'Chưa dạy hôm nay' : 'Hôm nay'}
+                                      {curriculumData.todayStatus?.status === 'CANCELLED' ? 'Báo nghỉ hôm nay' : curriculumData.todayStatus?.status === 'MISSED' ? 'Chưa dạy hôm nay' : 'Hôm nay'}
                                     </span>
                                   )}
                                 </div>
 
-                                <p className="text-base font-black text-slate-900 mt-1 flex items-center gap-1.5">
+                                <p className="text-base font-black text-slate-900 mt-2 flex items-center gap-1.5">
                                   <Clock size={15} className="text-slate-500" />
                                   <span>{slot.startTime} – {slot.endTime}</span>
                                 </p>
-                                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                                <p className="text-xs text-slate-500 font-semibold mt-1">
                                   Phòng: {slot.room || 'Phòng học chính'}
                                 </p>
-
-                                {/* Gắn bài học của buổi này */}
-                                <div className="mt-2.5 pt-2 border-t border-slate-200/80">
-                                  <p className="text-[11px] font-black uppercase tracking-wider text-indigo-700">
-                                    Bài học quy định:
-                                  </p>
-                                  {(slot.lessonTitle || slot.lesson) ? (
-                                    <p className="text-xs font-black text-indigo-950 mt-0.5 break-words leading-snug" title={slot.lessonTitle || slot.lesson?.title}>
-                                      🎯 {slot.lessonTitle || slot.lesson?.title}
-                                    </p>
-                                  ) : (
-                                    <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                                      Khung giờ học (Không gán bài cố định)
-                                    </p>
-                                  )}
-                                </div>
                               </div>
                             );
                           })}
                         </div>
                       )}
                     </div>
+                  </>
+                )}
 
-                    {/* Nhật ký các buổi học đã tổ chức gần đây */}
+                {/* Nhật ký các buổi học đã tổ chức gần đây */}
                     <div className="space-y-2.5">
                       <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">
                         Nhật Ký Các Buổi Dạy Gần Đây
@@ -2509,14 +2840,27 @@ export const AdminClassroomsPage: React.FC = () => {
                                       <div className="text-[11px] text-slate-500 font-medium">{timeStr}</div>
                                     </td>
                                     <td className="py-2.5 px-3">
-                                      <div className="flex flex-col min-w-0 max-w-[260px]">
-                                        <span className="font-black text-indigo-950 text-xs truncate" title={rawLesson}>
-                                          📖 {cleanLessonTitle}
-                                        </span>
-                                        {vietnameseSub && (
-                                          <span className="text-[11px] text-slate-500 font-semibold truncate" title={vietnameseSub}>
-                                            {vietnameseSub}
-                                          </span>
+                                      <div className="flex flex-col min-w-0">
+                                        {s.status === 'CANCELLED' ? (
+                                          <>
+                                            <span className="font-black text-amber-900 text-xs flex items-center gap-1">
+                                              <span>🚫</span> Buổi học báo nghỉ
+                                            </span>
+                                            <span className="text-[11px] text-amber-700 font-semibold">
+                                              (Bài học được bảo lưu sang ca sau)
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span className="font-black text-indigo-950 text-xs truncate" title={rawLesson}>
+                                              📖 {cleanLessonTitle}
+                                            </span>
+                                            {vietnameseSub && (
+                                              <span className="text-[11px] text-slate-500 font-semibold truncate" title={vietnameseSub}>
+                                                {vietnameseSub}
+                                              </span>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     </td>
@@ -2551,7 +2895,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                           {s.status === 'COMPLETED' ? 'Đã hoàn thành' : s.status === 'LIVE' ? '🔴 Đang dạy' : s.status === 'CANCELLED' ? '🚫 Đã báo nghỉ' : s.status}
                                         </span>
                                         {s.status === 'CANCELLED' ? (
-                                          <span className="font-bold text-amber-800 text-[11px] max-w-[160px] truncate" title={cleanReason(s.cancellationReason)}>
+                                          <span className="font-bold text-amber-900 text-[11px] max-w-[240px] text-right break-words leading-tight" title={cleanReason(s.cancellationReason)}>
                                             Lý do: {cleanReason(s.cancellationReason)}
                                           </span>
                                         ) : (
@@ -2702,8 +3046,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                   <th className="py-2.5 px-3">SĐT Phụ huynh</th>
                                   <th className="py-2.5 px-3 text-center">Tổng ca</th>
                                   <th className="py-2.5 px-3 text-center">Chi tiết tham gia</th>
-                                  <th className="py-2.5 px-3 text-center">Tỷ lệ chuyên cần</th>
-                                  <th className="py-2.5 px-3 text-right">Đánh giá &amp; Ghi chú</th>
+                                  <th className="py-2.5 px-3 text-right">Tỷ lệ chuyên cần</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 font-semibold">
@@ -2754,38 +3097,16 @@ export const AdminClassroomsPage: React.FC = () => {
                                           )}
                                         </div>
                                       </td>
-                                      <td className="py-2.5 px-3 text-center">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+                                      <td className="py-2.5 px-3 text-right">
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-black inline-block ${
                                           isPerfect
-                                            ? 'bg-emerald-100 text-emerald-900'
+                                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                                             : isGood
-                                            ? 'bg-amber-100 text-amber-900'
-                                            : 'bg-rose-100 text-rose-900'
+                                            ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                            : 'bg-rose-100 text-rose-900 border border-rose-200'
                                         }`}>
                                           {rate}%
                                         </span>
-                                      </td>
-                                      <td className="py-2.5 px-3 text-right">
-                                        <div className="flex flex-col items-end gap-1">
-                                          {isPerfect ? (
-                                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-black">
-                                              Chăm ngoan
-                                            </span>
-                                          ) : isGood ? (
-                                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
-                                              Đạt yêu cầu
-                                            </span>
-                                          ) : (
-                                            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-black">
-                                              Cần chú ý
-                                            </span>
-                                          )}
-                                          {item.latestNote && (
-                                            <span className="text-[10px] text-slate-500 font-normal italic max-w-[160px] truncate" title={item.latestNote}>
-                                              💬 {item.latestNote}
-                                            </span>
-                                          )}
-                                        </div>
                                       </td>
                                     </tr>
                                   );
@@ -2819,7 +3140,49 @@ export const AdminClassroomsPage: React.FC = () => {
                                 : session.startedAt
                                 ? `${new Date(session.startedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}${session.endedAt ? ` - ${new Date(session.endedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : ''}`
                                 : 'Theo ca học';
+                              const isCancelled = session.status === 'CANCELLED' || session.attendanceStats?.isCancelled;
                               const lessonStr = session.lessonTitle || session.lesson?.title || session.title || 'Buổi học';
+
+                              if (isCancelled) {
+                                const reasonText = session.cancellationReason || 'Nghỉ theo kế hoạch';
+                                return (
+                                  <div
+                                    key={session._id}
+                                    className="p-4 rounded-2xl border bg-amber-50/70 border-amber-300 transition-all"
+                                  >
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-amber-200/80">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-black text-slate-900 text-xs sm:text-sm">
+                                          {dateStr}
+                                        </span>
+                                        <span className="text-slate-400 font-semibold">•</span>
+                                        <span className="text-xs font-bold text-slate-600">
+                                          {timeStr}
+                                        </span>
+                                        <span className="text-slate-400 font-semibold">•</span>
+                                        <span className="text-xs font-black text-amber-950 bg-amber-200/90 border border-amber-300 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1">
+                                          🚫 Buổi học đã báo nghỉ: {reasonText}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg">
+                                          Không tính chuyên cần (Nghỉ theo kế hoạch)
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="pt-2.5">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-amber-950 bg-white/80 px-3.5 py-2 rounded-xl border border-amber-200">
+                                        <span>
+                                          📢 Lớp tạm hoãn buổi dạy ({reasonText}).{session.cancellationNote ? ` Ghi chú: "${session.cancellationNote}".` : ''} Không ghi nhận vắng học cho học sinh và bài học được bảo lưu sang buổi kế tiếp.
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
                               const scores = session.allStudentScores || session.studentScores || [];
                               const absentStudents = scores.filter((sc: any) => sc.attendance === 'ABSENT');
                               const excusedStudents = scores.filter((sc: any) => sc.attendance === 'EXCUSED');
@@ -2975,9 +3338,13 @@ export const AdminClassroomsPage: React.FC = () => {
                   autoFocus
                   value={newPinValue}
                   onChange={(e) => setNewPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="Ví dụ: 1234"
+                  placeholder="Ví dụ: 2580"
                   className="w-full px-4 py-3 rounded-2xl border-2 border-slate-200 focus:border-indigo-600 text-2xl tracking-[0.5em] text-center font-mono font-black outline-hidden"
                 />
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 mt-2.5 font-medium flex items-start gap-1.5 text-left">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                  <span>Quy định bảo mật: Không được sử dụng mã PIN dễ đoán như <b>1234</b> hoặc 4 số giống nhau (như <b>0000</b>, <b>1111</b>...).</span>
+                </p>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
@@ -3001,7 +3368,7 @@ export const AdminClassroomsPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── MODAL 5: XÁC NHẬN XÓA SẠCH LỚP HỌC (CASCADE WIPE) ──────────────── */}
+      {/* ── MODAL 5: XÁC NHẬN XÓA LỚP HỌC ─────────────────────────────────── */}
       {deleteTargetClass && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="bg-white rounded-3xl p-7 w-full max-w-md border border-rose-200 animate-scale-up space-y-4">
@@ -3010,15 +3377,22 @@ export const AdminClassroomsPage: React.FC = () => {
                 <Trash2 size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">Xóa Vĩnh Viễn Lớp Học?</h3>
-                <p className="text-xs font-bold text-rose-800 uppercase tracking-wider">Hành động không thể hoàn tác</p>
+                <h3 className="text-xl font-black text-slate-900">Xóa Lớp Học?</h3>
+                <p className="text-xs font-bold text-rose-800 uppercase tracking-wider">Dành cho lớp tạo nhầm / thử nghiệm</p>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 text-sm font-bold text-rose-900">
+            <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs sm:text-sm font-semibold text-amber-950 space-y-2">
               <p>
-                Cảnh báo: Hành động này sẽ xóa sạch lớp <span className="font-black text-rose-800">"{deleteTargetClass.name}"</span> và{' '}
-                <span className="underline">toàn bộ {deleteTargetClass.students?.length || 0} tài khoản học sinh</span> thuộc lớp, cùng dữ liệu điểm danh và thời khóa biểu liên quan.
+                Bạn đang chuẩn bị xóa lớp học <strong className="font-black text-rose-800">"{deleteTargetClass.name}"</strong> ({deleteTargetClass.ageGroupCode} tuổi).
+              </p>
+              {deleteTargetClass.students && deleteTargetClass.students.length > 0 && (
+                <p className="text-emerald-800 font-bold">
+                  ✓ Toàn bộ {deleteTargetClass.students.length} học sinh trong lớp sẽ được <u>giải phóng về trạng thái Chưa có lớp</u> và bảo toàn tài khoản, số sao tích lũy.
+                </p>
+              )}
+              <p className="text-[11px] text-slate-600">
+                * Lưu ý: Nếu lớp đã diễn ra buổi dạy thực tế, hệ thống sẽ từ chối xóa để bảo toàn học bạ và điểm danh.
               </p>
             </div>
 
@@ -3047,9 +3421,465 @@ export const AdminClassroomsPage: React.FC = () => {
                 type="button"
                 disabled={isDeleting || deleteConfirmText.trim().toLowerCase() !== 'xoa'}
                 onClick={handleConfirmDelete}
-                className="py-2.5 px-5 rounded-2xl bg-rose-700 hover:bg-rose-700 disabled:opacity-40 text-white font-black text-sm cursor-pointer"
+                className="py-2.5 px-5 rounded-2xl bg-rose-700 hover:bg-rose-800 disabled:opacity-40 text-white font-black text-sm cursor-pointer"
               >
-                {isDeleting ? 'Đang xóa sạch...' : 'Xóa Vĩnh Viễn Lớp Học'}
+                {isDeleting ? 'Đang xóa...' : 'Xác Nhận Xóa Lớp'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 6: THĂNG HẠNG LỨA TUỔI HỌC SINH (SMART UPGRADE) ──────────── */}
+      {smartUpgradeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-pop-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 text-purple-900 font-black text-lg">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <Sparkles size={20} />
+                </div>
+                <span>Thăng Hạng &amp; Xếp Lớp</span>
+              </div>
+              <button
+                type="button"
+                disabled={smartUpgrading}
+                onClick={() => setSmartUpgradeConfirm(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-sm text-slate-600 font-semibold leading-relaxed">
+              <p>
+                Bé <strong className="text-slate-900 font-black">{smartUpgradeConfirm.student.name}</strong> hiện đang thuộc nhóm tuổi{' '}
+                <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 font-black text-xs">
+                  {smartUpgradeConfirm.student.ageGroupCode} tuổi
+                </span>.
+              </p>
+              <p>
+                Lớp tiếp nhận <strong className="text-slate-900 font-black">{smartUpgradeConfirm.targetClass.name}</strong> dành cho nhóm{' '}
+                <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 font-black text-xs">
+                  {smartUpgradeConfirm.targetClass.ageGroupCode} tuổi
+                </span>.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200 text-xs font-semibold text-purple-900 flex items-start gap-2.5">
+              <Sparkles size={16} className="text-purple-600 shrink-0 mt-0.5" />
+              <span>
+                Hệ thống sẽ <strong>tự động nâng độ tuổi</strong> của bé lên <strong>{smartUpgradeConfirm.targetClass.ageGroupCode} tuổi</strong> và xếp ngay vào lớp <strong>{smartUpgradeConfirm.targetClass.name}</strong>.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={smartUpgrading}
+                onClick={() => setSmartUpgradeConfirm(null)}
+                className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm cursor-pointer transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={smartUpgrading}
+                onClick={handleConfirmSmartUpgrade}
+                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-sm flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              >
+                {smartUpgrading ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
+                    <span>Đang thăng hạng...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>Đồng Ý Thăng Hạng &amp; Vào Lớp</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 7: LÊN LỚP NIÊN KHÓA MỚI (PROMOTE WHOLE CLASS) ──────────── */}
+      {promoteModal.isOpen && promoteModal.fromClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-pop-in">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <GraduationCap size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900">
+                    Lên Lớp Niên Khóa Mới
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Lớp xuất phát: <strong className="text-slate-800">{promoteModal.fromClass.name}</strong> ({promoteModal.fromClass.ageGroupCode} tuổi)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={promoteModal.submitting}
+                onClick={() => setPromoteModal(prev => ({ ...prev, isOpen: false }))}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Mode Selector Tabs */}
+            <div className="flex p-1 bg-slate-100 rounded-2xl shrink-0 mt-3">
+              <button
+                type="button"
+                onClick={() => setPromoteModal(prev => ({ ...prev, mode: 'direct', error: null }))}
+                className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  promoteModal.mode === 'direct'
+                    ? 'bg-white text-purple-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Sparkles size={14} className={promoteModal.mode === 'direct' ? 'text-purple-600' : 'text-slate-400'} />
+                <span>Nâng Cấp Trực Tiếp Cả Lớp</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPromoteModal(prev => ({ ...prev, mode: 'existing', error: null }))}
+                className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  promoteModal.mode === 'existing'
+                    ? 'bg-white text-purple-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users size={14} className={promoteModal.mode === 'existing' ? 'text-purple-600' : 'text-slate-400'} />
+                <span>Chuyển Sang Lớp Đã Có</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+              {promoteModal.error && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle size={16} className="text-rose-600 shrink-0" />
+                  <span>{promoteModal.error}</span>
+                </div>
+              )}
+
+              {promoteModal.mode === 'direct' ? (
+                /* ── Mode Direct: Nâng cấp trực tiếp thành lớp mới ── */
+                <div className="space-y-3.5 p-4 rounded-2xl bg-purple-50/50 border border-purple-100">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={18} className="text-purple-700 shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-purple-950">
+                        1. Thông Tin Lớp Niên Khóa Mới ({promoteModal.fromClass.ageGroupCode === '3-4' ? '4-5' : '5-6'} Tuổi)
+                      </h4>
+                      <p className="text-[11px] text-purple-800 font-medium">
+                        Giữ nguyên học sinh, tự động nâng độ tuổi và xếp vào Bài 1 bộ sách mới.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                      Tên Lớp Học Mới <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={promoteModal.newClassName}
+                      onChange={(e) => setPromoteModal(prev => ({ ...prev, newClassName: e.target.value, error: null }))}
+                      placeholder="Ví dụ: Lớp Chồi 1 (4-5 tuổi)"
+                      className="w-full py-2.5 px-3.5 rounded-2xl border border-slate-300 font-bold text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                        Niên Khóa Mới <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={promoteModal.newAcademicYear}
+                        onChange={(e) => setPromoteModal(prev => ({ ...prev, newAcademicYear: e.target.value, error: null }))}
+                        placeholder="2027-2028"
+                        className="w-full py-2.5 px-3.5 rounded-2xl border border-slate-300 font-bold text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                        Giáo Viên Phụ Trách
+                      </label>
+                      <select
+                        value={promoteModal.newTeacherId}
+                        onChange={(e) => setPromoteModal(prev => ({ ...prev, newTeacherId: e.target.value, error: null }))}
+                        className="w-full py-2.5 px-3 rounded-2xl border border-slate-300 font-bold text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 truncate"
+                      >
+                        <option value="">-- Chưa phân công / Gán sau --</option>
+                        {teachers.map((t) => (
+                          <option key={t._id} value={t._id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-purple-100/70 border border-purple-200/80 text-[11px] text-purple-950 font-semibold space-y-1">
+                    <p>• Lớp cũ <strong>{promoteModal.fromClass.name}</strong> sẽ được chuyển sang trạng thái <strong>🟣 Đã hoàn thành</strong> để đóng băng và lưu trữ an toàn toàn bộ lịch sử điểm danh.</p>
+                    <p>• Các học sinh được tích lũy toàn bộ số sao đã đạt được từ trước đến nay.</p>
+                  </div>
+                </div>
+              ) : (
+                /* ── Mode Existing: Chuyển sang lớp đã có sẵn ── */
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                    1. Chọn Lớp Học Tiếp Nhận (Lớp Đích) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={promoteModal.targetClassId}
+                    onChange={(e) => setPromoteModal(prev => ({ ...prev, targetClassId: e.target.value, error: null }))}
+                    className="w-full py-2.5 px-3.5 rounded-2xl border border-slate-300 font-bold text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  >
+                    <option value="">-- Chọn lớp niên khóa mới tiếp nhận học sinh --</option>
+                    {classrooms
+                      .filter((c: any) => {
+                        if (String(c._id) === String(promoteModal.fromClass._id)) return false;
+                        if (c.status === 'COMPLETED' || c.status === 'INACTIVE') return false;
+                        const fromRank = AGE_RANK[promoteModal.fromClass.ageGroupCode] || 1;
+                        const toRank = AGE_RANK[c.ageGroupCode] || 1;
+                        return toRank === fromRank + 1;
+                      })
+                      .map((c: any) => (
+                        <option key={c._id} value={c._id}>
+                          {c.name} ({c.ageGroupCode} tuổi) — Đang có {c.students?.length || 0} bé — Năm học {c.academicYear || '2026-2027'}
+                        </option>
+                      ))}
+                  </select>
+
+                  {classrooms.filter((c: any) => {
+                    if (String(c._id) === String(promoteModal.fromClass._id)) return false;
+                    if (c.status === 'COMPLETED' || c.status === 'INACTIVE') return false;
+                    const fromRank = AGE_RANK[promoteModal.fromClass.ageGroupCode] || 1;
+                    const toRank = AGE_RANK[c.ageGroupCode] || 1;
+                    return toRank === fromRank + 1;
+                  }).length === 0 && (
+                    <div className="mt-2.5 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900 space-y-1">
+                      <p>⚠️ Hiện chưa có lớp ở độ tuổi kế tiếp ({promoteModal.fromClass.ageGroupCode === '3-4' ? '4-5' : '5-6'} tuổi) phù hợp để tiếp nhận.</p>
+                      <p className="text-[11px] text-amber-800">
+                        Gợi ý: Hãy chuyển sang tab <strong>"✨ Nâng Cấp Trực Tiếp Cả Lớp"</strong> ở trên để hệ thống tự động tạo lớp mới và thăng tuổi cho các bé!
+                      </p>
+                    </div>
+                  )}
+
+                  {promoteModal.targetClassId && (() => {
+                    const targetClass = classrooms.find((c: any) => String(c._id) === String(promoteModal.targetClassId));
+                    if (!targetClass) return null;
+                    return (
+                      <div className="mt-2.5 p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-950 flex items-start gap-2.5">
+                        <Sparkles size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p>Lớp tiếp nhận: <strong className="text-indigo-900">{targetClass.name}</strong> ({targetClass.ageGroupCode} tuổi).</p>
+                          {targetClass.ageGroupCode !== promoteModal.fromClass.ageGroupCode ? (
+                            <p className="mt-1 text-indigo-800 font-bold">
+                              ✨ Hệ thống sẽ tự động thăng hạng độ tuổi học sinh từ {promoteModal.fromClass.ageGroupCode} lên {targetClass.ageGroupCode} tuổi.
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-slate-600 font-medium">
+                              Chuyển cùng nhóm tuổi ({targetClass.ageGroupCode} tuổi).
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Bước 2: Chọn danh sách học sinh */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                    2. Chọn Học Sinh Chuyển Lớp ({promoteModal.selectedStudentIds.length}/{(promoteModal.fromClass.students || []).length} bé)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allIds = (promoteModal.fromClass.students || []).map((s: any) => (typeof s === 'object' ? s._id : s));
+                      const isAllSelected = promoteModal.selectedStudentIds.length === allIds.length;
+                      setPromoteModal(prev => ({
+                        ...prev,
+                        selectedStudentIds: isAllSelected ? [] : allIds
+                      }));
+                    }}
+                    className="text-xs font-black text-purple-700 hover:text-purple-900 cursor-pointer"
+                  >
+                    {promoteModal.selectedStudentIds.length === (promoteModal.fromClass.students || []).length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                  </button>
+                </div>
+
+                <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100 max-h-52 overflow-y-auto bg-slate-50/50 p-1">
+                  {(promoteModal.fromClass.students || []).map((st: any) => {
+                    const studentId = typeof st === 'object' ? st._id : st;
+                    const studentName = typeof st === 'object' ? st.name : 'Học sinh';
+                    const studentAge = typeof st === 'object' ? st.ageGroupCode : promoteModal.fromClass.ageGroupCode;
+                    const isChecked = promoteModal.selectedStudentIds.includes(studentId);
+
+                    return (
+                      <label
+                        key={studentId}
+                        className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-colors ${
+                          isChecked ? 'bg-purple-50/90' : 'hover:bg-slate-100/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...promoteModal.selectedStudentIds, studentId]
+                                : promoteModal.selectedStudentIds.filter(id => id !== studentId);
+                              setPromoteModal(prev => ({ ...prev, selectedStudentIds: next }));
+                            }}
+                            className="h-4 w-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
+                          />
+                          <span className="font-bold text-xs sm:text-sm text-slate-800 truncate">{studentName}</span>
+                        </div>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 shrink-0">
+                          {studentAge} tuổi
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-xs font-bold text-slate-500">
+                Đã chọn: <strong className="text-purple-700">{promoteModal.selectedStudentIds.length}</strong> bé
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={promoteModal.submitting}
+                  onClick={() => setPromoteModal(prev => ({ ...prev, isOpen: false }))}
+                  className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 font-black text-xs sm:text-sm text-slate-700 transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    promoteModal.submitting ||
+                    promoteModal.selectedStudentIds.length === 0 ||
+                    (promoteModal.mode === 'direct' ? !promoteModal.newClassName.trim() : !promoteModal.targetClassId)
+                  }
+                  onClick={handleConfirmPromoteClass}
+                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-40 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+                >
+                  {promoteModal.submitting ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
+                      <span>{promoteModal.mode === 'direct' ? 'Đang tạo lớp & nâng cấp...' : 'Đang chuyển lớp...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <GraduationCap size={16} />
+                      <span>
+                        {promoteModal.mode === 'direct'
+                          ? `Nâng Cấp & Lên Lớp Cho ${promoteModal.selectedStudentIds.length} Bé`
+                          : `Chuyển ${promoteModal.selectedStudentIds.length} Bé Sang Lớp Đã Chọn`}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: XÁC NHẬN RÚT HỌC SINH KHỎI LỚP ──────────────────────────── */}
+      {removeStudentConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl animate-scale-up space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center">
+                  <UserMinus size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    Rút Học Sinh Khỏi Lớp
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Xác nhận điều chuyển danh sách lớp
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRemoveStudentConfirm(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Học sinh:</span>
+                <span className="text-sm font-black text-slate-900">{removeStudentConfirm.studentName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lớp hiện tại:</span>
+                <span className="text-xs font-black px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {removeStudentConfirm.classroomName}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold leading-relaxed flex items-start gap-2.5">
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                💡 <b>Lưu ý:</b> Học sinh sẽ được rút khỏi lớp <b>{removeStudentConfirm.classroomName}</b> và chuyển về trạng thái <b>"Chưa có lớp"</b>. Tài khoản, mật khẩu/PIN và toàn bộ số sao tích lũy của bé <b>vẫn được bảo toàn nguyên vẹn 100%</b>.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isRemovingStudent}
+                onClick={() => setRemoveStudentConfirm(null)}
+                className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+              >
+                Giữ Lại Bé Trong Lớp
+              </button>
+              <button
+                type="button"
+                disabled={isRemovingStudent}
+                onClick={handleExecuteRemoveStudent}
+                className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              >
+                {isRemovingStudent ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
+                    <span>Đang rút bé...</span>
+                  </>
+                ) : (
+                  <span>Xác Nhận Rút Khỏi Lớp</span>
+                )}
               </button>
             </div>
           </div>

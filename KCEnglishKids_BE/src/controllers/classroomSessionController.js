@@ -30,7 +30,7 @@ async function saveSession(req, mutate, closing = false) {
   fail('Buổi học vừa được cập nhật ở thiết bị khác. Vui lòng tải lại.', 409);
 }
 async function checkTiming(req, classroom) {
-  if (req.user.role === 'ADMIN') return;
+  if (req.user.role === 'ADMIN') fail('Chỉ giáo viên phụ trách lớp mới có quyền bắt đầu mở lớp dạy.', 403);
   const schedules = await Schedule.find({ classroom, teacher: req.user._id, ...activeScheduleFilter() });
   const slots = schedules.flatMap(item => item.weeklySlots || []);
   // Preparation is allowed anytime; teaching requires an effective admin timetable.
@@ -40,12 +40,19 @@ async function checkTiming(req, classroom) {
   }
   const clock = rules.vnClock();
   const mins = value => value.split(':').reduce((n, part) => n * 60 + Number(part), 0);
-  const activeSlot = slots.find(slot => slot.dayOfWeek === clock.day && clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= mins(slot.endTime) + 30);
-  const todaySlot = slots.find(slot => slot.dayOfWeek === clock.day);
-  if (!activeSlot && !todaySlot) {
+  const todaySlots = slots.filter(slot => slot.dayOfWeek === clock.day);
+  if (!todaySlots.length) {
     fail('Chưa đến giờ dạy theo thời khóa biểu. Lớp học không có ca dạy hôm nay.', 409);
   }
-  return activeSlot || todaySlot;
+  const activeSlot = todaySlots.find(slot => clock.minutes >= mins(slot.startTime) - 15 && clock.minutes <= Math.max(mins(slot.startTime) + 20, mins(slot.endTime)));
+  if (!activeSlot) {
+    const earliest = todaySlots.slice().sort((a, b) => mins(a.startTime) - mins(b.startTime))[0];
+    if (clock.minutes < mins(earliest.startTime) - 15) {
+      fail(`Chưa đến giờ mở lớp dạy. Ca học bắt đầu lúc ${earliest.startTime} (chỉ được mở lớp sớm tối đa 15 phút).`, 409);
+    }
+    fail(`Đã quá khung giờ mở lớp dạy theo thời khóa biểu (${earliest.startTime} - ${earliest.endTime}). Vui lòng liên hệ quản trị viên hoặc báo nghỉ.`, 409);
+  }
+  return activeSlot;
 }
 async function populateSession(item, summary = false) {
   await item.populate('classroom', 'name ageGroupCode teacher');
@@ -162,7 +169,21 @@ exports.startSession = wrap(async (req, res) => {
     const records = rules.attendanceRecords(attendance.records, room.students);
     session.studentScores = room.students.map(student => ({ student, attendance: records.find(row => row.student === idOf(student)).status }));
     const other = await ClassroomSession.exists({ _id: { $ne: session._id }, status: 'LIVE', $or: [{ classroom: session.classroom }, { teacher: session.teacher }] });
-    if (other) fail('Vui lòng kết thúc buổi dạy đang mở trước khi mở buổi mới.', 409);
+    if (other) {
+      const staleCutoff = new Date(Date.now() - 90 * 60 * 1000);
+      const staleLive = await ClassroomSession.find({ _id: { $ne: session._id }, status: 'LIVE', startedAt: { $lte: staleCutoff }, $or: [{ classroom: session.classroom }, { teacher: session.teacher }] });
+      for (const stale of staleLive) {
+        stale.status = 'COMPLETED';
+        stale.endedAt = new Date(stale.startedAt.getTime() + 90 * 60 * 1000);
+        rules.summarize(stale);
+        await stale.save();
+        if (stale.lesson && (!stale.teachingOutcome?.coverage || stale.teachingOutcome.coverage === 'COMPLETE')) {
+          await advanceClassroomCurriculum(stale.classroom, stale.lesson);
+        }
+      }
+      const stillLive = await ClassroomSession.exists({ _id: { $ne: session._id }, status: 'LIVE', $or: [{ classroom: session.classroom }, { teacher: session.teacher }] });
+      if (stillLive) fail('Vui lòng kết thúc buổi dạy đang mở trước khi mở buổi mới.', 409);
+    }
     if (session.lesson && !await Lesson.exists({ _id: session.lesson, status: 'ACTIVE' })) fail('Bài học đã bị ẩn. Vui lòng tạo lại kế hoạch.');
     if (session.activities.length && await Activity.countDocuments({ _id: { $in: session.activities }, lesson: session.lesson, status: 'ACTIVE' }) !== session.activities.length) fail('Một hoạt động đã thay đổi hoặc bị ẩn. Vui lòng chuẩn bị lại buổi dạy.', 409);
     session.status = 'LIVE'; session.startedAt = new Date();
@@ -293,6 +314,38 @@ exports.deleteDraft = wrap(async (req, res) => {
   res.json({ success: true });
 });
 
+async function notifyParentsSessionCancelled(room, session, dateStr, timeSlot) {
+  try {
+    const studentIds = Array.isArray(room?.students) ? room.students.map(s => s?._id || s).filter(Boolean) : [];
+    if (!studentIds.length) return;
+    const { User } = require('../models');
+    const inbox = require('../services/parentInbox');
+    const children = await User.find({ _id: { $in: studentIds }, role: 'CHILD' }).select('_id name contact').lean();
+    const formattedDate = new Date(`${dateStr}T12:00:00+07:00`).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeLabel = timeSlot?.startTime && timeSlot?.endTime ? ` (${timeSlot.startTime} - ${timeSlot.endTime})` : '';
+    const reasonText = session.cancellationReason || 'Nghỉ theo kế hoạch';
+    const noteText = session.cancellationNote ? ` Ghi chú: ${session.cancellationNote}.` : '';
+    for (const child of children) {
+      await inbox.publish({
+        sourceKey: `cancelled-session:${session._id}:${child._id}`,
+        channel: 'IN_APP',
+        teacher: room.teacher || session.teacher,
+        child: child._id,
+        session: session._id,
+        recipientContact: child.contact || '',
+        childName: child.name || '',
+        className: room.name || '',
+        sessionDate: session.startedAt || new Date(`${dateStr}T08:00:00+07:00`),
+        subject: `📢 Thông báo nghỉ học — Lớp ${room.name}`,
+        content: `Buổi học ${formattedDate}${timeLabel} của lớp ${room.name} được tạm hoãn. Lý do: ${reasonText}.${noteText} Nội dung bài học được bảo lưu và tiếp tục giảng dạy vào buổi học kế tiếp.`,
+        teacherNote: reasonText
+      });
+    }
+  } catch (err) {
+    console.warn('Could not send parent cancellation notifications:', err?.message);
+  }
+}
+
 exports.reportOff = wrap(async (req, res) => {
   const { classroomId, date: inputDate, reason, note, timeSlot } = req.body;
   if (!rules.validId(classroomId)) fail('Mã lớp học không hợp lệ.');
@@ -303,6 +356,37 @@ exports.reportOff = wrap(async (req, res) => {
     if (isNaN(new Date(`${inputDate}T00:00:00+07:00`).getTime())) fail('Ngày báo nghỉ không hợp lệ.');
     date = inputDate;
   }
+
+  const todayVn = rules.vnDate();
+  if (date < todayVn) {
+    fail('Không thể báo nghỉ cho buổi học trong quá khứ.', 400);
+  }
+
+  // Determine slot start time to enforce reporting before session starts
+  const nowVn = new Date();
+  const vnTimeStr = nowVn.toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+
+  let slotStartTime = timeSlot?.startTime;
+  let slotEndTime = timeSlot?.endTime;
+
+  if (!slotStartTime) {
+    const targetDateObj = new Date(`${date}T12:00:00+07:00`);
+    const dayOfWeek = targetDateObj.getDay();
+    const { Schedule } = require('../models');
+    const sch = await Schedule.findOne({ classroom: room._id, isActive: true });
+    const slot = (sch?.weeklySlots || []).find(s => s.dayOfWeek === dayOfWeek);
+    if (slot) {
+      slotStartTime = slot.startTime;
+      slotEndTime = slot.endTime;
+    }
+  }
+
+  if (date === todayVn && slotStartTime) {
+    if (vnTimeStr >= slotStartTime) {
+      fail(`Đã quá thời gian bắt đầu ca dạy (${slotStartTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`, 400);
+    }
+  }
+
   const validReason = rules.text(reason, 200) || 'Nghỉ theo kế hoạch';
   const validNote = rules.text(note, 500) || '';
 
@@ -344,6 +428,7 @@ exports.reportOff = wrap(async (req, res) => {
     });
   }
 
+  await notifyParentsSessionCancelled(room, session, date, timeSlot);
   res.status(200).json({ success: true, data: session });
 });
 
@@ -352,18 +437,54 @@ exports.cancelSession = wrap(async (req, res) => {
   if (item.status === 'COMPLETED' || item.status === 'LIVE') {
     fail('Không thể báo nghỉ buổi học đang diễn ra hoặc đã hoàn thành.', 409);
   }
+
+  const todayVn = rules.vnDate();
+  const nowVn = new Date();
+  const vnTimeStr = nowVn.toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+  const sDate = item.startedAt || item.createdAt;
+  if (sDate) {
+    const sessionDateStr = new Date(sDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const sessionTimeStr = new Date(sDate).toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+    if (sessionDateStr < todayVn) {
+      fail('Không thể báo nghỉ cho buổi học trong quá khứ.', 400);
+    }
+    if (sessionDateStr === todayVn && vnTimeStr >= sessionTimeStr) {
+      fail(`Đã quá thời gian bắt đầu ca dạy (${sessionTimeStr}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`, 400);
+    }
+  }
+
+  const room = await access.classroom(req, item.classroom, false);
   item.status = 'CANCELLED';
   item.cancellationReason = rules.text(req.body.reason, 200) || 'Nghỉ theo kế hoạch';
   item.cancellationNote = rules.text(req.body.note, 500) || '';
   item.cancelledBy = req.user._id;
   item.cancelledAt = new Date();
   await item.save();
+  const dateStr = sDate ? new Date(sDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }) : todayVn;
+  await notifyParentsSessionCancelled(room, item, dateStr);
   res.json({ success: true, data: item });
 });
 
 exports.restoreCancelledSession = wrap(async (req, res) => {
   const item = await sessionFor(req, true, false);
   if (item.status !== 'CANCELLED') fail('Buổi học không ở trạng thái báo nghỉ.', 409);
+
+  const todayVn = rules.vnDate();
+  const nowVn = new Date();
+  const vnTimeStr = nowVn.toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+  const sDate = item.startedAt || item.createdAt;
+  if (sDate) {
+    const sessionDateStr = new Date(sDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const sessionTimeStr = new Date(sDate).toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+    if (sessionDateStr < todayVn) {
+      fail('Không thể hủy báo nghỉ cho ca dạy trong quá khứ.', 400);
+    }
+    if (sessionDateStr === todayVn && vnTimeStr >= sessionTimeStr) {
+      fail(`Không thể hủy báo nghỉ vì ca dạy (${sessionTimeStr}) đã đến giờ hoặc quá giờ bắt đầu.`, 400);
+    }
+  }
+
+  await require('../models').ParentNotification.deleteMany({ session: item._id }).catch(() => {});
   await ClassroomSession.deleteOne({ _id: item._id });
   res.json({ success: true, message: 'Đã hủy báo nghỉ thành công.' });
 });

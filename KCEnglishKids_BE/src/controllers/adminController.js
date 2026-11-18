@@ -36,6 +36,7 @@ const getDashboardStats = async (req, res, next) => {
       totalVocabulary,
       totalSessions,
       completedSessions,
+      cancelledSessionsCount,
       totalCurriculumUnits
     ] = await Promise.all([
       User.countDocuments({ role: 'CHILD', status: 'ACTIVE' }),
@@ -46,6 +47,7 @@ const getDashboardStats = async (req, res, next) => {
       Vocabulary.countDocuments({ status: 'ACTIVE' }),
       ClassroomSession.countDocuments(),
       ClassroomSession.countDocuments({ status: 'COMPLETED' }),
+      ClassroomSession.countDocuments({ status: 'CANCELLED' }),
       CurriculumUnit.countDocuments({ status: 'ACTIVE' })
     ]);
 
@@ -69,30 +71,63 @@ const getDashboardStats = async (req, res, next) => {
     const startOfDay = new Date(`${vnDateStr}T00:00:00+07:00`);
     const endOfDay = new Date(`${vnDateStr}T23:59:59+07:00`);
 
-    const [activeRooms, activeSchedules, todayClassSessions, activeLiveSessions] = await Promise.all([
+    // Start of current week (Monday) in Vietnam time
+    const daysSinceMonday = vnDayOfWeek === 0 ? 6 : vnDayOfWeek - 1;
+    const mondayDate = new Date(startOfDay);
+    mondayDate.setDate(mondayDate.getDate() - daysSinceMonday);
+    const mondayDateStr = mondayDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const startOfWeek = new Date(`${mondayDateStr}T00:00:00+07:00`);
+
+    const pastDaysInWeek = [];
+    const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    for (let d = 0; d < daysSinceMonday; d++) {
+      const pDate = new Date(mondayDate);
+      pDate.setDate(pDate.getDate() + d);
+      const pDateStr = pDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const pDayOfWeek = pDate.getDay();
+      pastDaysInWeek.push({
+        dateStr: pDateStr,
+        dayOfWeek: pDayOfWeek,
+        dayName: dayNames[pDayOfWeek],
+        start: new Date(`${pDateStr}T00:00:00+07:00`),
+        end: new Date(`${pDateStr}T23:59:59+07:00`)
+      });
+    }
+
+    const [activeRooms, activeSchedules, weekClassSessions, activeLiveSessions] = await Promise.all([
       ClassRoom.find({ status: 'ACTIVE' }).populate('teacher', 'name email contact').lean(),
       Schedule.find({
         isActive: true,
         $and: [
           { $or: [{ effectiveFrom: null }, { effectiveFrom: { $lte: endOfDay } }] },
-          { $or: [{ effectiveTo: null }, { effectiveTo: { $gte: startOfDay } }] }
+          { $or: [{ effectiveTo: null }, { effectiveTo: { $gte: startOfWeek } }] }
         ]
       }).lean(),
       ClassroomSession.find({
         $or: [
-          { startedAt: { $gte: startOfDay, $lte: endOfDay } },
-          { endedAt: { $gte: startOfDay, $lte: endOfDay } },
-          { createdAt: { $gte: startOfDay, $lte: endOfDay } },
-          { status: 'LIVE' }
+          { startedAt: { $gte: startOfWeek, $lte: endOfDay } },
+          { endedAt: { $gte: startOfWeek, $lte: endOfDay } },
+          { status: 'LIVE' },
+          { startedAt: null, createdAt: { $gte: startOfWeek, $lte: endOfDay } }
         ]
-      }).select('classroom status title startedAt endedAt cancellationReason cancellationNote').lean(),
+      }).select('classroom status title startedAt endedAt cancellationReason cancellationNote createdAt').lean(),
       ClassroomSession.find({ status: 'LIVE' }).populate('teacher', 'name email contact').populate('lesson', 'title').populate('classroom', 'name').lean()
     ]);
+
+    const isTodaySession = (s) => {
+      if (s.status === 'LIVE') return true;
+      const sTime = s.startedAt || s.endedAt || s.createdAt;
+      if (!sTime) return false;
+      const sDate = new Date(sTime);
+      return sDate >= startOfDay && sDate <= endOfDay;
+    };
+
+    const todayClassSessions = weekClassSessions.filter(isTodaySession);
 
     const monitorItems = activeRooms.map(r => {
       const sch = activeSchedules.find(s => String(s.classroom) === String(r._id));
       const slotsToday = (sch?.weeklySlots || []).filter(s => s.dayOfWeek === vnDayOfWeek);
-      const sessions = todayClassSessions.filter(s => String(s.classroom) === String(r._id));
+      const sessions = todayClassSessions.filter(s => String(s.classroom) === String(r._id) && isTodaySession(s));
       const hasCompleted = sessions.some(s => s.status === 'COMPLETED');
       const liveForRoom = activeLiveSessions.find(ls => String(ls.classroom?._id || ls.classroom) === String(r._id));
       const hasLive = Boolean(liveForRoom) || sessions.some(s => s.status === 'LIVE');
@@ -137,7 +172,7 @@ const getDashboardStats = async (req, res, next) => {
     const upcomingItems = monitorItems.filter(m => m.status === 'UPCOMING');
     const cancelledItems = monitorItems.filter(m => m.status === 'CANCELLED');
     const scheduledTodayItems = monitorItems.filter(m => m.hasSchedule);
-    const cancelledTodaySessions = todayClassSessions.filter(s => s.status === 'CANCELLED');
+    const cancelledTodaySessions = todayClassSessions.filter(s => s.status === 'CANCELLED' && isTodaySession(s));
 
     const cancelledSessionsList = cancelledTodaySessions.map(cs => {
       const room = activeRooms.find(r => String(r._id) === String(cs.classroom));
@@ -156,6 +191,54 @@ const getDashboardStats = async (req, res, next) => {
       };
     });
 
+    // Calculate unheld slots for past days of this week (Chưa tổ chức / Chưa có buổi dạy thực tế)
+    const unheldClasses = [];
+    for (const r of activeRooms) {
+      const sch = activeSchedules.find(s => String(s.classroom) === String(r._id));
+      if (!sch || !Array.isArray(sch.weeklySlots) || sch.weeklySlots.length === 0) continue;
+
+      const unheldSlots = [];
+      for (const pd of pastDaysInWeek) {
+        const isEffective = (!sch.effectiveFrom || new Date(sch.effectiveFrom) <= pd.end) &&
+                            (!sch.effectiveTo || new Date(sch.effectiveTo) >= pd.start);
+        if (!isEffective) continue;
+
+        const slotsOnDay = sch.weeklySlots.filter(s => s.dayOfWeek === pd.dayOfWeek);
+        for (const slot of slotsOnDay) {
+          const hasSession = weekClassSessions.some(s => {
+            if (String(s.classroom) !== String(r._id)) return false;
+            const sTime = s.startedAt || s.endedAt || s.createdAt;
+            if (!sTime) return false;
+            const dt = new Date(sTime);
+            return dt >= pd.start && dt <= pd.end;
+          });
+
+          if (!hasSession) {
+            unheldSlots.push({
+              dateStr: pd.dateStr,
+              dayName: pd.dayName,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              timeText: `${slot.startTime} - ${slot.endTime}`
+            });
+          }
+        }
+      }
+
+      if (unheldSlots.length > 0) {
+        unheldClasses.push({
+          classroomId: r._id,
+          className: r.name,
+          ageGroupCode: r.ageGroupCode,
+          teacherName: r.teacher?.name || 'Chưa phân công',
+          teacherEmail: r.teacher?.email,
+          teacherContact: r.teacher?.contact,
+          unheldCount: unheldSlots.length,
+          slots: unheldSlots
+        });
+      }
+    }
+
     const teachingMonitor = {
       items: monitorItems,
       alerts: missedItems.map(m => ({ classroomId: m.classId, classroomName: m.className, teacherName: m.teacherName })),
@@ -166,6 +249,8 @@ const getDashboardStats = async (req, res, next) => {
       liveCount: liveItems.length,
       upcomingCount: upcomingItems.length,
       cancelledSessions: cancelledSessionsList,
+      unheldClasses,
+      unheldCount: unheldClasses.reduce((sum, c) => sum + (c.unheldCount || 0), 0),
       liveSessions: activeLiveSessions.map(ls => ({
         sessionId: ls._id,
         classroomId: ls.classroom?._id || ls.classroom,
@@ -190,6 +275,7 @@ const getDashboardStats = async (req, res, next) => {
           totalCurriculumUnits,
           totalSessions,
           completedSessions,
+          cancelledSessions: cancelledSessionsCount,
           completionRate
         },
         recentResults,
@@ -250,8 +336,8 @@ const getUsers = async (req, res, next) => {
     const [rawUsers, total, activeTeacherRooms] = await Promise.all([
       User.find(query)
         .select('-password -pin')
-        .populate('assignedClass', 'name academicYear ageGroupCode')
-        .populate('assignedClasses', 'name academicYear ageGroupCode')
+        .populate('assignedClass', 'name academicYear ageGroupCode status')
+        .populate('assignedClasses', 'name academicYear ageGroupCode status')
         .populate('ageGroup', 'name code')
         .sort({ name: 1 })
         .collation({ locale: 'vi', strength: 2 })
@@ -506,18 +592,24 @@ const getClassrooms = async (req, res, next) => {
         $or: [
           { startedAt: { $gte: startOfDay, $lte: endOfDay } },
           { endedAt: { $gte: startOfDay, $lte: endOfDay } },
-          { createdAt: { $gte: startOfDay, $lte: endOfDay } },
           { status: 'LIVE' },
-          { status: 'CANCELLED' }
+          { startedAt: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
         ]
-      }).select('classroom status startedAt endedAt title cancellationReason cancellationNote cancelledBy cancelledAt').lean(),
+      }).select('classroom status startedAt endedAt createdAt title cancellationReason cancellationNote cancelledBy cancelledAt').lean(),
       ClassroomSession.find({ classroom: { $in: classIds }, status: 'LIVE' }).select('classroom status startedAt title').lean()
     ]);
 
     const formatted = classrooms.map(c => {
       const sch = schedules.find(s => String(s.classroom) === String(c._id));
       const slotsToday = (sch?.weeklySlots || []).filter(s => s.dayOfWeek === vnDayOfWeek);
-      const sessions = todaySessions.filter(s => String(s.classroom) === String(c._id));
+      const isTodaySession = (s) => {
+        if (s.status === 'LIVE') return true;
+        const sTime = s.startedAt || s.endedAt || s.createdAt;
+        if (!sTime) return false;
+        const sDate = new Date(sTime);
+        return sDate >= startOfDay && sDate <= endOfDay;
+      };
+      const sessions = todaySessions.filter(s => String(s.classroom) === String(c._id) && isTodaySession(s));
       const hasCompleted = sessions.some(s => s.status === 'COMPLETED');
       const hasLive = liveSessions.some(ls => String(ls.classroom) === String(c._id)) || sessions.some(s => s.status === 'LIVE');
 
@@ -528,7 +620,13 @@ const getClassrooms = async (req, res, next) => {
 
       const times = slotsToday.map(s => `${s.startTime}-${s.endTime}`).join(', ');
 
-      if (hasLive) {
+      if (c.status === 'COMPLETED') {
+        todayTeachingStatus = 'COMPLETED';
+        todayTeachingNote = 'Lớp đã hoàn thành khóa học';
+      } else if (c.status === 'INACTIVE') {
+        todayTeachingStatus = 'INACTIVE';
+        todayTeachingNote = 'Lớp đã vô hiệu hóa';
+      } else if (hasLive) {
         todayTeachingStatus = 'LIVE';
         todayTeachingNote = slotsToday.length > 0 ? `Đang trong giờ dạy trực tiếp (${times})` : '🔴 Đang mở buổi dạy trực tiếp';
       } else if (slotsToday.length > 0) {
@@ -549,7 +647,7 @@ const getClassrooms = async (req, res, next) => {
 
         if (cancelledSession) {
           todayTeachingStatus = 'CANCELLED';
-          todayTeachingNote = `🚫 Đã báo nghỉ (${times}): ${cancelledSession.cancellationReason || 'Nghỉ theo kế hoạch'}`;
+          todayTeachingNote = `Đã báo nghỉ (${times}): ${cancelledSession.cancellationReason || 'Nghỉ theo kế hoạch'}`;
         } else if (hasCompleted) {
           todayTeachingStatus = 'TAUGHT';
           todayTeachingNote = `Đã hoàn thành buổi dạy (${times})`;
@@ -602,11 +700,11 @@ const bulkImportChildren = maintenance.bulkImportChildren;
 const createClassroom = async (req, res, next) => {
   let createdRoom;
   try {
-    const { name, ageGroupCode, teacherId, academicYear, description, students } = req.body;
-    if (!name || !ageGroupCode || !teacherId) {
+    const { name, ageGroupCode, teacherId, academicYear, description, students, status } = req.body;
+    if (!name || !ageGroupCode) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp tên lớp, độ tuổi (3-4, 4-5, 5-6) và giáo viên phụ trách.'
+        message: 'Vui lòng cung cấp tên lớp và độ tuổi (3-4, 4-5, 5-6).'
       });
     }
 
@@ -629,13 +727,16 @@ const createClassroom = async (req, res, next) => {
       });
     }
 
-    // 2. Validate teacher (1 teacher can teach multiple classes)
-    const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER', status: 'ACTIVE' });
-    if (!teacher) {
-      return res.status(400).json({
-        success: false,
-        message: 'Giáo viên phụ trách không hợp lệ.'
-      });
+    // 2. Validate teacher if provided (can be optional for UPCOMING classes)
+    let teacher = null;
+    if (teacherId) {
+      teacher = await User.findOne({ _id: teacherId, role: 'TEACHER', status: 'ACTIVE' });
+      if (!teacher) {
+        return res.status(400).json({
+          success: false,
+          message: 'Giáo viên phụ trách không hợp lệ.'
+        });
+      }
     }
 
     const ageGroupDoc = await AgeGroup.findOne({ code: ageGroupCode });
@@ -655,6 +756,8 @@ const createClassroom = async (req, res, next) => {
       }
     }
 
+    const initialStatus = status === 'UPCOMING' || !teacher ? 'UPCOMING' : (status === 'ACTIVE' ? 'ACTIVE' : 'ACTIVE');
+
     const classroom = await ClassRoom.create({
       name: cleanName,
       ageGroupCode,
@@ -662,12 +765,16 @@ const createClassroom = async (req, res, next) => {
       curriculumBook: curriculumBookDoc ? curriculumBookDoc._id : undefined,
       currentLesson: initialLessonId || undefined,
       completedLessons: [],
-      teacher: teacher._id,
+      teacher: teacher ? teacher._id : null,
       academicYear: academicYear || (await SystemSetting.findOne().lean())?.academicYear || '2026-2027',
       description: description || '',
-      status: 'ACTIVE',
+      status: initialStatus,
       students: []
     });
+
+    if (teacher) {
+      await integrity.syncTeacher(classroom, teacher._id);
+    }
 
     createdRoom = classroom;
     let credentials = [];
@@ -683,7 +790,6 @@ const createClassroom = async (req, res, next) => {
       }
     }
 
-    await integrity.syncTeacher(classroom, classroom.teacher);
     await classroom.populate('teacher', 'name email username avatar avatarUrl');
     await classroom.populate('students', 'name username avatar avatarUrl ageGroupCode dob contact');
     await classroom.populate('currentLesson', 'title vietnameseTitle displayOrder');
@@ -696,7 +802,7 @@ const createClassroom = async (req, res, next) => {
         targetId: classroom._id,
         details: {
           name: classroom.name,
-          teacher: teacher.name,
+          teacher: teacher ? teacher.name : 'Chưa phân công',
           ageGroupCode,
           initialImportedStudents: initialImportedCount
         }
@@ -707,7 +813,9 @@ const createClassroom = async (req, res, next) => {
       success: true,
       message: initialImportedCount > 0
         ? `Tạo lớp học ${classroom.name} và nạp thành công ${initialImportedCount} học sinh từ file Excel!`
-        : `Tạo lớp học ${classroom.name} và phân công cho giáo viên ${teacher.name} thành công!`,
+        : (teacher
+            ? `Tạo lớp học ${classroom.name} và phân công cho giáo viên ${teacher.name} thành công!`
+            : `Tạo thành công lớp học "${classroom.name}" (Sắp khai giảng)!`),
       credentials,
       data: classroom
     });
@@ -764,12 +872,16 @@ const updateClassroom = async (req, res, next) => {
     }
 
     // Teacher 1-1 rule check
-    if (teacherId && String(teacherId) !== String(classroom.teacher)) {
-      const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
-      if (!teacher) {
-        return res.status(400).json({ success: false, message: 'Giáo viên phụ trách không hợp lệ.' });
+    if (teacherId !== undefined) {
+      if (!teacherId) {
+        classroom.teacher = null;
+      } else if (String(teacherId) !== String(classroom.teacher)) {
+        const teacher = await User.findOne({ _id: teacherId, role: 'TEACHER' });
+        if (!teacher) {
+          return res.status(400).json({ success: false, message: 'Giáo viên phụ trách không hợp lệ.' });
+        }
+        classroom.teacher = teacher._id;
       }
-      classroom.teacher = teacher._id;
     }
 
     if (currentLessonId) {
@@ -779,7 +891,16 @@ const updateClassroom = async (req, res, next) => {
 
     if (academicYear) classroom.academicYear = academicYear;
     if (description !== undefined) classroom.description = description;
-    if (status && ['ACTIVE', 'INACTIVE', 'COMPLETED', 'UPCOMING'].includes(status)) {
+    if (status && ['ACTIVE', 'INACTIVE', 'COMPLETED', 'UPCOMING'].includes(status) && status !== classroom.status) {
+      if (classroom.status === 'UPCOMING' && status === 'COMPLETED') {
+        throw integrity.fail('Lớp sắp khai giảng chưa có buổi học nào, không thể chuyển thẳng sang trạng thái Đã hoàn thành.');
+      }
+      if (classroom.status === 'COMPLETED' && status !== 'COMPLETED') {
+        throw integrity.fail('Lớp học đã hoàn thành khóa học và đóng hồ sơ lưu trữ, không thể chuyển ngược lại trạng thái đang học.');
+      }
+      if (['COMPLETED', 'INACTIVE'].includes(status) && await ClassroomSession.exists({ classroom: classroom._id, status: 'LIVE' })) {
+        throw integrity.fail('Lớp đang có buổi dạy trực tiếp (LIVE). Vui lòng kết thúc buổi dạy trước khi chuyển trạng thái lớp.', 409);
+      }
       classroom.status = status;
     }
 
@@ -839,6 +960,12 @@ const resetChildPin = async (req, res, next) => {
 
     if (!pin || !/^\d{4}$/.test(pin)) {
       return res.status(400).json({ success: false, message: 'Mã PIN mới phải đúng 4 chữ số (0-9).' });
+    }
+    if (/^(1234|(\d)\2{3})$/.test(String(pin))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã PIN quá dễ đoán (không được dùng 1234 hoặc 4 chữ số trùng nhau như 0000, 1111...). Vui lòng chọn mã PIN bảo mật hơn.'
+      });
     }
 
     const child = await User.findOne({ _id: id, role: 'CHILD' });
@@ -920,11 +1047,11 @@ const getDeepCurriculum = async (req, res, next) => {
   try {
     const [books, units, lessons, activities, vocabularies, sentences] = await Promise.all([
       CurriculumBook.find().sort({ bookNumber: 1 }).lean(),
-      CurriculumUnit.find().sort({ bookNumber: 1, unitNumber: 1 }).lean(),
-      Lesson.find().populate('topic', 'title englishName').sort({ displayOrder: 1 }).lean(),
-      Activity.find().select('lesson activityType title status maxScore').lean(),
-      Vocabulary.find().select('_id english vietnamese pronunciation meaning audioUrl imageUrl animationUrl isTransparent visualType wordType mediaSource mediaLicense category status sourceUnits topics lesson').lean(),
-      LanguageContent.find().select('_id lesson sourceUnit topic vocabulary english vietnamese pronunciation contentType difficulty status pairId relatedQuestion').lean()
+      CurriculumUnit.find({ status: { $ne: 'INACTIVE' } }).sort({ bookNumber: 1, unitNumber: 1 }).lean(),
+      Lesson.find({ status: { $ne: 'INACTIVE' } }).populate('topic', 'title englishName').sort({ displayOrder: 1 }).lean(),
+      Activity.find({ status: { $ne: 'INACTIVE' } }).select('lesson activityType title status maxScore').lean(),
+      Vocabulary.find({ status: { $ne: 'INACTIVE' } }).select('_id english vietnamese pronunciation meaning audioUrl imageUrl animationUrl isTransparent visualType wordType mediaSource mediaLicense category status sourceUnits topics lesson').lean(),
+      LanguageContent.find({ status: { $ne: 'INACTIVE' } }).select('_id lesson sourceUnit topic vocabulary english vietnamese pronunciation contentType difficulty status pairId relatedQuestion').lean()
     ]);
 
     // Fast lookup maps
@@ -1119,26 +1246,31 @@ const updateSystemSettings = async (req, res, next) => {
 // @access  Private / Admin
 const createUnit = async (req, res, next) => {
   try {
-    const { bookNumber, unitNumber, bigQuestion, storyTitle, values, concept, oracy, displayOrder } = req.body;
-    if (!bookNumber || !unitNumber || !bigQuestion) {
+    const { bookNumber, unitNumber, bigQuestion, storyTitle, values, concept, oracy, displayOrder, createDefaultLessons } = req.body;
+    if (!bookNumber || !bigQuestion) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp số sách (1, 2, 3), số thứ tự Unit (1-9) và Big Question.'
+        message: 'Vui lòng cung cấp số sách (1, 2, 3) và Big Question cho Unit mới.'
       });
     }
 
     const bNum = Number(bookNumber);
-    const uNum = Number(unitNumber);
     const ageGroupCode = bNum === 1 ? '3-4' : bNum === 2 ? '4-5' : '5-6';
     const bookDoc = await CurriculumBook.findOne({ bookNumber: bNum });
     const ageGroupDoc = await AgeGroup.findOne({ code: ageGroupCode });
 
+    const maxActiveUnit = await CurriculumUnit.findOne({ bookNumber: bNum, status: { $ne: 'INACTIVE' } }).sort({ unitNumber: -1 }).lean();
+    const uNum = Number(unitNumber) > 0 ? Number(unitNumber) : ((maxActiveUnit?.unitNumber || 0) + 1);
+
     const existingUnit = await CurriculumUnit.findOne({ bookNumber: bNum, unitNumber: uNum });
     if (existingUnit) {
-      return res.status(400).json({
-        success: false,
-        message: `Unit ${uNum} của Sách ${bNum} đã tồn tại.`
-      });
+      if (existingUnit.status !== 'INACTIVE') {
+        return res.status(400).json({
+          success: false,
+          message: `Unit ${uNum} của Sách ${bNum} đã tồn tại.`
+        });
+      }
+      await CurriculumUnit.deleteOne({ _id: existingUnit._id });
     }
 
     const unit = await CurriculumUnit.create({
@@ -1156,20 +1288,57 @@ const createUnit = async (req, res, next) => {
       status: 'ACTIVE'
     });
 
+    if (bookDoc) {
+      const activeUnitCount = await CurriculumUnit.countDocuments({ bookNumber: bNum, status: { $ne: 'INACTIVE' } });
+      await CurriculumBook.updateOne({ _id: bookDoc._id }, { $set: { totalUnits: Math.max(bookDoc.totalUnits || 9, activeUnitCount, uNum) } });
+    }
+
+    // Create 4 standard preschool lessons for the new Unit by default unless explicitly disabled
+    const createdLessons = [];
+    if (createDefaultLessons !== false) {
+      const firstTopic = await Topic.findOne({ status: 'ACTIVE' });
+      const baseOrder = (uNum - 1) * 4;
+      const templates = [
+        { order: 1, en: `Unit ${uNum} - Lesson 1: Vocabulary & Phonics`, vi: 'Từ vựng & Phát âm chủ đề', desc: `Làm quen từ vựng và âm vần chủ đề: ${bigQuestion.trim()}` },
+        { order: 2, en: `Unit ${uNum} - Lesson 2: Sentence Patterns & Speaking`, vi: 'Mẫu câu & Giao tiếp tương tác', desc: `Thực hành mẫu câu hỏi đáp ngắn theo chủ đề Unit ${uNum}` },
+        { order: 3, en: `Unit ${uNum} - Lesson 3: Story, Song & Good Values`, vi: 'Câu chuyện, Bài hát & Lễ giáo', desc: `Kể chuyện, hát vận động và bài học lễ giáo mầm non` },
+        { order: 4, en: `Unit ${uNum} - Lesson 4: Fun Mini Games & Review`, vi: 'Ôn tập & Trò chơi củng cố', desc: `Củng cố kiến thức toàn Unit ${uNum} qua trò chơi tương tác` }
+      ];
+      for (const tpl of templates) {
+        const lDoc = await Lesson.create({
+          key: `B${bNum}_U${uNum}_L${tpl.order}_${Date.now()}`,
+          title: tpl.en,
+          vietnameseTitle: tpl.vi,
+          description: tpl.desc,
+          topic: firstTopic ? firstTopic._id : undefined,
+          ageGroup: ageGroupDoc ? ageGroupDoc._id : undefined,
+          ageGroupCode,
+          curriculumUnits: [unit._id],
+          displayOrder: baseOrder + tpl.order,
+          difficulty: 1,
+          status: 'ACTIVE'
+        });
+        createdLessons.push(lDoc);
+      }
+    }
+
     if (req.user) {
       await writeAudit({
         user: req.user._id,
         action: 'CREATE_CURRICULUM_UNIT',
         targetType: 'CurriculumUnit',
         targetId: unit._id,
-        details: { bookNumber: bNum, unitNumber: uNum, bigQuestion }
+        details: { bookNumber: bNum, unitNumber: uNum, bigQuestion, lessonsCreated: createdLessons.length }
       });
     }
 
     res.status(201).json({
       success: true,
-      message: `Tạo Unit ${unit.unitNumber} (Sách ${unit.bookNumber}) thành công!`,
-      data: unit
+      message: createdLessons.length > 0
+        ? `Tạo Unit ${unit.unitNumber} (Sách ${unit.bookNumber}) kèm ${createdLessons.length} bài học chuẩn thành công!`
+        : `Tạo Unit ${unit.unitNumber} (Sách ${unit.bookNumber}) thành công!`,
+      data: unit,
+      lessons: createdLessons
     });
   } catch (error) {
     next(error);
@@ -1221,12 +1390,19 @@ const deleteUnit = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Unit không tồn tại.' });
     }
 
-    const attachedLessons = await Lesson.countDocuments({ curriculumUnits: unit._id, status: { $in: ['ACTIVE', 'UPCOMING'] } });
-    if (attachedLessons > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Không thể xóa Unit này vì đang có ${attachedLessons} bài học thuộc Unit. Vui lòng chuyển bài học sang Unit khác trước.`
-      });
+    const unitLessons = await Lesson.find({ curriculumUnits: unit._id }).select('_id').lean();
+    const unitLessonIds = unitLessons.map(l => l._id);
+
+    if (unitLessonIds.length > 0) {
+      const hasLiveSession = await ClassroomSession.exists({ lesson: { $in: unitLessonIds }, status: 'LIVE' });
+      if (hasLiveSession) {
+        return res.status(409).json({
+          success: false,
+          message: 'Không thể xóa Unit này vì đang có bài học trong Unit đang mở ca dạy trực tiếp (LIVE).'
+        });
+      }
+      await Lesson.updateMany({ _id: { $in: unitLessonIds } }, { $set: { status: 'INACTIVE' } });
+      await ClassRoom.updateMany({ currentLesson: { $in: unitLessonIds } }, { $set: { currentLesson: null } });
     }
 
     unit.status = 'INACTIVE';
@@ -1234,7 +1410,7 @@ const deleteUnit = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Đã lưu trữ Unit ${unit.unitNumber}; lịch sử và liên kết được giữ lại.`
+      message: `Đã xóa Unit ${unit.unitNumber} và ẩn ${unitLessonIds.length} bài học trực thuộc khỏi chương trình hiện hành.`
     });
   } catch (error) {
     next(error);
@@ -1359,13 +1535,21 @@ const deleteLesson = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Bài học không tồn tại.' });
     }
 
-    await readiness.assertNotAssigned({lesson:lesson._id});
+    if (await ClassroomSession.exists({ lesson: lesson._id, status: 'LIVE' })) {
+      return res.status(409).json({
+        success: false,
+        message: 'Bài học này đang được giảng dạy trong một ca học trực tiếp (LIVE), không thể xóa lúc này.'
+      });
+    }
+
+    await readiness.assertNotAssigned({ lesson: lesson._id });
     lesson.status = 'INACTIVE';
     await lesson.save();
+    await ClassRoom.updateMany({ currentLesson: lesson._id }, { $set: { currentLesson: null } });
 
     res.status(200).json({
       success: true,
-      message: `Đã chuyển bài học "${lesson.title}" sang trạng thái ngừng hoạt động.`
+      message: `Đã xóa bài học "${lesson.title}" khỏi chương trình giảng dạy hiện hành.`
     });
   } catch (error) {
     next(error);
@@ -1947,29 +2131,100 @@ const addStudentToClassroom = async (req, res, next) => {
     if (!classroom) {
       return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
     }
+    if (classroom.status === 'COMPLETED' || classroom.status === 'INACTIVE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp học đã hoàn thành niên khóa hoặc đã vô hiệu hóa, danh sách học sinh đã được đóng băng lưu trữ và không thể thêm học sinh mới.'
+      });
+    }
 
     // 1. Existing student ID(s) (Thêm từ tài khoản học sinh đã có sẵn trong hệ thống)
     const idsToAdd = Array.isArray(studentIds) ? studentIds : (studentId ? [studentId] : []);
     if (idsToAdd.length > 0) {
-      const validStudents = await User.find({ _id: { $in: idsToAdd }, role: 'CHILD', status: 'ACTIVE' });
-      if (validStudents.length === 0) {
+      let validQuery = User.find({ _id: { $in: idsToAdd }, role: 'CHILD', status: 'ACTIVE' });
+      if (validQuery && typeof validQuery.populate === 'function') {
+        validQuery = validQuery.populate('assignedClass');
+      }
+      const validStudents = await validQuery;
+      if (!validStudents || validStudents.length === 0) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản học sinh hợp lệ trong hệ thống.' });
       }
 
-      // Chặn thêm học sinh khác độ tuổi vào lớp
-      if (classroom.ageGroupCode) {
+      const autoUpgrade = Boolean(req.body.autoUpgradeAge || req.body.upgradeAge);
+
+      const AGE_RANK = { '3-4': 1, '4-5': 2, '5-6': 3 };
+      const classRank = AGE_RANK[classroom.ageGroupCode] || 1;
+
+      // Chặn học sinh thuộc lớp đã kết thúc / tốt nghiệp mầm non
+      for (const s of validStudents) {
+        let curClass = s.assignedClass;
+        if (curClass && typeof curClass !== 'object' && ClassRoom && typeof ClassRoom.findById === 'function') {
+          try {
+            curClass = await ClassRoom.findById(curClass).select('name status ageGroupCode');
+          } catch (_) {}
+        }
+        if (curClass && curClass.status === 'COMPLETED') {
+          // 1. Nếu lớp đã kết thúc là lớp 5-6 tuổi hoặc bé đã 5-6 tuổi: đã tốt nghiệp mầm non
+          if (curClass.ageGroupCode === '5-6' || s.ageGroupCode === '5-6') {
+            return res.status(400).json({
+              success: false,
+              message: `Học sinh "${s.name}" đã hoàn thành chương trình mầm non (Lớp 5-6 tuổi đã kết thúc), không thể chuyển vào lớp học mới.`
+            });
+          }
+
+          // 2. Nếu lớp đích có cùng độ tuổi với lớp đã kết thúc:
+          const studentRank = AGE_RANK[s.ageGroupCode] || 1;
+          if (studentRank === classRank) {
+            return res.status(400).json({
+              success: false,
+              message: `Học sinh "${s.name}" đã hoàn thành lớp ${curClass.name || ''} (${s.ageGroupCode} tuổi). Bé không thể học lại lớp cùng lứa tuổi; vui lòng nâng lớp cho bé lên lớp kế tiếp (+1 tuổi).`
+            });
+          }
+        }
+      }
+
+      // Chặn hạ tuổi học sinh: Không cho phép xếp học sinh lớn tuổi hơn vào lớp nhỏ tuổi hơn
+      const olderStudent = validStudents.find(s => {
+        const studentRank = AGE_RANK[s.ageGroupCode] || 1;
+        return studentRank > classRank;
+      });
+      if (olderStudent) {
+        return res.status(400).json({
+          success: false,
+          message: `Học sinh "${olderStudent.name}" đã ${olderStudent.ageGroupCode} tuổi, không thể hạ tuổi để xếp vào lớp ${classroom.ageGroupCode} tuổi.`
+        });
+      }
+
+      // Chặn nhảy cóc tuổi: Không cho phép nhảy quá 1 bậc tuổi (ví dụ 3-4 lên thẳng 5-6)
+      const skipStudent = validStudents.find(s => {
+        const studentRank = AGE_RANK[s.ageGroupCode] || 1;
+        return classRank > studentRank + 1;
+      });
+      if (skipStudent) {
+        return res.status(400).json({
+          success: false,
+          message: `Học sinh "${skipStudent.name}" hiện đang ${skipStudent.ageGroupCode} tuổi, không thể nhảy cóc lên lớp ${classroom.ageGroupCode} tuổi (chỉ được lên tối đa lớp kế tiếp).`
+        });
+      }
+
+      // Chặn thêm học sinh khác độ tuổi vào lớp nếu không có autoUpgradeAge
+      if (classroom.ageGroupCode && !autoUpgrade) {
         const wrongAgeStudent = validStudents.find(s => s.ageGroupCode && s.ageGroupCode !== classroom.ageGroupCode);
         if (wrongAgeStudent) {
           return res.status(400).json({
             success: false,
-            message: `Không thể thêm học sinh khác độ tuổi vào lớp. Lớp "${classroom.name}" dành cho lứa tuổi ${classroom.ageGroupCode}, nhưng học sinh "${wrongAgeStudent.name}" thuộc lứa tuổi ${wrongAgeStudent.ageGroupCode}.`
+            canUpgradeAge: true,
+            wrongStudentName: wrongAgeStudent.name,
+            currentAge: wrongAgeStudent.ageGroupCode,
+            targetAge: classroom.ageGroupCode,
+            message: `Học sinh "${wrongAgeStudent.name}" hiện đang thuộc nhóm tuổi ${wrongAgeStudent.ageGroupCode}. Bạn có muốn nâng độ tuổi của bé lên ${classroom.ageGroupCode} để xếp vào lớp "${classroom.name}" không?`
           });
         }
       }
 
       const validIds = validStudents.map(s => s._id);
 
-      await integrity.atomic(() => integrity.moveStudents(classroom, validIds.map(String)));
+      await integrity.atomic(() => integrity.moveStudents(classroom, validIds.map(String), false, autoUpgrade));
 
       if (req.user) {
         await writeAudit({
@@ -2062,6 +2317,251 @@ const removeStudentFromClassroom = maintenance.removeStudentFromClassroom;
 // @route   POST /api/admin/classrooms/:id/import-students-excel
 // @access  Private / Admin
 const importStudentsFromExcel = maintenance.importStudentsFromExcel;
+
+// @desc    Chuyển học sinh lên lớp mới (Promote students / Lên lớp niên khóa mới)
+// @route   POST /api/admin/classrooms/:id/promote-students
+// @access  Private / Admin
+const promoteStudentsToClassroom = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { targetClassroomId, studentIds } = req.body;
+
+    if (!targetClassroomId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn lớp học tiếp nhận (lớp mới).' });
+    }
+    if (String(id) === String(targetClassroomId)) {
+      return res.status(400).json({ success: false, message: 'Lớp tiếp nhận không được trùng với lớp hiện tại.' });
+    }
+
+    const [fromClass, toClass] = await Promise.all([
+      ClassRoom.findById(id),
+      ClassRoom.findById(targetClassroomId)
+    ]);
+
+    if (!fromClass) return res.status(404).json({ success: false, message: 'Lớp học hiện tại không tồn tại.' });
+    if (!toClass) return res.status(404).json({ success: false, message: 'Lớp học tiếp nhận không tồn tại.' });
+    if (fromClass.status !== 'COMPLETED') {
+      return res.status(400).json({ success: false, message: 'Chỉ lớp học ở trạng thái "Đã hoàn thành" mới được phép thăng hạng lên lớp mới. Lớp đang học không thể lên lớp mới.' });
+    }
+    if (fromClass.isRolledOver) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp học này đã hoàn tất thăng hạng lên lớp mới trước đó. Mỗi lớp chỉ được phép lên lớp một lần duy nhất để tránh trùng lặp dữ liệu.'
+      });
+    }
+    if (toClass.status === 'COMPLETED' || toClass.status === 'INACTIVE') {
+      return res.status(400).json({ success: false, message: 'Không thể chuyển học sinh vào lớp đã hoàn thành hoặc đã vô hiệu hóa.' });
+    }
+
+    const AGE_RANK = { '3-4': 1, '4-5': 2, '5-6': 3 };
+    const fromRank = AGE_RANK[fromClass.ageGroupCode] || 1;
+    const toRank = AGE_RANK[toClass.ageGroupCode] || 1;
+
+    if (toRank !== fromRank + 1) {
+      return res.status(400).json({
+        success: false,
+        message: `Thăng hạng lớp chỉ cho phép tiến lên đúng 1 bậc tuổi kế tiếp (ví dụ 3-4 tuổi lên 4-5 tuổi, 4-5 tuổi lên 5-6 tuổi). Không thể chuyển từ ${fromClass.ageGroupCode} sang ${toClass.ageGroupCode}.`
+      });
+    }
+
+    // Determine students to move
+    const candidateIds = Array.isArray(studentIds) && studentIds.length > 0
+      ? studentIds
+      : fromClass.students;
+
+    if (!candidateIds || candidateIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Lớp hiện tại không có học sinh nào để chuyển.' });
+    }
+
+    const validStudents = await User.find({
+      _id: { $in: candidateIds },
+      role: 'CHILD',
+      status: 'ACTIVE'
+    });
+
+    if (validStudents.length === 0) {
+      return res.status(400).json({ success: false, message: 'Không tìm thấy học sinh hợp lệ để chuyển lớp.' });
+    }
+
+    const validIds = validStudents.map(s => String(s._id));
+
+    // Move students with automatic age upgrade matching destination class
+    await integrity.atomic(() => integrity.moveStudents(toClass, validIds, false, true));
+
+    // Mark fromClass as rolled over and remove moved students from fromClass
+    fromClass.isRolledOver = true;
+    fromClass.rolledOverTo = toClass._id;
+    fromClass.rolledOverAt = new Date();
+    fromClass.students = (fromClass.students || []).filter(s => !validIds.includes(String(s._id || s)));
+    await fromClass.save();
+
+    if (req.user) {
+      await writeAudit({
+        user: req.user._id,
+        action: 'PROMOTE_STUDENTS',
+        targetType: 'ClassRoom',
+        targetId: toClass._id,
+        details: {
+          fromClass: fromClass.name,
+          toClass: toClass.name,
+          count: validIds.length,
+          studentNames: validStudents.map(s => s.name)
+        }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Đã chuyển thành công ${validIds.length} học sinh từ lớp "${fromClass.name}" lên lớp "${toClass.name}"! Nhóm tuổi của các bé đã được cập nhật tương ứng (${toClass.ageGroupCode || 'theo lớp'}).`,
+      data: {
+        promotedCount: validIds.length,
+        fromClassId: fromClass._id,
+        toClassId: toClass._id
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Fast rollover / direct promote entire classroom to next age group
+// @route   POST /api/admin/classrooms/:id/rollover
+// @access  Private / Admin
+const rolloverClassroom = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, academicYear, teacherId, selectedStudentIds } = req.body;
+
+    const oldClass = await ClassRoom.findById(id).populate('students');
+    if (!oldClass) {
+      return res.status(404).json({ success: false, message: 'Lớp học không tồn tại.' });
+    }
+
+    if (oldClass.status !== 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ lớp học ở trạng thái "Đã hoàn thành" mới được phép lên lớp niên khóa mới. Vui lòng kết thúc khóa học của lớp trước khi thăng hạng.'
+      });
+    }
+
+    if (oldClass.isRolledOver) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp học này đã hoàn tất lên lớp niên khóa mới trước đó. Mỗi lớp chỉ được phép lên lớp một lần duy nhất để tránh trùng lặp dữ liệu.'
+      });
+    }
+
+    if (oldClass.ageGroupCode === '5-6') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp 5-6 tuổi là độ tuổi cuối cùng của bậc mầm non, các bé sẽ hoàn thành khóa học để tốt nghiệp vào lớp 1.'
+      });
+    }
+
+    const nextAge = oldClass.ageGroupCode === '3-4' ? '4-5' : '5-6';
+    const cleanName = String(name || `${oldClass.name} (${nextAge} tuổi)`).normalize('NFC').trim().replace(/\s+/gu, ' ');
+
+    const existingName = await ClassRoom.findOne({
+      name: { $regex: new RegExp(`^${cleanName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') }
+    });
+    if (existingName) {
+      return res.status(400).json({
+        success: false,
+        message: `Tên lớp "${cleanName}" đã tồn tại. Vui lòng chọn tên khác!`
+      });
+    }
+
+    const ageGroupDoc = await AgeGroup.findOne({ code: nextAge });
+    const bookNumber = nextAge === '4-5' ? 2 : 3;
+    const curriculumBookDoc = await CurriculumBook.findOne({ bookNumber });
+
+    let initialLessonId = null;
+    if (curriculumBookDoc) {
+      const firstUnit = await CurriculumUnit.findOne({ book: curriculumBookDoc._id }).sort({ unitNumber: 1 });
+      if (firstUnit) {
+        const firstLesson = await Lesson.findOne({ curriculumUnits: firstUnit._id, status: 'ACTIVE' }).sort({ displayOrder: 1, createdAt: 1 });
+        if (firstLesson) initialLessonId = firstLesson._id;
+      }
+    }
+
+    let assignedTeacherId = oldClass.teacher;
+    if (teacherId !== undefined) {
+      if (teacherId) {
+        const t = await User.findOne({ _id: teacherId, role: 'TEACHER', status: 'ACTIVE' });
+        if (t) assignedTeacherId = t._id;
+      } else {
+        assignedTeacherId = null;
+      }
+    }
+
+    // Determine students to promote
+    const allStudentIds = (oldClass.students || []).map(s => String(s._id || s));
+    const idsToPromote = Array.isArray(selectedStudentIds) && selectedStudentIds.length > 0
+      ? selectedStudentIds.map(String).filter(sid => allStudentIds.includes(sid))
+      : allStudentIds;
+
+    // 1. Create the new class
+    const newClass = await ClassRoom.create({
+      name: cleanName,
+      ageGroupCode: nextAge,
+      ageGroup: ageGroupDoc ? ageGroupDoc._id : undefined,
+      curriculumBook: curriculumBookDoc ? curriculumBookDoc._id : undefined,
+      currentLesson: initialLessonId || undefined,
+      completedLessons: [],
+      teacher: assignedTeacherId,
+      academicYear: academicYear || '2027-2028',
+      status: 'ACTIVE',
+      students: []
+    });
+
+    // 2. Mark old class as rolled over and release promoted students from old class
+    oldClass.status = 'COMPLETED';
+    oldClass.isRolledOver = true;
+    oldClass.rolledOverTo = newClass._id;
+    oldClass.rolledOverAt = new Date();
+    oldClass.students = (oldClass.students || []).filter(s => !idsToPromote.includes(String(s._id || s)));
+    await oldClass.save();
+
+    if (assignedTeacherId) {
+      await integrity.syncTeacher(newClass, assignedTeacherId);
+    }
+
+    // 3. Move selected students into new class with age upgrade
+    if (idsToPromote.length > 0) {
+      await integrity.atomic(() => integrity.moveStudents(newClass, idsToPromote, false, true));
+    }
+
+    // 4. Release any remaining students from old class that were not moved to unassigned
+    const unpromotedIds = allStudentIds.filter(sid => !idsToPromote.includes(sid));
+    if (unpromotedIds.length > 0) {
+      await User.updateMany({ _id: { $in: unpromotedIds } }, { $unset: { assignedClass: 1 } });
+    }
+
+    if (req.user) {
+      await writeAudit({
+        user: req.user._id,
+        action: 'ROLLOVER_CLASSROOM',
+        targetType: 'ClassRoom',
+        targetId: newClass._id,
+        details: {
+          fromClass: oldClass.name,
+          toClass: newClass.name,
+          fromAge: oldClass.ageGroupCode,
+          toAge: nextAge,
+          promotedCount: idsToPromote.length
+        }
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `Đã nâng cấp thành công lớp "${oldClass.name}" lên lớp mới "${newClass.name}" (${nextAge} tuổi) với ${idsToPromote.length} học sinh!`,
+      data: newClass
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // @desc    Export classroom student roster to Excel data
 // @route   GET /api/admin/classrooms/:id/export-excel
@@ -2180,7 +2680,7 @@ const getSchedules = async (req, res, next) => {
     if (isActive !== undefined) query.isActive = isActive === 'true';
 
     const schedules = await Schedule.find(query)
-      .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
+      .populate('classroom', 'name ageGroupCode academicYear studentCount status currentLesson completedLessons isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
       .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
       .sort({ createdAt: -1 })
@@ -2194,6 +2694,16 @@ const getSchedules = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+const sortWeeklySlots = (slots) => {
+  if (!Array.isArray(slots)) return [];
+  return [...slots].sort((a, b) => {
+    const dayA = a.dayOfWeek === 0 ? 7 : (Number(a.dayOfWeek) || 0);
+    const dayB = b.dayOfWeek === 0 ? 7 : (Number(b.dayOfWeek) || 0);
+    if (dayA !== dayB) return dayA - dayB;
+    return (a.startTime || '').localeCompare(b.startTime || '');
+  });
 };
 
 // @desc    Tạo mới thời khóa biểu
@@ -2220,6 +2730,13 @@ const createSchedule = async (req, res, next) => {
       });
     }
 
+    if (classroomDoc.status === 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp học đã hoàn thành niên khóa, không thể tạo thời khóa biểu mới.'
+      });
+    }
+
     // Nếu không truyền teacher, lấy giáo viên của lớp
     if (!assignedTeacher && classroomDoc.teacher) {
       assignedTeacher = classroomDoc.teacher;
@@ -2228,24 +2745,44 @@ const createSchedule = async (req, res, next) => {
     if (!assignedTeacher) {
       return res.status(400).json({
         success: false,
-        message: 'Lớp học này chưa có giáo viên phụ trách. Vui lòng phân công giáo viên.'
+        message: 'Vui lòng chọn giáo viên phụ trách giảng dạy cho lớp.'
       });
     }
 
-    await validateSchedule({ classroom, teacher: assignedTeacher, weeklySlots: weeklySlots || [], effectiveFrom: effectiveFrom || new Date(), effectiveTo, isActive });
+    // Cập nhật giáo viên phụ trách cho lớp học nếu chưa có hoặc có sự thay đổi
+    if (!classroomDoc.teacher || String(classroomDoc.teacher) !== String(assignedTeacher)) {
+      classroomDoc.teacher = assignedTeacher;
+      await classroomDoc.save();
+    }
+
+    // Khi xếp lịch cho lớp sắp khai giảng, mặc định tự động chuyển sang ACTIVE
+    if (classroomDoc.status === 'UPCOMING') {
+      classroomDoc.status = 'ACTIVE';
+      await classroomDoc.save();
+    }
+
+    const sortedSlots = sortWeeklySlots(weeklySlots);
+    await validateSchedule({ classroom, teacher: assignedTeacher, weeklySlots: sortedSlots, effectiveFrom: effectiveFrom || new Date(), effectiveTo, isActive });
+
     const schedule = await Schedule.create({
       classroom,
       teacher: assignedTeacher,
       academicYear: academicYear || classroomDoc.academicYear || '2026-2027',
-      weeklySlots: weeklySlots || [],
+      weeklySlots: sortedSlots,
       colorTag: colorTag || 'indigo',
       effectiveFrom: effectiveFrom || new Date(),
       effectiveTo: effectiveTo || null,
       isActive: isActive !== undefined ? isActive : true
     });
 
+    // Archive or deactivate any previous schedules for this classroom so each class has exactly 1 active schedule
+    await Schedule.updateMany(
+      { classroom, _id: { $ne: schedule._id } },
+      { $set: { isActive: false, effectiveTo: new Date() } }
+    );
+
     const populatedSchedule = await Schedule.findById(schedule._id)
-      .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
+      .populate('classroom', 'name ageGroupCode academicYear studentCount status isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
       .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder');
 
@@ -2287,10 +2824,31 @@ const updateSchedule = async (req, res, next) => {
       });
     }
 
-    if (classroom) schedule.classroom = classroom;
-    if (teacher) schedule.teacher = teacher;
+    const targetClassroomId = classroom || schedule.classroom;
+    const cDoc = await ClassRoom.findById(targetClassroomId);
+    if (cDoc && cDoc.status === 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp học đã hoàn thành niên khóa, không thể chỉnh sửa thời khóa biểu.'
+      });
+    }
+
+    if (classroom) {
+      schedule.classroom = classroom;
+      if (cDoc && cDoc.status === 'UPCOMING') {
+        cDoc.status = 'ACTIVE';
+        await cDoc.save();
+      }
+    }
+    if (teacher) {
+      schedule.teacher = teacher;
+      if (cDoc && String(cDoc.teacher) !== String(teacher)) {
+        cDoc.teacher = teacher;
+        await cDoc.save();
+      }
+    }
     if (academicYear) schedule.academicYear = academicYear;
-    if (weeklySlots !== undefined) schedule.weeklySlots = weeklySlots;
+    if (weeklySlots !== undefined) schedule.weeklySlots = sortWeeklySlots(weeklySlots);
     if (colorTag) schedule.colorTag = colorTag;
     if (effectiveFrom !== undefined) schedule.effectiveFrom = effectiveFrom;
     if (effectiveTo !== undefined) schedule.effectiveTo = effectiveTo;
@@ -2299,8 +2857,14 @@ const updateSchedule = async (req, res, next) => {
     await validateSchedule(schedule.toObject(), schedule._id);
     await schedule.save();
 
+    // Archive or deactivate any previous schedules for this classroom so each class has exactly 1 active schedule
+    await Schedule.updateMany(
+      { classroom, _id: { $ne: schedule._id } },
+      { $set: { isActive: false, effectiveTo: new Date() } }
+    );
+
     const populatedSchedule = await Schedule.findById(schedule._id)
-      .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
+      .populate('classroom', 'name ageGroupCode academicYear studentCount status isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
       .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder');
 
@@ -2369,7 +2933,7 @@ const getTeacherSchedule = async (req, res, next) => {
     const { teacherId } = req.params;
     if (req.user.role === 'TEACHER' && String(req.user._id) !== teacherId) throw integrity.fail('Bạn chỉ được xem lịch dạy của mình.', 403);
     const schedules = await Schedule.find({ teacher: teacherId, ...activeScheduleFilter() })
-      .populate('classroom', 'name ageGroupCode academicYear studentCount isActive')
+      .populate('classroom', 'name ageGroupCode academicYear studentCount status isActive')
       .populate('teacher', 'name email avatar avatarUrl username')
       .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
       .lean();
@@ -3126,6 +3690,7 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
     const enrolledStudents = classroomDoc?.students || [];
 
     const recentSessions = rawRecentSessions.map(session => {
+      const isCancelledSession = session.status === 'CANCELLED';
       const recordedStudentIds = new Set(
         (session.studentScores || []).map(sc => String(sc.student?._id || sc.student))
       );
@@ -3146,14 +3711,16 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
             }))
         : [];
 
-      const allStudentScores = [...(session.studentScores || []), ...unrecordedStudents];
+      const allStudentScores = isCancelledSession ? [] : [...(session.studentScores || []), ...unrecordedStudents];
 
-      const presentCount = allStudentScores.filter(s => s.attendance === 'PRESENT').length;
-      const excusedCount = allStudentScores.filter(s => s.attendance === 'EXCUSED').length;
-      const absentCount = allStudentScores.filter(s => s.attendance === 'ABSENT').length;
-      const lateCount = allStudentScores.filter(s => s.attendance === 'LATE').length;
-      const totalRoster = allStudentScores.length;
-      const attendanceRate = totalRoster > 0 ? Math.round(((presentCount + lateCount) / totalRoster) * 100) : 0;
+      const presentCount = isCancelledSession ? 0 : allStudentScores.filter(s => s.attendance === 'PRESENT').length;
+      const excusedCount = isCancelledSession ? 0 : allStudentScores.filter(s => s.attendance === 'EXCUSED').length;
+      const absentCount = isCancelledSession ? 0 : allStudentScores.filter(s => s.attendance === 'ABSENT').length;
+      const lateCount = isCancelledSession ? 0 : allStudentScores.filter(s => s.attendance === 'LATE').length;
+      const totalRoster = isCancelledSession ? 0 : allStudentScores.length;
+      const attendanceRate = isCancelledSession
+        ? null
+        : (totalRoster > 0 ? Math.round(((presentCount + lateCount) / totalRoster) * 100) : 0);
 
       const sDate = session.startedAt || session.createdAt;
       const startTimeStr = sDate ? new Date(sDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '--:--';
@@ -3164,7 +3731,7 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
         date: sDate,
         startTime: startTimeStr,
         endTime: endTimeStr,
-        lessonTitle: session.status === 'CANCELLED'
+        lessonTitle: isCancelledSession
           ? `Buổi báo nghỉ: ${session.cancellationReason || 'Nghỉ theo kế hoạch'}`
           : (session.lesson?.title || session.title || 'Buổi học'),
         teacherName: session.teacher?.name || 'Giáo viên',
@@ -3176,7 +3743,8 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
           excused: excusedCount,
           absent: absentCount,
           late: lateCount,
-          attendanceRate
+          attendanceRate,
+          isCancelled: isCancelledSession
         }
       };
     });
@@ -3281,8 +3849,9 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
       let late = 0;
       let latestNote = '';
 
-      // 1. Tích lũy từ các buổi học trực tiếp đã hoàn thành hoặc đang diễn ra
+      // 1. Tích lũy từ các buổi học trực tiếp đã hoàn thành hoặc đang diễn ra (bỏ qua buổi báo nghỉ)
       recentSessions.forEach(session => {
+        if (session.status === 'CANCELLED') return;
         const score = (session.allStudentScores || []).find(sc => String(sc.student?._id || sc.student) === String(st._id));
         if (score) {
           if (score.attendance === 'PRESENT') present++;
@@ -3293,7 +3862,7 @@ const getClassroomCurriculumProgress = async (req, res, next) => {
         }
       });
 
-      // 2. Bổ sung từ sổ điểm danh chuyên cần (Attendance) nếu chưa trùng ngày với buổi học
+      // 2. Bổ sung từ sổ điểm danh chuyên cần (Attendance) nếu chưa trùng ngày với buổi học (hoặc ngày báo nghỉ)
       const sessionDateStrings = new Set(recentSessions.map(s => s.date ? new Date(s.date).toISOString().split('T')[0] : ''));
       attendanceHistory.forEach(att => {
         const attDateStr = att.date ? new Date(att.date).toISOString().split('T')[0] : '';
@@ -3528,6 +4097,12 @@ const updateClassroomCurriculumProgress = async (req, res, next) => {
 // @route   GET /api/admin/system/backup
 // @access  Private / Admin
 const exportSystemBackup = maintenance.exportSystemBackup;
+const getBackupRestoreOverview = maintenance.getBackupRestoreOverview;
+const validateSystemBackup = maintenance.validateSystemBackup;
+const restoreSystemBackup = maintenance.restoreSystemBackup;
+const createServerSnapshot = maintenance.createServerSnapshot;
+const downloadServerSnapshot = maintenance.downloadServerSnapshot;
+const deleteServerSnapshot = maintenance.deleteServerSnapshot;
 
 module.exports = {
   getStudentCompetency: maintenance.getStudentCompetency,
@@ -3551,6 +4126,8 @@ module.exports = {
   updateClassroom,
   deleteClassroom,
   assignStudentsToClassroom,
+  promoteStudentsToClassroom,
+  rolloverClassroom,
   addStudentToClassroom,
   removeStudentFromClassroom,
   assignTeacherToClassroom,
@@ -3560,6 +4137,12 @@ module.exports = {
   updateClassroomCurriculumProgress,
   getClassroomSessions,
   exportSystemBackup,
+  getBackupRestoreOverview,
+  validateSystemBackup,
+  restoreSystemBackup,
+  createServerSnapshot,
+  downloadServerSnapshot,
+  deleteServerSnapshot,
   getUnassignedStudents,
   getDeepCurriculum,
   toggleLessonStatus,

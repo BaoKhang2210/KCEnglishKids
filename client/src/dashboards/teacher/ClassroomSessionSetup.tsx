@@ -281,8 +281,8 @@ export const ClassroomSessionSetup: React.FC = () => {
 
         if (slot.dayOfWeek === currentDay) {
           if (!todaySlot) todaySlot = slot;
-          // Active slot window: 15 minutes before start up to 30 minutes after end
-          if (currentMinutes >= (startMin - 15) && currentMinutes <= (endMin + 30)) {
+          // Active slot window: 30 minutes before start up to max(start + 20m, end)
+          if (currentMinutes >= (startMin - 30) && currentMinutes <= Math.max(startMin + 20, endMin)) {
             activeSlot = slot;
           }
         }
@@ -304,17 +304,29 @@ export const ClassroomSessionSetup: React.FC = () => {
       }
     }
 
-    const effectiveSlot = activeSlot || todaySlot;
-    if (effectiveSlot) {
-      const isExactWindow = !!activeSlot;
+    if (activeSlot) {
       return {
         canTeachNow: true,
-        activeSlot: effectiveSlot,
+        activeSlot,
         nextSlotText: null,
         hasSchedule: true,
-        reason: isExactWindow
-          ? `Đang trong khung giờ dạy: ${DAY_LABELS[effectiveSlot.dayOfWeek]} · ${effectiveSlot.startTime} - ${effectiveSlot.endTime}`
-          : `Lịch dạy hôm nay: ${DAY_LABELS[effectiveSlot.dayOfWeek]} · ${effectiveSlot.startTime} - ${effectiveSlot.endTime}`
+        reason: `Đang trong khung giờ mở lớp: ${DAY_LABELS[activeSlot.dayOfWeek]} · ${activeSlot.startTime} - ${activeSlot.endTime}`
+      };
+    }
+
+    if (todaySlot) {
+      const [tH, tM] = (todaySlot.startTime || '00:00').split(':').map(Number);
+      const tStartMin = tH * 60 + tM;
+      const openFromMin = Math.max(0, tStartMin - 30);
+      const openTimeStr = `${String(Math.floor(openFromMin / 60)).padStart(2, '0')}:${String(openFromMin % 60).padStart(2, '0')}`;
+      return {
+        canTeachNow: false,
+        activeSlot: todaySlot,
+        nextSlotText: `${todaySlot.startTime} - ${todaySlot.endTime}`,
+        hasSchedule: true,
+        reason: currentMinutes < tStartMin - 30
+          ? `Chưa đến giờ mở lớp dạy (${todaySlot.startTime} - ${todaySlot.endTime}). Giáo viên được mở lớp từ ${openTimeStr} (sớm tối đa 30 phút). Bạn vẫn có thể chuẩn bị bài và điểm danh trước.`
+          : `Đã quá khung giờ mở lớp dạy hôm nay (${todaySlot.startTime} - ${todaySlot.endTime}). Vui lòng liên hệ quản trị viên hoặc báo nghỉ.`
       };
     }
 

@@ -56,6 +56,17 @@ export const AdminUsersPage: React.FC = () => {
   const [editUserModal, setEditUserModal] = useState<any | null>(null);
   const [resetPinModal, setResetPinModal] = useState<any | null>(null);
 
+  // Confirmation Modal for critical account actions (Lock/Unlock, Delete)
+  const [confirmActionModal, setConfirmActionModal] = useState<{
+    type: 'TOGGLE_STATUS' | 'DELETE_USER';
+    user: any;
+    title: string;
+    impactWarning: string;
+    confirmBtnText: string;
+    confirmBtnColor: 'danger' | 'primary';
+  } | null>(null);
+  const [actionSubmitting, setActionSubmitting] = useState(false);
+
   // Bulk Excel Student Import state
   const [bulkImportModalOpen, setBulkImportModalOpen] = useState(false);
   const [bulkExcelRows, setBulkExcelRows] = useState<any[]>([]);
@@ -222,12 +233,17 @@ export const AdminUsersPage: React.FC = () => {
   // ── RESET PIN ─────────────────────────────────────────────────────────────
   const handleResetPinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetPinModal || !/^\d{4}$/.test(newPin)) {
-      showAlert('error', 'Mã PIN mới phải gồm đúng 4 chữ số.');
+    const pin = newPin.trim();
+    if (!resetPinModal || !/^\d{4}$/.test(pin)) {
+      showAlert('error', 'Mã PIN mới phải gồm đúng 4 chữ số (0-9).');
+      return;
+    }
+    if (/^(1234|(\d)\2{3})$/.test(pin)) {
+      showAlert('error', 'Mã PIN quá dễ đoán (không được dùng 1234 hoặc 4 chữ số trùng nhau như 0000, 1111...). Vui lòng chọn mã PIN bảo mật hơn.');
       return;
     }
     try {
-      const res = await adminApi.resetChildPin(resetPinModal._id, newPin);
+      const res = await adminApi.resetChildPin(resetPinModal._id, pin);
       if (res.success) {
         if (res.credentials?.length) setIssuedCredentials(res.credentials);
         showAlert('success', res.message || 'Đặt lại mã PIN thành công!');
@@ -240,32 +256,59 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
-  // ── TOGGLE STATUS ─────────────────────────────────────────────────────────
-  const handleToggleStatus = async (user: any) => {
-    try {
-      const res = await adminApi.toggleUserStatus(user._id);
-      if (res.success) {
-        if (res.credentials?.length) setIssuedCredentials(res.credentials);
-        showAlert('success', res.message || 'Thay đổi trạng thái tài khoản thành công!');
-        loadUsers();
-      }
-    } catch (err: any) {
-      showAlert('error', err?.message || 'Không thể đổi trạng thái tài khoản.');
-    }
+  // ── TOGGLE STATUS PROMPT ──────────────────────────────────────────────────
+  const handlePromptToggleStatus = (user: any) => {
+    const isLocking = user.status === 'ACTIVE';
+    setConfirmActionModal({
+      type: 'TOGGLE_STATUS',
+      user,
+      title: isLocking ? 'Xác Nhận Khóa Tài Khoản' : 'Xác Nhận Mở Khóa Tài Khoản',
+      impactWarning: isLocking
+        ? `Tài khoản của ${user.name} sẽ bị khóa tạm thời. Người dùng này sẽ KHÔNG THỂ đăng nhập vào hệ thống (cả Web và App) cho đến khi được Admin mở khóa lại.`
+        : `Tài khoản của ${user.name} sẽ được kích hoạt lại. Người dùng có thể đăng nhập và tiếp tục hoạt động học tập/giảng dạy bình thường.`,
+      confirmBtnText: isLocking ? 'Khóa Tài Khoản' : 'Mở Khóa Tài Khoản',
+      confirmBtnColor: isLocking ? 'danger' : 'primary'
+    });
   };
 
-  // ── DELETE USER ───────────────────────────────────────────────────────────
-  const handleDeleteUser = async (user: any) => {
-    if (!window.confirm(`Bạn có chắc muốn hủy kích hoạt tài khoản ${user.name}?`)) return;
+  // ── DELETE USER PROMPT ────────────────────────────────────────────────────
+  const handlePromptDeleteUser = (user: any) => {
+    setConfirmActionModal({
+      type: 'DELETE_USER',
+      user,
+      title: 'Xác Nhận Hủy / Xóa Tài Khoản',
+      impactWarning: `Bạn có chắc chắn muốn xóa tài khoản của "${user.name}"? Tài khoản sẽ bị đưa vào trạng thái vô hiệu hóa và gỡ khỏi các lớp học liên quan. Dữ liệu học bạ và kết quả học tập trong quá khứ vẫn được lưu vết an toàn.`,
+      confirmBtnText: 'Xác Nhận Xóa Tài Khoản',
+      confirmBtnColor: 'danger'
+    });
+  };
+
+  // ── CONFIRM ACTION HANDLER ────────────────────────────────────────────────
+  const handleConfirmAction = async () => {
+    if (!confirmActionModal) return;
+    setActionSubmitting(true);
     try {
-      const res = await adminApi.deleteUser(user._id);
-      if (res.success) {
-        if (res.credentials?.length) setIssuedCredentials(res.credentials);
-        showAlert('success', res.message || 'Đã hủy tài khoản.');
-        loadUsers();
+      if (confirmActionModal.type === 'TOGGLE_STATUS') {
+        const res = await adminApi.toggleUserStatus(confirmActionModal.user._id);
+        if (res.success) {
+          if (res.credentials?.length) setIssuedCredentials(res.credentials);
+          showAlert('success', res.message || 'Thay đổi trạng thái tài khoản thành công!');
+          setConfirmActionModal(null);
+          loadUsers();
+        }
+      } else if (confirmActionModal.type === 'DELETE_USER') {
+        const res = await adminApi.deleteUser(confirmActionModal.user._id);
+        if (res.success) {
+          if (res.credentials?.length) setIssuedCredentials(res.credentials);
+          showAlert('success', res.message || 'Đã hủy tài khoản thành công.');
+          setConfirmActionModal(null);
+          loadUsers();
+        }
       }
     } catch (err: any) {
-      showAlert('error', err?.message || 'Không thể xóa tài khoản.');
+      showAlert('error', err?.message || 'Thao tác tài khoản thất bại.');
+    } finally {
+      setActionSubmitting(false);
     }
   };
 
@@ -704,23 +747,23 @@ export const AdminUsersPage: React.FC = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => handleToggleStatus(u)}
-                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 transition-all"
+                          onClick={() => handlePromptToggleStatus(u)}
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
                           title={u.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                         >
                           {u.status === 'ACTIVE' ? <Lock size={14} /> : <Unlock size={14} />}
                         </button>
                         <button
                           onClick={() => handleOpenEdit(u)}
-                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 hover:text-inherit transition-all"
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-inherit transition-all cursor-pointer"
                           title="Sửa thông tin"
                         >
                           <Edit size={14} />
                         </button>
                         {u.role !== 'ADMIN' && (
                           <button
-                            onClick={() => handleDeleteUser(u)}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-800 transition-all"
+                            onClick={() => handlePromptDeleteUser(u)}
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-800 transition-all cursor-pointer"
                             title="Hủy tài khoản"
                           >
                             <Trash2 size={14} />
@@ -1120,10 +1163,14 @@ export const AdminUsersPage: React.FC = () => {
                   required
                   autoFocus
                   value={newPin}
-                  onChange={(e) => setNewPin(e.target.value)}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="••••"
                   className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-inherit text-xl font-mono tracking-widest text-center focus:border-indigo-500 focus:outline-none"
                 />
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 mt-2.5 font-medium flex items-start gap-1.5 text-left">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                  <span>Quy định bảo mật: Không được sử dụng mã PIN dễ đoán như <b>1234</b> hoặc 4 số giống nhau (như <b>0000</b>, <b>1111</b>...).</span>
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -1358,6 +1405,138 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: XÁC NHẬN THAO TÁC TÀI KHOẢN (CONFIRM ACTION MODAL) ──── */}
+      {confirmActionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl animate-scale-up space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                    confirmActionModal.type === 'DELETE_USER'
+                      ? 'bg-rose-100 text-rose-700'
+                      : confirmActionModal.user.status === 'ACTIVE'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {confirmActionModal.type === 'DELETE_USER' ? (
+                    <Trash2 size={20} />
+                  ) : confirmActionModal.user.status === 'ACTIVE' ? (
+                    <Lock size={20} />
+                  ) : (
+                    <Unlock size={20} />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    {confirmActionModal.title}
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Xác nhận thao tác quản trị tài khoản
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmActionModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* User Info Card */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Họ và tên:</span>
+                <span className="text-sm font-black text-slate-900">{confirmActionModal.user.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vai trò:</span>
+                <span className="text-xs font-black px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {confirmActionModal.user.role === 'ADMIN' ? 'Quản trị viên' : confirmActionModal.user.role === 'TEACHER' ? 'Giáo viên' : 'Học sinh'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tên đăng nhập / Mã:</span>
+                <span className="text-xs font-mono font-bold text-slate-700">{confirmActionModal.user.username || '—'}</span>
+              </div>
+              {confirmActionModal.user.email && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email:</span>
+                  <span className="text-xs font-semibold text-slate-700 truncate max-w-[200px]">{confirmActionModal.user.email}</span>
+                </div>
+              )}
+              {confirmActionModal.user.contact && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Số điện thoại:</span>
+                  <span className="text-xs font-semibold text-slate-700">{confirmActionModal.user.contact}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Trạng thái hiện tại:</span>
+                <span
+                  className={`text-xs font-black px-2 py-0.5 rounded-lg ${
+                    confirmActionModal.user.status === 'ACTIVE'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {confirmActionModal.user.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đang bị khóa'}
+                </span>
+              </div>
+            </div>
+
+            {/* Impact Warning */}
+            <div
+              className={`p-3.5 rounded-2xl border text-xs leading-relaxed font-semibold flex items-start gap-2.5 ${
+                confirmActionModal.type === 'DELETE_USER'
+                  ? 'bg-rose-50 border-rose-200 text-rose-900'
+                  : confirmActionModal.user.status === 'ACTIVE'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              }`}
+            >
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>{confirmActionModal.impactWarning}</span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={actionSubmitting}
+                onClick={() => setConfirmActionModal(null)}
+                className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={actionSubmitting}
+                onClick={handleConfirmAction}
+                className={`px-5 py-2.5 rounded-2xl text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer ${
+                  confirmActionModal.confirmBtnColor === 'danger'
+                    ? 'bg-rose-600 hover:bg-rose-700 active:scale-95'
+                    : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'
+                }`}
+              >
+                {actionSubmitting ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-transparent rounded-full animate-spin" />
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <span>{confirmActionModal.confirmBtnText}</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

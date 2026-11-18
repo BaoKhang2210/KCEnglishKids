@@ -53,7 +53,7 @@ router.post('/:childId/rewards/chests/:unitId/reveal', protect, ownChildOr403(),
 
 // Parent communications & feedback exchange (Sổ liên lạc phụ huynh)
 const pn = require('../controllers/parentNotificationController');
-const { User, ClassRoom, Schedule } = require('../models');
+const { User, ClassRoom, Schedule, ClassroomSession } = require('../models');
 
 router.get('/:childId/parent-notifications', protect, ownChildOr403(), pn.getChildNotificationsForParent);
 router.patch('/:childId/parent-notifications/:id/read', protect, ownChildOr403(), pn.markAsReadByParent);
@@ -71,25 +71,49 @@ router.get('/:childId/schedule', protect, ownChildOr403(), async (req, res, next
         success: true,
         data: {
           classroom: null,
-          schedule: null
+          schedule: null,
+          cancelledSessions: []
         }
       });
     }
 
-    const classroom = await ClassRoom.findById(child.assignedClass)
-      .populate('teacher', 'name email avatar')
-      .lean();
+    const [classroom, schedule, rawCancelledSessions] = await Promise.all([
+      ClassRoom.findById(child.assignedClass)
+        .populate('teacher', 'name email avatar')
+        .lean(),
+      Schedule.findOne({ classroom: child.assignedClass, isActive: true })
+        .populate('teacher', 'name email avatar')
+        .populate('classroom', 'name room academicYear ageGroup')
+        .sort({ createdAt: -1 })
+        .lean(),
+      ClassroomSession.find({ classroom: child.assignedClass, status: 'CANCELLED' })
+        .select('startedAt endedAt createdAt cancellationReason cancellationNote status')
+        .sort({ startedAt: -1 })
+        .limit(30)
+        .lean()
+    ]);
 
-    const schedule = await Schedule.findOne({ classroom: child.assignedClass, isActive: true })
-      .populate('teacher', 'name email avatar')
-      .populate('classroom', 'name room academicYear ageGroup')
-      .lean();
+    const cancelledSessions = (rawCancelledSessions || []).map(sess => {
+      const sDate = sess.startedAt || sess.createdAt;
+      const dateStr = sDate
+        ? new Date(sDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
+        : '';
+      const dayOfWeek = sDate
+        ? new Date(new Date(sDate).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })).getDay()
+        : null;
+      return {
+        ...sess,
+        dateString: dateStr,
+        dayOfWeek
+      };
+    });
 
     return res.json({
       success: true,
       data: {
         classroom,
-        schedule
+        schedule,
+        cancelledSessions
       }
     });
   } catch (e) {

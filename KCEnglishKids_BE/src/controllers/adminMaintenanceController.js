@@ -130,6 +130,9 @@ exports.assignStudentsToClassroom = handler(async (req, res) => {
 });
 exports.removeStudentFromClassroom = handler(async (req, res) => {
   const room = await I.classroom(req.params.id);
+  if (room.status === 'COMPLETED') {
+    throw I.fail('Lớp học đã hoàn thành niên khóa, danh sách học sinh đã được đóng băng lưu trữ và không thể xóa khỏi lớp.', 400);
+  }
   await I.atomic(async () => {
     await ClassRoom.updateOne({ _id: room._id }, { $pull: { students: req.params.studentId } });
     await User.updateOne({ _id: req.params.studentId, role: 'CHILD', assignedClass: room._id }, { $unset: { assignedClass: 1 } });
@@ -145,6 +148,9 @@ exports.bulkImportChildren = handler(async (req, res) => {
 });
 exports.importStudentsFromExcel = handler(async (req, res) => {
   const room = await I.classroom(req.params.id);
+  if (room.status === 'COMPLETED' || room.status === 'INACTIVE') {
+    throw I.fail('Không thể thêm học sinh vào lớp học đã hoàn thành hoặc đã vô hiệu hóa.', 400);
+  }
   const data = await I.atomic(() => I.importStudents(req.body.students, room));
   await I.audit(req, 'IMPORT_STUDENTS_EXCEL', 'ClassRoom', room._id, { className: room.name, importedCount: data.createdUsers.length });
   res.json({ success: true, message: `Đã nhập ${data.createdUsers.length} học sinh; bỏ qua ${data.skippedCount} dòng đã nhập.`, data: { importedCount: data.createdUsers.length, skippedCount: data.skippedCount, errors: [], students: data.createdUsers }, credentials: data.credentials });
@@ -152,6 +158,16 @@ exports.importStudentsFromExcel = handler(async (req, res) => {
 exports.deleteClassroom = handler(async (req, res) => {
   const room = await ClassRoom.findById(req.params.id);
   if (!room) throw I.fail('Lớp học không tồn tại.', 404);
+  if (room.status === 'COMPLETED') {
+    throw I.fail('Lớp học đã hoàn thành khóa học, không thể xóa để bảo toàn lịch sử buổi dạy và học bạ.', 400);
+  }
+
+  // Check if this classroom has ANY classroom sessions (buổi dạy thực tế)
+  const sessionCount = await ClassroomSession.countDocuments({ classroom: room._id });
+  if (sessionCount > 0) {
+    throw I.fail(`Lớp học đã có ${sessionCount} buổi dạy thực tế trong hệ thống. Để bảo toàn lịch sử giảng dạy và học bạ của trẻ, không thể xóa lớp này. Vui lòng chuyển trạng thái lớp sang "Đã hoàn thành" hoặc "Tạm dừng".`, 400);
+  }
+
   // Persist the work list before cleanup, so retry can finish after a standalone Mongo outage.
   if (!room.deletionPending) {
     const children = await User.find({ role: 'CHILD', assignedClass: room._id }).select('_id');
@@ -160,17 +176,14 @@ exports.deleteClassroom = handler(async (req, res) => {
   }
   const ids = room.deletionStudentIds || [];
   await I.atomic(async () => {
-    for (const name of ['LearningSession', 'ActivityResult', 'Progress', 'UnitCompletion', 'LearningEvent', 'MasteryEvent']) await models[name].deleteMany({ child: { $in: ids } });
-    await models.LearningObservation.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
-    await models.HomePracticePlan.deleteMany({$or:[{classroom:room._id},{child:{$in:ids}}]});
-    for (const name of ['TeacherNote', 'VocabularyMastery']) await models[name].deleteMany({ student: { $in: ids } });
-    await models.ParentNotification.deleteMany({ child: { $in: ids } });
+    // Release students back to unassigned rather than destroying their user accounts
+    if (ids.length > 0) {
+      await User.updateMany({ _id: { $in: ids }, role: 'CHILD' }, { $unset: { assignedClass: 1 } });
+    }
+    await models.LearningObservation.deleteMany({ classroom: room._id });
+    await models.HomePracticePlan.deleteMany({ classroom: room._id });
     await ClassRecognition.deleteMany({ classroom: room._id });
-    await ClassRecognition.updateMany({ 'winners.child': { $in: ids } }, { $pull: { winners: { child: { $in: ids } }, ranking: { child: { $in: ids.map(String) } } } });
-    await models.SchoolRecognition.updateMany({ 'winners.child': { $in: ids } }, { $pull: { winners: { child: { $in: ids } }, ranking: { child: { $in: ids.map(String) } } } });
     for (const name of ['Attendance', 'ClassroomSession', 'Schedule']) await models[name].deleteMany({ classroom: room._id });
-    await models.Attendance.updateMany({ 'records.student': { $in: ids } }, { $pull: { records: { student: { $in: ids } } } });
-    await ClassroomSession.updateMany({ 'studentScores.student': { $in: ids } }, { $pull: { studentScores: { student: { $in: ids } }, 'questionResults.$[].studentAnswers': { student: { $in: ids } }, 'summary.topPerformers': { $in: ids }, 'summary.studentsNeedingPractice': { $in: ids } } });
     await ClassRoom.updateMany({ _id: { $ne: room._id } }, { $pull: { students: { $in: ids } } });
     await User.updateMany({ role: 'TEACHER' }, { $pull: { assignedClasses: room._id } });
     const remainingForTeacher = room.teacher
@@ -183,11 +196,15 @@ exports.deleteClassroom = handler(async (req, res) => {
         await User.updateOne({ _id: room.teacher, role: 'TEACHER', assignedClass: room._id }, { $unset: { assignedClass: 1 } });
       }
     }
-    await User.deleteMany({ _id: { $in: ids }, role: 'CHILD' });
     await ClassRoom.deleteOne({ _id: room._id });
   });
-  await I.audit(req, 'DELETE_CLASSROOM', 'ClassRoom', room._id, { name: room.name, deletedStudentsCount: ids.length });
-  res.json({ success: true, message: `Đã xóa lớp ${room.name}, ${ids.length} hồ sơ học sinh và dữ liệu liên quan.` });
+  await I.audit(req, 'DELETE_CLASSROOM', 'ClassRoom', room._id, { name: room.name, releasedStudentsCount: ids.length });
+  res.json({
+    success: true,
+    message: ids.length > 0
+      ? `Đã xóa lớp ${room.name} và giải phóng ${ids.length} học sinh về trạng thái Chưa có lớp (bảo toàn tài khoản).`
+      : `Đã xóa thành công lớp ${room.name}.`
+  });
 });
 
 exports.getAdminAnalytics = handler(async (req, res) => {
@@ -320,4 +337,531 @@ exports.exportSystemBackup = handler(async (req, res) => {
   // Access the BSON library through the installed MongoDB driver, without adding a dependency.
   const { EJSON } = mongoose.mongo.BSON;
   res.type('application/json').send(EJSON.stringify(payload, null, 2, { relaxed: false }));
+});
+
+const fs = require('node:fs');
+const path = require('node:path');
+const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../config/auth');
+const { validateBackup } = require('../../scripts/restore_system_backup');
+
+const SNAPSHOT_DIR = path.resolve(__dirname, '../../../.local-backups/snapshots');
+
+const COLLECTION_METADATA = {
+  users: { label: 'Tài khoản người dùng (Admin, GV, Học sinh)', group: 'Người dùng & Lớp học' },
+  classrooms: { label: 'Lớp học', group: 'Người dùng & Lớp học' },
+  schedules: { label: 'Thời khóa biểu lớp học', group: 'Người dùng & Lớp học' },
+  classroomsessions: { label: 'Buổi dạy trực tiếp trên lớp', group: 'Người dùng & Lớp học' },
+  attendances: { label: 'Sổ điểm danh chuyên cần', group: 'Người dùng & Lớp học' },
+  agegroups: { label: 'Nhóm độ tuổi mầm non', group: 'Người dùng & Lớp học' },
+  curriculumbooks: { label: 'Sách giáo trình theo độ tuổi', group: 'Giáo trình & Học liệu' },
+  curriculumunits: { label: 'Đơn vị bài học (Units)', group: 'Giáo trình & Học liệu' },
+  lessons: { label: 'Bài học chi tiết (Lessons)', group: 'Giáo trình & Học liệu' },
+  vocabularies: { label: 'Kho từ vựng & Flashcard', group: 'Giáo trình & Học liệu' },
+  languagecontents: { label: 'Mẫu câu giao tiếp', group: 'Giáo trình & Học liệu' },
+  activities: { label: 'Hoạt động & Trò chơi tương tác', group: 'Giáo trình & Học liệu' },
+  gamecatalogsettings: { label: 'Cấu hình kho trò chơi', group: 'Giáo trình & Học liệu' },
+  topics: { label: 'Chủ đề học tập', group: 'Giáo trình & Học liệu' },
+  media: { label: 'Tài nguyên đa phương tiện', group: 'Giáo trình & Học liệu' },
+  videoseries: { label: 'Bộ phim hoạt hình tiếng Anh', group: 'Giáo trình & Học liệu' },
+  videoepisodes: { label: 'Tập phim video', group: 'Giáo trình & Học liệu' },
+  progresses: { label: 'Tiến độ hoàn thành bài học của bé', group: 'Kết quả & Tiến độ học tập' },
+  activityresults: { label: 'Kết quả làm bài & Trò chơi', group: 'Kết quả & Tiến độ học tập' },
+  vocabularymasteries: { label: 'Mức độ thông thạo từ vựng', group: 'Kết quả & Tiến độ học tập' },
+  stagestargrants: { label: 'Sổ cái sao thưởng (Star Ledger)', group: 'Kết quả & Tiến độ học tập' },
+  unitcompletions: { label: 'Hoàn thành Unit & Huy hiệu', group: 'Kết quả & Tiến độ học tập' },
+  learningevents: { label: 'Sự kiện tương tác học tập', group: 'Kết quả & Tiến độ học tập' },
+  masteryevents: { label: 'Sự kiện làm chủ kiến thức', group: 'Kết quả & Tiến độ học tập' },
+  learningsessions: { label: 'Phiên tự học tại nhà', group: 'Kết quả & Tiến độ học tập' },
+  learningobservations: { label: 'Quan sát năng lực sớm (3 Trụ cột)', group: 'Kết quả & Tiến độ học tập' },
+  videoprogresses: { label: 'Tiến độ xem video của bé', group: 'Kết quả & Tiến độ học tập' },
+  videofavorites: { label: 'Video yêu thích', group: 'Kết quả & Tiến độ học tập' },
+  videoreports: { label: 'Báo cáo nội dung video', group: 'Kết quả & Tiến độ học tập' },
+  teachernotes: { label: 'Ghi chú & Nhận xét của giáo viên', group: 'Tương tác & Hệ thống' },
+  parentnotifications: { label: 'Thông báo & Sổ liên lạc phụ huynh', group: 'Tương tác & Hệ thống' },
+  homepracticeplans: { label: 'Kế hoạch ôn tập tại nhà', group: 'Tương tác & Hệ thống' },
+  homepracticecompletions: { label: 'Hoàn thành bài tập về nhà', group: 'Tương tác & Hệ thống' },
+  classrecognitions: { label: 'Vinh danh cấp lớp', group: 'Tương tác & Hệ thống' },
+  schoolrecognitions: { label: 'Vinh danh cấp trường', group: 'Tương tác & Hệ thống' },
+  systemsettings: { label: 'Cài đặt tham số hệ thống', group: 'Tương tác & Hệ thống' },
+  auditlogs: { label: 'Nhật ký hoạt động hệ thống (Audit Logs)', group: 'Tương tác & Hệ thống' }
+};
+
+function getAllBackupModels() {
+  return Object.values({ ...models, ClassRecognition });
+}
+
+function ensureSnapshotDir() {
+  if (!fs.existsSync(SNAPSHOT_DIR)) {
+    fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+  }
+}
+
+function safeSnapshotFilename(filename) {
+  const clean = path.basename(String(filename || ''));
+  if (!clean || clean !== filename || !/^[A-Za-z0-9._-]+\.json$/.test(clean)) {
+    throw I.fail('Tên file bản sao lưu không hợp lệ.', 400);
+  }
+  return clean;
+}
+
+function listServerSnapshots() {
+  try {
+    ensureSnapshotDir();
+    const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.json'));
+    const items = [];
+    for (const file of files) {
+      const fullPath = path.join(SNAPSHOT_DIR, file);
+      const stat = fs.statSync(fullPath);
+      const isAuto = file.startsWith('AutoSnapshot_');
+      items.push({
+        filename: file,
+        sizeBytes: stat.size,
+        createdAt: stat.mtime.toISOString(),
+        type: isAuto ? 'AUTO_BEFORE_RESTORE' : 'MANUAL_SNAPSHOT',
+        label: isAuto ? 'Sao lưu tự động trước khi khôi phục' : 'Bản sao lưu lưu trữ trên máy chủ'
+      });
+    }
+    return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch {
+    return [];
+  }
+}
+
+function pruneOldAutoSnapshots(maxKeep = 15) {
+  try {
+    const all = listServerSnapshots().filter(s => s.type === 'AUTO_BEFORE_RESTORE');
+    if (all.length <= maxKeep) return;
+    for (const oldItem of all.slice(maxKeep)) {
+      const p = path.join(SNAPSHOT_DIR, oldItem.filename);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+  } catch {
+    // ignore cleanup errors
+  }
+}
+
+async function getCurrentCollectionCounts() {
+  const allModels = getAllBackupModels();
+  const isLiveDb = mongoose.connection.readyState === 1;
+  const entries = await Promise.all(
+    allModels.map(async model => {
+      const name = model.collection.name;
+      if (isLiveDb && typeof model.collection.countDocuments === 'function') {
+        const count = await model.collection.countDocuments({});
+        return [name, count];
+      }
+      const docs = await model.collection.find({}).toArray();
+      return [name, docs.length];
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
+function parseRawBackupPayload(body) {
+  const { EJSON } = mongoose.mongo.BSON;
+  try {
+    if (typeof body?.backupRaw === 'string' && body.backupRaw.trim()) {
+      return EJSON.parse(body.backupRaw, { relaxed: false });
+    }
+    if (typeof body?.backupData === 'string' && body.backupData.trim()) {
+      return EJSON.parse(body.backupData, { relaxed: false });
+    }
+    if (body?.backupData && typeof body.backupData === 'object') {
+      return EJSON.parse(JSON.stringify(body.backupData), { relaxed: false });
+    }
+    if (body?.system === 'KCEnglishKids' && body?.collections) {
+      return EJSON.parse(JSON.stringify(body), { relaxed: false });
+    }
+  } catch (err) {
+    throw I.fail('File sao lưu không đúng định dạng JSON/BSON hợp lệ: ' + err.message, 400);
+  }
+  throw I.fail('Không tìm thấy dữ liệu bản sao lưu trong yêu cầu.', 400);
+}
+
+function buildBackupAnalysis(payload, currentCounts = {}) {
+  const allowed = validateBackup(payload);
+  const users = payload.collections.users || [];
+  const classrooms = payload.collections.classrooms || [];
+
+  const usersBreakdown = {
+    total: users.length,
+    admins: users.filter(u => u.role === 'ADMIN').length,
+    teachers: users.filter(u => u.role === 'TEACHER').length,
+    children: users.filter(u => u.role === 'CHILD').length
+  };
+
+  const classroomsBreakdown = {
+    total: classrooms.length,
+    active: classrooms.filter(c => c.status === 'ACTIVE').length,
+    upcoming: classrooms.filter(c => c.status === 'UPCOMING').length,
+    completed: classrooms.filter(c => c.status === 'COMPLETED').length,
+    names: classrooms.slice(0, 12).map(c => c.name).filter(Boolean)
+  };
+
+  let totalDocuments = 0;
+  const collectionDetails = [];
+
+  for (const name of allowed) {
+    const docs = payload.collections[name] || [];
+    const backupCount = docs.length;
+    const currentCount = currentCounts[name] ?? 0;
+    totalDocuments += backupCount;
+    const meta = COLLECTION_METADATA[name] || { label: name, group: 'Dữ liệu khác' };
+    collectionDetails.push({
+      name,
+      label: meta.label,
+      group: meta.group,
+      backupCount,
+      currentCount,
+      diff: backupCount - currentCount
+    });
+  }
+
+  return {
+    system: payload.system,
+    version: payload.version,
+    format: payload.format,
+    exportType: payload.exportType || 'FULL_SYSTEM_BACKUP',
+    exportedAt: payload.exportedAt || null,
+    note: payload.note || null,
+    totalCollections: allowed.size,
+    totalDocuments,
+    usersBreakdown,
+    classroomsBreakdown,
+    keyMetrics: {
+      users: users.length,
+      students: usersBreakdown.children,
+      teachers: usersBreakdown.teachers,
+      admins: usersBreakdown.admins,
+      classrooms: classrooms.length,
+      schedules: (payload.collections.schedules || []).length,
+      lessons: (payload.collections.lessons || []).length,
+      units: (payload.collections.curriculumunits || []).length,
+      vocabularies: (payload.collections.vocabularies || []).length,
+      activities: (payload.collections.activities || []).length,
+      classroomSessions: (payload.collections.classroomsessions || []).length,
+      progresses: (payload.collections.progresses || []).length,
+      starGrants: (payload.collections.stagestargrants || []).length
+    },
+    collections: collectionDetails
+  };
+}
+
+exports.getBackupRestoreOverview = handler(async (req, res) => {
+  const currentCounts = await getCurrentCollectionCounts();
+  const [users, classrooms, recentLogs] = await Promise.all([
+    models.User.collection.find({}).toArray(),
+    models.ClassRoom.collection.find({}).toArray(),
+    models.AuditLog.find({
+      action: { $in: ['EXPORT_SYSTEM_BACKUP', 'RESTORE_SYSTEM_BACKUP', 'CREATE_SERVER_SNAPSHOT'] }
+    })
+      .populate('user', 'name email role')
+      .sort({ createdAt: -1 })
+      .limit(15)
+      .lean()
+      .catch(() => [])
+  ]);
+
+  const totalDocuments = Object.values(currentCounts).reduce((sum, val) => sum + (val || 0), 0);
+  const collectionDetails = Object.keys(currentCounts).map(name => {
+    const meta = COLLECTION_METADATA[name] || { label: name, group: 'Dữ liệu khác' };
+    return {
+      name,
+      label: meta.label,
+      group: meta.group,
+      count: currentCounts[name] || 0
+    };
+  });
+
+  res.json({
+    success: true,
+    data: {
+      currentStats: {
+        totalCollections: Object.keys(currentCounts).length,
+        totalDocuments,
+        users: users.length,
+        students: users.filter(u => u.role === 'CHILD').length,
+        teachers: users.filter(u => u.role === 'TEACHER').length,
+        admins: users.filter(u => u.role === 'ADMIN').length,
+        classrooms: classrooms.length,
+        activeClassrooms: classrooms.filter(c => c.status === 'ACTIVE').length,
+        schedules: currentCounts.schedules || 0,
+        lessons: currentCounts.lessons || 0,
+        units: currentCounts.curriculumunits || 0,
+        vocabularies: currentCounts.vocabularies || 0,
+        activities: currentCounts.activities || 0,
+        classroomSessions: currentCounts.classroomsessions || 0,
+        progresses: currentCounts.progresses || 0,
+        starGrants: currentCounts.stagestargrants || 0
+      },
+      collections: collectionDetails,
+      recentLogs,
+      serverSnapshots: listServerSnapshots()
+    }
+  });
+});
+
+exports.validateSystemBackup = handler(async (req, res) => {
+  let payload;
+  if (req.body?.snapshotFilename) {
+    const cleanName = safeSnapshotFilename(req.body.snapshotFilename);
+    const fullPath = path.join(SNAPSHOT_DIR, cleanName);
+    if (!fs.existsSync(fullPath)) throw I.fail('Không tìm thấy bản sao lưu trên máy chủ.', 404);
+    const raw = fs.readFileSync(fullPath, 'utf8');
+    payload = mongoose.mongo.BSON.EJSON.parse(raw, { relaxed: false });
+  } else {
+    payload = parseRawBackupPayload(req.body);
+  }
+
+  let currentCounts = {};
+  try {
+    currentCounts = await getCurrentCollectionCounts();
+  } catch {
+    currentCounts = {};
+  }
+
+  let analysis;
+  try {
+    analysis = buildBackupAnalysis(payload, currentCounts);
+  } catch (err) {
+    const msg = err.message || '';
+    let viMsg = 'File sao lưu không hợp lệ hoặc không đúng cấu trúc của hệ thống KCEnglishKids.';
+    if (msg.includes('Unsupported or incomplete backup')) {
+      viMsg = 'Phiên bản hoặc định dạng bản sao lưu không được hỗ trợ (yêu cầu chuẩn KCEnglishKids Extended JSON v3.x).';
+    } else if (msg.includes('missing collections')) {
+      viMsg = 'Bản sao lưu bị thiếu các bảng dữ liệu (collections) bắt buộc của hệ thống.';
+    } else if (msg.includes('Invalid collection')) {
+      viMsg = `Dữ liệu trong bảng "${msg.split(':').pop()?.trim()}" bị hỏng hoặc thiếu khóa định danh (_id).`;
+    }
+    throw I.fail(viMsg + ` (${msg})`, 400);
+  }
+
+  res.json({
+    success: true,
+    valid: true,
+    message: 'Bản sao lưu hợp lệ 100% và sẵn sàng để khôi phục.',
+    data: analysis
+  });
+});
+
+exports.createServerSnapshot = handler(async (req, res) => {
+  ensureSnapshotDir();
+  const collections = {};
+  for (const model of getAllBackupModels()) {
+    collections[model.collection.name] = await model.collection.find({}).toArray();
+  }
+  const note = String(req.body?.note || 'Bản sao lưu chủ động trên máy chủ').trim().slice(0, 200);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `Snapshot_Server_${stamp}.json`;
+  const fullPath = path.join(SNAPSHOT_DIR, filename);
+
+  const payload = {
+    system: 'KCEnglishKids',
+    exportType: 'MANUAL_SERVER_SNAPSHOT',
+    note,
+    createdBy: req.user?.email || req.user?.name || 'Admin',
+    version: '3.4.0',
+    format: 'mongodb-extended-json',
+    exportedAt: new Date(),
+    collections
+  };
+
+  const { EJSON } = mongoose.mongo.BSON;
+  fs.writeFileSync(fullPath, EJSON.stringify(payload, null, 2, { relaxed: false }), 'utf8');
+
+  const totalDocuments = Object.values(collections).reduce((sum, arr) => sum + arr.length, 0);
+  await I.audit(req, 'CREATE_SERVER_SNAPSHOT', 'System', undefined, {
+    filename,
+    note,
+    totalCollections: Object.keys(collections).length,
+    totalDocuments
+  });
+
+  res.status(201).json({
+    success: true,
+    message: `Đã tạo bản sao lưu trên máy chủ (${filename}) thành công!`,
+    data: {
+      filename,
+      note,
+      totalCollections: Object.keys(collections).length,
+      totalDocuments,
+      serverSnapshots: listServerSnapshots()
+    }
+  });
+});
+
+exports.downloadServerSnapshot = handler(async (req, res) => {
+  const cleanName = safeSnapshotFilename(req.params.filename);
+  const fullPath = path.join(SNAPSHOT_DIR, cleanName);
+  if (!fs.existsSync(fullPath)) throw I.fail('Không tìm thấy bản sao lưu trên máy chủ.', 404);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', `attachment; filename="${cleanName}"`);
+  res.type('application/json').send(fs.readFileSync(fullPath, 'utf8'));
+});
+
+exports.deleteServerSnapshot = handler(async (req, res) => {
+  const cleanName = safeSnapshotFilename(req.params.filename);
+  const fullPath = path.join(SNAPSHOT_DIR, cleanName);
+  if (!fs.existsSync(fullPath)) throw I.fail('Không tìm thấy bản sao lưu trên máy chủ.', 404);
+  fs.unlinkSync(fullPath);
+  res.json({
+    success: true,
+    message: `Đã xóa bản sao lưu ${cleanName} khỏi máy chủ.`,
+    data: { serverSnapshots: listServerSnapshots() }
+  });
+});
+
+exports.restoreSystemBackup = handler(async (req, res) => {
+  const { adminPassword, confirmText, snapshotFilename } = req.body || {};
+
+  // 1. Verify Admin Confirmation (Password OR explicit confirmation phrase)
+  const hasPassword = typeof adminPassword === 'string' && adminPassword.trim().length > 0;
+  const normalizedConfirm = String(confirmText || '').trim().toUpperCase();
+  const validConfirmPhrases = ['KHÔI PHỤC', 'KHOI PHUC', 'XÁC NHẬN KHÔI PHỤC', 'XAC NHAN KHOI PHUC', 'RESTORE'];
+
+  if (hasPassword) {
+    const adminDoc = await User.findById(req.user._id);
+    if (!adminDoc || !(await adminDoc.matchPassword(adminPassword.trim()))) {
+      throw I.fail('Mật khẩu quản trị viên không chính xác. Vui lòng kiểm tra lại.', 401);
+    }
+  } else if (!validConfirmPhrases.includes(normalizedConfirm)) {
+    throw I.fail('Vui lòng nhập mật khẩu quản trị viên hoặc gõ chính xác cụm từ "KHÔI PHỤC" để xác nhận.', 400);
+  }
+
+  // 2. Parse & Validate Backup Payload
+  let payload;
+  let sourceName = 'Uploaded_File.json';
+  if (snapshotFilename) {
+    const cleanName = safeSnapshotFilename(snapshotFilename);
+    const fullPath = path.join(SNAPSHOT_DIR, cleanName);
+    if (!fs.existsSync(fullPath)) throw I.fail('Không tìm thấy bản sao lưu trên máy chủ.', 404);
+    payload = mongoose.mongo.BSON.EJSON.parse(fs.readFileSync(fullPath, 'utf8'), { relaxed: false });
+    sourceName = cleanName;
+  } else {
+    payload = parseRawBackupPayload(req.body);
+    if (req.body?.fileName) sourceName = String(req.body.fileName).slice(0, 120);
+  }
+
+  let allowed;
+  try {
+    allowed = validateBackup(payload);
+  } catch (err) {
+    throw I.fail('Bản sao lưu không hợp lệ, đã hủy thao tác khôi phục: ' + err.message, 400);
+  }
+
+  // 3. Read current collections for in-memory rollback & auto safety snapshot
+  const allModels = getAllBackupModels();
+  const modelByCollection = Object.fromEntries(allModels.map(m => [m.collection.name, m]));
+  const currentCollections = {};
+  for (const model of allModels) {
+    currentCollections[model.collection.name] = await model.collection.find({}).toArray();
+  }
+
+  let safetySnapshotFilename = null;
+  try {
+    ensureSnapshotDir();
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    safetySnapshotFilename = `AutoSnapshot_BeforeRestore_${stamp}.json`;
+    const safetyPayload = {
+      system: 'KCEnglishKids',
+      exportType: 'AUTO_BEFORE_RESTORE',
+      note: `Tự động sao lưu trước khi khôi phục từ ${sourceName}`,
+      createdBy: req.user?.email || req.user?.name || 'Admin',
+      version: '3.4.0',
+      format: 'mongodb-extended-json',
+      exportedAt: new Date(),
+      collections: currentCollections
+    };
+    const { EJSON } = mongoose.mongo.BSON;
+    fs.writeFileSync(path.join(SNAPSHOT_DIR, safetySnapshotFilename), EJSON.stringify(safetyPayload, null, 2, { relaxed: false }), 'utf8');
+    pruneOldAutoSnapshots(15);
+  } catch {
+    // Continue even if disk write is restricted in test environments
+  }
+
+  // 4. Ensure at least one active ADMIN exists in restored users so admin never gets locked out
+  const restoredUsers = Array.isArray(payload.collections.users) ? [...payload.collections.users] : [];
+  const hasActiveAdmin = restoredUsers.some(u => u.role === 'ADMIN' && u.status === 'ACTIVE');
+  if (!hasActiveAdmin) {
+    const currentAdminRaw = (currentCollections.users || []).find(u => String(u._id) === String(req.user._id)) ||
+      (currentCollections.users || []).find(u => u.role === 'ADMIN' && u.status === 'ACTIVE');
+    if (currentAdminRaw) {
+      restoredUsers.push(currentAdminRaw);
+    }
+  }
+  payload.collections.users = restoredUsers;
+
+  // 5. Perform restoration with automatic rollback if any collection fails
+  let totalDocumentsRestored = 0;
+  try {
+    for (const name of allowed) {
+      const model = modelByCollection[name];
+      if (!model) continue;
+      const docs = payload.collections[name] || [];
+      await model.collection.deleteMany({});
+      if (docs.length > 0) {
+        await model.collection.insertMany(docs, { ordered: true });
+        totalDocumentsRestored += docs.length;
+      }
+    }
+    if (mongoose.connection.readyState === 1) {
+      for (const model of allModels) {
+        if (typeof model.createIndexes === 'function') {
+          await model.createIndexes().catch(() => {});
+        }
+      }
+    }
+  } catch (restoreError) {
+    // Rollback to currentCollections
+    for (const name of allowed) {
+      const model = modelByCollection[name];
+      if (!model) continue;
+      const prevDocs = currentCollections[name] || [];
+      await model.collection.deleteMany({}).catch(() => {});
+      if (prevDocs.length > 0) {
+        await model.collection.insertMany(prevDocs, { ordered: false }).catch(() => {});
+      }
+    }
+    throw I.fail('Lỗi trong quá trình nạp dữ liệu. Hệ thống đã tự động hoàn tác về trạng thái an toàn ban đầu: ' + restoreError.message, 500);
+  }
+
+  // 6. Issue a fresh token for the active admin in the restored database so session stays valid
+  const activeAdminInRestored =
+    restoredUsers.find(u => String(u._id) === String(req.user._id) && u.role === 'ADMIN' && u.status === 'ACTIVE') ||
+    restoredUsers.find(u => u.role === 'ADMIN' && u.status === 'ACTIVE');
+
+  let newToken = null;
+  if (activeAdminInRestored) {
+    newToken = jwt.sign(
+      { id: String(activeAdminInRestored._id), authVersion: activeAdminInRestored.authVersion || 0 },
+      jwtSecret(),
+      { expiresIn: '7d' }
+    );
+  }
+
+  // 7. Write Audit Log after restore
+  await I.audit(req, 'RESTORE_SYSTEM_BACKUP', 'System', undefined, {
+    sourceName,
+    backupVersion: payload.version,
+    backupExportedAt: payload.exportedAt,
+    safetySnapshotFilename,
+    totalCollections: allowed.size,
+    totalDocumentsRestored
+  });
+
+  res.json({
+    success: true,
+    message: `Khôi phục toàn bộ hệ thống thành công! Đã nạp ${totalDocumentsRestored} bản ghi trên ${allowed.size} bảng dữ liệu.`,
+    data: {
+      sourceName,
+      backupVersion: payload.version,
+      backupExportedAt: payload.exportedAt,
+      safetySnapshotFilename,
+      totalCollections: allowed.size,
+      totalDocumentsRestored,
+      newToken,
+      serverSnapshots: listServerSnapshots()
+    }
+  });
 });

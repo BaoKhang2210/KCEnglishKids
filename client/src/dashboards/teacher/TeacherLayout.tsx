@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Award, BookOpen, CalendarDays, ChartNoAxesCombined, History, KeyRound, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react';
+import { Award, BookOpen, CalendarDays, ChartNoAxesCombined, History, KeyRound, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { TeacherChangePasswordModal } from '../../components/teacher/TeacherChangePasswordModal';
 import '../../styles/teacher.css';
@@ -107,11 +107,6 @@ export const TeacherLayout = () => {
               <Menu size={22} />
             </button>
             <span>Giảng dạy <span aria-hidden="true">/</span> <b>{current?.label || 'Học liệu'}</b></span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link to="/teacher/classroom-sessions/new" className="teacher-topbar-action">
-              Chuẩn bị buổi dạy <ArrowUpRight size={17} />
-            </Link>
           </div>
         </header>
         <main id="teacher-main" tabIndex={-1} className="teacher-main">

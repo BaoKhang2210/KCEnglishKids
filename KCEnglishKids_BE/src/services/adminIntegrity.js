@@ -83,6 +83,19 @@ async function refreshTeacherClasses(teacherId) {
   }
 }
 async function syncTeacher(room, teacherId) {
+  if (!teacherId) {
+    const previousTeacherId = room.teacher ? String(room.teacher?._id || room.teacher) : null;
+    room.teacher = null;
+    await room.save();
+    await User.updateMany(
+      { role: 'TEACHER', assignedClass: room._id },
+      { $unset: { assignedClass: 1 }, $pull: { assignedClasses: room._id } }
+    );
+    if (previousTeacherId) {
+      await refreshTeacherClasses(previousTeacherId);
+    }
+    return;
+  }
   const current = TEACHING_STATUSES.includes(room.status);
   if (current) await availableTeacher(String(teacherId), room._id);
   if (await ClassroomSession.exists({ classroom: room._id, status: 'LIVE', ...(current ? { teacher: { $ne: teacherId } } : {}) })) {
@@ -100,31 +113,59 @@ async function syncTeacher(room, teacherId) {
       { _id: teacherId, assignedClass: room._id },
       { $unset: { assignedClass: 1 }, $pull: { assignedClasses: room._id } }
     );
-    await Schedule.updateMany({ classroom: room._id }, { $set: { teacher: teacherId, isActive: false } });
+    if (room.status === 'COMPLETED' || room.status === 'INACTIVE') {
+      const vnDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const completedEndDate = new Date(`${vnDateStr}T23:59:59.999+07:00`);
+      await Schedule.updateMany(
+        { classroom: room._id },
+        { $set: { teacher: teacherId, isActive: true, effectiveTo: completedEndDate } }
+      );
+    } else {
+      await Schedule.updateMany({ classroom: room._id }, { $set: { teacher: teacherId, isActive: false } });
+    }
   } else {
     await User.findByIdAndUpdate(teacherId, {
       $set: { assignedClass: room._id },
       $addToSet: { assignedClasses: room._id }
     });
     await Schedule.updateMany({ classroom: room._id }, { $set: { teacher: teacherId } });
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      const latestSchedule = await Schedule.findOne({ classroom: room._id }).sort({ createdAt: -1 });
+      if (latestSchedule) {
+        await Schedule.updateOne(
+          { _id: latestSchedule._id },
+          { $set: { isActive: true, effectiveTo: null } }
+        );
+        await Schedule.updateMany(
+          { classroom: room._id, _id: { $ne: latestSchedule._id } },
+          { $set: { isActive: false } }
+        );
+      }
+    }
   }
   await refreshTeacherClasses(teacherId);
   if (previousTeacherId && previousTeacherId !== String(teacherId)) {
     await refreshTeacherClasses(previousTeacherId);
   }
 }
-async function moveStudents(room, ids, replace = false) {
+async function moveStudents(room, ids, replace = false, upgradeAge = false) {
+  if (room.status === 'COMPLETED' || room.status === 'INACTIVE') {
+    throw fail('Không thể thêm học sinh vào lớp học đã hoàn thành hoặc đã vô hiệu hóa.', 400);
+  }
   if (!Array.isArray(ids) || ids.some(id => !validId(String(id)))) throw fail('Danh sách mã học sinh không hợp lệ.');
   const unique = [...new Set(ids.map(String))];
   const students = await User.find({ _id: { $in: unique }, role: 'CHILD', status: 'ACTIVE' }).select('_id name ageGroupCode');
   if (students.length !== unique.length) throw fail('Danh sách có học sinh không tồn tại hoặc đã ngừng hoạt động.');
-  if (room.ageGroupCode) {
+  if (room.ageGroupCode && !upgradeAge) {
     const wrongAge = students.find(s => s.ageGroupCode && s.ageGroupCode !== room.ageGroupCode);
     if (wrongAge) {
       throw fail(`Không thể thêm học sinh khác độ tuổi vào lớp. Lớp "${room.name}" dành cho lứa tuổi ${room.ageGroupCode}, nhưng học sinh "${wrongAge.name}" thuộc lứa tuổi ${wrongAge.ageGroupCode}.`);
     }
   }
-  await ClassRoom.updateMany({ _id: { $ne: room._id }, students: { $in: unique } }, { $pull: { students: { $in: unique } } });
+  await ClassRoom.updateMany(
+    { _id: { $ne: room._id }, students: { $in: unique } },
+    { $pull: { students: { $in: unique } } }
+  );
   if (replace) {
     await User.updateMany({ role: 'CHILD', assignedClass: room._id, _id: { $nin: unique } }, { $unset: { assignedClass: 1 } });
     await ClassRoom.updateOne({ _id: room._id }, { $set: { students: unique } });

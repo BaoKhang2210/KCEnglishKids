@@ -27,15 +27,16 @@ async function validateSchedule(data, excludedId) {
   const { Schedule, ClassRoom, User, Lesson } = require('../models');
   validateSlots(data.weeklySlots, data.effectiveFrom, data.effectiveTo);
   const room = await ClassRoom.findById(data.classroom);
-  if (!room || room.deletionPending || room.status === 'INACTIVE') throw fail('Lớp học không hoạt động hoặc không tồn tại.');
-  if (String(room.teacher) !== String(data.teacher)) throw fail('Giáo viên trên lịch phải khớp giáo viên phụ trách lớp.');
+  if (!room || room.deletionPending || room.status === 'INACTIVE' || room.status === 'COMPLETED') throw fail('Lớp học đã hoàn thành, ngừng hoạt động hoặc không tồn tại.');
+  if (room.teacher && String(room.teacher) !== String(data.teacher)) throw fail('Giáo viên trên lịch phải khớp giáo viên phụ trách lớp.');
   if (!await User.exists({ _id: data.teacher, role: 'TEACHER', status: 'ACTIVE' })) throw fail('Giáo viên không hoạt động.');
   for (const slot of data.weeklySlots) {
     if (slot.lesson && !await Lesson.exists({ _id: slot.lesson, ageGroupCode: room.ageGroupCode, status: 'ACTIVE' })) throw fail('Bài học không phù hợp với lớp.');
   }
   if (data.isActive === false) return;
-  const schedules = await Schedule.find({ isActive: true, ...(excludedId ? { _id: { $ne: excludedId } } : {}) }).lean();
+  const schedules = await Schedule.find({ isActive: true, ...(excludedId ? { _id: { $ne: excludedId } } : {}) }).populate('classroom', 'status deletionPending').lean();
   for (const schedule of schedules) {
+    if (schedule.classroom && typeof schedule.classroom === 'object' && (schedule.classroom.deletionPending || ['COMPLETED', 'INACTIVE'].includes(schedule.classroom.status))) continue;
     if (new Date(data.effectiveFrom || 0) > new Date(schedule.effectiveTo || 8640000000000000) || new Date(schedule.effectiveFrom || 0) > new Date(data.effectiveTo || 8640000000000000)) continue;
     for (const a of data.weeklySlots) for (const b of schedule.weeklySlots) {
       if (overlap(a, b) && (String(schedule.teacher) === String(data.teacher) || String(schedule.classroom) === String(data.classroom) || a.room?.trim() && a.room.trim().toLowerCase() === b.room?.trim().toLowerCase())) throw fail('Trùng lịch giáo viên, lớp học hoặc phòng học. Vui lòng chọn khung giờ khác.');

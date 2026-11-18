@@ -3,7 +3,7 @@ import { TeacherTasks } from './TeacherTasks';
 import { StoryBanner } from '../../components/StoryScene';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bell, BellRing, BookOpen, CalendarDays, KeyRound, MessageSquare, Play, Users } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, BookOpen, CalendarDays, KeyRound, MessageSquare, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authApi, classroomSessionApi, teacherApi } from '../../services/api';
 import { vietnamClock, vietnamDate } from '../../utils/vietnamTime';
@@ -67,7 +67,7 @@ const ScheduleReminders = ({ slots }: { slots: any[] }) => {
         <Bell size={15} /> Bật thông báo
       </button>
     )}
-    <Link className="teacher-button primary" to={`/teacher/classes/${upcoming.classroom?._id}/sessions/new`}>Vào chuẩn bị <ArrowRight size={15} /></Link>
+    <Link className="teacher-button primary" to={`/teacher/classes/${upcoming.classroom?._id}/sessions/new`}>Vào lớp dạy <ArrowRight size={15} /></Link>
   </div>;
 };
 
@@ -177,7 +177,7 @@ export const TeacherDashboard = () => {
   const m = data.metrics;
   const firstName = user?.name?.split(' ').filter(Boolean).slice(-1)[0] || '';
   return <div className="teacher-home">
-    <StoryBanner scene="classroom" title={`Xin chào, ${firstName || 'thầy cô'}`} eyebrow="MỖI BUỔI HỌC · MỘT BƯỚC TIẾN NHỎ"><p>Cùng chuẩn bị những trải nghiệm vui vẻ và vừa sức. Quan sát điều bé làm được, khích lệ sự cố gắng.</p><div className="teacher-welcome-actions"><Link className="teacher-button primary" to="/teacher/classroom-sessions/new"><Play size={17}/> Chuẩn bị buổi dạy</Link><Link className="teacher-button" to="/teacher/content">Giáo trình & in tranh</Link></div></StoryBanner>
+    <StoryBanner scene="classroom" title={`Xin chào, ${firstName || 'thầy cô'}`} eyebrow="MỖI BUỔI HỌC · MỘT BƯỚC TIẾN NHỎ"><p>Cùng chuẩn bị những trải nghiệm vui vẻ và vừa sức. Quan sát điều bé làm được, khích lệ sự cố gắng.</p><div className="teacher-welcome-actions"><Link className="teacher-button primary" to="/teacher/schedule"><CalendarDays size={17}/> Xem thời khóa biểu</Link><Link className="teacher-button" to="/teacher/content">Giáo trình & in tranh</Link></div></StoryBanner>
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 my-6">
       {[
         {

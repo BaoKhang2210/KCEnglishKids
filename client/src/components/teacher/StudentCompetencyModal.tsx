@@ -12,12 +12,17 @@ import {
   Brain,
   Clock,
   Send,
-  Loader2
+  Loader2,
+  Trophy,
+  Calendar,
+  Eye
 } from 'lucide-react';
 import type { StudentCompetencyReport } from '../../types';
 import { studyTimeLabel } from '../../utils/learningMetrics';
 import { api } from '../../services/api';
+import { recognitionApi, recognitionDate, type ChildRecognition } from '../../services/recognitionApi';
 import { StudentAvatar } from '../common/StudentAvatar';
+import { CertificateModal } from '../child/CertificateModal';
 
 interface StudentCompetencyModalProps {
   isOpen: boolean;
@@ -38,6 +43,9 @@ export const StudentCompetencyModal: React.FC<StudentCompetencyModalProps> = ({
   const [sendingNote, setSendingNote] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
   const [sendFeedback, setSendFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [recognitions, setRecognitions] = useState<ChildRecognition[]>([]);
+  const [loadingRecognitions, setLoadingRecognitions] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState<ChildRecognition | null>(null);
 
   const totalStars = stats?.totalStars ?? student?.stars ?? 0;
   const completedLessons = stats?.completedLessons ?? 0;
@@ -91,6 +99,27 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
       setEditableNote(parentNoteTemplate);
       setSentSuccess(false);
       setSendFeedback(null);
+    }
+  }, [student?._id, student?.id, isOpen]);
+
+  useEffect(() => {
+    const studentId = student?._id || student?.id;
+    if (isOpen && studentId) {
+      setLoadingRecognitions(true);
+      recognitionApi.forChild(studentId)
+        .then((res: any) => {
+          setRecognitions(res?.data || []);
+        })
+        .catch((err: any) => {
+          console.error('Failed to load child recognitions:', err);
+          setRecognitions([]);
+        })
+        .finally(() => {
+          setLoadingRecognitions(false);
+        });
+    } else {
+      setRecognitions([]);
+      setSelectedCertificate(null);
     }
   }, [student?._id, student?.id, isOpen]);
 
@@ -208,6 +237,101 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
                 <span>{learningTimeText}</span>
               </div>
             </div>
+          </div>
+
+          {/* Section: Bảng Vàng & Giấy Khen Đã Nhận */}
+          <div className="p-4 rounded-2xl bg-linear-to-br from-amber-50/90 via-orange-50/50 to-amber-100/40 border border-amber-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                  <Trophy size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-amber-950 flex items-center gap-1.5">
+                    <span>Bảng Vàng & Giấy Khen Đã Nhận</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/80 text-amber-900 border border-amber-300">
+                      {recognitions.length} đợt vinh danh
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-amber-800/80 font-medium">
+                    Lịch sử các đợt thi đua sao chăm học tuần và tháng mà bé được tuyên dương
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {loadingRecognitions ? (
+              <div className="p-6 flex items-center justify-center gap-2 text-slate-500 font-medium">
+                <Loader2 size={16} className="animate-spin text-amber-600" />
+                <span>Đang tải lịch sử vinh danh...</span>
+              </div>
+            ) : recognitions.length === 0 ? (
+              <div className="p-4 rounded-xl bg-white/80 border border-amber-200/60 text-center">
+                <p className="text-xs font-semibold text-amber-900">
+                  ⭐ Bé chưa có đợt vinh danh nào được công bố.
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Bé đang tích cực rèn luyện sao để được xướng tên vào bảng vàng kỳ tới!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                {recognitions.map((rec) => (
+                  <div
+                    key={rec._id}
+                    className="p-3 bg-white rounded-xl border border-amber-200 hover:border-amber-400 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between gap-2.5 group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-2xl shrink-0 select-none">
+                          {rec.reward?.symbol || rec.awardSymbol || '🏆'}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              rec.kind === 'MONTH'
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : 'bg-blue-100 text-blue-800 border border-blue-200'
+                            }`}>
+                              {rec.kind === 'MONTH' ? 'Kỳ Tháng' : 'Kỳ Tuần'}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                              {rec.className || 'Lớp học'}
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-black text-slate-900 mt-1 truncate">
+                            {rec.reward?.title || rec.awardTitle || 'Ngôi Sao Tỏa Sáng'}
+                          </h4>
+                        </div>
+                      </div>
+                      <div className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-xs font-black shrink-0 flex items-center gap-1">
+                        <Star size={12} className="fill-amber-400 text-amber-500" />
+                        <span>{rec.stars} Sao</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px]">
+                      <span className="text-slate-500 font-medium flex items-center gap-1">
+                        <Calendar size={12} className="text-slate-400" />
+                        <span>
+                          {rec.publishedAt
+                            ? new Date(rec.publishedAt).toLocaleDateString('vi-VN')
+                            : `${recognitionDate(rec.periodStart)}`}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCertificate(rec)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs group-hover:scale-102"
+                      >
+                        <Eye size={12} />
+                        <span>Xem giấy khen</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 3 Pillars: Equal, Unified Rows */}
@@ -358,6 +482,15 @@ Chúc bé luôn hào hứng và yêu thích tiếng Anh! ❤️`;
           </button>
         </div>
       </div>
+
+      {selectedCertificate && (
+        <CertificateModal
+          recognition={selectedCertificate}
+          userAvatar={student?.avatar}
+          userAvatarUrl={student?.avatarUrl}
+          onClose={() => setSelectedCertificate(null)}
+        />
+      )}
     </div>
   );
 };

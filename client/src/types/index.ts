@@ -868,6 +868,7 @@ export interface ClassSchedule {
     ageGroupCode?: string;
     academicYear?: string;
     studentCount?: number;
+    status?: string;
     isActive?: boolean;
   } | string;
   teacher: {

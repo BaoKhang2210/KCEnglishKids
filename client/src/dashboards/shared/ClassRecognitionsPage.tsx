@@ -761,7 +761,7 @@ export function ClassRecognitionsPage() {
                           <div>
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Trên lớp</p>
                             <p className="text-xs font-bold text-indigo-900 mt-0.5">
-                              {winner.classStars ?? winner.stars} ⭐
+                              {winner.classStars ?? 0} ⭐
                             </p>
                           </div>
                           <div>
@@ -829,7 +829,7 @@ export function ClassRecognitionsPage() {
                           <div>
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Trên lớp</p>
                             <p className="text-xs font-bold text-indigo-900 mt-0.5">
-                              {runnerUp.classStars ?? runnerUp.stars} ⭐
+                              {runnerUp.classStars ?? 0} ⭐
                             </p>
                           </div>
                           <div>
@@ -897,7 +897,7 @@ export function ClassRecognitionsPage() {
                           <div>
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Trên lớp</p>
                             <p className="text-xs font-bold text-indigo-900 mt-0.5">
-                              {third.classStars ?? third.stars} ⭐
+                              {third.classStars ?? 0} ⭐
                             </p>
                           </div>
                           <div>
@@ -1090,7 +1090,7 @@ export function ClassRecognitionsPage() {
 
                           {/* 3. Sao Trên Lớp */}
                           <td className="py-2.5 px-2 text-center text-indigo-950 font-bold text-xs">
-                            {row.classStars ?? row.stars} ⭐
+                            {row.classStars ?? 0} ⭐
                           </td>
 
                           {/* 4. Sao Ở Nhà */}
@@ -1255,7 +1255,7 @@ export function ClassRecognitionsPage() {
                   Đạt danh hiệu: {selectedCertificateStudent.awardTitle || data.reward.title} {selectedCertificateStudent.awardSymbol || data.reward.symbol}
                 </p>
                 <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  Thành tích xuất sắc đạt <b>{selectedCertificateStudent.stars} ⭐ ngôi sao trong kỳ</b>. Trong đó đạt <b>{selectedCertificateStudent.classStars ?? selectedCertificateStudent.stars} ⭐</b> trên lớp và <b>{selectedCertificateStudent.homeStars ?? 0} ⭐</b> tự học ở nhà.
+                  Thành tích xuất sắc đạt <b>{selectedCertificateStudent.stars} ⭐ ngôi sao trong kỳ</b>. Trong đó đạt <b>{selectedCertificateStudent.classStars ?? 0} ⭐</b> trên lớp và <b>{selectedCertificateStudent.homeStars ?? 0} ⭐</b> tự học ở nhà.
                 </p>
               </div>
 

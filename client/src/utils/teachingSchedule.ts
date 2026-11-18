@@ -139,7 +139,14 @@ export function getSequentialLessonForSlot(
 }
 
 /** A forecast is a suggestion only. Completion comes exclusively from ended sessions. */
-export function forecastLessons(schedules: Schedule[], lessons: Lesson[], today: string, until: string, now = new Date()) {
+export function forecastLessons(
+  schedules: Schedule[],
+  lessons: Lesson[],
+  today: string,
+  until: string,
+  now = new Date(),
+  cancelledDates: Set<string> = new Set()
+) {
   const forecast = new Map<string, Lesson | null>();
   const remaining = lessons.filter(lesson => !lesson.isCompleted);
   const priority = remaining.find(lesson => lesson.isNext);
@@ -152,13 +159,17 @@ export function forecastLessons(schedules: Schedule[], lessons: Lesson[], today:
       .sort((a, b) => a.slot.startTime.localeCompare(b.slot.startTime));
     for (const { schedule, slot } of occurrences) {
       if (new Date(`${day}T${slot.endTime}:00+07:00`) < now) continue;
+      if (cancelledDates.has(day) || cancelledDates.has(slotKey(schedule._id, day, slot.startTime))) {
+        // Cancelled slot holds the current front of the queue without consuming it
+        forecast.set(slotKey(schedule._id, day, slot.startTime), queue[0] || remaining[0] || lessons[0] || null);
+        continue;
+      }
       const fixedId = typeof slot.lesson === 'object' ? slot.lesson?._id : slot.lesson;
       let lesson: Lesson | null = null;
       if (fixedId && lessons.some(item => item._id === fixedId && item.isCompleted)) {
         lesson = lessons.find(item => item._id === fixedId) || null;
       } else {
-        const seq = getSequentialLessonForSlot(schedule, slot, day, lessons);
-        lesson = seq.lesson || queue[0] || null;
+        lesson = queue.shift() || null;
       }
       if (lesson) {
         const position = queue.findIndex(item => item._id === lesson._id);
@@ -168,4 +179,192 @@ export function forecastLessons(schedules: Schedule[], lessons: Lesson[], today:
     }
   }
   return forecast;
+}
+
+/**
+ * Shared Dynamic Conveyor-Belt Queue (Băng chuyền bài học) used by both Admin and Teacher timetables.
+ * - Past dates with COMPLETED/LIVE sessions always return the actual taught lesson.
+ * - Present & future dates pull sequentially from untaught curriculum lessons.
+ * - Cancelled dates hold the current lesson without advancing the queue (automatic roll-over).
+ * - Adding/modifying weekly slots never scrambles past or future lesson order.
+ */
+export function resolveDynamicSlotLesson(
+  schedule: Schedule,
+  slot: Slot,
+  dateStr: string,
+  lessons: Lesson[],
+  sessions: Array<any> = [],
+  todayStr?: string
+): {
+  lesson: Lesson | null;
+  lessonNumber: number;
+  title: string;
+  vietnameseTitle?: string;
+  isTaught?: boolean;
+  isCancelled?: boolean;
+  isUnheld?: boolean;
+} {
+  const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : (schedule.classroom || ''));
+  const classSessions = (sessions || []).filter((s: any) => {
+    if (!cId) return true;
+    const sClassId = String(typeof s.classroom === 'object' ? s.classroom?._id : (s.classroom || ''));
+    return !sClassId || sClassId === cId;
+  });
+
+  const sessionDateOf = (s: any) => {
+    const raw = s.startedAt || s.date || s.createdAt;
+    if (!raw) return '';
+    if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    return new Date(raw).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  };
+
+  // 1. Check if there is an actual COMPLETED or LIVE session on this exact date
+  const taughtSessionOnDate = classSessions.find(
+    (s: any) => (s.status === 'COMPLETED' || s.status === 'LIVE') && sessionDateOf(s) === dateStr
+  );
+  if (taughtSessionOnDate) {
+    const taughtLessonId = String(typeof taughtSessionOnDate.lesson === 'object' ? taughtSessionOnDate.lesson?._id : (taughtSessionOnDate.lesson || ''));
+    const matchedLesson = (lessons || []).find(l => String(l._id) === taughtLessonId)
+      || (typeof taughtSessionOnDate.lesson === 'object' ? taughtSessionOnDate.lesson : null);
+    if (matchedLesson) {
+      const idx = (lessons || []).findIndex(l => String(l._id) === String(matchedLesson._id));
+      const num = matchedLesson.bookOrderIndex || matchedLesson.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+      return {
+        lesson: matchedLesson,
+        lessonNumber: num,
+        title: matchedLesson.title || taughtSessionOnDate.title || `Lesson ${num}`,
+        vietnameseTitle: matchedLesson.vietnameseTitle,
+        isTaught: true
+      };
+    }
+  }
+
+  // 2. Build the set of completed lesson IDs (from lesson flags + completed curriculum sessions)
+  const completedIds = new Set<string>();
+  lessons.forEach(l => {
+    if (l.isCompleted) completedIds.add(String(l._id));
+  });
+  classSessions.forEach((s: any) => {
+    if (countsTowardCurriculum(s)) {
+      const lId = typeof s.lesson === 'object' ? s.lesson?._id : s.lesson;
+      if (lId) completedIds.add(String(lId));
+    }
+  });
+
+  const cancelledDates = new Set<string>();
+  const cancelledSessions = new Map<string, any>();
+  classSessions.forEach((s: any) => {
+    if (s.status === 'CANCELLED') {
+      const d = sessionDateOf(s);
+      if (d) {
+        cancelledDates.add(d);
+        cancelledSessions.set(d, s);
+      }
+    }
+  });
+
+  const currentToday = todayStr || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+  // Remaining untaught lessons in strict 1 -> 2 -> 3 syllabus order (never skip Lesson 1)
+  const remaining = lessons.filter(l => !completedIds.has(String(l._id)));
+  const queueBase = remaining.length > 0 ? [...remaining] : [...lessons];
+
+  // 3. For past dates (dateStr < currentToday) where no session was held:
+  if (dateStr < currentToday) {
+    if (cancelledDates.has(dateStr)) {
+      const cs = cancelledSessions.get(dateStr);
+      const held = queueBase[0] || lessons[0];
+      const idx = lessons.findIndex(l => String(l._id) === String(held?._id));
+      const num = held?.bookOrderIndex || held?.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+      return {
+        lesson: held || null,
+        lessonNumber: num,
+        title: 'Đã báo nghỉ',
+        vietnameseTitle: cs?.cancellationReason || 'Đã báo nghỉ',
+        isCancelled: true
+      };
+    }
+    // Past slot where no actual teaching took place: mark as unheld and do NOT consume any lesson!
+    return {
+      lesson: null,
+      lessonNumber: 0,
+      title: 'Chưa tổ chức',
+      vietnameseTitle: 'Chưa tổ chức buổi dạy',
+      isUnheld: true
+    };
+  }
+
+  if (!lessons || lessons.length === 0) {
+    const fallback = getSequentialLessonForSlot(schedule, slot, dateStr, lessons, 'sequential');
+    return { ...fallback };
+  }
+
+  // 4. Dynamic Conveyor Belt: starts directly from currentToday using untaught lessons queue
+  const queue = [...queueBase];
+  const cursor = new Date(`${currentToday}T12:00:00Z`);
+  const sortedSlots = [...(schedule.weeklySlots || [])].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+  for (let step = 0; step < 730; step++) {
+    const dStr = cursor.toISOString().slice(0, 10);
+    if (dStr > dateStr) break;
+    const dayOfWeek = cursor.getUTCDay();
+    const daySlots = sortedSlots.filter(s => s.dayOfWeek === dayOfWeek && scheduleSlotAppliesOn(schedule, s, dStr));
+
+    for (const s of daySlots) {
+      const isTarget = dStr === dateStr && s.dayOfWeek === slot.dayOfWeek && s.startTime === slot.startTime;
+      const isCancelledDay = cancelledDates.has(dStr);
+
+      if (isCancelledDay) {
+        if (isTarget) {
+          const held = queue[0] || queueBase[0] || lessons[0];
+          const idx = lessons.findIndex(l => String(l._id) === String(held?._id));
+          const num = held?.bookOrderIndex || held?.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+          return {
+            lesson: held || null,
+            lessonNumber: num,
+            title: held?.title || `Lesson ${num}`,
+            vietnameseTitle: held?.vietnameseTitle,
+            isCancelled: true
+          };
+        }
+        // Cancelled day does NOT dequeue! Lesson rolls over to next slot.
+        continue;
+      }
+
+      // Check if a session on dStr already completed a specific lesson
+      const taughtOnDay = classSessions.find(
+        (sess: any) => (sess.status === 'COMPLETED' || sess.status === 'LIVE') && sessionDateOf(sess) === dStr
+      );
+      if (taughtOnDay) {
+        const tId = String(typeof taughtOnDay.lesson === 'object' ? taughtOnDay.lesson?._id : (taughtOnDay.lesson || ''));
+        const qIdx = queue.findIndex(l => String(l._id) === tId);
+        if (qIdx >= 0) queue.splice(qIdx, 1);
+        continue;
+      }
+
+      const nextLesson = queue.length > 0 ? queue.shift()! : lessons[step % lessons.length];
+      if (isTarget) {
+        const idx = lessons.findIndex(l => String(l._id) === String(nextLesson?._id));
+        const num = nextLesson?.bookOrderIndex || nextLesson?.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+        return {
+          lesson: nextLesson || null,
+          lessonNumber: num,
+          title: nextLesson?.title || `Lesson ${num}`,
+          vietnameseTitle: nextLesson?.vietnameseTitle
+        };
+      }
+    }
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  const fallbackLesson = queue[0] || queueBase[0] || lessons[0];
+  const fIdx = lessons.findIndex(l => String(l._id) === String(fallbackLesson?._id));
+  const fNum = fallbackLesson?.bookOrderIndex || fallbackLesson?.syllabusOrder || (fIdx >= 0 ? fIdx + 1 : 1);
+  return {
+    lesson: fallbackLesson || null,
+    lessonNumber: fNum,
+    title: fallbackLesson?.title || `Lesson ${fNum}`,
+    vietnameseTitle: fallbackLesson?.vietnameseTitle
+  };
 }

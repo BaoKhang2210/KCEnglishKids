@@ -8,20 +8,14 @@ import {
   Play,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   Star,
-  Clock,
-  BookOpen,
   Search,
   Filter,
   TrendingUp,
-  Layers,
-  ChevronRight,
   ShieldCheck,
   Volume2,
   Image as ImageIcon,
-  Check,
-  X
+  Check
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import { selectGames } from '../../utils/gameSelection';
@@ -1013,6 +1007,31 @@ export const AdminGamesPage: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Floating Save Reminder Bar when dirty */}
+      {dirty && (
+        <div className="fixed bottom-6 inset-x-0 mx-auto max-w-xl px-4 z-40 animate-bounce-subtle">
+          <div className="p-4 rounded-2xl bg-indigo-950/95 backdrop-blur-md text-white shadow-2xl border-2 border-indigo-400 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="p-2 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-base shrink-0">
+                ⚠️
+              </span>
+              <div>
+                <p className="text-sm font-black text-white">Bạn có thay đổi chưa lưu!</p>
+                <p className="text-2xs text-indigo-200">Bấm nút bên để áp dụng thay đổi trò chơi xuống máy học sinh.</p>
+              </div>
+            </div>
+            <button
+              onClick={saveCatalog}
+              disabled={saving}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs sm:text-sm shrink-0 transition-all shadow-lg flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+            >
+              <Save size={16} />
+              <span>{saving ? 'Đang lưu…' : 'Lưu cấu hình ngay'}</span>
+            </button>
+          </div>
         </div>
       )}
     </div>

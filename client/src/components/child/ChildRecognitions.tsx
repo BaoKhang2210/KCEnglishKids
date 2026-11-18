@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Award, Bell, CheckCircle2, Flame, Star, Sparkles, Target, ArrowRight } from 'lucide-react';
+import { Award, Bell, Flame, Star, Sparkles, Target, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { recognitionApi, recognitionDate } from '../../services/recognitionApi';
 import type { ChildRecognition } from '../../services/recognitionApi';
@@ -8,6 +8,7 @@ import { useRewards } from '../../context/RewardContext';
 import { sfx } from '../../utils/audio';
 import { KokoMascot } from './KokoMascot';
 import { ChildBadgesModal } from './ChildBadgesModal';
+import { CertificateModal } from './CertificateModal';
 
 export function ChildRecognitions() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export function ChildRecognitions() {
   const [retry, setRetry] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState<ChildRecognition | null>(null);
 
   const load = useCallback(() => setRetry(value => value + 1), []);
 
@@ -213,20 +215,31 @@ export function ChildRecognitions() {
                     <span>
                       {recognitionDate(item.periodStart)} – {recognitionDate(new Date(new Date(item.periodEnd).getTime() - 1).toISOString())}
                     </span>
-                    {!item.readAt ? (
-                      <button
-                        type="button"
-                        disabled={busy === item._id}
-                        onClick={() => markRead(item)}
-                        className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-black text-white hover:from-teal-700 hover:to-emerald-700 shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {busy === item._id ? 'Đang nhận…' : '🎈 Bé Nhận Lời Khen!'}
-                      </button>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-emerald-700 text-xs sm:text-sm font-black">
-                        <CheckCircle2 className="h-5 w-5" /> Đã Lưu Vào Sổ Khen
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!item.readAt ? (
+                        <button
+                          type="button"
+                          disabled={busy === item._id}
+                          onClick={() => {
+                            markRead(item);
+                            setSelectedCertificate(item);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-black text-amber-950 shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Award className="h-4 w-4" />
+                          <span>{busy === item._id ? 'Đang mở…' : '🎈 Nhận & Xem Giấy Khen'}</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCertificate(item)}
+                          className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-400 hover:bg-amber-500 text-amber-950 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-black shadow-xs active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Award className="h-4 w-4 text-amber-900" />
+                          <span>Xem Giấy Khen</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </article>
               );
@@ -383,6 +396,16 @@ export function ChildRecognitions() {
         completedCount={completedLessons}
         childName={user?.name || 'Bé'}
       />
+
+      {/* CERTIFICATE OF HONOR MODAL */}
+      {selectedCertificate && (
+        <CertificateModal
+          recognition={selectedCertificate}
+          userAvatar={user?.avatar}
+          userAvatarUrl={user?.avatarUrl}
+          onClose={() => setSelectedCertificate(null)}
+        />
+      )}
     </section>
   );
 }

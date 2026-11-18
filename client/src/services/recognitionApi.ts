@@ -36,6 +36,7 @@ export interface RecognitionPreview {
 export interface ChildRecognition {
   _id: string; className: string; kind: RecognitionKind; periodStart: string; periodEnd: string;
   publishedAt: string; reward: RecognitionReward; name: string; stars: number; readAt: string | null;
+  awardTitle?: string; awardSymbol?: string;
 }
 export const recognitionApi = {
   schoolPreview: (kind: RecognitionKind, date: string): Promise<{ data: RecognitionPreview }> => api.get('/recognitions/school?kind=' + kind + '&date=' + encodeURIComponent(date)),
@@ -46,6 +47,7 @@ export const recognitionApi = {
   publish: (classId: string, kind: RecognitionKind, date: string) =>
     api.post('/recognitions/classes/' + classId + '/publish', { kind, date }),
   mine: (): Promise<{ data: ChildRecognition[] }> => api.get('/recognitions/mine'),
+  forChild: (childId: string): Promise<{ data: ChildRecognition[] }> => api.get('/recognitions/child/' + childId),
   read: (id: string) => api.patch('/recognitions/mine/' + id + '/read')
 };
 export const recognitionDate = (value: string) => new Date(value).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });

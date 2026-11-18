@@ -5,7 +5,7 @@ import { compareLessons, lessonPosition, bilingualLessonTitle } from '../../util
 import React, { useEffect, useMemo, useState } from 'react';
 import { ObservationPortfolio } from '../../components/teacher/ObservationPortfolio';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, MessageSquare, Search, Star, X, Mail, Calendar, ChevronRight, Clock, Sparkles, ArrowUpDown, Send, Brain, UserCheck, Users, Check, AlertCircle, School, Phone } from 'lucide-react';
+import { BookOpen, CheckCircle2, MessageSquare, Search, Star, X, Mail, Calendar, ChevronRight, Clock, Sparkles, ArrowUpDown, Send, Brain, UserCheck, Users, Check, Phone } from 'lucide-react';
 import { teacherApi, parentNotificationApi } from '../../services/api';
 import { sortByNameVi } from '../../utils/sortStudents';
 import { ParentNoteSuggestions } from './ParentNoteSuggestions';
@@ -1220,11 +1220,41 @@ export const TeacherStudents = () => {
                         </div>
                       ) : (
                         recentSessions.map((session: any) => {
-                          const isCompleted = session.status === 'COMPLETED';
+                          const isCancelled = session.status === 'CANCELLED';
                           const isLive = session.status === 'LIVE';
                           const scores = session.studentScores || [];
                           const presentCount = scores.filter((s: any) => !['ABSENT', 'EXCUSED'].includes(s.attendance)).length;
                           const absentStudents = scores.filter((s: any) => ['ABSENT', 'EXCUSED'].includes(s.attendance));
+
+                          if (isCancelled) {
+                            const reasonText = session.cancellationReason || 'Nghỉ theo kế hoạch';
+                            return (
+                              <div
+                                key={session._id}
+                                className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-2xs"
+                              >
+                                <div className="space-y-1.5 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black bg-amber-200 text-amber-950 border border-amber-300">
+                                      🚫 Buổi học đã báo nghỉ
+                                    </span>
+                                    <span className="text-xs text-slate-600 font-semibold flex items-center gap-1">
+                                      <Calendar size={13} className="text-slate-400" />
+                                      {date(session.startedAt || session.createdAt)}
+                                    </span>
+                                  </div>
+                                  <h4 className="font-black text-amber-950 text-sm sm:text-base truncate">
+                                    Lý do: {reasonText}
+                                  </h4>
+                                  <div className="flex items-center gap-2 text-xs text-amber-900 flex-wrap">
+                                    <span className="font-bold bg-amber-100 px-2.5 py-0.5 rounded-md border border-amber-300">
+                                      Không tính chuyên cần (Nghỉ theo kế hoạch — Bảo lưu bài học)
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
 
                           return (
                             <div
@@ -1598,9 +1628,9 @@ export const TeacherStudentDetail = () => {
                         }`}>
                           {r.score == null ? 'Chưa chấm' : `${r.score}%`}
                         </span>
-                        <span className="text-xs font-black text-amber-600 flex items-center gap-0.5 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200">
+                        <span className="text-xs font-black text-amber-600 flex items-center gap-0.5 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200" title="Đánh giá thành tích lượt chơi">
                           <Star size={11} className="fill-amber-400 text-amber-500" />
-                          <span>{r.stars || 0}</span>
+                          <span>{r.stars || 0}★</span>
                         </span>
                       </div>
                     </div>

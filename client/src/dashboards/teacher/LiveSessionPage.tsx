@@ -147,7 +147,7 @@ export const LiveSessionPage: React.FC = () => {
   const [isWarmupRevealed, setIsWarmupRevealed] = useState(false);
   const [warmupPatterns, setWarmupPatterns] = useState<SentencePattern[]>([]);
   const [currentWarmupPatternIndex, setCurrentWarmupPatternIndex] = useState(0);
-  const [isWarmupPatternRevealed, setIsWarmupPatternRevealed] = useState(false);
+  const [, setIsWarmupPatternRevealed] = useState(false);
   const [warmupSection, setWarmupSection] = useState<'vocab' | 'patterns' | 'freeze-dance'>('vocab');
   const [freezeState, setFreezeState] = useState<'idle' | 'dancing' | 'frozen'>('idle');
   const [freezeCountdown, setFreezeCountdown] = useState<number>(5);
@@ -448,16 +448,29 @@ export const LiveSessionPage: React.FC = () => {
 
   // Check if session has exceeded planned duration
   useEffect(() => {
-    if (!session || session.status === 'COMPLETED' || isOvertimeModalOpen || isExitModalOpen) return;
+    if (!session || session.status === 'COMPLETED' || ending) return;
     const planned = session.plannedDuration || 35;
     if (elapsed >= planned && !showWarn) {
       setShowWarn(true);
     }
-    // Offer a reminder after 15 extra minutes, without ending the session.
-    if (elapsed >= planned + 15 && Date.now() > overtimeSnoozeUntil) {
+    // Auto-close after 90 minutes to prevent a live session from hanging overnight
+    if (elapsed >= 90) {
+      setEnding(true);
+      const allGoalKeys = (session?.teachingGuide?.goals || []).map((g: any) => g.key);
+      classroomSessionApi.endSession(sessionId, {
+        coverage: 'COMPLETE',
+        goalsCovered: allGoalKeys,
+        reflection: 'Hệ thống tự động kết thúc buổi dạy sau 90 phút.'
+      })
+        .then(() => navigate(`/teacher/classroom-sessions/${sessionId}/summary`))
+        .catch(() => setEnding(false));
+      return;
+    }
+    // Offer a reminder at 60 minutes (or planned + 15 minutes)
+    if (!isOvertimeModalOpen && !isExitModalOpen && elapsed >= Math.min(60, planned + 15) && Date.now() > overtimeSnoozeUntil) {
       setIsOvertimeModalOpen(true);
     }
-  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen, isExitModalOpen]);
+  }, [elapsed, session, showWarn, overtimeSnoozeUntil, isOvertimeModalOpen, isExitModalOpen, ending, sessionId, navigate]);
 
   // Safe vocabulary pool from lesson or built-in preschool dataset
   const activeVocabList = useMemo(() => {

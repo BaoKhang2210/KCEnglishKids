@@ -412,12 +412,43 @@ export const adminApi = {
     api.patch(`/admin/lessons/${id}/status`),
 
   getLessonReadiness: (id: string) => api.get(`/admin/curriculum/lessons/${id}/readiness`),
-  generateAiCurriculum: (data: { topic: string; ageGroup: string }) =>
+  generateAiCurriculum: (data: { topic: string; ageGroup: string; mode?: 'unit' | 'lesson'; unitId?: string; existingLessonCount?: number }) =>
     api.post('/admin/curriculum/ai-generate', data),
   applyAiCurriculum: (data: {
+    createNewUnit?: boolean;
+    bookNumber?: number;
     lessonId?: string;
     unitId?: string;
+    existingLessonCount?: number;
     ageGroupCode?: string;
+    bigQuestion?: string;
+    storyTitle?: string;
+    values?: string;
+    description?: string;
+    unitLessons?: Array<{
+      lessonOrder?: number;
+      title: string;
+      vietnameseTitle?: string;
+      description?: string;
+      focus?: string;
+      vocabularies?: Array<{
+        english: string;
+        vietnamese: string;
+        pronunciation?: string;
+        wordType?: string;
+        category?: string;
+        imageUrl?: string;
+        imagePrompt?: string;
+      }>;
+      sentencePairs?: Array<{
+        questionEnglish: string;
+        questionVietnamese?: string;
+        questionPronunciation?: string;
+        answerEnglish: string;
+        answerVietnamese?: string;
+        answerPronunciation?: string;
+      }>;
+    }>;
     suggestedLessonTitle?: string;
     suggestedVietnameseTitle?: string;
     category?: string;
@@ -506,8 +537,14 @@ export const adminApi = {
     api.delete(`/admin/classrooms/${id}`),
   assignStudentsToClassroom: (id: string, studentIds: string[]) =>
     api.post(`/admin/classrooms/${id}/assign-students`, { studentIds }),
-  addStudentToClassroom: (id: string, studentId: string) =>
-    api.post(`/admin/classrooms/${id}/students`, { studentId }),
+  addStudentToClassroom: (id: string, studentId: string, autoUpgradeAge?: boolean) =>
+    api.post(`/admin/classrooms/${id}/students`, { studentId, autoUpgradeAge }),
+  promoteStudentsToClassroom: (id: string, targetClassroomId: string, studentIds?: string[]) =>
+    api.post(`/admin/classrooms/${id}/promote-students`, { targetClassroomId, studentIds }),
+  rolloverClassroom: (
+    id: string,
+    data: { name: string; academicYear?: string; teacherId?: string; selectedStudentIds?: string[] }
+  ) => api.post(`/admin/classrooms/${id}/rollover`, data),
   addIndividualStudentToClassroom: (
     id: string,
     data: { name: string; dob?: string; pin?: string; contact?: string; parentContact?: string }
@@ -526,6 +563,24 @@ export const adminApi = {
     api.put(`/admin/classrooms/${id}/curriculum-progress`, data),
   exportSystemBackup: () =>
     api.get('/admin/system/backup'),
+  getBackupRestoreOverview: () =>
+    api.get('/admin/system/backup/overview'),
+  validateSystemBackup: (payload: { backupRaw?: string; backupData?: any; snapshotFilename?: string }) =>
+    api.post('/admin/system/restore/validate', payload),
+  restoreSystemBackup: (payload: {
+    backupRaw?: string;
+    backupData?: any;
+    snapshotFilename?: string;
+    fileName?: string;
+    adminPassword?: string;
+    confirmText?: string;
+  }) => api.post('/admin/system/restore', payload),
+  createServerSnapshot: (note?: string) =>
+    api.post('/admin/system/snapshots', { note }),
+  downloadServerSnapshot: (filename: string) =>
+    api.get(`/admin/system/snapshots/${encodeURIComponent(filename)}`),
+  deleteServerSnapshot: (filename: string) =>
+    api.delete(`/admin/system/snapshots/${encodeURIComponent(filename)}`),
   importStudentsFromExcel: (
     classId: string,
     students: Array<{

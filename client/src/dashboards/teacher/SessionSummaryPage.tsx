@@ -17,8 +17,7 @@ import {
   Calendar,
   Check,
   X,
-  Mail,
-  UserCheck
+  Mail
 } from 'lucide-react';
 import { classroomSessionApi } from '../../services/api';
 import { FamilyReportModal } from '../../components/teacher/FamilyReportModal';

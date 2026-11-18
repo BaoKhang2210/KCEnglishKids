@@ -32,7 +32,7 @@ function query(value) {
 // Recognition also reads lifetime statistics; keep this controller test isolated
 // from MongoDB while its period-ranking fixtures remain defined below.
 const statisticsModels = require('../src/models');
-for (const Model of [statisticsModels.ActivityResult, statisticsModels.Progress, ClassroomSession, statisticsModels.UnitCompletion, statisticsModels.LearningEvent, statisticsModels.Assignment]) Model.aggregate = async () => [];
+for (const Model of [statisticsModels.ActivityResult, statisticsModels.Progress, ClassroomSession, statisticsModels.UnitCompletion, statisticsModels.LearningEvent, statisticsModels.Assignment].filter(Boolean)) Model.aggregate = async () => [];
 statisticsModels.HomePracticeCompletion.aggregate = async () => homeStars;
 ClassroomSession.aggregate = async () => users.filter(user => user.role === 'CHILD').map(user => ({
   _id: user._id,
@@ -41,7 +41,7 @@ ClassroomSession.aggregate = async () => users.filter(user => user.role === 'CHI
     .reduce((sum, score) => sum + score.stars, 0)
 }));
 statisticsModels.Progress.find = () => query([]);
-statisticsModels.Assignment.find = () => query([]);
+if (statisticsModels.Assignment) statisticsModels.Assignment.find = () => query([]);
 User.findById = id => query(users.find(user => String(user._id) === String(id)));
 User.find = () => query(users.filter(user => user.role === 'CHILD'));
 ClassRoom.find = filter => query(!filter.teacher || String(filter.teacher) === ids.teacher ? [classroom] : []);

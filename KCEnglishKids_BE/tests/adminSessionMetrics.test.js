@@ -16,12 +16,18 @@ test('admin completed sessions count classroom teaching, independently of child 
   for (const model of [M.ActivityResult, M.ClassRoom, M.Schedule, M.ClassroomSession]) t.mock.method(model, 'find', () => query());
   t.mock.method(M.LearningSession, 'countDocuments', () => { throw new Error('Self-study must not be counted as teaching'); });
   const calls = [];
-  t.mock.method(M.ClassroomSession, 'countDocuments', async filter => { calls.push(filter); return filter?.status === 'COMPLETED' ? 4 : 6; });
+  t.mock.method(M.ClassroomSession, 'countDocuments', async filter => {
+    calls.push(filter);
+    if (filter?.status === 'COMPLETED') return 4;
+    if (filter?.status === 'CANCELLED') return 2;
+    return 6;
+  });
   let response;
   const res = { status(code) { assert.equal(code, 200); return this; }, json(body) { response = body; } };
   await getDashboardStats({}, res, error => { throw error; });
-  assert.deepEqual(calls, [undefined, { status: 'COMPLETED' }]);
+  assert.deepEqual(calls, [undefined, { status: 'COMPLETED' }, { status: 'CANCELLED' }]);
   assert.equal(response.data.metrics.totalSessions, 6);
   assert.equal(response.data.metrics.completedSessions, 4);
+  assert.equal(response.data.metrics.cancelledSessions, 2);
   assert.equal(response.data.metrics.completionRate, 67);
 });

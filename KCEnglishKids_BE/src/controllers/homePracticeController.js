@@ -5,8 +5,8 @@ const wrap = fn => async (req, res, next) => { try { await fn(req, res); } catch
 exports.family = wrap(async (req, res) => {
   const child = await M.User.findById(req.params.childId);
   const catalog = await require('../services/gameCatalog').loadCatalog();
-  const homeReview = child ? await practice.getHomeReview(child) : null;
-  const plan = homeReview?.approvedPlan || (child ? await practice.familyCurrent(child) : null);
+  const homeReview = child ? await practice.getHomeReview(child, req.query?.lessonId) : null;
+  const plan = homeReview?.approvedPlan || null;
   res.json({
     success: true,
     data: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { forecastLessons, scheduleSlotAppliesOn, slotKey, countsTowardCurriculum, getSequentialLessonForSlot } from './teachingSchedule';
+import { forecastLessons, scheduleSlotAppliesOn, slotKey, countsTowardCurriculum, getSequentialLessonForSlot, resolveDynamicSlotLesson } from './teachingSchedule';
 const schedule = { _id: 's', isActive: true, effectiveFrom: '2026-10-01T00:00:00+07:00', effectiveTo: '2026-11-30T23:59:59+07:00', weeklySlots: [
   { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, { dayOfWeek: 3, startTime: '09:00', endTime: '09:45' }
 ] };
@@ -100,5 +100,135 @@ describe('teaching timetable', () => {
     const w3Mon = getSequentialLessonForSlot(fiveDaySchedule, fiveDaySchedule.weeklySlots[0], '2026-11-16', mockLessons);
     expect(w3Mon.lessonNumber).toBe(11);
     expect(w3Mon.title).toBe('Lesson 11');
+  });
+
+  it('dynamic queue rolls over untaught lessons when a session is CANCELLED and stays consistent when adding a 3rd weekly slot', () => {
+    const lessons = [
+      { _id: 'l1', title: 'Unit 1 - Lesson 1: Hello', isCompleted: true, bookOrderIndex: 1 },
+      { _id: 'l2', title: 'Unit 1 - Lesson 2: My Name', isCompleted: true, bookOrderIndex: 2 },
+      { _id: 'l3', title: 'Unit 1 - Lesson 3: Story Time', isCompleted: false, isNext: true, bookOrderIndex: 3 },
+      { _id: 'l4', title: 'Unit 1 - Lesson 4: Review Game', isCompleted: false, bookOrderIndex: 4 },
+      { _id: 'l5', title: 'Unit 2 - Lesson 1: Farm Animals', isCompleted: false, bookOrderIndex: 5 }
+    ];
+
+    const expandedSchedule = {
+      _id: 'sch-dynamic',
+      classroom: 'class-1',
+      isActive: true,
+      effectiveFrom: '2026-10-01T00:00:00+07:00',
+      weeklySlots: [
+        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, // Mon
+        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45' }, // Wed
+        { dayOfWeek: 5, startTime: '08:00', endTime: '08:45' }  // Fri (newly added slot)
+      ]
+    };
+
+    const sessions = [
+      { _id: 's1', classroom: 'class-1', status: 'COMPLETED', lesson: 'l1', startedAt: '2026-11-09T08:00:00+07:00' },
+      { _id: 's2', classroom: 'class-1', status: 'COMPLETED', lesson: 'l2', startedAt: '2026-11-11T08:00:00+07:00' },
+      { _id: 's3', classroom: 'class-1', status: 'CANCELLED', cancellationReason: 'Nghỉ lễ nhà trường', startedAt: '2026-11-16T08:00:00+07:00' }
+    ];
+
+    // Past taught session on 2026-11-11 remains immutable (Lesson 2) even after adding Friday slot
+    const pastWed = resolveDynamicSlotLesson(expandedSchedule, expandedSchedule.weeklySlots[1], '2026-11-11', lessons, sessions, '2026-11-16');
+    expect(pastWed.lesson?._id).toBe('l2');
+    expect(pastWed.isTaught).toBe(true);
+
+    // Cancelled Monday (2026-11-16) holds Lesson 3 without consuming it
+    const cancelledMon = resolveDynamicSlotLesson(expandedSchedule, expandedSchedule.weeklySlots[0], '2026-11-16', lessons, sessions, '2026-11-16');
+    expect(cancelledMon.lesson?._id).toBe('l3');
+    expect(cancelledMon.isCancelled).toBe(true);
+
+    // Next slot on Wednesday (2026-11-18) automatically rolls over and teaches Lesson 3!
+    const nextWed = resolveDynamicSlotLesson(expandedSchedule, expandedSchedule.weeklySlots[1], '2026-11-18', lessons, sessions, '2026-11-16');
+    expect(nextWed.lesson?._id).toBe('l3');
+    expect(nextWed.title).toBe('Unit 1 - Lesson 3: Story Time');
+
+    // Newly added Friday slot (2026-11-20) seamlessly receives Lesson 4!
+    const nextFri = resolveDynamicSlotLesson(expandedSchedule, expandedSchedule.weeklySlots[2], '2026-11-20', lessons, sessions, '2026-11-16');
+    expect(nextFri.lesson?._id).toBe('l4');
+
+    // Following Monday (2026-11-23) receives Lesson 5!
+    const followingMon = resolveDynamicSlotLesson(expandedSchedule, expandedSchedule.weeklySlots[0], '2026-11-23', lessons, sessions, '2026-11-16');
+    expect(followingMon.lesson?._id).toBe('l5');
+  });
+
+  it('Past unheld slot (e.g. 2026-11-16 without session) is marked unheld and rolls Lesson 1 to today (2026-11-18)', () => {
+    const lessons: any[] = [
+      { _id: 'l1', syllabusOrder: 1, title: 'Things at School', vietnameseTitle: 'Đồ dùng ở trường' },
+      { _id: 'l2', syllabusOrder: 2, title: 'People at School', vietnameseTitle: 'Mọi người ở trường' },
+      { _id: 'l3', syllabusOrder: 3, title: 'What Can You See?', vietnameseTitle: 'Bé nhìn thấy gì nào?' }
+    ];
+
+    const schedule: any = {
+      _id: 'sch-1',
+      classroom: 'class-preschool',
+      weeklySlots: [
+        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, // Mon
+        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45' }, // Wed
+        { dayOfWeek: 5, startTime: '08:00', endTime: '08:45' }  // Fri
+      ]
+    };
+
+    // No sessions took place at all
+    const sessions: any[] = [];
+    const today = '2026-11-18'; // Wednesday
+
+    // 1. Monday 2026-11-16 was in the past and had no session -> marked unheld
+    const pastMon = resolveDynamicSlotLesson(schedule, schedule.weeklySlots[0], '2026-11-16', lessons, sessions, today);
+    expect(pastMon.isUnheld).toBe(true);
+    expect(pastMon.title).toBe('Chưa tổ chức');
+
+    // 2. Wednesday 2026-11-18 (today) must be Lesson 1 (Things at School) because Lesson 1 was not taught!
+    const todayWed = resolveDynamicSlotLesson(schedule, schedule.weeklySlots[1], '2026-11-18', lessons, sessions, today);
+    expect(todayWed.lesson?._id).toBe('l1');
+    expect(todayWed.lessonNumber).toBe(1);
+    expect(todayWed.title).toBe('Things at School');
+
+    // 3. Friday 2026-11-20 (next slot) rolls forward to Lesson 2
+    const nextFri = resolveDynamicSlotLesson(schedule, schedule.weeklySlots[2], '2026-11-20', lessons, sessions, today);
+    expect(nextFri.lesson?._id).toBe('l2');
+    expect(nextFri.lessonNumber).toBe(2);
+    expect(nextFri.title).toBe('People at School');
+  });
+
+  it('Make-up slot added on Saturday (Day 6) seamlessly takes the next curriculum lesson and pushes future slots', () => {
+    const lessons: any[] = [
+      { _id: 'l1', syllabusOrder: 1, title: 'Lesson 1: Greetings' },
+      { _id: 'l2', syllabusOrder: 2, title: 'Lesson 2: Colors' },
+      { _id: 'l3', syllabusOrder: 3, title: 'Lesson 3: Numbers' },
+      { _id: 'l4', syllabusOrder: 4, title: 'Lesson 4: Animals' }
+    ];
+
+    // Standard schedule: Mon (Day 1) & Wed (Day 3). Plus a make-up slot on Saturday (Day 6)
+    const makeupSchedule: any = {
+      _id: 'sch-makeup',
+      classroom: 'class-1',
+      weeklySlots: [
+        { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, // Mon
+        { dayOfWeek: 3, startTime: '08:00', endTime: '08:45' }, // Wed
+        { dayOfWeek: 6, startTime: '09:00', endTime: '09:45' }  // Sat (Lịch bù)
+      ]
+    };
+
+    const sessions: any[] = [];
+    const today = '2026-11-18'; // Wednesday
+
+    // Wed 18/11 takes Lesson 1 (since Mon 16/11 was unheld)
+    const wedSlot = resolveDynamicSlotLesson(makeupSchedule, makeupSchedule.weeklySlots[1], '2026-11-18', lessons, sessions, today);
+    expect(wedSlot.lesson?._id).toBe('l1');
+    expect(wedSlot.lessonNumber).toBe(1);
+
+    // Make-up slot on Saturday 2026-11-21 automatically receives Lesson 2!
+    const satMakeup = resolveDynamicSlotLesson(makeupSchedule, makeupSchedule.weeklySlots[2], '2026-11-21', lessons, sessions, today);
+    expect(satMakeup.lesson?._id).toBe('l2');
+    expect(satMakeup.lessonNumber).toBe(2);
+    expect(satMakeup.title).toBe('Lesson 2: Colors');
+
+    // Following Monday 2026-11-23 receives Lesson 3!
+    const nextMon = resolveDynamicSlotLesson(makeupSchedule, makeupSchedule.weeklySlots[0], '2026-11-23', lessons, sessions, today);
+    expect(nextMon.lesson?._id).toBe('l3');
+    expect(nextMon.lessonNumber).toBe(3);
+    expect(nextMon.title).toBe('Lesson 3: Numbers');
   });
 });
