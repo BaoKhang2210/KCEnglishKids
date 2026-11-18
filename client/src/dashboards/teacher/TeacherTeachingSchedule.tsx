@@ -728,10 +728,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
+                  const activeSch = filteredMySchedules.find((sch: any) =>
+                    (sch.weeklySlots || []).some((sl: any) => sl.dayOfWeek === scheduleLiveTiming.activeSlot?.dayOfWeek && sl.startTime === scheduleLiveTiming.activeSlot?.startTime)
+                  ) || filteredMySchedules[0];
+                  const dynamicActive = activeSch && scheduleLiveTiming.activeSlot
+                    ? resolveDynamicSlotLesson(activeSch, scheduleLiveTiming.activeSlot, vietnamDate(), bookRoadmap.lessons, sessions, vietnamDate())
+                    : null;
                   const activeLes = scheduleLiveTiming.activeSlot?.lesson;
                   const targetLessonId =
-                    (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '')) ||
-                    nextLessonToTeach?._id;
+                    dynamicActive?.lesson?._id ||
+                    nextLessonToTeach?._id ||
+                    (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : ''));
                   if (targetLessonId) {
                     navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${targetLessonId}`);
                   } else {
@@ -795,10 +802,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
             type="button"
             onClick={() => {
               if (effectiveClassId) {
+                const activeSch = filteredMySchedules.find((sch: any) =>
+                  (sch.weeklySlots || []).some((sl: any) => sl.dayOfWeek === scheduleLiveTiming.activeSlot?.dayOfWeek && sl.startTime === scheduleLiveTiming.activeSlot?.startTime)
+                ) || filteredMySchedules[0];
+                const dynamicActive = activeSch && scheduleLiveTiming.activeSlot
+                  ? resolveDynamicSlotLesson(activeSch, scheduleLiveTiming.activeSlot, vietnamDate(), bookRoadmap.lessons, sessions, vietnamDate())
+                  : null;
                 const activeLes = scheduleLiveTiming.activeSlot?.lesson;
                 const targetLessonId =
-                  (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '')) ||
-                  nextLessonToTeach?._id;
+                  dynamicActive?.lesson?._id ||
+                  nextLessonToTeach?._id ||
+                  (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : ''));
                 navigate(`/teacher/classes/${effectiveClassId}/sessions/new${targetLessonId ? `?lessonId=${targetLessonId}` : ''}`);
               }
             }}

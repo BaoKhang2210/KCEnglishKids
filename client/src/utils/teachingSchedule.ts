@@ -255,10 +255,24 @@ export function resolveDynamicSlotLesson(
     return new Date(raw).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
   };
 
-  // 1. Check if there is an actual COMPLETED or LIVE session on this exact date
-  const taughtSessionOnDate = classSessions.find(
-    (s: any) => (s.status === 'COMPLETED' || s.status === 'LIVE') && sessionDateOf(s) === dateStr
-  );
+  const sessionTimeOf = (s: any) => {
+    const raw = s.startedAt || s.createdAt;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return '';
+    const vn = new Date(d.getTime() + 7 * 3600000);
+    return `${String(vn.getUTCHours()).padStart(2, '0')}:${String(vn.getUTCMinutes()).padStart(2, '0')}`;
+  };
+
+  // 1. Check if there is an actual COMPLETED or LIVE session on this exact date (and slot time if multiple slots)
+  const sameDaySlots = (schedule.weeklySlots || []).filter((s: any) => s.dayOfWeek === slot.dayOfWeek);
+  const taughtSessionOnDate = classSessions.find((s: any) => {
+    if (s.status !== 'COMPLETED' && s.status !== 'LIVE') return false;
+    if (sessionDateOf(s) !== dateStr) return false;
+    if (sameDaySlots.length <= 1) return true;
+    const t = sessionTimeOf(s);
+    return !t || t === slot.startTime;
+  });
   if (taughtSessionOnDate) {
     const taughtLessonId = String(typeof taughtSessionOnDate.lesson === 'object' ? taughtSessionOnDate.lesson?._id : (taughtSessionOnDate.lesson || ''));
     const matchedLesson = (lessons || []).find(l => String(l._id) === taughtLessonId)
@@ -292,13 +306,19 @@ export function resolveDynamicSlotLesson(
   });
 
   const cancelledDates = new Set<string>();
+  const cancelledSlotKeys = new Set<string>();
   const cancelledSessions = new Map<string, any>();
   classSessions.forEach((s: any) => {
     if (s.status === 'CANCELLED') {
       const d = sessionDateOf(s);
+      const t = sessionTimeOf(s);
       if (d) {
         cancelledDates.add(d);
         cancelledSessions.set(d, s);
+        if (t) {
+          cancelledSlotKeys.add(`${d}|${t}`);
+          cancelledSessions.set(`${d}|${t}`, s);
+        }
       }
     }
   });
@@ -352,9 +372,11 @@ export function resolveDynamicSlotLesson(
 
     for (const s of daySlots) {
       const isTarget = dStr === dateStr && s.dayOfWeek === slot.dayOfWeek && s.startTime === slot.startTime;
-      const isCancelledDay = cancelledDates.has(dStr);
+      const isCancelledSlot = daySlots.length > 1
+        ? cancelledSlotKeys.has(`${dStr}|${s.startTime}`)
+        : (cancelledSlotKeys.has(`${dStr}|${s.startTime}`) || cancelledDates.has(dStr));
 
-      if (isCancelledDay) {
+      if (isCancelledSlot) {
         if (isTarget) {
           const held = queue[0] || queueBase[0] || lessons[0];
           const idx = lessons.findIndex(l => String(l._id) === String(held?._id));
@@ -370,16 +392,20 @@ export function resolveDynamicSlotLesson(
             isCancelled: true
           };
         }
-        // Cancelled day does NOT dequeue! Lesson rolls over to next slot.
+        // Cancelled slot does NOT dequeue! Lesson rolls over to next slot.
         continue;
       }
 
-      // Check if a session on dStr already completed a specific lesson
-      const taughtOnDay = classSessions.find(
-        (sess: any) => (sess.status === 'COMPLETED' || sess.status === 'LIVE') && sessionDateOf(sess) === dStr
-      );
-      if (taughtOnDay) {
-        const tId = String(typeof taughtOnDay.lesson === 'object' ? taughtOnDay.lesson?._id : (taughtOnDay.lesson || ''));
+      // Check if a session on dStr (matching this slot time when >1 slots) already completed a specific lesson
+      const taughtOnSlot = classSessions.find((sess: any) => {
+        if (sess.status !== 'COMPLETED' && sess.status !== 'LIVE') return false;
+        if (sessionDateOf(sess) !== dStr) return false;
+        if (daySlots.length <= 1) return true;
+        const t = sessionTimeOf(sess);
+        return !t || t === s.startTime;
+      });
+      if (taughtOnSlot) {
+        const tId = String(typeof taughtOnSlot.lesson === 'object' ? taughtOnSlot.lesson?._id : (taughtOnSlot.lesson || ''));
         const qIdx = queue.findIndex(l => String(l._id) === tId);
         if (qIdx >= 0) queue.splice(qIdx, 1);
         continue;

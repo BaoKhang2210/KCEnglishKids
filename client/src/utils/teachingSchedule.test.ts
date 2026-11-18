@@ -231,4 +231,39 @@ describe('teaching timetable', () => {
     expect(nextMon.lessonNumber).toBe(3);
     expect(nextMon.title).toBe('Lesson 3: Numbers');
   });
+
+  it('when a day has 2 slots and slot 1 is CANCELLED, slot 2 still consumes Lesson 3 and next day gets Lesson 4', () => {
+    const lessons = [
+      { _id: 'l1', title: 'Lesson 1', isCompleted: true, bookOrderIndex: 1 },
+      { _id: 'l2', title: 'Lesson 2', isCompleted: true, bookOrderIndex: 2 },
+      { _id: 'l3', title: 'Lesson 3', isCompleted: false, bookOrderIndex: 3 },
+      { _id: 'l4', title: 'Lesson 4', isCompleted: false, bookOrderIndex: 4 }
+    ];
+    const multiSlotSchedule = {
+      _id: 'sch-multi',
+      classroom: 'class-1',
+      isActive: true,
+      effectiveFrom: '2026-11-01T00:00:00+07:00',
+      weeklySlots: [
+        { dayOfWeek: 4, startTime: '07:00', endTime: '21:00' },
+        { dayOfWeek: 4, startTime: '22:00', endTime: '22:45' },
+        { dayOfWeek: 5, startTime: '07:00', endTime: '21:00' }
+      ]
+    };
+    const sessions = [
+      {
+        classroom: 'class-1',
+        status: 'CANCELLED',
+        startedAt: '2026-11-19T07:00:00+07:00'
+      }
+    ];
+    const slot1 = resolveDynamicSlotLesson(multiSlotSchedule, multiSlotSchedule.weeklySlots[0], '2026-11-19', lessons, sessions, '2026-11-19');
+    const slot2 = resolveDynamicSlotLesson(multiSlotSchedule, multiSlotSchedule.weeklySlots[1], '2026-11-19', lessons, sessions, '2026-11-19');
+    const fri = resolveDynamicSlotLesson(multiSlotSchedule, multiSlotSchedule.weeklySlots[2], '2026-11-20', lessons, sessions, '2026-11-19');
+    expect(slot1.isCancelled).toBe(true);
+    expect(slot1.lesson?._id).toBe('l3');
+    expect(slot2.isCancelled).toBeUndefined();
+    expect(slot2.lesson?._id).toBe('l3');
+    expect(fri.lesson?._id).toBe('l4');
+  });
 });
