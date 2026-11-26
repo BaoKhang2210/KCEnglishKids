@@ -11,6 +11,8 @@ import {
   Trophy,
   Volume2,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { learningApi } from '../../services/api';
@@ -61,6 +63,19 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<any>(null);
+  const [expandedLessonIds, setExpandedLessonIds] = useState<Set<string>>(new Set());
+
+  const toggleExpandLesson = (lessonId: string) => {
+    setExpandedLessonIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lessonId)) {
+        next.delete(lessonId);
+      } else {
+        next.add(lessonId);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -568,11 +583,12 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-4">
               {filteredLessons.map((lesson) => {
                 const isDone = lesson.status === 'completed';
                 const isInProg = lesson.status === 'in_progress';
                 const isLocked = lesson.status === 'locked';
+                const isExpanded = isDone ? expandedLessonIds.has(lesson._id) : true;
 
                 return (
                   <div
@@ -636,148 +652,181 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                       {/* Title & Last Activity Time */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h4 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
+                          <h4 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">
                             {lesson.title}
                           </h4>
                           {lesson.vietnameseTitle && (
-                            <p className="text-xs sm:text-sm font-bold text-slate-500">
+                            <p className="text-sm sm:text-base font-bold text-slate-600 mt-0.5">
                               {lesson.vietnameseTitle}
                             </p>
                           )}
                         </div>
                         {lesson.lastActivityAt && (
-                          <span className="text-[11px] font-bold text-slate-400 shrink-0">
+                          <span className="text-xs font-bold text-slate-500 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
                             🕒 {formatVnDateTime(lesson.lastActivityAt)}
                           </span>
                         )}
                       </div>
 
-                      {/* 3-Stage Detailed Breakdown */}
-                      <div className="grid grid-cols-3 gap-2 pt-1">
-                        {/* Stage 1 */}
-                        <div
-                          className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage1Completed
-                            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-                            : 'bg-slate-50 border-slate-200/80 text-slate-400'
-                            }`}
-                        >
-                          <div className="text-xs font-black">🔍 Chặng 1</div>
-                          <div className="text-[11px] font-bold mt-0.5">
-                            {lesson.stage1Completed ? '✓ Đã khám phá' : 'Chưa xong'}
-                          </div>
-                        </div>
+                      {/* Collapsible Details: 3 Stages, Minigames, Vocabulary */}
+                      {isExpanded && (
+                        <div className="space-y-3 pt-1 border-t border-slate-100 animate-in fade-in duration-200">
+                          {/* 3-Stage Detailed Breakdown */}
+                          <div className="grid grid-cols-3 gap-2">
+                            {/* Stage 1 */}
+                            <div
+                              className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage1Completed
+                                ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                                : 'bg-slate-50 border-slate-200/80 text-slate-400'
+                                }`}
+                            >
+                              <div className="text-xs font-black">🔍 Chặng 1</div>
+                              <div className="text-[11px] font-bold mt-0.5">
+                                {lesson.stage1Completed ? '✓ Đã khám phá' : 'Chưa xong'}
+                              </div>
+                            </div>
 
-                        {/* Stage 2 */}
-                        <div
-                          className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage2Completed
-                            ? 'bg-sky-50/80 border-sky-200 text-sky-900'
-                            : 'bg-slate-50 border-slate-200/80 text-slate-400'
-                            }`}
-                        >
-                          <div className="text-xs font-black">📖 Chặng 2</div>
-                          <div className="text-[11px] font-bold mt-0.5">
-                            {lesson.stage2Completed
-                              ? lesson.stage2Score !== null
-                                ? `✓ Đúng ${lesson.stage2Score}%`
-                                : '✓ Đã luyện tập'
-                              : 'Chưa xong'}
-                          </div>
-                        </div>
+                            {/* Stage 2 */}
+                            <div
+                              className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage2Completed
+                                ? 'bg-sky-50/80 border-sky-200 text-sky-900'
+                                : 'bg-slate-50 border-slate-200/80 text-slate-400'
+                                }`}
+                            >
+                              <div className="text-xs font-black">📖 Chặng 2</div>
+                              <div className="text-[11px] font-bold mt-0.5">
+                                {lesson.stage2Completed
+                                  ? lesson.stage2Score !== null
+                                    ? `✓ Đúng ${lesson.stage2Score}%`
+                                    : '✓ Đã luyện tập'
+                                  : 'Chưa xong'}
+                              </div>
+                            </div>
 
-                        {/* Stage 3 */}
-                        <div
-                          className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage3Completed
-                            ? 'bg-purple-50/80 border-purple-200 text-purple-900'
-                            : lesson.stage3Games.length > 0
-                              ? 'bg-amber-50 border-amber-200 text-amber-900'
-                              : 'bg-slate-50 border-slate-200/80 text-slate-400'
-                            }`}
-                        >
-                          <div className="text-xs font-black">🎮 Chặng 3</div>
-                          <div className="text-[11px] font-bold mt-0.5">
-                            {lesson.stage3Completed
-                              ? `✓ Thắng ${Math.max(2, lesson.stage3Games.length)} game`
-                              : `${lesson.stage3Games.length}/2 Minigame`}
+                            {/* Stage 3 */}
+                            <div
+                              className={`rounded-2xl p-2.5 border-2 text-center ${lesson.stage3Completed
+                                ? 'bg-purple-50/80 border-purple-200 text-purple-900'
+                                : lesson.stage3Games.length > 0
+                                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                                  : 'bg-slate-50 border-slate-200/80 text-slate-400'
+                                }`}
+                            >
+                              <div className="text-xs font-black">🎮 Chặng 3</div>
+                              <div className="text-[11px] font-bold mt-0.5">
+                                {lesson.stage3Completed
+                                  ? `✓ Thắng ${Math.max(2, lesson.stage3Games.length)} game`
+                                  : `${lesson.stage3Games.length}/2 Minigame`}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Played Minigame Badges */}
-                      {lesson.stage3Games.length > 0 && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-black text-slate-500">
-                            🕹️ Game đã thắng:
-                          </span>
-                          {lesson.stage3Games.map((gId) => {
-                            const gDef = GAME_REGISTRY[gId as GameId];
-                            return (
-                              <span
-                                key={gId}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 text-[11px] font-black"
-                              >
-                                <span>{gDef?.icon || '🎮'}</span>
-                                <span>{gDef?.title || gId}</span>
+                          {/* Played Minigame Badges */}
+                          {lesson.stage3Games.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[11px] font-black text-slate-500">
+                                🕹️ Game đã thắng:
                               </span>
-                            );
-                          })}
-                        </div>
-                      )}
+                              {lesson.stage3Games.map((gId) => {
+                                const gDef = GAME_REGISTRY[gId as GameId];
+                                return (
+                                  <span
+                                    key={gId}
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 text-[11px] font-black"
+                                  >
+                                    <span>{gDef?.icon || '🎮'}</span>
+                                    <span>{gDef?.title || gId}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
 
-                      {/* Vocabulary Words in Lesson (Interactive Audio Pills) */}
-                      {lesson.vocabularyItems.length > 0 && (
-                        <div className="pt-1">
-                          <div className="text-[11px] font-black text-slate-500 mb-1.5 flex items-center justify-between">
-                            <span>🗣️ Từ vựng trong bài (Chạm để nghe phát âm):</span>
-                            {lesson.weakCount > 0 && (
-                              <span className="text-rose-600 font-black">
-                                💡 {lesson.weakCount} từ cần ôn thêm
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {lesson.vocabularyItems.map((word: any, wIdx: number) => {
-                              const english = word?.english || word?.word || '';
-                              if (!english) return null;
-                              const isWeak = weakWordIds.has(String(word?._id || ''));
-                              return (
-                                <button
-                                  key={word._id || wIdx}
-                                  type="button"
-                                  onClick={() => {
-                                    sfx.playPop();
-                                    void playWordAudio(english, word.audioUrl);
-                                  }}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black border cursor-pointer transition-transform active:scale-95 ${isWeak
-                                    ? 'bg-rose-50 border-rose-300 text-rose-900'
-                                    : 'bg-amber-50/70 hover:bg-amber-100 border-amber-200 text-slate-800'
-                                    }`}
-                                >
-                                  <Volume2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                  <span className="capitalize">{english}</span>
-                                  {word.vietnamese && (
-                                    <span className="text-[10px] font-bold text-slate-500">
-                                      ({word.vietnamese})
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {/* Vocabulary Words in Lesson (Interactive Audio Pills) */}
+                          {lesson.vocabularyItems.length > 0 && (
+                            <div>
+                              <div className="text-[11px] font-black text-slate-500 mb-1.5 flex items-center justify-between">
+                                <span>🗣️ Từ vựng trong bài (Chạm để nghe phát âm):</span>
+                                {lesson.weakCount > 0 && (
+                                  <span className="text-rose-600 font-black">
+                                    💡 {lesson.weakCount} từ cần ôn thêm
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {lesson.vocabularyItems.map((word: any, wIdx: number) => {
+                                  const english = word?.english || word?.word || '';
+                                  if (!english) return null;
+                                  const isWeak = weakWordIds.has(String(word?._id || ''));
+                                  return (
+                                    <button
+                                      key={word._id || wIdx}
+                                      type="button"
+                                      onClick={() => {
+                                        sfx.playPop();
+                                        void playWordAudio(english, word.audioUrl);
+                                      }}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black border cursor-pointer transition-transform active:scale-95 ${isWeak
+                                        ? 'bg-rose-50 border-rose-300 text-rose-900'
+                                        : 'bg-amber-50/70 hover:bg-amber-100 border-amber-200 text-slate-800'
+                                        }`}
+                                    >
+                                      <Volume2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                      <span className="capitalize">{english}</span>
+                                      {word.vietnamese && (
+                                        <span className="text-[10px] font-bold text-slate-500">
+                                          ({word.vietnamese})
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Bottom Action Buttons */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-slate-500">
-                        {isDone
-                          ? '🎉 Bé đã hoàn thành xuất sắc bài này!'
-                          : isInProg
-                            ? '⏳ Bé đang học dở bài này'
-                            : isLocked
-                              ? 'Hoàn thành bài trước để mở khóa'
-                              : 'Bấm để bắt đầu khám phá'}
-                      </span>
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        {isDone && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playPop();
+                              toggleExpandLesson(lesson._id);
+                            }}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-xs active:scale-95 ${
+                              isExpanded
+                                ? 'bg-slate-200/90 hover:bg-slate-300 text-slate-800 border border-slate-300'
+                                : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sky-200 border border-sky-400'
+                            }`}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <span>Thu gọn chi tiết</span>
+                                <ChevronUp className="w-4 h-4 stroke-[2.5]" />
+                              </>
+                            ) : (
+                              <>
+                                <span>Xem chi tiết bài học</span>
+                                <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+                              </>
+                            )}
+                          </button>
+                        )}
+                        <span className="text-xs sm:text-sm font-bold text-slate-500">
+                          {isDone
+                            ? (isExpanded ? 'Bé đã hoàn thành xuất sắc bài này! 🎉' : 'Bé đã hoàn thành xuất sắc!')
+                            : isInProg
+                              ? '⏳ Bé đang học dở bài này'
+                              : isLocked
+                                ? 'Hoàn thành bài trước để mở khóa'
+                                : 'Bấm để bắt đầu khám phá'}
+                        </span>
+                      </div>
 
                       {!isLocked && (
                         <button
@@ -786,19 +835,19 @@ export const ChildLearningDiarySection: React.FC<ChildLearningDiarySectionProps>
                             sfx.playPop();
                             navigate(`/lessons/${lesson._id}`);
                           }}
-                          className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${isDone
-                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
+                          className={`px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black flex items-center gap-2 cursor-pointer transition-transform active:scale-95 ${isDone
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-950 border border-emerald-300 shadow-xs'
                             : 'bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-xs'
                             }`}
                         >
                           {isDone ? (
                             <>
-                              <RotateCcw className="w-3.5 h-3.5" />
+                              <RotateCcw className="w-4 h-4 stroke-[2.5]" />
                               <span>Ôn lại bài</span>
                             </>
                           ) : (
                             <>
-                              <Play className="w-3.5 h-3.5 fill-current" />
+                              <Play className="w-4 h-4 fill-current" />
                               <span>{isInProg ? 'Học tiếp' : 'Vào học'}</span>
                             </>
                           )}
