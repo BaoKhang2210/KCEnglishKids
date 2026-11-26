@@ -10,11 +10,11 @@ const { statsFor } = require('../services/teacherStatistics');
 
 const fail = (res, status, message) => res.status(status).json({ success: false, message });
 const validId = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
-const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id };
+const scope = req => req.user.role === 'ADMIN' ? {} : { teacher: req.user._id, status: 'ACTIVE' };
 async function classroomFor(req, res) {
   if (!validId(req.params.classId)) { fail(res, 400, 'Mã lớp không hợp lệ.'); return null; }
   const classroom = await ClassRoom.findOne({ _id: req.params.classId, deletionPending: { $ne: true }, ...scope(req) }).lean();
-  if (!classroom) fail(res, 403, 'Bạn không có quyền quản lý lớp này.');
+  if (!classroom) fail(res, 403, 'Bạn chỉ có quyền vinh danh cho lớp đang trực tiếp giảng dạy.');
   return classroom;
 }
 function periodFor(req, res) {
@@ -239,6 +239,10 @@ exports.childRecognitionsByTeacher = async (req, res, next) => {
   try {
     const { childId } = req.params;
     if (!validId(childId)) return fail(res, 400, 'Mã học sinh không hợp lệ.');
+    if (req.user.role !== 'ADMIN') {
+      const hasStudent = await ClassRoom.exists({ teacher: req.user._id, status: 'ACTIVE', deletionPending: { $ne: true }, students: childId });
+      if (!hasStudent) return fail(res, 403, 'Bạn chỉ có thể xem vinh danh của học sinh thuộc lớp mình dạy.');
+    }
     const lists = await Promise.all([ClassRecognition, SchoolRecognition].map(Model => Model.find({ 'winners.child': childId })
       .select('className kind periodStart periodEnd publishedAt reward winners')
       .sort({ publishedAt: -1 }).limit(100).lean()));

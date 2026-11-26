@@ -140,7 +140,7 @@
   margin-bottom: 5px;
   color: #334155;
   font-weight: 650;
-  white-space: nowrap;
+  white-space: normal;
   cursor: pointer;
   transition: all .15s ease;
 }
@@ -152,10 +152,15 @@
 }
 
 .staff-surface .teacher-nav-link span {
+  min-width: 0;
   font-size: 1.2rem !important;
   font-weight: 650;
   line-height: 1.4 !important;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.teacher-surface .teacher-sidebar .teacher-nav-link {
+  white-space: normal;
 }
 
 .teacher-nav-link:hover {

@@ -511,7 +511,11 @@ exports.getMySchedule = async (req, res, next) => {
     const schedules = await Schedule.find({ teacher: req.user._id, classroom: { $in: await access.classroomIds(req) }, isActive: true })
       .populate('classroom', 'name ageGroupCode academicYear students status teacher')
       .populate('teacher', 'name email avatar avatarUrl username')
-      .populate('weeklySlots.lesson', 'title vietnameseTitle displayOrder')
+      .populate({
+        path: 'weeklySlots.lesson',
+        select: 'key title vietnameseTitle displayOrder curriculumUnits',
+        populate: { path: 'curriculumUnits', select: 'unitNumber bookNumber title' }
+      })
       .lean();
 
     const own = schedules.filter(schedule => schedule.classroom && String(schedule.classroom.teacher?._id || schedule.classroom.teacher) === String(req.user._id)

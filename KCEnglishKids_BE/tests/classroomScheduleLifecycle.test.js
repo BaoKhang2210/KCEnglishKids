@@ -237,7 +237,7 @@ test('reportOff blocks cancellation for past dates and when start time has passe
     { _id: id(1), role: 'TEACHER' }
   );
   assert.equal(resPassedToday.code, 400);
-  assert.match(resPassedToday.error?.message || resPassedToday.data?.message, /quá thời gian bắt đầu ca dạy|trước thời điểm/i);
+  assert.match(resPassedToday.error?.message || resPassedToday.data?.message, /quá thời hạn báo nghỉ|ít nhất 30 phút/i);
 });
 
 test('CurriculumUnit allows unitNumber > 9 (U10, U11) and AI draft generates 4 structured lessons', async t => {

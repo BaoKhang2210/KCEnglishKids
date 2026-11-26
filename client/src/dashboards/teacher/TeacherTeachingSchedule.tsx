@@ -1,4 +1,4 @@
-import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson } from '../../utils/teachingSchedule';
+import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson, getLessonUnitInfo } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -26,6 +26,7 @@ interface ClassOption {
   _id: string;
   name: string;
   ageGroupCode: string;
+  status?: string;
   studentCount?: number;
   currentLesson?: any;
   completedLessons?: any[];
@@ -125,7 +126,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   // State
   const [classes, setClasses] = useState<ClassOption[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string>(urlClassId || 'ALL');
+  const [selectedClassId, setSelectedClassId] = useState<string>(urlClassId || '');
   const [sessions, setSessions] = useState<ClassroomSession[]>([]);
   const [mySchedules, setMySchedules] = useState<ClassSchedule[]>([]);
   const [curriculumData, setCurriculumData] = useState<any>(null);
@@ -179,14 +180,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   const handleOpenReportOff = (classroomId: string, className: string, dateString: string, timeSlot?: { startTime: string; endTime: string }, sessionId?: string) => {
     const todayStr = vietnamDate();
-    const currentVnTimeString = `${String(currentVnTime.getHours()).padStart(2, '0')}:${String(currentVnTime.getMinutes()).padStart(2, '0')}`;
+    const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
     if (dateString < todayStr) {
       alert('Không thể báo nghỉ cho buổi học trong quá khứ.');
       return;
     }
-    if (dateString === todayStr && timeSlot?.startTime && currentVnTimeString >= timeSlot.startTime) {
-      alert(`Đã quá thời gian bắt đầu ca dạy (${timeSlot.startTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`);
-      return;
+    if (dateString === todayStr && timeSlot?.startTime) {
+      const [sH, sM] = timeSlot.startTime.split(':').map(Number);
+      if (currentMinutes >= sH * 60 + sM - 30) {
+        alert(`Đã quá thời hạn báo nghỉ cho ca dạy (${timeSlot.startTime}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`);
+        return;
+      }
     }
 
     setReportOffModal({
@@ -206,18 +210,21 @@ export const TeacherTeachingSchedule: React.FC = () => {
   const handleSubmitReportOff = async () => {
     if (!reportOffModal.classroomId) return;
     const todayStr = vietnamDate();
-    const currentVnTimeString = `${String(currentVnTime.getHours()).padStart(2, '0')}:${String(currentVnTime.getMinutes()).padStart(2, '0')}`;
+    const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
     if (reportOffModal.dateString < todayStr) {
       setReportOffModal(prev => ({ ...prev, loading: false, error: 'Không thể báo nghỉ cho buổi học trong quá khứ.' }));
       return;
     }
-    if (reportOffModal.dateString === todayStr && reportOffModal.timeSlot?.startTime && currentVnTimeString >= reportOffModal.timeSlot.startTime) {
-      setReportOffModal(prev => ({
-        ...prev,
-        loading: false,
-        error: `Đã quá thời gian bắt đầu ca dạy (${reportOffModal.timeSlot?.startTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`
-      }));
-      return;
+    if (reportOffModal.dateString === todayStr && reportOffModal.timeSlot?.startTime) {
+      const [sH, sM] = reportOffModal.timeSlot.startTime.split(':').map(Number);
+      if (currentMinutes >= sH * 60 + sM - 30) {
+        setReportOffModal(prev => ({
+          ...prev,
+          loading: false,
+          error: `Đã quá thời hạn báo nghỉ cho ca dạy (${reportOffModal.timeSlot?.startTime}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`
+        }));
+        return;
+      }
     }
     try {
       setReportOffModal(prev => ({ ...prev, loading: true, error: null }));
@@ -268,14 +275,15 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
         const clsList = Array.isArray(clsRes) ? clsRes : (clsRes?.data || clsRes?.classes || []);
         setClasses(clsList);
+        const preferredClass = clsList.find((room: ClassOption) => room.status === 'ACTIVE') || clsList[0];
         if (urlClassId && clsList.some((room: ClassOption) => room._id === urlClassId)) {
           setSelectedClassId(urlClassId);
         } else if (urlClassId) {
-          setSelectedClassId('ALL');
-          setError('Lớp trong liên kết không thuộc phân công hiện tại. Đang hiển thị các lớp của bạn.');
-        } else if (clsList.length === 1) {
-          // 1-1 teacher-to-class rule: auto-select their single assigned class
-          setSelectedClassId(String(clsList[0]._id));
+          setSelectedClassId(preferredClass ? String(preferredClass._id) : '');
+          setError('Lớp trong liên kết không thuộc phân công hiện tại. Đang hiển thị lớp bạn phụ trách.');
+        } else if (preferredClass) {
+          // Strict 1-1 teacher-to-class scope: teachers only view their own assigned class
+          setSelectedClassId(String(preferredClass._id));
         }
 
         const sList = Array.isArray(sessRes) ? sessRes : (sessRes?.data || []);
@@ -299,38 +307,37 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
   // Selected class object
   const activeClass = useMemo(() => {
-    if (selectedClassId === 'ALL') return classes[0] || null;
-    return classes.find((c) => String(c._id) === String(selectedClassId)) || classes[0] || null;
+    return classes.find((c) => String(c._id) === String(selectedClassId)) || classes.find((c) => c.status === 'ACTIVE') || classes[0] || null;
   }, [classes, selectedClassId]);
 
   const effectiveClassId = activeClass?._id || '';
 
   // Filtered sessions strictly for this class in Roadmap
   const roadmapSessions = useMemo(() => {
-    if (!effectiveClassId) return sessions.filter(s => s.status === 'COMPLETED');
+    if (!effectiveClassId) return [];
     return sessions.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
       return cId === String(effectiveClassId) && s.status === 'COMPLETED';
     });
   }, [sessions, effectiveClassId]);
 
-  // Filtered sessions based on selected classroom
+  // Filtered sessions strictly for the teacher's own assigned classroom
   const filteredSessions = useMemo(() => {
-    if (selectedClassId === 'ALL') return sessions;
+    if (!effectiveClassId) return [];
     return sessions.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
-      return cId === String(selectedClassId);
+      return cId === String(effectiveClassId);
     });
-  }, [sessions, selectedClassId]);
+  }, [sessions, effectiveClassId]);
 
-  // Filtered scheduled fixed slots from Admin based on selected classroom
+  // Filtered scheduled fixed slots strictly for the teacher's own assigned classroom
   const filteredMySchedules = useMemo(() => {
-    if (selectedClassId === 'ALL') return mySchedules;
+    if (!effectiveClassId) return [];
     return mySchedules.filter((s: any) => {
       const cId = String(typeof s.classroom === 'object' ? (s.classroom?._id || s.classroom) : s.classroom);
-      return cId === String(selectedClassId);
+      return cId === String(effectiveClassId);
     });
-  }, [mySchedules, selectedClassId]);
+  }, [mySchedules, effectiveClassId]);
 
   // Target book number based on activeClass ageGroupCode
   const targetBookNumber = useMemo(() => {
@@ -453,8 +460,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
             todaySlot = slot;
             if (!activeClassroom) activeClassroom = sch.classroom;
           }
-          // Active slot window: 30 minutes before start up to max(start + 20m, end)
-          if (currentMinutes >= (startMin - 30) && currentMinutes <= Math.max(startMin + 20, endMin)) {
+          // Active slot window: 15 minutes before start up to max(start + 20m, end)
+          if (currentMinutes >= (startMin - 15) && currentMinutes <= Math.max(startMin + 20, endMin)) {
             activeSlot = slot;
             activeClassroom = sch.classroom;
           }
@@ -689,25 +696,31 @@ export const TeacherTeachingSchedule: React.FC = () => {
           </p>
         </div>
 
-        {/* Filter Classroom & Teaching Action */}
+        {/* Classroom Badge / Selector (Strictly own assigned classes) */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
-            <GraduationCap size={20} className="text-teal-800 shrink-0" />
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-              className="bg-transparent text-sm sm:text-base font-extrabold text-slate-800 outline-none cursor-pointer"
-            >
-              {classes.length > 1 && (
-                <option value="ALL">🏫 Tất cả các lớp ({classes.length} lớp)</option>
-              )}
-              {classes.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name} {classes.length === 1 ? '• Lớp giảng dạy của tôi' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {classes.length <= 1 ? (
+            <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
+              <GraduationCap size={20} className="text-teal-800 shrink-0" />
+              <span className="text-sm sm:text-base font-extrabold text-slate-800">
+                {activeClass ? `${activeClass.name} • Lớp giảng dạy của tôi` : 'Chưa được phân công lớp'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
+              <GraduationCap size={20} className="text-teal-800 shrink-0" />
+              <select
+                value={effectiveClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="bg-transparent text-sm sm:text-base font-extrabold text-slate-800 outline-none cursor-pointer"
+              >
+                {classes.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Quick Teach Button with Schedule Gate */}
           {effectiveClassId && (
@@ -715,10 +728,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
+                  const activeSch = filteredMySchedules.find((sch: any) =>
+                    (sch.weeklySlots || []).some((sl: any) => sl.dayOfWeek === scheduleLiveTiming.activeSlot?.dayOfWeek && sl.startTime === scheduleLiveTiming.activeSlot?.startTime)
+                  ) || filteredMySchedules[0];
+                  const dynamicActive = activeSch && scheduleLiveTiming.activeSlot
+                    ? resolveDynamicSlotLesson(activeSch, scheduleLiveTiming.activeSlot, vietnamDate(), bookRoadmap.lessons, sessions, vietnamDate())
+                    : null;
                   const activeLes = scheduleLiveTiming.activeSlot?.lesson;
                   const targetLessonId =
-                    (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '')) ||
-                    nextLessonToTeach?._id;
+                    dynamicActive?.lesson?._id ||
+                    nextLessonToTeach?._id ||
+                    (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : ''));
                   if (targetLessonId) {
                     navigate(`/teacher/classes/${effectiveClassId}/sessions/new?lessonId=${targetLessonId}`);
                   } else {
@@ -782,10 +802,17 @@ export const TeacherTeachingSchedule: React.FC = () => {
             type="button"
             onClick={() => {
               if (effectiveClassId) {
+                const activeSch = filteredMySchedules.find((sch: any) =>
+                  (sch.weeklySlots || []).some((sl: any) => sl.dayOfWeek === scheduleLiveTiming.activeSlot?.dayOfWeek && sl.startTime === scheduleLiveTiming.activeSlot?.startTime)
+                ) || filteredMySchedules[0];
+                const dynamicActive = activeSch && scheduleLiveTiming.activeSlot
+                  ? resolveDynamicSlotLesson(activeSch, scheduleLiveTiming.activeSlot, vietnamDate(), bookRoadmap.lessons, sessions, vietnamDate())
+                  : null;
                 const activeLes = scheduleLiveTiming.activeSlot?.lesson;
                 const targetLessonId =
-                  (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : '')) ||
-                  nextLessonToTeach?._id;
+                  dynamicActive?.lesson?._id ||
+                  nextLessonToTeach?._id ||
+                  (typeof activeLes === 'object' && activeLes ? activeLes._id : (typeof activeLes === 'string' ? activeLes : ''));
                 navigate(`/teacher/classes/${effectiveClassId}/sessions/new${targetLessonId ? `?lessonId=${targetLessonId}` : ''}`);
               }
             }}
@@ -811,7 +838,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
             <p className="text-sm text-slate-700 mt-1">
               {scheduleLiveTiming.nextSlotText ? (
                 <span>
-                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 30 phút để giáo viên chuẩn bị học cụ và điểm danh.
+                  Buổi dạy tiếp theo: <strong className="text-amber-900">{scheduleLiveTiming.nextSlotText}</strong>. Hệ thống tự động mở trước 15 phút để giáo viên chuẩn bị học cụ và điểm danh.
                 </span>
               ) : (
                 <span>{scheduleLiveTiming.reason}</span>
@@ -932,20 +959,20 @@ export const TeacherTeachingSchedule: React.FC = () => {
               return (
                 <div
                   key={day.dayIndex}
-                  className={`flex flex-col rounded-2xl border p-4 transition-all min-h-[380px] ${
+                  className={`flex flex-col rounded-2xl border p-4 transition-all ${
                     day.isToday
                       ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   {/* Day Header */}
-                  <div className="mb-3.5 border-b border-slate-100 pb-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{day.dayName}</p>
-                      <h4 className="text-lg font-black text-slate-900">{day.formattedDate}</h4>
+                  <div className="mb-3 border-b border-slate-100 pb-2.5 flex items-center justify-between">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">{day.dayName}</span>
+                      <span className="text-base font-black text-slate-900">{day.formattedDate}</span>
                     </div>
                     {day.isToday && (
-                      <span className="rounded-full bg-teal-700 px-2.5 py-0.5 text-[11px] font-black text-white uppercase tracking-wider">
+                      <span className="rounded-full bg-teal-700 px-2.5 py-0.5 text-[11px] font-black text-white uppercase tracking-wider shrink-0">
                         Hôm nay
                       </span>
                     )}
@@ -965,9 +992,15 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         const effectiveLesson = resolveDynamicSlotLesson(schedule, slot, day.dateString, bookRoadmap.lessons, sessions, vietnamDate());
                         const lessonDisplayTitle = effectiveLesson.title || effectiveLesson.vietnameseTitle || 'English Lesson';
 
-                        const matchedSession = daySessions.find(
-                          (s: any) => String(s.classroom?._id || s.classroom) === cId
-                        );
+                        const matchedSession = daySessions.find((s: any) => {
+                          if (String(s.classroom?._id || s.classroom) !== cId) return false;
+                          if (dayFixedSlots.length <= 1) return true;
+                          const ts = s.startedAt ? new Date(s.startedAt) : null;
+                          if (!ts || isNaN(ts.getTime())) return true;
+                          const vnTs = new Date(ts.getTime() + 7 * 3600000);
+                          const hhmm = `${String(vnTs.getUTCHours()).padStart(2, '0')}:${String(vnTs.getUTCMinutes()).padStart(2, '0')}`;
+                          return hhmm === slot.startTime;
+                        });
                         const isCancelled = matchedSession?.status === 'CANCELLED';
 
                         const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
@@ -977,86 +1010,96 @@ export const TeacherTeachingSchedule: React.FC = () => {
                         const currentMinutes = currentVnTime.getHours() * 60 + currentVnTime.getMinutes();
                         const isPastDay = day.dateString < vietnamDate();
 
-                        // Khoảng 30 phút trước giờ bắt đầu cho tới hết ca học thì cho phép mở lớp:
-                        const isSlotOpenToTeach = day.isToday && currentMinutes >= (startMin - 30) && currentMinutes <= endMin;
+                        // Khoảng 15 phút trước giờ bắt đầu cho tới hết ca học thì cho phép mở lớp; báo nghỉ phải trước giờ bắt đầu ít nhất 30 phút:
+                        const isSlotOpenToTeach = day.isToday && currentMinutes >= (startMin - 15) && currentMinutes <= endMin;
                         const isSlotEndedOrPast = isPastDay || (day.isToday && currentMinutes > endMin);
                         const isSlotStartedOrPast = isPastDay || (day.isToday && currentMinutes >= startMin);
+                        const canReportOffSlot = day.dateString > vietnamDate() || (day.isToday && currentMinutes < (startMin - 30));
+
+                        const unitBadgeText = effectiveLesson.isUnheld
+                          ? 'Chưa dạy'
+                          : effectiveLesson.unitNumber && effectiveLesson.unitLessonNumber
+                          ? `Unit ${effectiveLesson.unitNumber} · Lesson ${effectiveLesson.unitLessonNumber}`
+                          : effectiveLesson.lessonNumber > 0
+                          ? `Lesson #${effectiveLesson.lessonNumber}`
+                          : '';
+                        const roomText = slot.room
+                          ? (/^phòng/i.test(slot.room.trim()) ? slot.room.trim() : `Phòng ${slot.room.trim()}`)
+                          : '';
 
                         return (
                           <div
                             key={fIdx}
-                            className={`rounded-xl border px-3 py-2 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-1.5`}
+                            className={`rounded-xl border p-3 text-xs font-bold ${theme.bg} ${theme.text} ${theme.border} space-y-2`}
                           >
-                            <div className="flex flex-wrap items-start justify-between gap-1.5">
-                              <p className="text-sm font-black break-words flex-1 min-w-[110px]">{cName}</p>
-                              <div className="flex flex-wrap items-center gap-1 shrink-0">
-                                {isCancelled && (
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 border border-amber-300">
-                                    🚫 Báo nghỉ
-                                  </span>
-                                )}
-                                {effectiveLesson.isUnheld ? (
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 border border-slate-300">
-                                    Chưa dạy
-                                  </span>
-                                ) : effectiveLesson.lessonNumber > 0 ? (
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/80 border border-current">
-                                    Lesson #{effectiveLesson.lessonNumber}
-                                  </span>
-                                ) : null}
+                            {/* Row 1: Time + Unit/Lesson badge on one clean non-wrapping line */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-black text-slate-900 text-xs whitespace-nowrap">
+                                {slot.startTime} – {slot.endTime}
+                              </span>
+                              {unitBadgeText && (
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${
+                                  effectiveLesson.isUnheld
+                                    ? 'bg-slate-200 text-slate-700 border border-slate-300'
+                                    : 'bg-white/90 border border-current'
+                                }`}>
+                                  {unitBadgeText}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Row 2: Full Class name (never truncated) + Room */}
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-extrabold text-slate-900 leading-snug">{cName}</p>
+                              {roomText && (
+                                <p className="text-[11px] font-semibold text-slate-600">{roomText}</p>
+                              )}
+                            </div>
+
+                            {/* Row 3: Lesson info (only when not redundant with cancellation box) */}
+                            {!(isCancelled && matchedSession) && (
+                              <div className="pt-1.5 border-t border-black/10">
+                                <p className="text-[10px] uppercase tracking-wider opacity-75 font-black">
+                                  {effectiveLesson.isTaught
+                                    ? '✓ Đã dạy'
+                                    : effectiveLesson.isUnheld
+                                    ? 'Buổi chưa tổ chức'
+                                    : day.dateString === vietnamDate()
+                                    ? 'Bài học hôm nay'
+                                    : 'Bài học dự kiến'}
+                                </p>
+                                <p className="font-black text-slate-900 text-xs mt-0.5 leading-snug" title={`${lessonDisplayTitle}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}`}>
+                                  {effectiveLesson.isUnheld
+                                    ? 'Buổi học chưa diễn ra thực tế'
+                                    : lessonDisplayTitle}
+                                </p>
                               </div>
-                            </div>
-                            <p className="font-black text-slate-900">{slot.startTime} – {slot.endTime}</p>
-                            {slot.room && <p className="text-[11px]">🏫 Phòng: {slot.room}</p>}
-                            <div className="mt-1 pt-1.5 border-t border-black/10">
-                              <p className="text-[10px] uppercase tracking-wider opacity-75 font-black">
-                                🎯 {effectiveLesson.isTaught
-                                  ? '✅ Đã dạy:'
-                                  : effectiveLesson.isUnheld
-                                  ? '⚠️ Buổi chưa tổ chức'
-                                  : day.dateString === vietnamDate()
-                                  ? 'Bài học hôm nay:'
-                                  : 'Bài học dự kiến:'}
-                              </p>
-                              <p className="font-black text-slate-900 text-xs mt-0.5 break-words" title={`${lessonDisplayTitle}${effectiveLesson.vietnameseTitle ? ` (${effectiveLesson.vietnameseTitle})` : ''}`}>
-                                {effectiveLesson.isUnheld ? 'Buổi học chưa diễn ra thực tế' : `Lesson ${effectiveLesson.lessonNumber}: ${lessonDisplayTitle}`}
-                              </p>
-                            </div>
+                            )}
 
                             {/* Actions for this slot */}
                             {cId && (
-                              <div className="pt-1.5 space-y-1.5">
+                              <div className="pt-1 space-y-1.5">
                                 {isCancelled && matchedSession ? (
-                                  <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
-                                    {/* Row 1: Badges */}
-                                    <div className="flex items-center justify-between gap-1">
-                                      <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-200/90 text-amber-950 border border-amber-300 whitespace-nowrap inline-flex items-center gap-1 shrink-0">
+                                  <div className="p-2.5 rounded-xl bg-amber-50/95 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
+                                    <div className="flex items-center justify-between gap-1.5">
+                                      <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-200/90 text-amber-950 border border-amber-300 whitespace-nowrap shrink-0">
                                         🚫 Đã báo nghỉ
                                       </span>
-                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-md border border-amber-200 whitespace-nowrap shrink-0">
-                                        Bảo lưu bài #{effectiveLesson.lessonNumber}
+                                      <span className="text-[10px] font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-200 whitespace-nowrap shrink-0">
+                                        Bảo lưu bài
                                       </span>
                                     </div>
 
-                                    {/* Row 2: Lý do with cleanReason */}
-                                    <div className="text-[11px] font-bold text-amber-950 leading-snug break-words">
+                                    <p className="text-[11px] font-bold text-amber-950 leading-snug break-words">
                                       <span className="text-amber-800 font-extrabold">Lý do:</span>{' '}
-                                      <span className="underline decoration-amber-400 font-black">
-                                        {cleanReason(matchedSession.cancellationReason)}
-                                      </span>
-                                      {matchedSession.cancellationNote && (
-                                        <p className="text-[10px] text-amber-800 font-medium italic mt-0.5 leading-tight">
-                                          "{matchedSession.cancellationNote}"
-                                        </p>
-                                      )}
-                                    </div>
+                                      {cleanReason(matchedSession.cancellationReason)}
+                                    </p>
 
-                                    {/* Row 3: Action Button full-width (chỉ được hủy nếu chưa qua giờ dạy) */}
                                     {!isSlotStartedOrPast && (
                                       <button
                                         type="button"
                                         onClick={() => handleRestoreSession(matchedSession._id)}
-                                        className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
+                                        className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 flex items-center justify-center gap-1"
                                         title="Hủy báo nghỉ và mở lại lịch dạy ca này"
                                       >
                                         <span>↩ Hủy báo nghỉ</span>
@@ -1082,7 +1125,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                             ? `🔴 Đang trong giờ dạy (${slot.startTime} – ${slot.endTime})`
                                             : `🟢 Đã mở lớp trước giờ dạy (Lớp bắt đầu lúc ${slot.startTime})`}
                                         </div>
-                                        {!isSlotStartedOrPast && (
+                                        {canReportOffSlot && (
                                           <button
                                             type="button"
                                             onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
@@ -1096,16 +1139,18 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                       <>
                                         {day.isToday && (
                                           <div className="text-[10px] text-center font-bold text-amber-800 bg-amber-50/80 py-1 px-2 rounded-lg border border-amber-200/80">
-                                            ⏳ Ca hôm nay lúc {slot.startTime} (Chưa đến giờ)
+                                            ⏳ Ca hôm nay lúc {slot.startTime} (Mở lớp trước 15 phút)
                                           </div>
                                         )}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
-                                          className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1.5 text-xs font-bold transition-colors cursor-pointer"
-                                        >
-                                          Báo nghỉ ca này
-                                        </button>
+                                        {canReportOffSlot && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
+                                            className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-700 border border-black/10 py-1.5 text-xs font-bold transition-colors cursor-pointer"
+                                          >
+                                            Báo nghỉ ca này
+                                          </button>
+                                        )}
                                       </>
                                     )}
                                   </div>
@@ -1122,57 +1167,62 @@ export const TeacherTeachingSchedule: React.FC = () => {
                   {(() => {
                     const activeSessions = daySessions.filter((s: any) => s.status !== 'CANCELLED');
                     const cancelledSessions = daySessions.filter((s: any) => s.status === 'CANCELLED');
+                    const isFutureDay = day.dateString > vietnamDate();
+                    if (activeSessions.length === 0 && (isFutureDay || cancelledSessions.length > 0)) {
+                      return null;
+                    }
 
                     return (
-                      <div className="flex-1 space-y-2">
+                      <div className="space-y-2">
                         <div className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center justify-between">
                           <span>Buổi dạy thực tế ({activeSessions.length}):</span>
                         </div>
 
                         {activeSessions.length === 0 ? (
-                          <div className="py-2.5 px-3 text-center rounded-xl bg-slate-50/80 border border-dashed border-slate-200">
+                          <div className="py-2 px-3 text-center rounded-xl bg-slate-50/80 border border-dashed border-slate-200">
                             <span className="text-xs font-medium italic text-slate-500">
-                              {cancelledSessions.length > 0
-                                ? 'Ca học đã báo nghỉ (tiến độ được bảo lưu)'
-                                : dayFixedSlots.length > 0
-                                ? 'Chưa có buổi dạy thực tế'
-                                : 'Chưa ghi nhận buổi dạy'}
+                              Chưa có buổi dạy thực tế
                             </span>
                           </div>
                         ) : (
                           activeSessions.map((s: any) => {
-                            const lessonTitle = s.lesson?.title || s.title || 'Buổi học tiếng Anh';
-                            const roomName = s.classroom?.name || 'Lớp';
+                            const lessonObj = s.lesson as any;
+                            const uInfo = getLessonUnitInfo(lessonObj);
+                            const lessonTitle = lessonObj?.title || s.title || 'Buổi học tiếng Anh';
                             const scoreCount = (s.studentScores || []).filter((row: any) => !['ABSENT', 'EXCUSED'].includes(row.attendance)).length;
                             const stars = s.summary?.totalStars;
 
                             return (
                               <div
                                 key={s._id}
-                                className="rounded-xl border p-3 transition-all border-teal-100 bg-white hover:border-teal-300"
+                                className="rounded-xl border p-3 transition-all border-teal-200 bg-white hover:border-teal-300 space-y-1.5"
                               >
-                                <div className="flex items-center justify-between gap-1 mb-1.5">
-                                  <span className="text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
-                                    {roomName}
-                                  </span>
-                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md text-slate-600">
+                                <div className="flex items-center justify-between gap-2">
+                                  {uInfo.label ? (
+                                    <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-black whitespace-nowrap">
+                                      {uInfo.label}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-black text-teal-800">Đã dạy</span>
+                                  )}
+                                  <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
                                     {s.startedAt
-                                      ? new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                      : 'Dạy'}
+                                      ? new Date(s.startedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+                                      : '—'}
                                   </span>
                                 </div>
-                                <h5 className="text-sm font-black text-slate-900 break-words" title={lessonTitle}>
+                                <h5 className="text-xs font-black text-slate-900 truncate" title={lessonTitle}>
                                   {lessonTitle}
                                 </h5>
-                                <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600 border-t border-slate-50 pt-1.5">
-                                  <span>👥 {scoreCount} bé</span>
+                                <div className="flex items-center justify-between text-xs font-semibold text-slate-600 pt-1 border-t border-slate-100">
+                                  <span>{scoreCount} bé tham gia</span>
                                   {stars !== undefined && (
-                                    <span className="font-bold text-amber-800">⭐ {stars} sao</span>
+                                    <span className="font-bold text-amber-700">⭐ {stars} sao</span>
                                   )}
                                 </div>
                                 <Link
                                   to={`/teacher/classroom-sessions/${s._id}/summary`}
-                                  className="mt-2 block text-center rounded-lg bg-teal-50 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors"
+                                  className="block text-center rounded-lg bg-teal-50 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-colors"
                                 >
                                   Xem nhật ký buổi dạy
                                 </Link>

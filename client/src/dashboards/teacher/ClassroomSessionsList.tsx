@@ -22,7 +22,7 @@ import {
   Plus,
   RotateCcw
 } from 'lucide-react';
-import { cleanReason } from '../../utils/teachingSchedule';
+import { cleanReason, getLessonUnitInfo } from '../../utils/teachingSchedule';
 import { classroomSessionApi, teacherApi } from '../../services/api';
 import type { ClassroomSession } from '../../types';
 
@@ -316,9 +316,9 @@ export const ClassroomSessionsList: React.FC = () => {
       {/* Filter Toolbar (Search, Class Filter, Status Tabs, View Switcher) */}
       <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4 shadow-xs">
         {/* Row 1: Search, Classroom selector, and View Mode switch */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        <div className="grid grid-cols-1 gap-3 items-center md:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto]">
           {/* Search Input */}
-          <div className="md:col-span-6 relative">
+          <div className="relative min-w-0">
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -339,7 +339,7 @@ export const ClassroomSessionsList: React.FC = () => {
           </div>
 
           {/* Class Filter */}
-          <div className="md:col-span-4">
+          <div className="min-w-0">
             <select
               value={selectedClassFilter}
               onChange={(e) => {
@@ -362,31 +362,33 @@ export const ClassroomSessionsList: React.FC = () => {
           </div>
 
           {/* View Mode Switcher (List vs Grid) */}
-          <div className="md:col-span-2 flex items-center justify-end gap-1 bg-slate-100/80 p-1 rounded-2xl border border-slate-200/80">
+          <div className="flex w-full items-center gap-1 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 md:col-span-2 md:w-[320px] md:justify-self-end xl:col-span-1">
             <button
               type="button"
               onClick={() => setViewMode('list')}
+              aria-pressed={viewMode === 'list'}
               title="Chế độ danh sách hàng ngang"
-              className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-white text-teal-800 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <List size={15} />
+              <List size={15} className="shrink-0" />
               <span className="hidden sm:inline">Danh sách</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('grid')}
+              aria-pressed={viewMode === 'grid'}
               title="Chế độ ô thẻ"
-              className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-white text-teal-800 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <LayoutGrid size={15} />
+              <LayoutGrid size={15} className="shrink-0" />
               <span className="hidden sm:inline">Lưới thẻ</span>
             </button>
           </div>
@@ -616,6 +618,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
   const dur = durationMin(s);
   const classroom = s.classroom as any;
   const lesson = s.lesson as any;
+  const unitInfo = getLessonUnitInfo(lesson);
   const isCancelled = s.status === 'CANCELLED';
   const isLive = s.status === 'LIVE';
 
@@ -672,9 +675,14 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
               {isCancelled && s.cancellationReason ? `Báo nghỉ: ${cleanReason(s.cancellationReason)}` : s.title}
             </h3>
             {lesson?.title && (
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600 line-clamp-1">
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600 line-clamp-1" title={`${unitInfo.label ? `${unitInfo.label}: ` : ''}${lesson.title}`}>
                 <BookOpen size={13} className="text-teal-700 shrink-0" />
-                <span>Bài học: {lesson.title}</span>
+                {unitInfo.label && (
+                  <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-black shrink-0">
+                    {unitInfo.label}
+                  </span>
+                )}
+                <span className="truncate">{lesson.title}</span>
               </p>
             )}
           </div>
@@ -801,9 +809,9 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
             )}
 
             {lesson?.title && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200">
-                <BookOpen size={11} className="text-slate-400" />
-                {lesson.title}
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold text-teal-900 bg-teal-50 border border-teal-200">
+                <BookOpen size={11} className="text-teal-700 shrink-0" />
+                <span>{unitInfo.label ? `${unitInfo.label} · ` : ''}{lesson.title}</span>
               </span>
             )}
           </div>

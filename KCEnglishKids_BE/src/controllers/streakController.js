@@ -126,15 +126,90 @@ function streakData(dates, todayStr) {
     levelInfo:getStreakLevelInfo(streak), nextMilestone:{...getNextMilestone(streak),rewardStars:0},
     weekDays:buildWeekDays(activeSet,todayStr),activeDates:activeDates.slice(-60)};
 }
-const getChildStreak = async (req,res,next) => {
- try {
-  const child=await User.findById(req.params.childId).select('name');
-  if(!child)return res.status(404).json({success:false,message:'Child not found.'});
-  const events=await require('../models/LearningEvent').find({child:child._id}).select('createdAt').lean();
-  const practice=await require('../models/MasteryEvent').find({child:child._id}).select('createdAt').lean();
-  const results=await ActivityResult.find({child:child._id,completed:true}).select('createdAt').lean();
-  res.json({success:true,data:{childId:child._id,childName:child.name,...streakData([...events,...results,...practice].map(row=>getVietnamDateString(new Date(row.createdAt))),getVietnamDateString())}});
- }catch(error){next(error);}
+const getChildStreak = async (req, res, next) => {
+  try {
+    const child = await User.findById(req.params.childId).select('name streak longestStreak lastActiveDate activeDates');
+    if (!child) return res.status(404).json({ success: false, message: 'Child not found.' });
+
+    const todayStr = getVietnamDateString();
+    const yesterdayStr = getShiftedDateString(todayStr, -1);
+
+    const LearningEvent = require('../models/LearningEvent');
+    const MasteryEvent = require('../models/MasteryEvent');
+    const HomePracticeCompletion = require('../models/HomePracticeCompletion');
+    const Progress = require('../models/Progress');
+    const VideoProgress = require('../models/VideoProgress');
+
+    const [events, practice, results, homeCompletions, progresses, videoProgresses] = await Promise.all([
+      LearningEvent.find({ child: child._id }).select('createdAt').lean(),
+      MasteryEvent.find({ child: child._id }).select('createdAt').lean(),
+      ActivityResult.find({ child: child._id, completed: true }).select('createdAt').lean(),
+      HomePracticeCompletion ? HomePracticeCompletion.find({ child: child._id }).select('date completedAt createdAt').lean() : [],
+      Progress ? Progress.find({ child: child._id }).select('lastAttemptAt updatedAt createdAt').lean() : [],
+      VideoProgress ? VideoProgress.find({ child: child._id }).select('lastWatchedAt updatedAt createdAt').lean() : []
+    ]);
+
+    const collectedDates = [
+      ...(Array.isArray(child.activeDates) ? child.activeDates : []),
+      ...(child.lastActiveDate ? [child.lastActiveDate] : []),
+      todayStr
+    ];
+
+    // Preserve existing consecutive streak if child was active today or yesterday
+    if (Number.isInteger(child.streak) && child.streak > 1 && (child.lastActiveDate === todayStr || child.lastActiveDate === yesterdayStr)) {
+      const anchor = child.lastActiveDate;
+      for (let i = 0; i < child.streak; i++) {
+        collectedDates.push(getShiftedDateString(anchor, -i));
+      }
+    }
+
+    for (const row of [...events, ...practice, ...results]) {
+      if (row?.createdAt) collectedDates.push(getVietnamDateString(new Date(row.createdAt)));
+    }
+    for (const row of homeCompletions) {
+      if (row?.date) collectedDates.push(row.date);
+      else if (row?.completedAt) collectedDates.push(getVietnamDateString(new Date(row.completedAt)));
+    }
+    for (const row of progresses) {
+      const ts = row?.lastAttemptAt || row?.updatedAt || row?.createdAt;
+      if (ts) collectedDates.push(getVietnamDateString(new Date(ts)));
+    }
+    for (const row of videoProgresses) {
+      const ts = row?.lastWatchedAt || row?.updatedAt || row?.createdAt;
+      if (ts) collectedDates.push(getVietnamDateString(new Date(ts)));
+    }
+
+    const computed = streakData(collectedDates, todayStr);
+    const isNewDayIncrement = child.lastActiveDate !== todayStr;
+    const finalLongest = Math.max(child.longestStreak || 0, computed.longestStreak, computed.streak);
+
+    // Persist updated streak state on User document so profile, AI & recognitions stay in sync
+    await User.updateOne(
+      { _id: child._id },
+      {
+        $set: {
+          streak: computed.streak,
+          longestStreak: finalLongest,
+          lastActiveDate: todayStr,
+          activeDates: computed.activeDates
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        childId: child._id,
+        childName: child.name,
+        ...computed,
+        longestStreak: finalLongest,
+        lastActiveDate: todayStr,
+        isNewDayIncrement
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 const testChildStreakLevel = async (req,res) => {
  const streak=Number(req.body.streak);

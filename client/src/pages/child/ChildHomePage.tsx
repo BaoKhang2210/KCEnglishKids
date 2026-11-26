@@ -451,7 +451,7 @@ export const ChildHomePage: React.FC = () => {
                 </div>
               </div>
             ) : null}
-            <ChildRecognitions />
+            <ChildRecognitions streakDays={streakData?.streak} />
           </>
         )}
         {/* COMPACT BANNER */}

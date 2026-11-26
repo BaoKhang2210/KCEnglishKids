@@ -57,7 +57,7 @@ async function checkTiming(req, classroom) {
 async function populateSession(item, summary = false) {
   await item.populate('classroom', 'name ageGroupCode teacher');
   await item.populate('teacher', 'name avatar avatarUrl');
-  await item.populate({ path: 'lesson', select: 'title vietnameseTitle description ageGroupCode learningObjectives vocabularyItems languageContents topic curriculumUnits', populate: [
+  await item.populate({ path: 'lesson', select: 'key title vietnameseTitle description displayOrder ageGroupCode learningObjectives vocabularyItems languageContents topic curriculumUnits', populate: [
     { path: 'vocabularyItems', select: 'english vietnamese pronunciation audioUrl imageUrl category' },
     { path: 'languageContents', match: { status: 'ACTIVE' } },
     { path: 'curriculumUnits', select: 'unitNumber bookNumber bigQuestion title' },
@@ -88,7 +88,7 @@ exports.getSessions = wrap(async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 100));
   const [data, total] = await Promise.all([
     ClassroomSession.find(query).populate('classroom', 'name ageGroupCode teacher').populate('teacher', 'name avatar avatarUrl')
-      .populate({ path: 'lesson', select: 'title vietnameseTitle displayOrder curriculumUnits', populate: { path: 'curriculumUnits', select: 'bookNumber unitNumber title vietnameseTitle theme' } })
+      .populate({ path: 'lesson', select: 'key title vietnameseTitle displayOrder curriculumUnits', populate: { path: 'curriculumUnits', select: 'bookNumber unitNumber title vietnameseTitle theme' } })
       .sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit),
     ClassroomSession.countDocuments(query)
   ]);
@@ -381,25 +381,34 @@ exports.reportOff = wrap(async (req, res) => {
     }
   }
 
-  if (date === todayVn && slotStartTime) {
-    if (vnTimeStr >= slotStartTime) {
-      fail(`Đã quá thời gian bắt đầu ca dạy (${slotStartTime}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`, 400);
+  if (date === todayVn && slotStartTime && /^\d{2}:\d{2}$/.test(slotStartTime)) {
+    const toMins = (v) => v.split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
+    if (toMins(vnTimeStr) >= toMins(slotStartTime) - 30) {
+      fail(`Đã quá thời hạn báo nghỉ cho ca dạy (${slotStartTime}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`, 400);
     }
   }
 
   const validReason = rules.text(reason, 200) || 'Nghỉ theo kế hoạch';
   const validNote = rules.text(note, 500) || '';
 
-  const startOfDay = new Date(`${date}T00:00:00+07:00`);
-  const endOfDay = new Date(`${date}T23:59:59+07:00`);
+  const startOfDay = timeSlot?.startTime
+    ? new Date(`${date}T${timeSlot.startTime}:00+07:00`)
+    : new Date(`${date}T00:00:00+07:00`);
+  const endOfDay = timeSlot?.startTime
+    ? new Date(startOfDay.getTime() + 60 * 1000)
+    : new Date(`${date}T23:59:59+07:00`);
 
   let session = await ClassroomSession.findOne({
     classroom: room._id,
     status: { $in: ['SCHEDULED', 'CANCELLED'] },
-    $or: [
-      { startedAt: { $gte: startOfDay, $lte: endOfDay } },
-      { createdAt: { $gte: startOfDay, $lte: endOfDay } }
-    ]
+    ...(timeSlot?.startTime
+      ? { startedAt: { $gte: startOfDay, $lt: endOfDay } }
+      : {
+          $or: [
+            { startedAt: { $gte: startOfDay, $lte: endOfDay } },
+            { createdAt: { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        })
   });
 
   if (session) {
@@ -448,8 +457,11 @@ exports.cancelSession = wrap(async (req, res) => {
     if (sessionDateStr < todayVn) {
       fail('Không thể báo nghỉ cho buổi học trong quá khứ.', 400);
     }
-    if (sessionDateStr === todayVn && vnTimeStr >= sessionTimeStr) {
-      fail(`Đã quá thời gian bắt đầu ca dạy (${sessionTimeStr}). Giáo viên chỉ được phép báo nghỉ trước thời điểm buổi học bắt đầu.`, 400);
+    if (sessionDateStr === todayVn && /^\d{2}:\d{2}$/.test(sessionTimeStr)) {
+      const toMins = (v) => v.split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
+      if (toMins(vnTimeStr) >= toMins(sessionTimeStr) - 30) {
+        fail(`Đã quá thời hạn báo nghỉ cho ca dạy (${sessionTimeStr}). Giáo viên phải báo nghỉ trước giờ bắt đầu ca học ít nhất 30 phút.`, 400);
+      }
     }
   }
 

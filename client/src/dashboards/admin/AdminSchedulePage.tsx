@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { adminApi, classroomSessionApi } from '../../services/api';
 import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
-import { resolveDynamicSlotLesson, cleanReason } from '../../utils/teachingSchedule';
+import { resolveDynamicSlotLesson, cleanReason, getLessonUnitInfo } from '../../utils/teachingSchedule';
 import { vietnamDate } from '../../utils/vietnamTime';
 
 
@@ -753,7 +753,7 @@ export const AdminSchedulePage: React.FC = () => {
               }`}
             >
               <List size={16} />
-              <span>Danh Sách Lớp</span>
+              <span>Lịch Theo Lớp</span>
             </button>
           </div>
         </div>
@@ -1197,6 +1197,9 @@ export const AdminSchedulePage: React.FC = () => {
                               );
                             }
                             const displayName = seq.title || seq.vietnameseTitle || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                            const unitLessonText = seq.unitNumber && seq.unitLessonNumber
+                              ? `Unit ${seq.unitNumber} · Lesson ${seq.unitLessonNumber}`
+                              : `Lesson ${seq.lessonNumber}`;
                             return displayName ? (
                               <div className={`p-2.5 rounded-xl border flex items-center gap-2 shadow-2xs ${
                                 seq.isTaught
@@ -1204,9 +1207,9 @@ export const AdminSchedulePage: React.FC = () => {
                                   : 'bg-indigo-50/90 text-indigo-950 border-indigo-200/90'
                               }`}>
                                 <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${seq.isTaught ? 'bg-emerald-600' : 'bg-indigo-700'}`} />
-                                <div className="text-xs font-bold leading-snug truncate flex-1" title={`Lesson ${seq.lessonNumber}: ${displayName}${seq.vietnameseTitle ? ` (${seq.vietnameseTitle})` : ''}`}>
+                                <div className="text-xs font-bold leading-snug truncate flex-1" title={`${unitLessonText}: ${displayName}${seq.vietnameseTitle ? ` (${seq.vietnameseTitle})` : ''}`}>
                                   <span className={`${seq.isTaught ? 'text-emerald-700' : 'text-indigo-700'} font-black`}>
-                                    {seq.isTaught ? `✅ Lesson ${seq.lessonNumber}:` : `Lesson ${seq.lessonNumber}:`}
+                                    {seq.isTaught ? `✅ ${unitLessonText}:` : `${unitLessonText}:`}
                                   </span>{' '}
                                   {displayName}
                                 </div>
@@ -1370,6 +1373,7 @@ export const AdminSchedulePage: React.FC = () => {
                                     ? `${String(dObj.getHours()).padStart(2, '0')}:${String(dObj.getMinutes()).padStart(2, '0')}`
                                     : '';
                                   const lessonTitle = sess.lesson?.title || sess.lesson?.vietnameseTitle || sess.title || `Buổi học #${classSessions.length - sIdx}`;
+                                  const sessUnitInfo = getLessonUnitInfo(sess.lesson);
                                   const isCancelled = sess.status === 'CANCELLED';
                                   const presentStudents = sess.studentScores?.filter((st: any) => st.attendance === 'PRESENT')?.length ?? 0;
                                   const totalStudents = sess.studentScores?.length ?? 0;
@@ -1405,8 +1409,13 @@ export const AdminSchedulePage: React.FC = () => {
                                         )}
                                       </div>
 
-                                      <div className="font-black text-slate-900 line-clamp-1" title={lessonTitle}>
-                                        {lessonTitle}
+                                      <div className="font-black text-slate-900 line-clamp-1 flex items-center gap-1.5" title={lessonTitle}>
+                                        {sessUnitInfo.label && (
+                                          <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-black shrink-0">
+                                            {sessUnitInfo.label}
+                                          </span>
+                                        )}
+                                        <span className="truncate">{lessonTitle}</span>
                                       </div>
 
                                       {!isCancelled && totalStudents > 0 && (
@@ -1462,6 +1471,9 @@ export const AdminSchedulePage: React.FC = () => {
                               ? cleanReason(matchedCancelled.cancellationReason)
                               : (seq.vietnameseTitle || 'Đã báo nghỉ');
                             const displayName = seq.title || seq.vietnameseTitle || (slot.lessonTitle ? slot.lessonTitle.replace(/^Bài\s*\d+\s*[:\-]\s*/i, '') : '');
+                            const unitLessonText = seq.unitNumber && seq.unitLessonNumber
+                              ? `Unit ${seq.unitNumber} · Lesson ${seq.unitLessonNumber}`
+                              : `Lesson ${seq.lessonNumber}`;
 
                             return (
                               <div
@@ -1471,15 +1483,26 @@ export const AdminSchedulePage: React.FC = () => {
                                     ? 'bg-rose-50/50 border-rose-200'
                                     : seq.isTaught
                                     ? 'bg-emerald-50/40 border-emerald-200'
+                                    : targetDay?.isToday
+                                    ? 'bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-300'
                                     : 'bg-slate-50 border-slate-200/70'
                                 }`}
                               >
-                                {/* Dòng 1: Thứ, Giờ và Phòng học */}
+                                {/* Dòng 1: Thứ + Ngày (dd/MM), Giờ và Phòng học */}
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-black text-xs shrink-0">
-                                      {DAY_LABELS[slot.dayOfWeek]}
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                                    <span className={`px-2 py-0.5 rounded-md font-black text-xs shrink-0 ${
+                                      targetDay?.isToday
+                                        ? 'bg-indigo-700 text-white'
+                                        : 'bg-indigo-100 text-indigo-800'
+                                    }`}>
+                                      {DAY_LABELS[slot.dayOfWeek]}{targetDay?.shortDate ? ` · ${targetDay.shortDate}` : ''}
                                     </span>
+                                    {targetDay?.isToday && (
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-black shrink-0">
+                                        Hôm nay
+                                      </span>
+                                    )}
                                     <span className="text-slate-900 font-bold text-xs whitespace-nowrap">
                                       {slot.startTime} – {slot.endTime}
                                     </span>
@@ -1516,18 +1539,18 @@ export const AdminSchedulePage: React.FC = () => {
                                   seq.isTaught ? (
                                     <div
                                       className="p-1.5 rounded-lg bg-emerald-50 text-emerald-900 font-black border border-emerald-200 flex items-center gap-1 min-w-0 truncate"
-                                      title={displayName}
+                                      title={`${unitLessonText}: ${displayName}`}
                                     >
                                       <span className="shrink-0">✅</span>
-                                      <span className="truncate">Lesson {seq.lessonNumber}: {displayName}</span>
+                                      <span className="truncate">{unitLessonText}: {displayName}</span>
                                     </div>
                                   ) : (
                                     <div
                                       className="p-1.5 rounded-lg bg-amber-50 text-amber-900 font-black border border-amber-200 flex items-center gap-1 min-w-0 truncate"
-                                      title={displayName}
+                                      title={`${unitLessonText}: ${displayName}`}
                                     >
                                       <span className="shrink-0">🎯</span>
-                                      <span className="truncate">Lesson {seq.lessonNumber}: {displayName}</span>
+                                      <span className="truncate">{unitLessonText}: {displayName}</span>
                                     </div>
                                   )
                                 ) : null}

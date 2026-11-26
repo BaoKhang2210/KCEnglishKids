@@ -29,6 +29,41 @@ type Lesson = {
   bookOrderIndex?: number;
 };
 
+export function getLessonUnitInfo(
+  lesson: any,
+  fallbackUnitNumber?: number | null,
+  fallbackLessonInUnit?: number | null
+): { unitNumber: number | null; lessonInUnit: number | null; label: string } {
+  if (!lesson && !fallbackUnitNumber && !fallbackLessonInUnit) {
+    return { unitNumber: null, lessonInUnit: null, label: '' };
+  }
+  const keyMatch = typeof lesson?.key === 'string' ? lesson.key.match(/_U(\d+)_L(\d+)/i) : null;
+  const populatedUnit = Array.isArray(lesson?.curriculumUnits)
+    ? lesson.curriculumUnits.find((u: any) => typeof u === 'object' && u?.unitNumber !== undefined)
+    : null;
+  const unitNumber: number | null =
+    (typeof lesson?.unitNumber === 'number' && lesson.unitNumber > 0 ? lesson.unitNumber : null) ??
+    (typeof populatedUnit?.unitNumber === 'number' && populatedUnit.unitNumber > 0 ? populatedUnit.unitNumber : null) ??
+    (keyMatch ? Number(keyMatch[1]) : null) ??
+    (typeof fallbackUnitNumber === 'number' && fallbackUnitNumber > 0 ? fallbackUnitNumber : null);
+
+  const lessonInUnit: number | null =
+    (typeof lesson?.unitOrder === 'number' && lesson.unitOrder > 0 ? lesson.unitOrder : null) ??
+    (keyMatch ? Number(keyMatch[2]) : null) ??
+    (typeof lesson?.displayOrder === 'number' && lesson.displayOrder > 0 ? lesson.displayOrder : null) ??
+    (typeof fallbackLessonInUnit === 'number' && fallbackLessonInUnit > 0 ? fallbackLessonInUnit : null);
+
+  const label = unitNumber && lessonInUnit
+    ? `Unit ${unitNumber} · Lesson ${lessonInUnit}`
+    : lessonInUnit
+    ? `Lesson ${lessonInUnit}`
+    : unitNumber
+    ? `Unit ${unitNumber}`
+    : '';
+
+  return { unitNumber, lessonInUnit, label };
+}
+
 export function cleanReason(reason?: string): string {
   if (!reason) return 'Nghỉ theo kế hoạch';
   return reason
@@ -198,6 +233,8 @@ export function resolveDynamicSlotLesson(
 ): {
   lesson: Lesson | null;
   lessonNumber: number;
+  unitNumber?: number | null;
+  unitLessonNumber?: number | null;
   title: string;
   vietnameseTitle?: string;
   isTaught?: boolean;
@@ -218,10 +255,24 @@ export function resolveDynamicSlotLesson(
     return new Date(raw).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
   };
 
-  // 1. Check if there is an actual COMPLETED or LIVE session on this exact date
-  const taughtSessionOnDate = classSessions.find(
-    (s: any) => (s.status === 'COMPLETED' || s.status === 'LIVE') && sessionDateOf(s) === dateStr
-  );
+  const sessionTimeOf = (s: any) => {
+    const raw = s.startedAt || s.createdAt;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return '';
+    const vn = new Date(d.getTime() + 7 * 3600000);
+    return `${String(vn.getUTCHours()).padStart(2, '0')}:${String(vn.getUTCMinutes()).padStart(2, '0')}`;
+  };
+
+  // 1. Check if there is an actual COMPLETED or LIVE session on this exact date (and slot time if multiple slots)
+  const sameDaySlots = (schedule.weeklySlots || []).filter((s: any) => s.dayOfWeek === slot.dayOfWeek);
+  const taughtSessionOnDate = classSessions.find((s: any) => {
+    if (s.status !== 'COMPLETED' && s.status !== 'LIVE') return false;
+    if (sessionDateOf(s) !== dateStr) return false;
+    if (sameDaySlots.length <= 1) return true;
+    const t = sessionTimeOf(s);
+    return !t || t === slot.startTime;
+  });
   if (taughtSessionOnDate) {
     const taughtLessonId = String(typeof taughtSessionOnDate.lesson === 'object' ? taughtSessionOnDate.lesson?._id : (taughtSessionOnDate.lesson || ''));
     const matchedLesson = (lessons || []).find(l => String(l._id) === taughtLessonId)
@@ -229,9 +280,12 @@ export function resolveDynamicSlotLesson(
     if (matchedLesson) {
       const idx = (lessons || []).findIndex(l => String(l._id) === String(matchedLesson._id));
       const num = matchedLesson.bookOrderIndex || matchedLesson.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+      const uInfo = getLessonUnitInfo(matchedLesson, undefined, num);
       return {
         lesson: matchedLesson,
         lessonNumber: num,
+        unitNumber: uInfo.unitNumber,
+        unitLessonNumber: uInfo.lessonInUnit,
         title: matchedLesson.title || taughtSessionOnDate.title || `Lesson ${num}`,
         vietnameseTitle: matchedLesson.vietnameseTitle,
         isTaught: true
@@ -252,13 +306,19 @@ export function resolveDynamicSlotLesson(
   });
 
   const cancelledDates = new Set<string>();
+  const cancelledSlotKeys = new Set<string>();
   const cancelledSessions = new Map<string, any>();
   classSessions.forEach((s: any) => {
     if (s.status === 'CANCELLED') {
       const d = sessionDateOf(s);
+      const t = sessionTimeOf(s);
       if (d) {
         cancelledDates.add(d);
         cancelledSessions.set(d, s);
+        if (t) {
+          cancelledSlotKeys.add(`${d}|${t}`);
+          cancelledSessions.set(`${d}|${t}`, s);
+        }
       }
     }
   });
@@ -312,31 +372,40 @@ export function resolveDynamicSlotLesson(
 
     for (const s of daySlots) {
       const isTarget = dStr === dateStr && s.dayOfWeek === slot.dayOfWeek && s.startTime === slot.startTime;
-      const isCancelledDay = cancelledDates.has(dStr);
+      const isCancelledSlot = daySlots.length > 1
+        ? cancelledSlotKeys.has(`${dStr}|${s.startTime}`)
+        : (cancelledSlotKeys.has(`${dStr}|${s.startTime}`) || cancelledDates.has(dStr));
 
-      if (isCancelledDay) {
+      if (isCancelledSlot) {
         if (isTarget) {
           const held = queue[0] || queueBase[0] || lessons[0];
           const idx = lessons.findIndex(l => String(l._id) === String(held?._id));
           const num = held?.bookOrderIndex || held?.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+          const uInfo = getLessonUnitInfo(held, undefined, num);
           return {
             lesson: held || null,
             lessonNumber: num,
+            unitNumber: uInfo.unitNumber,
+            unitLessonNumber: uInfo.lessonInUnit,
             title: held?.title || `Lesson ${num}`,
             vietnameseTitle: held?.vietnameseTitle,
             isCancelled: true
           };
         }
-        // Cancelled day does NOT dequeue! Lesson rolls over to next slot.
+        // Cancelled slot does NOT dequeue! Lesson rolls over to next slot.
         continue;
       }
 
-      // Check if a session on dStr already completed a specific lesson
-      const taughtOnDay = classSessions.find(
-        (sess: any) => (sess.status === 'COMPLETED' || sess.status === 'LIVE') && sessionDateOf(sess) === dStr
-      );
-      if (taughtOnDay) {
-        const tId = String(typeof taughtOnDay.lesson === 'object' ? taughtOnDay.lesson?._id : (taughtOnDay.lesson || ''));
+      // Check if a session on dStr (matching this slot time when >1 slots) already completed a specific lesson
+      const taughtOnSlot = classSessions.find((sess: any) => {
+        if (sess.status !== 'COMPLETED' && sess.status !== 'LIVE') return false;
+        if (sessionDateOf(sess) !== dStr) return false;
+        if (daySlots.length <= 1) return true;
+        const t = sessionTimeOf(sess);
+        return !t || t === s.startTime;
+      });
+      if (taughtOnSlot) {
+        const tId = String(typeof taughtOnSlot.lesson === 'object' ? taughtOnSlot.lesson?._id : (taughtOnSlot.lesson || ''));
         const qIdx = queue.findIndex(l => String(l._id) === tId);
         if (qIdx >= 0) queue.splice(qIdx, 1);
         continue;
@@ -346,9 +415,12 @@ export function resolveDynamicSlotLesson(
       if (isTarget) {
         const idx = lessons.findIndex(l => String(l._id) === String(nextLesson?._id));
         const num = nextLesson?.bookOrderIndex || nextLesson?.syllabusOrder || (idx >= 0 ? idx + 1 : 1);
+        const uInfo = getLessonUnitInfo(nextLesson, undefined, num);
         return {
           lesson: nextLesson || null,
           lessonNumber: num,
+          unitNumber: uInfo.unitNumber,
+          unitLessonNumber: uInfo.lessonInUnit,
           title: nextLesson?.title || `Lesson ${num}`,
           vietnameseTitle: nextLesson?.vietnameseTitle
         };
@@ -361,9 +433,12 @@ export function resolveDynamicSlotLesson(
   const fallbackLesson = queue[0] || queueBase[0] || lessons[0];
   const fIdx = lessons.findIndex(l => String(l._id) === String(fallbackLesson?._id));
   const fNum = fallbackLesson?.bookOrderIndex || fallbackLesson?.syllabusOrder || (fIdx >= 0 ? fIdx + 1 : 1);
+  const fUnitInfo = getLessonUnitInfo(fallbackLesson, undefined, fNum);
   return {
     lesson: fallbackLesson || null,
     lessonNumber: fNum,
+    unitNumber: fUnitInfo.unitNumber,
+    unitLessonNumber: fUnitInfo.lessonInUnit,
     title: fallbackLesson?.title || `Lesson ${fNum}`,
     vietnameseTitle: fallbackLesson?.vietnameseTitle
   };
