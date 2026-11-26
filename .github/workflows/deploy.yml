@@ -1,37 +1,47 @@
-name: Deploy to AWS EC2
+name: CI/CD Pipeline - Deploy to AWS EC2
 
 on:
   push:
     branches:
-      - client-learning_feature
-
-concurrency:
-  group: deploy-ec2-${{ github.ref }}
-  cancel-in-progress: true
+      - main
 
 jobs:
-  validate-and-deploy:
-    name: Build & Deploy to EC2
+  test-and-lint:
+    name: Test & Build Check
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Node.js 20
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: |
+            client/package-lock.json
+            KCEnglishKids_BE/package-lock.json
 
-      - name: 🔍 Install dependencies & Validate Client Build
+      - name: Test Backend
+        run: |
+          cd KCEnglishKids_BE
+          npm ci
+          npm test --if-present
+
+      - name: Type Check & Test Frontend
         run: |
           cd client
           npm ci
+          npx tsc --noEmit
           npm run build
 
-      - name: 🚀 Deploy to AWS EC2 via SSH
+  deploy-to-ec2:
+    name: Deploy to Amazon EC2
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Execute Remote SSH Commands on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -40,24 +50,26 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            echo "=== [1/4] Kéo mã nguồn mới nhất từ nhánh client-learning_feature ==="
+            echo "==> [1/5] Chuyển vào thư mục dự án..."
             cd /var/www/kcenglishkids
-            git fetch origin client-learning_feature
-            git checkout client-learning_feature
-            git pull origin client-learning_feature
 
-            echo "=== [2/4] Cập nhật dependencies & Reload Backend (PM2) ==="
+            echo "==> [2/5] Kéo code mới nhất từ nhánh main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> [3/5] Cập nhật Backend..."
             cd /var/www/kcenglishkids/KCEnglishKids_BE
             npm install --omit=dev
+            # Reload tiến trình PM2 (Zero downtime), nếu chưa có thì khởi chạy mới
             pm2 reload kcenglishkids-backend || pm2 start src/server.js --name "kcenglishkids-backend"
             pm2 save
 
-            echo "=== [3/4] Cài đặt dependencies & Build Frontend ==="
+            echo "==> [4/5] Build Frontend..."
             cd /var/www/kcenglishkids/client
             npm install
             npm run build
 
-            echo "=== [4/4] Reload Web Server Nginx ==="
+            echo "==> [5/5] Reload Nginx..."
             sudo systemctl reload nginx
 
-            echo "🎉 === DEPLOY THÀNH CÔNG LÊN EC2! ==="
+            echo "==> Hoàn tất Deploy ứng dụng lên AWS EC2 thành công!"
