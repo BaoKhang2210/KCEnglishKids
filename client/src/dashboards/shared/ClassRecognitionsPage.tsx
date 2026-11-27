@@ -103,15 +103,13 @@ export function ClassRecognitionsPage() {
   const winners = useMemo(() => data?.ranking.filter(row => row.winner) || [], [data]);
 
   // Top 3 students for podium
-  const top1 = winners;
   const top2 = useMemo(() => {
     if (!data?.ranking) return [];
-    const minWinnerStars = top1[0]?.stars || 0;
-    const candidates = data.ranking.filter(r => !r.winner && r.stars > 0 && r.stars < minWinnerStars);
+    const candidates = data.ranking.filter(r => !r.winner && r.stars > 0);
     if (!candidates.length) return [];
     const max2 = candidates[0].stars;
     return candidates.filter(r => r.stars === max2);
-  }, [data, top1]);
+  }, [data]);
 
   const top3 = useMemo(() => {
     if (!data?.ranking || !top2.length) return [];
@@ -1027,15 +1025,15 @@ export function ClassRecognitionsPage() {
               <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead className="bg-slate-50/90 border-b border-slate-200 text-slate-600 uppercase font-black tracking-wider text-[11px]">
                   <tr>
-                    <th className="py-2.5 px-3 text-center w-12">Hạng</th>
-                    <th className="py-2.5 px-3 min-w-[130px]">Học sinh</th>
-                    <th className="py-2.5 px-2 text-center w-24">Trên lớp</th>
-                    <th className="py-2.5 px-2 text-center w-24">Ở nhà</th>
-                    <th className="py-2.5 px-2.5 text-center w-28" title="Sao đạt được trong kỳ này để xét thứ hạng">Sao kỳ này</th>
-                    <th className="py-2.5 px-3 text-center w-32">Tham gia</th>
-                    <th className="py-2.5 px-2 text-center w-28" title="Tổng số sao tích lũy toàn khóa (đồng nhất với Theo dõi tiến bộ)">Tổng tích lũy</th>
-                    <th className="py-2.5 px-3 text-center w-28">Danh hiệu</th>
-                    <th className="py-2.5 px-2.5 text-center w-24">Giấy khen</th>
+                    <th className="py-2.5 px-2 text-center">Hạng</th>
+                    <th className="py-2.5 px-2.5">Học sinh</th>
+                    <th className="py-2.5 px-1.5 text-center">Trên lớp</th>
+                    <th className="py-2.5 px-1.5 text-center">Ở nhà</th>
+                    <th className="py-2.5 px-2 text-center" title="Sao đạt được trong kỳ này để xét thứ hạng">Sao kỳ này</th>
+                    <th className="py-2.5 px-2 text-center">Tham gia</th>
+                    <th className="py-2.5 px-1.5 text-center" title="Tổng số sao tích lũy toàn khóa (đồng nhất với Theo dõi tiến bộ)">Tổng tích lũy</th>
+                    <th className="py-2.5 px-2 text-center">Danh hiệu</th>
+                    <th className="py-2.5 px-2 text-center">Giấy khen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-semibold">
@@ -1090,9 +1088,9 @@ export function ClassRecognitionsPage() {
                             <div className="flex items-center gap-2.5">
                               <StudentAvatar student={row} size="sm" />
                               <div className="min-w-0">
-                                <p className="text-slate-900 font-black truncate">{row.name}</p>
+                                <p className="text-slate-900 font-black break-words leading-snug">{row.name}</p>
                                 {isSchool && row.className && (
-                                  <p className="text-[11px] font-semibold text-slate-500 truncate">{row.className}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500 break-words">{row.className}</p>
                                 )}
                               </div>
                             </div>
@@ -1122,7 +1120,7 @@ export function ClassRecognitionsPage() {
                             {row.isPerfectAttendance ? (
                               <span className="text-[10px] text-emerald-700 font-black">Chuyên cần 100%</span>
                             ) : row.sessions > 0 ? (
-                              <span className="text-[10px] text-slate-400 font-medium">Đầy đủ</span>
+                              <span className="text-[10px] text-slate-500 font-medium">Có tham gia</span>
                             ) : (
                               <span className="text-[10px] text-slate-400 italic">Vắng</span>
                             )}
@@ -1134,7 +1132,7 @@ export function ClassRecognitionsPage() {
                           </td>
 
                           {/* 8. Danh Hiệu Mầm Non */}
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="py-2.5 px-2 text-center">
                             {row.awardTitle ? (
                               <span className={`px-2.5 py-1 rounded-lg font-black text-[11px] shadow-2xs inline-flex items-center gap-1.5 ${
                                 row.winner || row.awardCategory === 'CHAMPION'

@@ -249,10 +249,10 @@ export const SessionSummaryPage: React.FC = () => {
             <div>
               <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Tỷ lệ trả lời đúng</p>
               <p className="text-2xl sm:text-3xl font-black text-emerald-950 mt-1">
-                {answeredCount ? `${s?.averageAccuracy || 0}%` : '100%'}
+                {answeredCount ? `${s?.averageAccuracy ?? 0}%` : '—'}
               </p>
               <p className="text-xs text-emerald-800 font-semibold mt-0.5">
-                {answeredCount ? `${answeredCount} lượt tương tác` : 'Phản xạ tích cực'}
+                {answeredCount ? `${answeredCount} lượt tương tác` : 'Chưa chấm câu hỏi'}
               </p>
             </div>
             <div className="h-12 w-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -485,8 +485,17 @@ export const SessionSummaryPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="space-y-2.5">
-                  {topPerformers.map((t, i) => {
+                  {topPerformers.map((t: any, i: number) => {
                     const name = typeof t === 'string' ? t : t.name;
+                    const matchedScore = scores.find(
+                      (sc: any) =>
+                        (t?._id && String(sc.student?._id || sc.student) === String(t._id)) ||
+                        sc.student?.name === name
+                    );
+                    const starCount =
+                      t?.stars ??
+                      matchedScore?.stars ??
+                      Math.max(0, ...scores.map((sc: any) => Number(sc.stars) || 0));
                     return (
                       <div
                         key={i}
@@ -497,7 +506,7 @@ export const SessionSummaryPage: React.FC = () => {
                           <span className="font-extrabold text-sm text-slate-900">{name}</span>
                         </div>
                         <span className="text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
-                          3 ⭐ Xuất sắc
+                          {starCount} ⭐ Xuất sắc
                         </span>
                       </div>
                     );

@@ -28,7 +28,6 @@ const ClassroomSessionsList = lazy(() => import('./dashboards/teacher/ClassroomS
 const SentenceTeachingPage = lazy(() => import('./dashboards/teacher/SentenceTeachingPage').then(module => ({default:module.SentenceTeachingPage})));
 const TeacherTeachingSchedule = lazy(() => import('./dashboards/teacher/TeacherTeachingSchedule').then(module => ({default:module.TeacherTeachingSchedule})));
 const ChangePinPage = lazy(() => import('./pages/child/ChangePinPage').then(module => ({default:module.ChangePinPage})));
-const RecoverAccountPage = lazy(() => import('./pages/child/RecoverAccountPage').then(module => ({default:module.RecoverAccountPage})));
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Admin Portal Pages
@@ -89,7 +88,6 @@ export function App() {
           {/* Child Routes */}
           <Route path="/my-learning" element={<ProtectedChildRoute><MyLearningPage/></ProtectedChildRoute>}/>
           <Route path="/login" element={<StudentLoginPage />} />
-          <Route path="/recover" element={<RecoverAccountPage />} />
           <Route
             path="/"
             element={

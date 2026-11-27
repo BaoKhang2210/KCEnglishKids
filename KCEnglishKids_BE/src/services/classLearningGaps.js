@@ -10,11 +10,15 @@ async function buildReport(db, classroom, lessonId) {
   const selected = lessonId ? lessons.find(lesson => idOf(lesson) === lessonId) : null;
   if (lessonId && !selected) fail('Bài học không thuộc giáo trình đang sử dụng của lớp.', 403);
   const vocabularyIds = [...new Set((selected ? [selected] : lessons).flatMap(lesson => (lesson.vocabularyItems || []).map(idOf)))];
+  const rawStudents = classroom.students || [];
+  const activeStudents = (rawStudents.length && db.User && typeof db.User.find === 'function' && require('mongoose').connection?.readyState === 1)
+    ? await db.User.find({ _id: { $in: rawStudents.map(idOf) }, role: 'CHILD', status: 'ACTIVE' }).distinct('_id')
+    : rawStudents;
   const [masteryRows, vocabularies] = await Promise.all([
-    db.VocabularyMastery.find({ student: { $in: classroom.students || [] }, vocabulary: { $in: vocabularyIds } }).select('student vocabulary correctCount attemptCount masteryLevel').lean(),
+    db.VocabularyMastery.find({ student: { $in: activeStudents }, vocabulary: { $in: vocabularyIds } }).select('student vocabulary correctCount attemptCount masteryLevel').lean(),
     db.Vocabulary.find({ _id: { $in: vocabularyIds }, status: 'ACTIVE' }).select('english vietnamese difficulty imageUrl audioUrl phonetic pronunciation exampleSentence').lean(),
   ]);
-  const data = require('./aiService').detectClassGaps({ students: classroom.students || [], vocabularies, masteryRows });
+  const data = require('./aiService').detectClassGaps({ students: activeStudents, vocabularies, masteryRows });
   const byWord = new Map(data.gaps.map(gap => [gap.vocabularyId, gap]));
   const recommendedLessons = lessons.map(lesson => {
     const focus = (lesson.vocabularyItems || []).map(idOf).map(id => byWord.get(id)).filter(Boolean);

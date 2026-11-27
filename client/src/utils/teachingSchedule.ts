@@ -84,7 +84,9 @@ export function scheduleEffectiveAt(schedule: Schedule, at = new Date()) {
 }
 
 export function scheduleSlotAppliesOn(schedule: Schedule, slot: Slot, date: string) {
-  return scheduleEffectiveAt(schedule, new Date(`${date}T${slot.startTime}:00+07:00`));
+  const at = new Date(`${date}T${slot.startTime}:00+07:00`);
+  const inRange = (!schedule.effectiveFrom || new Date(schedule.effectiveFrom) <= at) && (!schedule.effectiveTo || new Date(schedule.effectiveTo) >= at);
+  return (schedule.isActive !== false || Boolean(schedule.effectiveTo)) && inRange;
 }
 
 /**
@@ -138,20 +140,20 @@ export function getSequentialLessonForSlot(
   );
   const safeSlotIndex = slotIndex >= 0 ? slotIndex : 0;
 
-  // Base Monday: anchor from schedule.effectiveFrom or current week Monday
-  let baseDate = schedule.effectiveFrom ? new Date(schedule.effectiveFrom) : new Date('2026-11-02T00:00:00+07:00');
-  if (isNaN(baseDate.getTime())) baseDate = new Date('2026-11-02T00:00:00+07:00');
-  const baseDay = baseDate.getDay();
+  // Base Monday: anchor from schedule.effectiveFrom or current week Monday in Vietnam timezone
+  let rawBase = schedule.effectiveFrom ? new Date(schedule.effectiveFrom) : new Date('2026-11-02T00:00:00+07:00');
+  if (isNaN(rawBase.getTime())) rawBase = new Date('2026-11-02T00:00:00+07:00');
+  const baseVnStr = rawBase.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const baseDate = new Date(baseVnStr + 'T12:00:00+07:00');
+  const baseDay = baseDate.getUTCDay();
   const baseDistToMon = baseDay === 0 ? -6 : 1 - baseDay;
-  const baseMonday = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + baseDistToMon);
-  baseMonday.setHours(0, 0, 0, 0);
+  const baseMonday = new Date(baseDate.getTime() + baseDistToMon * 86400000);
 
-  // Target date Monday
+  // Target date Monday in Vietnam timezone
   const targetDate = new Date(dateStr + 'T12:00:00+07:00');
-  const targetDay = targetDate.getDay();
+  const targetDay = targetDate.getUTCDay();
   const targetDistToMon = targetDay === 0 ? -6 : 1 - targetDay;
-  const targetMonday = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + targetDistToMon);
-  targetMonday.setHours(0, 0, 0, 0);
+  const targetMonday = new Date(targetDate.getTime() + targetDistToMon * 86400000);
 
   const diffMs = targetMonday.getTime() - baseMonday.getTime();
   const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
@@ -216,6 +218,79 @@ export function forecastLessons(
   return forecast;
 }
 
+const parseClockMinutes = (hhmm?: string): number | null => {
+  if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  const [h, m] = hhmm.split(':').map(Number);
+  return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+};
+
+const sessionVnMinutes = (session: any): number | null => {
+  const raw = session?.startedAt || session?.createdAt;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  const vn = new Date(d.getTime() + 7 * 3600000);
+  return vn.getUTCHours() * 60 + vn.getUTCMinutes();
+};
+
+/**
+ * Matches a session to a timetable slot on the same day.
+ * Teachers can start a session from 15 minutes before `startTime` through `endTime`,
+ * so exact HH:mm equality fails whenever a day has 2+ slots and the teacher starts even 1 minute off.
+ */
+export function sessionMatchesSlot(session: any, slot: Slot, sameDaySlots: Slot[] = []): boolean {
+  if (session?.slotStartTime) {
+    return session.slotStartTime === slot.startTime;
+  }
+  const slotList = sameDaySlots.length > 0 ? sameDaySlots : [slot];
+  if (slotList.length <= 1) return true;
+
+  const sessMin = sessionVnMinutes(session);
+  if (sessMin === null) return false;
+
+  const targetStart = parseClockMinutes(slot.startTime);
+  const targetEnd = parseClockMinutes(slot.endTime);
+  if (targetStart === null) return false;
+
+  const inSlotWindow = (s: Slot) => {
+    const sMin = parseClockMinutes(s.startTime);
+    if (sMin === null) return false;
+    const eMin = parseClockMinutes(s.endTime);
+    const upper = Math.max(sMin + 20, eMin ?? sMin + 45);
+    return sessMin >= sMin - 15 && sessMin <= upper;
+  };
+
+  if (!inSlotWindow(slot)) return false;
+
+  // When adjacent slots overlap in the 15-minute early-open window, pick the closest startTime.
+  let bestSlot: Slot | null = null;
+  let bestDiff = Infinity;
+  for (const candidate of slotList) {
+    if (!inSlotWindow(candidate)) continue;
+    const cStart = parseClockMinutes(candidate.startTime)!;
+    const diff = Math.abs(sessMin - cStart);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestSlot = candidate;
+    }
+  }
+  return bestSlot ? bestSlot.startTime === slot.startTime : sessMin >= targetStart - 15 && sessMin <= Math.max(targetStart + 20, targetEnd ?? targetStart + 45);
+}
+
+/**
+ * Picks the most relevant non-active slot for today when a class has multiple slots on the same day:
+ * prefers the earliest upcoming slot (not yet in its -15m open window), otherwise falls back to the latest passed slot.
+ */
+export function pickTodayPendingSlot<T extends { startTime: string }>(todaySlots: T[], currentMinutes: number): T | null {
+  if (!todaySlots.length) return null;
+  const sorted = [...todaySlots].sort((a, b) => (parseClockMinutes(a.startTime) ?? 0) - (parseClockMinutes(b.startTime) ?? 0));
+  const upcoming = sorted.find(slot => {
+    const startMin = parseClockMinutes(slot.startTime);
+    return startMin !== null && currentMinutes < startMin - 15;
+  });
+  return upcoming || sorted[sorted.length - 1];
+}
+
 /**
  * Shared Dynamic Conveyor-Belt Queue (Băng chuyền bài học) used by both Admin and Teacher timetables.
  * - Past dates with COMPLETED/LIVE sessions always return the actual taught lesson.
@@ -269,9 +344,7 @@ export function resolveDynamicSlotLesson(
   const taughtSessionOnDate = classSessions.find((s: any) => {
     if (s.status !== 'COMPLETED' && s.status !== 'LIVE') return false;
     if (sessionDateOf(s) !== dateStr) return false;
-    if (sameDaySlots.length <= 1) return true;
-    const t = sessionTimeOf(s);
-    return !t || t === slot.startTime;
+    return sessionMatchesSlot(s, slot, sameDaySlots);
   });
   if (taughtSessionOnDate) {
     const taughtLessonId = String(typeof taughtSessionOnDate.lesson === 'object' ? taughtSessionOnDate.lesson?._id : (taughtSessionOnDate.lesson || ''));
@@ -363,6 +436,8 @@ export function resolveDynamicSlotLesson(
   const queue = [...queueBase];
   const cursor = new Date(`${currentToday}T12:00:00Z`);
   const sortedSlots = [...(schedule.weeklySlots || [])].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+  const vnNow = new Date(Date.now() + 7 * 3600000);
+  const currentVnMinutes = vnNow.getUTCHours() * 60 + vnNow.getUTCMinutes();
 
   for (let step = 0; step < 730; step++) {
     const dStr = cursor.toISOString().slice(0, 10);
@@ -400,15 +475,31 @@ export function resolveDynamicSlotLesson(
       const taughtOnSlot = classSessions.find((sess: any) => {
         if (sess.status !== 'COMPLETED' && sess.status !== 'LIVE') return false;
         if (sessionDateOf(sess) !== dStr) return false;
-        if (daySlots.length <= 1) return true;
-        const t = sessionTimeOf(sess);
-        return !t || t === s.startTime;
+        return sessionMatchesSlot(sess, s, daySlots);
       });
       if (taughtOnSlot) {
         const tId = String(typeof taughtOnSlot.lesson === 'object' ? taughtOnSlot.lesson?._id : (taughtOnSlot.lesson || ''));
         const qIdx = queue.findIndex(l => String(l._id) === tId);
         if (qIdx >= 0) queue.splice(qIdx, 1);
         continue;
+      }
+
+      // If today's slot has already ended without any taught session, do NOT consume the next lesson
+      if (dStr === currentToday && s.endTime) {
+        const [eH, eM] = s.endTime.split(':').map(Number);
+        const endMin = eH * 60 + eM;
+        if (currentVnMinutes >= endMin) {
+          if (isTarget) {
+            return {
+              lesson: null,
+              lessonNumber: 0,
+              title: 'Chưa tổ chức',
+              vietnameseTitle: 'Chưa tổ chức buổi dạy',
+              isUnheld: true
+            };
+          }
+          continue;
+        }
       }
 
       const nextLesson = queue.length > 0 ? queue.shift()! : lessons[step % lessons.length];

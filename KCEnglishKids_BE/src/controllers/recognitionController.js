@@ -91,8 +91,7 @@ async function periodHomeStars(studentIds, period) {
             {
               $or: [
                 { 'completionSnapshot.recordedAt': { $gte: period.start, $lt: period.end } },
-                { lastActivityAt: { $gte: period.start, $lt: period.end } },
-                { updatedAt: { $gte: period.start, $lt: period.end } }
+                { 'completionSnapshot.recordedAt': null, createdAt: { $gte: period.start, $lt: period.end } }
               ]
             }
           ]

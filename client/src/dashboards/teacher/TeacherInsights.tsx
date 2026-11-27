@@ -86,9 +86,15 @@ export const TeacherAnalytics = () => {
     );
   }, [curriculumData]);
 
+  const totalSyllabusLessons = useMemo(() => {
+    const count = curriculumData?.sequentialSyllabus?.length || curriculumData?.curriculum?.totalLessons;
+    return typeof count === 'number' && count > 0 ? count : 36;
+  }, [curriculumData]);
+
   const members = useMemo(() => {
     if (!data?.students) return [];
     return data.students.filter((s: any) => {
+      if (s.status && s.status !== 'ACTIVE') return false;
       const assigned = String(s.assignedClass?._id || s.assignedClass || '');
       return (
         (!selectedClassId || assigned === selectedClassId) &&
@@ -100,7 +106,7 @@ export const TeacherAnalytics = () => {
   const assessed = useMemo(() => members.filter((s: any) => s.stats?.hasAssessment), [members]);
   const support = useMemo(() => members.filter((s: any) => needsObservation(s.stats)), [members]);
   const excellent = useMemo(
-    () => members.filter((s: any) => s.stats?.hasAssessment && (s.stats?.averageScore ?? 0) >= 80),
+    () => members.filter((s: any) => s.stats?.hasAssessment && (s.stats?.averageScore ?? 0) >= 85),
     [members]
   );
 
@@ -119,7 +125,7 @@ export const TeacherAnalytics = () => {
     return sortByNameVi(members).filter((s: any) => {
       const matchesSearch = s.name.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi'));
       if (!matchesSearch) return false;
-      if (filter === 'EXCELLENT') return s.stats?.hasAssessment && (s.stats?.averageScore ?? 0) >= 80;
+      if (filter === 'EXCELLENT') return s.stats?.hasAssessment && (s.stats?.averageScore ?? 0) >= 85;
       if (filter === 'SUPPORT') return needsObservation(s.stats);
       if (filter === 'UNASSESSED') return !s.stats?.hasAssessment;
       return true;
@@ -341,7 +347,7 @@ export const TeacherAnalytics = () => {
           initialUnitId={params.get('unitId') || ''}
         />
       ) : (
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs space-y-4">
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-4">
           {/* Header Bar of Table with Search and Filter Pills */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-100">
             <div>
@@ -418,16 +424,16 @@ export const TeacherAnalytics = () => {
           </div>
 
           {/* ── BẢNG THEO DÕI TIẾN BỘ RỰC RỠ SẮC MÀU ────────────────────────── */}
-          <div className="rounded-2xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-left text-xs sm:text-sm border-collapse">
-              <thead className="bg-slate-50/95 border-b border-slate-200 text-slate-700 uppercase font-black tracking-wider text-[11px]">
+          <div className="rounded-2xl border border-slate-200 overflow-x-auto">
+            <table className="w-full table-fixed text-left text-xs border-collapse">
+              <thead className="bg-slate-50/95 border-b border-slate-200 text-slate-700 uppercase font-black tracking-wide text-[11px]">
                 <tr>
-                  <th className="py-3 px-3.5 min-w-[150px]">Học Sinh</th>
-                  <th className="py-3 px-3 text-center min-w-[180px]">Độ Đúng Tự Luyện</th>
-                  <th className="py-3 px-3 text-center min-w-[130px]">Bài Đã Hoàn Thành</th>
-                  <th className="py-3 px-3 text-center min-w-[130px]">Luyện Tập &amp; Giờ Học</th>
-                  <th className="py-3 px-3 text-center min-w-[140px]">Sao Tích Lũy</th>
-                  <th className="py-3 px-3 text-center min-w-[110px]">Hồ Sơ Cá Nhân</th>
+                  <th className="py-2.5 px-2.5 w-[22%]">Học Sinh</th>
+                  <th className="py-2.5 px-2 text-center w-[21%]">Độ Đúng Tự Luyện</th>
+                  <th className="py-2.5 px-2 text-center w-[15%]">Bài Hoàn Thành</th>
+                  <th className="py-2.5 px-2 text-center w-[15%]">Luyện Tập &amp; Giờ</th>
+                  <th className="py-2.5 px-2 text-center w-[16%]">Sao Tích Lũy</th>
+                  <th className="py-2.5 px-2 text-center w-[11%]">Hồ Sơ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold">
@@ -450,9 +456,9 @@ export const TeacherAnalytics = () => {
                     const classStars = stats.classStars ?? stats.classroomStars ?? 0;
                     const homeStars = stats.homeStars ?? 0;
 
-                    // Accuracy Tier Color Schemes
-                    const isGood = hasAssessment && accuracy != null && accuracy >= 80;
-                    const isFair = hasAssessment && accuracy != null && accuracy >= 60 && accuracy < 80;
+                    // Accuracy Tier Color Schemes (aligned with TeacherStudents >= 85 / >= 70)
+                    const isGood = hasAssessment && accuracy != null && accuracy >= 85;
+                    const isFair = hasAssessment && accuracy != null && accuracy >= 70 && accuracy < 85;
 
                     return (
                       <tr
@@ -460,12 +466,12 @@ export const TeacherAnalytics = () => {
                         className="hover:bg-slate-50/90 transition-colors"
                       >
                         {/* 1. Học Sinh */}
-                        <td className="py-3 px-3.5">
-                          <div className="flex items-center gap-3">
+                        <td className="py-2.5 px-2.5">
+                          <div className="flex items-center gap-2">
                             <StudentAvatar student={student} size="sm" />
                             <div className="min-w-0">
-                              <p className="font-black text-slate-900 text-sm truncate">{student.name}</p>
-                              <p className="text-[11px] font-semibold text-slate-500 truncate">
+                              <p className="font-black text-slate-900 text-xs sm:text-sm break-words leading-snug">{student.name}</p>
+                              <p className="text-[11px] font-semibold text-slate-500 break-words leading-snug">
                                 {student.assignedClass?.name || 'Chưa phân lớp'}
                               </p>
                             </div>
@@ -473,12 +479,12 @@ export const TeacherAnalytics = () => {
                         </td>
 
                         {/* 2. Độ Đúng Tự Luyện & Thanh Tiến Độ */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2.5 px-2 text-center">
                           {hasAssessment && accuracy != null ? (
-                            <div className="space-y-1.5 max-w-[160px] mx-auto">
-                              <div className="flex items-center justify-between text-xs font-bold">
+                            <div className="space-y-1.5 max-w-[150px] mx-auto">
+                              <div className="flex flex-wrap items-center justify-between gap-1 text-xs font-bold">
                                 <span
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
                                     isGood
                                       ? 'bg-emerald-100 text-emerald-800'
                                       : isFair
@@ -489,7 +495,7 @@ export const TeacherAnalytics = () => {
                                   {isGood ? 'Rất tốt' : isFair ? 'Khá tốt' : 'Cần hỗ trợ'}
                                 </span>
                                 <span
-                                  className={`font-black text-sm ${
+                                  className={`font-black text-xs sm:text-sm ${
                                     isGood
                                       ? 'text-emerald-700'
                                       : isFair
@@ -515,44 +521,44 @@ export const TeacherAnalytics = () => {
                               </div>
                             </div>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold">
+                            <span className="inline-flex items-center justify-center px-2 py-1 rounded-xl bg-slate-100 text-slate-500 text-[11px] font-semibold leading-tight">
                               Chưa có dữ liệu
                             </span>
                           )}
                         </td>
 
                         {/* 3. Bài Đã Hoàn Thành */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2.5 px-2 text-center">
                           <div className="inline-flex flex-col items-center">
-                            <span className="font-black text-indigo-900 text-sm">
-                              {completed} <span className="text-xs font-bold text-slate-400">/ 36 bài</span>
+                            <span className="font-black text-indigo-900 text-xs sm:text-sm">
+                              {completed} <span className="text-[11px] font-bold text-slate-400">/ {totalSyllabusLessons}</span>
                             </span>
-                            <div className="w-16 h-1.5 rounded-full bg-slate-100 mt-1 overflow-hidden">
+                            <div className="w-14 h-1.5 rounded-full bg-slate-100 mt-1 overflow-hidden">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600"
-                                style={{ width: `${Math.min(100, Math.round((completed / 36) * 100))}%` }}
+                                style={{ width: `${Math.min(100, Math.round((completed / totalSyllabusLessons) * 100))}%` }}
                               />
                             </div>
                           </div>
                         </td>
 
                         {/* 4. Lượt Luyện Tập & Thời Lượng */}
-                        <td className="py-3 px-3 text-center">
-                          <p className="text-slate-800 text-xs font-bold">{attempts} lượt làm bài</p>
+                        <td className="py-2.5 px-2 text-center">
+                          <p className="text-slate-800 text-xs font-bold leading-snug">{attempts} lượt</p>
                           <p className="text-[11px] font-semibold text-slate-500 flex items-center justify-center gap-1 mt-0.5">
-                            <Clock size={11} className="text-slate-400" />
+                            <Clock size={11} className="text-slate-400 shrink-0" />
                             <span>{studyTime}</span>
                           </p>
                         </td>
 
                         {/* 5. Sao Tích Lũy */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2.5 px-2 text-center">
                           <div className="inline-flex flex-col items-center">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-black text-xs shadow-2xs">
-                              <Star size={12} className="fill-amber-400 text-amber-500" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-black text-xs shadow-2xs">
+                              <Star size={11} className="fill-amber-400 text-amber-500 shrink-0" />
                               <span>{totalStars} sao</span>
                             </span>
-                            <span className="text-[10px] font-semibold text-slate-500 mt-1">
+                            <span className="text-[10px] font-semibold text-slate-500 mt-1 leading-tight">
                               Lớp: <strong className="text-indigo-700">{classStars}</strong> • Nhà:{' '}
                               <strong className="text-emerald-700">{homeStars}</strong>
                             </span>
@@ -560,13 +566,13 @@ export const TeacherAnalytics = () => {
                         </td>
 
                         {/* 6. Hồ Sơ Cá Nhân */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2.5 px-1.5 text-center">
                           <Link
                             to={`/teacher/students/${student._id}`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors cursor-pointer"
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors cursor-pointer"
                           >
                             <span>Hồ sơ</span>
-                            <ArrowUpRight size={13} />
+                            <ArrowUpRight size={12} className="shrink-0" />
                           </Link>
                         </td>
                       </tr>

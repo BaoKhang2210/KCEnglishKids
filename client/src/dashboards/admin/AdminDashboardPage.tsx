@@ -414,8 +414,13 @@ export const AdminDashboardPage: React.FC = () => {
               <div>
                 <p className="text-xs font-bold text-sky-900">Đang dạy</p>
                 <p className="text-xl font-black text-sky-950 mt-0.5">
-                  {(stats.teachingMonitor.liveCount || 0) + (stats.teachingMonitor.upcomingCount || 0)} lớp
+                  {stats.teachingMonitor.liveCount || 0} lớp
                 </p>
+                {(stats.teachingMonitor.upcomingCount || 0) > 0 && (
+                  <p className="text-[11px] font-semibold text-sky-700 mt-0.5">
+                    Sắp học: {stats.teachingMonitor.upcomingCount} lớp
+                  </p>
+                )}
               </div>
               <Radio size={20} className="text-sky-600" />
             </div>

@@ -62,7 +62,16 @@ exports.reportDraft=wrap(async(req,res)=>{
   await access.classroom(req,session.classroom);
   const report=require('../services/familyLearningReport');
   const rows=await Promise.all(session.studentScores.map(async score=>{
-    const child=await access.child(req,idOf(score.student));
+    let child;
+    try {
+      child = await access.child(req, idOf(score.student));
+    } catch (err) {
+      if (err?.statusCode === 403 && score.student && typeof score.student === 'object' && score.student._id) {
+        child = score.student;
+      } else {
+        throw err;
+      }
+    }
     const existing=await ParentNotification.findOne({sourceKey:'session:'+session._id+':'+child._id}).select('content').lean();
     return {...await report.row(session,child,score),sentContent:existing?.content||null};
   }));

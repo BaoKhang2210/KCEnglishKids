@@ -1,0 +1,47 @@
+[
+  {
+    "role": "admin",
+    "label": "Đăng nhập",
+    "filename": "admin/login.png",
+    "url": "/admin/login",
+    "title": "KCEnglishKids — Nền tảng học tiếng Anh cho trẻ mầm non (3–6 tuổi)",
+    "heading": "KCEnglishKids Admin",
+    "text": "KCEnglishKids Admin\n\nCổng Quản Trị Hệ Thống & Phân Quyền Giáo Dục\n\nEMAIL HOẶC TÊN ĐĂNG NHẬP ADMIN\nMẬT KHẨU QUẢN TRỊ\nĐăng nhập Quản trị viên"
+  },
+  {
+    "role": "admin",
+    "label": "Tổng quan",
+    "filename": "admin/dashboard.png",
+    "url": "/admin/dashboard",
+    "title": "KCEnglishKids — Nền tảng học tiếng Anh cho trẻ mầm non (3–6 tuổi)",
+    "heading": "KCEnglishKidsAdmin Dashboard",
+    "text": "Đến nội dung chính\nKCEnglishKids\n\nKhông gian quản trị\n\nĐIỀU HÀNH\n\nTổng quan\nLớp học\nThời khóa biểu\nTài khoản\n\nNỘI DUNG HỌC TẬP\n\nGiáo trình\nKho trò chơi\nVinh danh của trường\n\nQUẢN TRỊ HỆ THỐNG\n\nBáo cáo phân tích\nNhật ký hoạt động\nSao lưu & Phục hồi\nS\nSystem Administrator\nadmin@kcenglishkids.com\nQuản trị\nTổng quan\nTrường Mầm Non Song Ngữ KCEnglishKids\nKCEnglishKids\nAdmin Dashboard\nThời Khóa Biểu\nLớp học & Trẻ em\nLịch học hôm nay\nXem chi tiết các lớp\n\nLịch hôm nay\n\n3 lớp\n\nĐã dạy\n\n0 lớp\n\nChưa dạy\n\n0"
+  },
+  {
+    "role": "admin",
+    "label": "Lớp học",
+    "filename": "admin/classrooms.png",
+    "url": "/admin/classrooms",
+    "title": "KCEnglishKids — Nền tảng học tiếng Anh cho trẻ mầm non (3–6 tuổi)",
+    "heading": "Quản lý Lớp học",
+    "text": "Đến nội dung chính\nKCEnglishKids\n\nKhông gian quản trị\n\nĐIỀU HÀNH\n\nTổng quan\nLớp học\nThời khóa biểu\nTài khoản\n\nNỘI DUNG HỌC TẬP\n\nGiáo trình\nKho trò chơi\nVinh danh của trường\n\nQUẢN TRỊ HỆ THỐNG\n\nBáo cáo phân tích\nNhật ký hoạt động\nSao lưu & Phục hồi\nS\nSystem Administrator\nadmin@kcenglishkids.com\nQuản trị\nLớp học\nTrường Mầm Non Song Ngữ KCEnglishKids\nQuản lý Lớp học\nTạo Lớp Học Mới\n\nTỔNG LỚP HỌC\n\n3 lớp\n\n3 đang hoạt động\n\nTỔNG HỌC SINH\n\n21 bé\n\nĐã phân bổ theo lớp\n\nPHÂN CÔNG GIÁO VIÊN\n\nĐa Lớp Linh Ho"
+  },
+  {
+    "role": "admin",
+    "label": "Lịch học",
+    "filename": "admin/schedule.png",
+    "url": "/admin/schedule",
+    "title": "KCEnglishKids — Nền tảng học tiếng Anh cho trẻ mầm non (3–6 tuổi)",
+    "heading": "Thời Khóa Biểu Giảng Dạy",
+    "text": "Đến nội dung chính\nKCEnglishKids\n\nKhông gian quản trị\n\nĐIỀU HÀNH\n\nTổng quan\nLớp học\nThời khóa biểu\nTài khoản\n\nNỘI DUNG HỌC TẬP\n\nGiáo trình\nKho trò chơi\nVinh danh của trường\n\nQUẢN TRỊ HỆ THỐNG\n\nBáo cáo phân tích\nNhật ký hoạt động\nSao lưu & Phục hồi\nS\nSystem Administrator\nadmin@kcenglishkids.com\nQuản trị\nThời khóa biểu\nTrường Mầm Non Song Ngữ KCEnglishKids\nThời Khóa Biểu Giảng Dạy\nXếp Lịch Cho Lớp\nTất cả lớp học (3)\nRainbow Explorers (Age 5–6) (5-6 tuổi)\nSunny Kindergarten (Age 4–5) (4-5 tuổi)\nLit"
+  },
+  {
+    "role": "admin",
+    "label": "Phân tích",
+    "filename": "admin/analytics.png",
+    "url": "/admin/analytics",
+    "title": "KCEnglishKids — Nền tảng học tiếng Anh cho trẻ mầm non (3–6 tuổi)",
+    "heading": "Báo cáo học tập toàn trường",
+    "text": "Đến nội dung chính\nKCEnglishKids\n\nKhông gian quản trị\n\nĐIỀU HÀNH\n\nTổng quan\nLớp học\nThời khóa biểu\nTài khoản\n\nNỘI DUNG HỌC TẬP\n\nGiáo trình\nKho trò chơi\nVinh danh của trường\n\nQUẢN TRỊ HỆ THỐNG\n\nBáo cáo phân tích\nNhật ký hoạt động\nSao lưu & Phục hồi\nS\nSystem Administrator\nadmin@kcenglishkids.com\nQuản trị\nBáo cáo phân tích\nTrường Mầm Non Song Ngữ KCEnglishKids\nBáo cáo học tập toàn trường\nLàm mới số liệu\n\nTổng sao toàn trường\n\n432\n\nSao thưởng trên lớp\n\n231\n\nSao tự học ở nhà\n\n201\n\nSĩ số học tập\n\n21\n\n"
+  }
+]

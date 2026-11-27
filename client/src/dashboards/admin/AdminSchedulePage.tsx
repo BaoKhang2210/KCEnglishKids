@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { adminApi, classroomSessionApi } from '../../services/api';
 import type { ClassSchedule, ScheduleWeeklySlot } from '../../types';
-import { resolveDynamicSlotLesson, cleanReason, getLessonUnitInfo } from '../../utils/teachingSchedule';
+import { resolveDynamicSlotLesson, cleanReason, getLessonUnitInfo, sessionMatchesSlot } from '../../utils/teachingSchedule';
 import { vietnamDate } from '../../utils/vietnamTime';
 
 
@@ -187,7 +187,7 @@ export const AdminSchedulePage: React.FC = () => {
       const [schedRes, clsRes, teachersRes, settingsRes, sessRes] = await Promise.all([
         adminApi.getSchedules(),
         adminApi.getClassrooms(),
-        fetchAllPages<any>(page => adminApi.getUsers({ role: 'TEACHER', limit: 100, page })).then(data => ({ data, users: data })),
+        fetchAllPages<any>(page => adminApi.getUsers({ role: 'TEACHER', status: 'ACTIVE', limit: 100, page })).then(data => ({ data, users: data })),
         adminApi.getSettings(),
         classroomSessionApi.getSessions().catch(() => ({ data: [] }))
       ]);
@@ -567,7 +567,8 @@ export const AdminSchedulePage: React.FC = () => {
   // Check if a schedule applies on a given date (effectiveFrom / effectiveTo)
   const scheduleAppliesOnDate = (sch: ClassSchedule, dateString: string) => {
     const isCompletedClass = typeof sch.classroom === 'object' && sch.classroom?.status === 'COMPLETED';
-    if (!sch.isActive && !isCompletedClass) return false;
+    const hasHistoricalEnd = Boolean(sch.effectiveTo);
+    if (!sch.isActive && !isCompletedClass && !hasHistoricalEnd) return false;
     if (sch.effectiveFrom) {
       const fromStr = new Date(+new Date(sch.effectiveFrom) + 7 * 3600000).toISOString().slice(0, 10);
       if (dateString < fromStr) return false;
@@ -614,7 +615,7 @@ export const AdminSchedulePage: React.FC = () => {
     const sMin = sH * 60 + sM;
     const eMin = eH * 60 + eM;
 
-    return currentMin >= sMin - 15 && currentMin <= eMin + 30;
+    return currentMin >= sMin - 15 && currentMin < eMin;
   };
 
   return (
@@ -622,11 +623,10 @@ export const AdminSchedulePage: React.FC = () => {
       {/* Toast Alert */}
       {alert && (
         <div
-          className={`fixed top-5 right-5 z-50 px-5 py-4 rounded-2xl flex items-center gap-3 text-base font-bold border transition-all ${
-            alert.type === 'success'
+          className={`fixed top-5 right-5 z-50 px-5 py-4 rounded-2xl flex items-center gap-3 text-base font-bold border transition-all ${alert.type === 'success'
               ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
               : 'bg-rose-50 text-rose-900 border-rose-300'
-          }`}
+            }`}
         >
           {alert.type === 'success' ? (
             <CheckCircle2 size={22} className="text-emerald-800 shrink-0" />
@@ -738,9 +738,8 @@ export const AdminSchedulePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                viewMode === 'grid' ? 'bg-white text-indigo-800 shadow-xs' : 'text-slate-600 hover:text-slate-800'
-              }`}
+              className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white text-indigo-800 shadow-xs' : 'text-slate-600 hover:text-slate-800'
+                }`}
             >
               <LayoutGrid size={16} />
               <span>Lịch Tuần</span>
@@ -748,9 +747,8 @@ export const AdminSchedulePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                viewMode === 'list' ? 'bg-white text-indigo-800 shadow-xs' : 'text-slate-600 hover:text-slate-800'
-              }`}
+              className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'list' ? 'bg-white text-indigo-800 shadow-xs' : 'text-slate-600 hover:text-slate-800'
+                }`}
             >
               <List size={16} />
               <span>Lịch Theo Lớp</span>
@@ -792,11 +790,10 @@ export const AdminSchedulePage: React.FC = () => {
                     <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
                       {c.name}
                     </h4>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                      c.status === 'UPCOMING'
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${c.status === 'UPCOMING'
                         ? 'bg-amber-100 text-amber-900 border border-amber-200'
                         : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                    }`}>
+                      }`}>
                       {c.status === 'UPCOMING' ? 'Sắp khai giảng' : 'Đang học'}
                     </span>
                   </div>
@@ -835,11 +832,10 @@ export const AdminSchedulePage: React.FC = () => {
           <button
             type="button"
             onClick={() => setWeekOffset(0)}
-            className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-2xs cursor-pointer active:scale-95 ${
-              weekOffset === 0
+            className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-2xs cursor-pointer active:scale-95 ${weekOffset === 0
                 ? 'bg-indigo-700 text-white shadow-indigo-200'
                 : 'border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900'
-            }`}
+              }`}
             title="Quay về tuần học hiện tại"
           >
             <span>Tuần này</span>
@@ -996,17 +992,15 @@ export const AdminSchedulePage: React.FC = () => {
             return (
               <div
                 key={day.dayNum}
-                className={`rounded-3xl border transition-all flex flex-col min-h-[320px] overflow-hidden ${
-                  isToday
+                className={`rounded-3xl border transition-all flex flex-col min-h-[320px] overflow-hidden ${isToday
                     ? 'bg-indigo-700 border-indigo-700 ring-4 ring-indigo-500/25 shadow-lg'
                     : 'bg-white border-slate-200/90 shadow-2xs'
-                }`}
+                  }`}
               >
                 {/* Day Header */}
                 <div
-                  className={`p-4 border-b flex items-center justify-between ${
-                    isToday ? 'bg-indigo-700 border-indigo-600/60 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
-                  }`}
+                  className={`p-4 border-b flex items-center justify-between ${isToday ? 'bg-indigo-700 border-indigo-600/60 text-white' : 'bg-slate-50/90 border-slate-100 text-slate-800'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="font-black text-base">{day.dayName}</span>
@@ -1047,18 +1041,34 @@ export const AdminSchedulePage: React.FC = () => {
                       const isClassInactive = classObj?.status === 'INACTIVE';
                       const tName =
                         typeof schedule.teacher === 'object' ? schedule.teacher?.name : 'Chưa phân công';
-                      const isLive = isSlotLiveNow(day.dayNum, slot.startTime, slot.endTime, isToday);
+                      const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
+                      const sameClassDaySlots = daySlots
+                        .filter((item) => {
+                          const itemCId = String(typeof item.schedule.classroom === 'object' ? item.schedule.classroom?._id : item.schedule.classroom);
+                          return itemCId === cId;
+                        })
+                        .map((item) => item.slot);
+                      const matchedCancelled = sessions.find((sess: any) => {
+                        const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
+                        if (sessCId !== cId) return false;
+                        if (sess.status !== 'CANCELLED') return false;
+                        const rawTs = sess.startedAt || sess.createdAt;
+                        if (!rawTs) return false;
+                        const sDate = vietnamDate(new Date(rawTs));
+                        if (sDate !== day.dateString) return false;
+                        return sessionMatchesSlot(sess, slot, sameClassDaySlots);
+                      });
+                      const isLive = !matchedCancelled && isSlotLiveNow(day.dayNum, slot.startTime, slot.endTime, isToday);
 
                       return (
                         <div
                           key={`${schedule._id}-${sIdx}`}
-                          className={`p-4 rounded-2xl border transition-all group relative space-y-2.5 ${
-                            isToday
+                          className={`p-4 rounded-2xl border transition-all group relative space-y-2.5 ${isToday
                               ? 'bg-white border-white/90 shadow-md text-slate-900'
                               : isClassCompleted
-                              ? 'bg-purple-50/50 border-purple-200/90 text-slate-700 opacity-80'
-                              : `${theme.bg} ${theme.border}`
-                          }`}
+                                ? 'bg-purple-50/50 border-purple-200/90 text-slate-700 opacity-80'
+                                : `${theme.bg} ${theme.border}`
+                            }`}
                         >
                           {/* Live Now glowing badge */}
                           {isLive && (
@@ -1125,17 +1135,12 @@ export const AdminSchedulePage: React.FC = () => {
 
                           {/* Attached Lesson Badge or Cancelled Status */}
                           {(() => {
-                            const cId = String(typeof schedule.classroom === 'object' ? schedule.classroom?._id : schedule.classroom);
-                            const matchedCancelled = sessions.find((sess: any) => {
-                              const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
-                              if (sessCId !== cId) return false;
-                              if (sess.status !== 'CANCELLED') return false;
-                              const rawTs = sess.startedAt || sess.createdAt;
-                              const sDate = rawTs ? vietnamDate(new Date(rawTs)) : '';
-                              return sDate === day.dateString;
-                            });
-
                             if (matchedCancelled) {
+                              const vnNow = getVietnamNow();
+                              const curMin = vnNow.getHours() * 60 + vnNow.getMinutes();
+                              const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
+                              const canRestore = day.dateString > vietnamDate() || (day.dateString === vietnamDate() && curMin < sH * 60 + sM);
+                              const shortReason = cleanReason(matchedCancelled.cancellationReason).replace(/\s*-\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*$/, '');
                               return (
                                 <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-2xs">
                                   {/* Row 1: Badges */}
@@ -1148,37 +1153,31 @@ export const AdminSchedulePage: React.FC = () => {
                                     </span>
                                   </div>
 
-                                  {/* Row 2: Lý do with cleanReason */}
-                                  <div className="text-[11px] font-bold text-amber-950 leading-snug break-words">
-                                    <span className="text-amber-800 font-extrabold">Lý do:</span>{' '}
-                                    <span className="underline decoration-amber-400 font-black">
-                                      {cleanReason(matchedCancelled.cancellationReason)}
-                                    </span>
-                                    {matchedCancelled.cancellationNote && (
-                                      <p className="text-[10px] text-amber-800 font-medium italic mt-0.5 leading-tight">
-                                        "{matchedCancelled.cancellationNote}"
-                                      </p>
-                                    )}
-                                  </div>
+                                  {/* Row 2: Lý do ngắn gọn */}
+                                  <p className="text-[11px] font-semibold text-amber-950 leading-snug break-words">
+                                    <span className="text-amber-800 font-bold">Lý do:</span> {shortReason}
+                                  </p>
 
-                                  {/* Row 3: Action Button full-width */}
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      if (!window.confirm(`Khôi phục ca học cho lớp ${cName}? Lớp sẽ được mở lại lịch dạy bình thường.`)) return;
-                                      try {
-                                        await classroomSessionApi.restoreCancelledSession(matchedCancelled._id);
-                                        showAlert('success', 'Đã hủy báo nghỉ và mở lại lịch học bình thường');
-                                        await fetchData();
-                                      } catch (err: any) {
-                                        showAlert('error', err?.message || 'Không thể khôi phục');
-                                      }
-                                    }}
-                                    className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
-                                    title="Hủy báo nghỉ và mở lại lịch dạy ca này"
-                                  >
-                                    <span>↩ Hủy báo nghỉ</span>
-                                  </button>
+                                  {/* Row 3: Action Button (chỉ hiện khi ca chưa diễn ra) */}
+                                  {canRestore && (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!window.confirm(`Khôi phục ca học cho lớp ${cName}? Lớp sẽ được mở lại lịch dạy bình thường.`)) return;
+                                        try {
+                                          await classroomSessionApi.restoreCancelledSession(matchedCancelled._id);
+                                          showAlert('success', 'Đã hủy báo nghỉ và mở lại lịch học bình thường');
+                                          await fetchData();
+                                        } catch (err: any) {
+                                          showAlert('error', err?.message || 'Không thể khôi phục');
+                                        }
+                                      }}
+                                      className="w-full text-center rounded-lg bg-amber-200/90 hover:bg-amber-300 text-amber-950 border border-amber-400/80 py-1 px-2 text-xs font-black transition-colors cursor-pointer active:scale-98 shadow-2xs flex items-center justify-center gap-1"
+                                      title="Hủy báo nghỉ và mở lại lịch dạy ca này"
+                                    >
+                                      <span>↩ Hủy báo nghỉ</span>
+                                    </button>
+                                  )}
                                 </div>
                               );
                             }
@@ -1201,13 +1200,12 @@ export const AdminSchedulePage: React.FC = () => {
                               ? `Unit ${seq.unitNumber} · Lesson ${seq.unitLessonNumber}`
                               : `Lesson ${seq.lessonNumber}`;
                             return displayName ? (
-                              <div className={`p-2.5 rounded-xl border flex items-center gap-2 shadow-2xs ${
-                                seq.isTaught
+                              <div className={`p-2.5 rounded-xl border flex items-start gap-2 shadow-2xs ${seq.isTaught
                                   ? 'bg-emerald-50/90 text-emerald-950 border-emerald-200/90'
                                   : 'bg-indigo-50/90 text-indigo-950 border-indigo-200/90'
-                              }`}>
-                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${seq.isTaught ? 'bg-emerald-600' : 'bg-indigo-700'}`} />
-                                <div className="text-xs font-bold leading-snug truncate flex-1" title={`${unitLessonText}: ${displayName}${seq.vietnameseTitle ? ` (${seq.vietnameseTitle})` : ''}`}>
+                                }`}>
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 mt-1.5 ${seq.isTaught ? 'bg-emerald-600' : 'bg-indigo-700'}`} />
+                                <div className="text-xs font-bold leading-snug break-words whitespace-normal flex-1" title={`${unitLessonText}: ${displayName}${seq.vietnameseTitle ? ` (${seq.vietnameseTitle})` : ''}`}>
                                   <span className={`${seq.isTaught ? 'text-emerald-700' : 'text-indigo-700'} font-black`}>
                                     {seq.isTaught ? `✅ ${unitLessonText}:` : `${unitLessonText}:`}
                                   </span>{' '}
@@ -1243,11 +1241,10 @@ export const AdminSchedulePage: React.FC = () => {
             return (
               <div
                 key={sch._id}
-                className={`rounded-3xl border p-6 transition-all flex flex-col justify-between ${
-                  isClassCompleted
+                className={`rounded-3xl border p-6 transition-all flex flex-col justify-between ${isClassCompleted
                     ? 'bg-purple-50/25 border-purple-200/90 shadow-2xs'
                     : `bg-white ${theme.border}`
-                }`}
+                  }`}
               >
                 <div className="space-y-4">
                   {/* Status Banner for Completed or Upcoming */}
@@ -1341,12 +1338,14 @@ export const AdminSchedulePage: React.FC = () => {
                           })
                           .sort((a: any, b: any) => new Date(b.startedAt || b.createdAt || 0).getTime() - new Date(a.startedAt || a.createdAt || 0).getTime());
 
+                        const taughtCount = classSessions.filter((s: any) => s.status !== 'CANCELLED').length;
+
                         return (
                           <>
                             <div className="flex items-center justify-between">
                               <p className="text-xs font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
                                 <span>📖</span>
-                                <span>Buổi học thực tế đã dạy ({classSessions.length}):</span>
+                                <span>Buổi học thực tế đã dạy ({taughtCount}):</span>
                               </p>
                               {classSessions.length > 0 && (
                                 <span className="text-[11px] font-bold text-slate-500">
@@ -1375,17 +1374,17 @@ export const AdminSchedulePage: React.FC = () => {
                                   const lessonTitle = sess.lesson?.title || sess.lesson?.vietnameseTitle || sess.title || `Buổi học #${classSessions.length - sIdx}`;
                                   const sessUnitInfo = getLessonUnitInfo(sess.lesson);
                                   const isCancelled = sess.status === 'CANCELLED';
-                                  const presentStudents = sess.studentScores?.filter((st: any) => st.attendance === 'PRESENT')?.length ?? 0;
+                                  const isLive = sess.status === 'LIVE';
+                                  const presentStudents = sess.studentScores?.filter((st: any) => ['PRESENT', 'LATE'].includes(st.attendance))?.length ?? 0;
                                   const totalStudents = sess.studentScores?.length ?? 0;
 
                                   return (
                                     <div
                                       key={sess._id || sIdx}
-                                      className={`p-3 rounded-2xl border text-xs flex flex-col gap-1.5 ${
-                                        isCancelled
+                                      className={`p-3 rounded-2xl border text-xs flex flex-col gap-1.5 ${isCancelled
                                           ? 'bg-rose-50/60 border-rose-200 text-rose-950'
                                           : 'bg-white border-slate-200 shadow-2xs text-slate-800'
-                                      }`}
+                                        }`}
                                     >
                                       <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1401,6 +1400,10 @@ export const AdminSchedulePage: React.FC = () => {
                                         {isCancelled ? (
                                           <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-black text-[10px] shrink-0 border border-rose-200">
                                             Báo nghỉ
+                                          </span>
+                                        ) : isLive ? (
+                                          <span className="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 font-black text-[10px] shrink-0 border border-sky-200">
+                                            Đang dạy
                                           </span>
                                         ) : (
                                           <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-black text-[10px] shrink-0 border border-emerald-200">
@@ -1455,14 +1458,15 @@ export const AdminSchedulePage: React.FC = () => {
                             const targetDay = currentWeekDays.find(d => d.dayNum === slot.dayOfWeek);
                             const targetDateStr = targetDay?.dateString || currentWeekDays[0]?.dateString;
 
-                            // Check if there is an explicit CANCELLED session on this slot's date
+                            // Check if there is an explicit CANCELLED session matching this exact slot & date
+                            const sameClassDaySlots = (sch.weeklySlots || []).filter((s: any) => s.dayOfWeek === slot.dayOfWeek);
                             const matchedCancelled = sessions.find((sess: any) => {
                               const sessCId = String(typeof sess.classroom === 'object' ? sess.classroom?._id : sess.classroom);
                               if (sessCId !== cId) return false;
                               if (sess.status !== 'CANCELLED') return false;
                               const rawTs = sess.startedAt || sess.createdAt;
                               const sDate = rawTs ? vietnamDate(new Date(rawTs)) : '';
-                              return sDate === targetDateStr;
+                              return sDate === targetDateStr && sessionMatchesSlot(sess, slot, sameClassDaySlots);
                             });
 
                             const seq = resolveDynamicSlotLesson(sch, slot, targetDateStr, classLessons, sessions, vietnamDate());
@@ -1478,24 +1482,22 @@ export const AdminSchedulePage: React.FC = () => {
                             return (
                               <div
                                 key={idx}
-                                className={`p-2.5 rounded-xl border text-xs font-bold space-y-1.5 transition-all ${
-                                  isCancelled
+                                className={`p-2.5 rounded-xl border text-xs font-bold space-y-1.5 transition-all ${isCancelled
                                     ? 'bg-rose-50/50 border-rose-200'
                                     : seq.isTaught
-                                    ? 'bg-emerald-50/40 border-emerald-200'
-                                    : targetDay?.isToday
-                                    ? 'bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-300'
-                                    : 'bg-slate-50 border-slate-200/70'
-                                }`}
+                                      ? 'bg-emerald-50/40 border-emerald-200'
+                                      : targetDay?.isToday
+                                        ? 'bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-300'
+                                        : 'bg-slate-50 border-slate-200/70'
+                                  }`}
                               >
                                 {/* Dòng 1: Thứ + Ngày (dd/MM), Giờ và Phòng học */}
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                                    <span className={`px-2 py-0.5 rounded-md font-black text-xs shrink-0 ${
-                                      targetDay?.isToday
+                                    <span className={`px-2 py-0.5 rounded-md font-black text-xs shrink-0 ${targetDay?.isToday
                                         ? 'bg-indigo-700 text-white'
                                         : 'bg-indigo-100 text-indigo-800'
-                                    }`}>
+                                      }`}>
                                       {DAY_LABELS[slot.dayOfWeek]}{targetDay?.shortDate ? ` · ${targetDay.shortDate}` : ''}
                                     </span>
                                     {targetDay?.isToday && (
@@ -1676,26 +1678,40 @@ export const AdminSchedulePage: React.FC = () => {
                 </div>
 
                 {/* Giáo viên */}
-                <div>
-                  <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                    Giáo Viên Giảng Dạy <span className="text-rose-800">*</span>
-                  </label>
-                  <select
-                    value={formData.teacher}
-                    onChange={(e) => setFormData((p) => ({ ...p, teacher: e.target.value }))}
-                    required
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600"
-                  >
-                    <option value="" disabled>
-                      -- Chọn giáo viên --
-                    </option>
-                    {teachers.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.name} ({t.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {(() => {
+                  const chosenRoom = classrooms.find(c => String(c._id) === String(formData.classroom));
+                  const assignedTeacherId = chosenRoom?.teacher
+                    ? String(typeof chosenRoom.teacher === 'object' ? chosenRoom.teacher._id : chosenRoom.teacher)
+                    : '';
+                  return (
+                    <div>
+                      <label className="block text-sm font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                        Giáo Viên Giảng Dạy <span className="text-rose-800">*</span>
+                      </label>
+                      <select
+                        value={assignedTeacherId || formData.teacher}
+                        onChange={(e) => setFormData((p) => ({ ...p, teacher: e.target.value }))}
+                        disabled={Boolean(assignedTeacherId)}
+                        required
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-base font-bold focus:outline-none focus:border-indigo-600 disabled:opacity-75 disabled:cursor-not-allowed"
+                      >
+                        <option value="" disabled>
+                          -- Chọn giáo viên --
+                        </option>
+                        {teachers.map((t) => (
+                          <option key={t._id} value={t._id}>
+                            {t.name} ({t.email})
+                          </option>
+                        ))}
+                      </select>
+                      {assignedTeacherId && (
+                        <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                          Tự động khớp giáo viên đang phụ trách lớp này.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Tự động kích hoạt khi xếp lịch cho lớp sắp khai giảng */}

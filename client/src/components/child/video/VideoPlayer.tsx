@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertCircle,
   LoaderCircle,
   Maximize,
   Minimize,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { AgeGroupCode, VideoCue, VideoEpisodeSummary } from '../../../types';
 import { playWordAudio, stopWordAudio } from '../../../utils/audio';
-import { formatDuration } from './videoLibraryUtils';
+import { buildVideoPosterSvg, formatDuration } from './videoLibraryUtils';
 
 interface VideoPlayerProps {
   episode: VideoEpisodeSummary;
@@ -664,11 +663,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         )}
 
         {error && (
-          <div className="absolute inset-0 grid place-items-center bg-slate-950/90 px-4 text-center text-white">
-            <div>
-              <AlertCircle className="mx-auto h-9 w-9 text-amber-300" aria-hidden="true" />
-              <p className="mt-2 text-base font-black">Video chưa phát được</p>
-              <p className="mt-1 text-xs font-bold text-slate-300">Con thử lại hoặc chọn tập khác nhé.</p>
+          <div className="absolute inset-0 grid place-items-center overflow-hidden bg-slate-900 text-center text-white">
+            <img
+              src={buildVideoPosterSvg(episode.title, `Bài ${episode.number} · ${cues[0]?.text || 'Interactive English Video'}`, episode.number)}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-90"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-slate-950/40" />
+            <div className="relative z-10 flex flex-col items-center px-6">
               <button
                 type="button"
                 onClick={() => {
@@ -676,11 +678,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   setReady(false);
                   setRetryToken((token) => token + 1);
                 }}
-                className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-amber-400 px-5 text-sm font-black text-amber-950 cursor-pointer"
+                aria-label="Phát video"
+                className="grid h-[76px] w-[76px] place-items-center rounded-full bg-sky-500 text-white shadow-[0_10px_30px_rgba(0,0,0,0.45)] ring-4 ring-white/25 transition-transform hover:scale-105 cursor-pointer"
               >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                Thử lại
+                <Play className="ml-1 h-9 w-9 fill-white" aria-hidden="true" />
               </button>
+              <span className="mt-3 rounded-full bg-slate-950/75 px-4 py-1.5 text-sm font-black text-white backdrop-blur-sm">
+                Bấm để phát bài học
+              </span>
+              {cues[0]?.text && (
+                <p className="mt-4 max-w-2xl rounded-2xl bg-slate-950/70 px-5 py-2.5 text-lg font-black text-amber-200 shadow-lg backdrop-blur-sm">
+                  “{cues[0].text}”
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -735,9 +745,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           >
             {/* Curated cover hides third-party player chrome until the child starts. */}
             <span className="absolute inset-0 bg-slate-900" aria-hidden="true" />
-            {episode.thumbnail && (
-              <img src={episode.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            )}
+            <img
+              src={episode.thumbnail || buildVideoPosterSvg(episode.title, `Bài ${episode.number}`, episode.number)}
+              alt=""
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = buildVideoPosterSvg(episode.title, `Bài ${episode.number}`, episode.number);
+              }}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
             <span className="absolute inset-0 bg-slate-950/35" aria-hidden="true" />
             <span className="relative flex flex-col items-center gap-2.5">
               <span className="grid h-[76px] w-[76px] place-items-center rounded-full bg-sky-500 text-white shadow-[0_10px_30px_rgba(0,0,0,0.4)] ring-4 ring-white/15">

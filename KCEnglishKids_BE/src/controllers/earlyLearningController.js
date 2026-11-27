@@ -123,6 +123,7 @@ exports.unitReview = wrap(async(req,res)=>{
     M.ClassroomSession.find({
       classroom: room._id,
       status: 'COMPLETED',
+      isGapReview: { $ne: true },
       lesson: { $in: lessons.map(l => l._id) },
       $or: [{'teachingOutcome.coverage':{$exists:false}},{'teachingOutcome.coverage':'COMPLETE'}]
     }).distinct('lesson')

@@ -266,6 +266,64 @@ export function sourceLabel(source: VideoSource): string {
   return VIDEO_SOURCE_META[source]?.label || source;
 }
 
+const POSTER_THEMES: Array<{ c1: string; c2: string; accent: string; badge: string; icon: string }> = [
+  { c1: '#4f46e5', c2: '#0ea5e9', accent: '#fde047', badge: 'STORY TIME', icon: '🦇' },
+  { c1: '#10b981', c2: '#059669', accent: '#fef08a', badge: 'FUN ENGLISH', icon: '🌟' },
+  { c1: '#f59e0b', c2: '#ec4899', accent: '#ffffff', badge: 'KIDS VIDEO', icon: '🎵' },
+  { c1: '#8b5cf6', c2: '#ec4899', accent: '#fde047', badge: 'CARTOON', icon: '🦋' },
+  { c1: '#0284c7', c2: '#14b8a6', accent: '#fef08a', badge: 'ADVENTURE', icon: '🐾' }
+];
+
+function escapeXml(str: string): string {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+export function resolveVideoThumbnailUrl(url: string | undefined | null, title: string, subtitle = 'English Kids Cartoon', seed = 0): string {
+  const raw = String(url || '').trim();
+  if (!raw || raw.includes('media.tienganhvui.com')) {
+    return buildVideoPosterSvg(title, subtitle, seed);
+  }
+  return raw;
+}
+
+export function buildVideoPosterSvg(title: string, subtitle = 'English Kids Cartoon', seed = 0): string {
+  const hash = Array.from(String(title || 'video')).reduce((acc, ch) => acc + ch.charCodeAt(0), seed);
+  const theme = POSTER_THEMES[Math.abs(hash) % POSTER_THEMES.length];
+  const cleanTitle = escapeXml(String(title || 'English Story').slice(0, 34));
+  const cleanSub = escapeXml(String(subtitle || 'Interactive Cartoon').slice(0, 46));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${theme.c1}" />
+        <stop offset="100%" stop-color="${theme.c2}" />
+      </linearGradient>
+      <linearGradient id="hill" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22" />
+        <stop offset="100%" stop-color="#0f172a" stop-opacity="0.35" />
+      </linearGradient>
+    </defs>
+    <rect width="640" height="400" fill="url(#bg)" />
+    <circle cx="540" cy="82" r="54" fill="${theme.accent}" fill-opacity="0.26" />
+    <circle cx="540" cy="82" r="34" fill="${theme.accent}" fill-opacity="0.55" />
+    <circle cx="96" cy="76" r="18" fill="#ffffff" fill-opacity="0.2" />
+    <circle cx="132" cy="68" r="24" fill="#ffffff" fill-opacity="0.25" />
+    <circle cx="166" cy="78" r="16" fill="#ffffff" fill-opacity="0.18" />
+    <path d="M0,290 Q170,225 340,285 T640,265 L640,400 L0,400 Z" fill="url(#hill)" />
+    <rect x="44" y="138" width="104" height="104" rx="28" fill="#ffffff" fill-opacity="0.2" stroke="#ffffff" stroke-opacity="0.45" stroke-width="3" />
+    <text x="96" y="206" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" font-size="54" text-anchor="middle">${theme.icon}</text>
+    <rect x="172" y="142" width="144" height="28" rx="14" fill="#ffffff" fill-opacity="0.24" />
+    <text x="244" y="161" font-family="Nunito, Segoe UI, Arial, sans-serif" font-weight="900" font-size="13" fill="#ffffff" text-anchor="middle" letter-spacing="1.2">${theme.badge}</text>
+    <text x="172" y="208" font-family="Nunito, Segoe UI, Arial, sans-serif" font-weight="900" font-size="33" fill="#ffffff">${cleanTitle}</text>
+    <text x="172" y="242" font-family="Nunito, Segoe UI, Arial, sans-serif" font-weight="700" font-size="18" fill="#f8fafc" fill-opacity="0.9">${cleanSub}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 // ─── Lesson player (the four-part counter, transcript and exercises) ───────
 export interface VideoActivitySummary {
   done: number;

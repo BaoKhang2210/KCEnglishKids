@@ -370,7 +370,7 @@
 
 .recognition-table {
   width: 100%;
-  min-width: 600px;
+  min-width: 0;
   border-collapse: collapse;
   text-align: left;
 }
@@ -378,7 +378,7 @@
 .recognition-table th {
   background: #f1f5f9;
   color: #334155;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .recognition-table tr {

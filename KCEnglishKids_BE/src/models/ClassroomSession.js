@@ -17,6 +17,7 @@ const studentScoreSchema = new mongoose.Schema({
     enum: ['PRESENT', 'ABSENT', 'EXCUSED', 'LATE'],
     default: 'PRESENT'
   },
+  note: { type: String, default: '' },
   status: {
     type: String,
     enum: ['ACTIVE', 'NEEDS_PRACTICE', 'COMPLETED'],

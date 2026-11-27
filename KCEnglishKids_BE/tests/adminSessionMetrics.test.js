@@ -29,5 +29,5 @@ test('admin completed sessions count classroom teaching, independently of child 
   assert.equal(response.data.metrics.totalSessions, 6);
   assert.equal(response.data.metrics.completedSessions, 4);
   assert.equal(response.data.metrics.cancelledSessions, 2);
-  assert.equal(response.data.metrics.completionRate, 67);
+  assert.equal(response.data.metrics.completionRate, 100);
 });

@@ -200,7 +200,7 @@ html {
 }
 
 .animate-fade-in {
-  animation: fade-in-soft 0.25s ease-out forwards;
+  animation: fade-in-soft 0.25s ease-out;
 }
 
 @keyframes slide-in-from-right {

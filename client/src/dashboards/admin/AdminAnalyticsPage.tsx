@@ -128,7 +128,9 @@ export const AdminAnalyticsPage: React.FC = () => {
         <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-bold text-emerald-900 truncate">Độ đúng phản xạ toàn trường</p>
-            <p className="text-2xl font-black text-emerald-950 mt-1 truncate">{analytics?.overallAccuracy ?? 88}%</p>
+            <p className="text-2xl font-black text-emerald-950 mt-1 truncate">
+              {analytics?.overallAccuracy != null ? `${analytics.overallAccuracy}%` : '—'}
+            </p>
           </div>
           <div className="h-11 w-11 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
             <TrendingUp size={20} />
@@ -210,14 +212,16 @@ export const AdminAnalyticsPage: React.FC = () => {
                     <td className="py-3 px-2.5 text-center whitespace-nowrap">
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${
-                          (c.classAttendanceRate ?? 100) >= 90
+                          c.classAttendanceRate == null
+                            ? 'bg-slate-50 text-slate-500 border-slate-200'
+                            : c.classAttendanceRate >= 90
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : (c.classAttendanceRate ?? 100) >= 80
+                            : c.classAttendanceRate >= 80
                             ? 'bg-sky-50 text-sky-800 border-sky-200'
                             : 'bg-amber-50 text-amber-800 border-amber-200'
                         }`}
                       >
-                        {c.classAttendanceRate ?? 100}%
+                        {c.classAttendanceRate != null ? `${c.classAttendanceRate}%` : 'Chưa có'}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-center whitespace-nowrap">

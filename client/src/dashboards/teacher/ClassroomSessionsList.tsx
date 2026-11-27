@@ -38,9 +38,19 @@ const fmt = (d?: string) =>
     : '—';
 
 const durationMin = (s?: ClassroomSession) => {
-  if (!s?.startedAt || !s?.endedAt) return null;
+  if (!s || s.status === 'CANCELLED' || !s.startedAt || !s.endedAt) return null;
   const mins = Math.floor((new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000);
   return mins > 0 ? mins : 1;
+};
+
+const getSessionDisplayTitle = (s: ClassroomSession, lesson: any) => {
+  if (s.status === 'CANCELLED' && s.cancellationReason) {
+    return `Báo nghỉ: ${cleanReason(s.cancellationReason)}`;
+  }
+  if (lesson?.title) {
+    return lesson.vietnameseTitle ? `${lesson.title} — ${lesson.vietnameseTitle}` : lesson.title;
+  }
+  return (s.title || 'Buổi học trên lớp').replace(/^Buổi\s+\d+\s*:\s*/i, '');
 };
 
 export const ClassroomSessionsList: React.FC = () => {
@@ -115,9 +125,11 @@ export const ClassroomSessionsList: React.FC = () => {
       const q = search.toLowerCase().trim();
       result = result.filter((s) => {
         const t = (s.title || '').toLowerCase();
-        const lessonName = (typeof s.lesson === 'object' ? (s.lesson as any)?.title || '' : '').toLowerCase();
+        const lessonObj = typeof s.lesson === 'object' ? (s.lesson as any) : null;
+        const lessonName = (lessonObj?.title || '').toLowerCase();
+        const lessonVi = (lessonObj?.vietnameseTitle || '').toLowerCase();
         const cName = (typeof s.classroom === 'object' ? (s.classroom as any)?.name || '' : '').toLowerCase();
-        return t.includes(q) || lessonName.includes(q) || cName.includes(q);
+        return t.includes(q) || lessonName.includes(q) || lessonVi.includes(q) || cName.includes(q);
       });
     }
 
@@ -144,11 +156,16 @@ export const ClassroomSessionsList: React.FC = () => {
 
     for (const s of completed) {
       if (s.summary?.totalStars) totalStars += s.summary.totalStars;
-      const count = s.summary?.participationCount || (Array.isArray((s as any).scores) ? (s as any).scores.length : 0);
+      const count =
+        s.summary?.participationCount ??
+        (Array.isArray(s.studentScores)
+          ? s.studentScores.filter((sc: any) => !['ABSENT', 'EXCUSED'].includes(sc.attendance)).length
+          : 0);
       totalStudents += count;
 
       const acc = (s.summary as any)?.averageScore ?? s.summary?.averageAccuracy;
-      if (typeof acc === 'number' && !isNaN(acc) && acc > 0) {
+      const hasAnswers = ((s.summary as any)?.answeredCount ?? 0) > 0 || (typeof acc === 'number' && acc > 0);
+      if (typeof acc === 'number' && !isNaN(acc) && hasAnswers) {
         sumAccuracy += acc;
         countAccuracy += 1;
       }
@@ -629,8 +646,14 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
     : `/teacher/classroom-sessions/${s._id}/summary`;
 
   const avg = (s.summary as any)?.averageScore ?? s.summary?.averageAccuracy;
-  const participationCount = s.summary?.participationCount || (Array.isArray((s as any).scores) ? (s as any).scores.length : 0);
+  const hasAvg = typeof avg === 'number' && !isNaN(avg) && (avg > 0 || ((s.summary as any)?.answeredCount ?? 0) > 0);
+  const participationCount =
+    s.summary?.participationCount ??
+    (Array.isArray(s.studentScores)
+      ? s.studentScores.filter((sc: any) => !['ABSENT', 'EXCUSED'].includes(sc.attendance)).length
+      : 0);
   const totalStars = s.summary?.totalStars ?? 0;
+  const displayTitle = getSessionDisplayTitle(s, lesson);
 
   // Render GRID CARD layout
   if (viewMode === 'grid') {
@@ -645,50 +668,48 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
             : 'border-slate-200/90 bg-white hover:border-teal-400'
         }`}
       >
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {/* Card Top: Badges */}
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider text-teal-800 bg-teal-50 border border-teal-200">
-              <School size={12} className="text-teal-700" />
-              <span className="truncate max-w-[140px]">{classroom?.name || 'Lớp học'}</span>
+              <School size={12} className="text-teal-700 shrink-0" />
+              <span className="truncate max-w-[160px]">{classroom?.name || 'Lớp học'}</span>
             </span>
 
             {isLive ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Đang dạy
               </span>
             ) : isCancelled ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                 🚫 Báo nghỉ
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                 ✓ Hoàn thành
               </span>
             )}
           </div>
 
-          {/* Card Middle: Title & Lesson */}
-          <div>
-            <h3 className="font-black text-slate-900 text-base group-hover:text-teal-700 transition-colors line-clamp-2 leading-snug">
-              {isCancelled && s.cancellationReason ? `Báo nghỉ: ${cleanReason(s.cancellationReason)}` : s.title}
-            </h3>
-            {lesson?.title && (
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600 line-clamp-1" title={`${unitInfo.label ? `${unitInfo.label}: ` : ''}${lesson.title}`}>
-                <BookOpen size={13} className="text-teal-700 shrink-0" />
-                {unitInfo.label && (
-                  <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-black shrink-0">
-                    {unitInfo.label}
-                  </span>
-                )}
-                <span className="truncate">{lesson.title}</span>
-              </p>
+          {/* Card Middle: Unit Tag & Clean Title */}
+          <div className="space-y-1.5">
+            {unitInfo.label && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-[11px] font-bold">
+                <BookOpen size={11} className="text-teal-700 shrink-0" />
+                {unitInfo.label}
+              </span>
             )}
+            <h3
+              className="font-black text-slate-900 text-base group-hover:text-teal-700 transition-colors line-clamp-2 leading-snug"
+              title={displayTitle}
+            >
+              {displayTitle}
+            </h3>
           </div>
 
           {/* Time & Duration row */}
-          <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 border-t border-slate-100">
+          <div className="flex items-center gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">
             <span className="inline-flex items-center gap-1">
               <Calendar size={13} className="text-slate-400" />
               {fmt(s.startedAt || s.createdAt)}
@@ -696,7 +717,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
             {dur !== null && (
               <span className="inline-flex items-center gap-1 font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg">
                 <Clock size={11} className="text-slate-400" />
-                {dur}p
+                {dur} phút
               </span>
             )}
           </div>
@@ -705,7 +726,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
         {/* Card Footer: Metrics & CTA */}
         <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
           {s.status === 'COMPLETED' ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200"
                 title="Số bé tham gia"
@@ -718,14 +739,16 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
               >
                 <Star size={12} className="fill-amber-400 text-amber-500" /> {totalStars}
               </span>
-              {typeof avg === 'number' && !isNaN(avg) && avg > 0 && (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
-                  title="Độ chính xác trung bình"
-                >
-                  <Target size={12} /> {avg}%
-                </span>
-              )}
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border ${
+                  hasAvg
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-slate-50 text-slate-400 border-slate-200'
+                }`}
+                title="Độ chính xác trung bình"
+              >
+                <Target size={12} /> {hasAvg ? `${avg}%` : '—'}
+              </span>
             </div>
           ) : isCancelled ? (
             <span className="text-[11px] font-bold text-amber-800 truncate max-w-[180px]">
@@ -739,7 +762,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
           )}
 
           <div
-            className={`inline-flex items-center gap-1 text-xs font-black group-hover:translate-x-1 transition-transform ${
+            className={`inline-flex items-center gap-1 text-xs font-black group-hover:translate-x-1 transition-transform shrink-0 ${
               isLive ? 'text-emerald-700' : isCancelled ? 'text-amber-800' : 'text-teal-700'
             }`}
           >
@@ -751,7 +774,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
     );
   }
 
-  // Render LIST ROW layout (Full Width, Neat & Modern)
+  // Render LIST ROW layout (Full Width, Neat & Aligned)
   return (
     <Link
       to={link}
@@ -767,7 +790,7 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
       <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
         {/* Status Avatar */}
         <div
-          className={`h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-2xl grid place-items-center shadow-xs transition-transform group-hover:scale-105 ${
+          className={`h-12 w-12 sm:h-13 sm:w-13 shrink-0 rounded-2xl grid place-items-center shadow-xs transition-transform group-hover:scale-105 ${
             isLive
               ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-200'
               : isCancelled
@@ -776,27 +799,34 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
           }`}
         >
           {isLive ? (
-            <Play size={22} className="fill-white translate-x-0.5" />
+            <Play size={21} className="fill-white translate-x-0.5" />
           ) : isCancelled ? (
-            <AlertCircle size={24} />
+            <AlertCircle size={23} />
           ) : (
-            <BookOpen size={22} />
+            <BookOpen size={21} />
           )}
         </div>
 
         {/* Text Details */}
-        <div className="min-w-0 flex-1 space-y-1">
-          {/* Badges Row */}
+        <div className="min-w-0 flex-1 space-y-1.5">
+          {/* Badges Row (Single compact line) */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-teal-800 bg-teal-50 border border-teal-200">
-              <School size={12} className="text-teal-700" />
+              <School size={12} className="text-teal-700 shrink-0" />
               <span>{classroom?.name || 'Lớp học'}</span>
             </span>
+
+            {unitInfo.label && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold text-teal-900 bg-teal-50/80 border border-teal-200">
+                <BookOpen size={11} className="text-teal-700 shrink-0" />
+                <span>{unitInfo.label}</span>
+              </span>
+            )}
 
             {isLive ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Đang diễn ra trên lớp
+                Đang diễn ra
               </span>
             ) : isCancelled ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300">
@@ -807,18 +837,14 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
                 ✓ Đã hoàn thành
               </span>
             )}
-
-            {lesson?.title && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-bold text-teal-900 bg-teal-50 border border-teal-200">
-                <BookOpen size={11} className="text-teal-700 shrink-0" />
-                <span>{unitInfo.label ? `${unitInfo.label} · ` : ''}{lesson.title}</span>
-              </span>
-            )}
           </div>
 
-          {/* Title */}
-          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base group-hover:text-teal-700 transition-colors truncate">
-            {isCancelled && s.cancellationReason ? `Báo nghỉ: ${cleanReason(s.cancellationReason)}` : s.title}
+          {/* Clean Lesson Title */}
+          <h3
+            className="font-extrabold text-slate-900 text-sm sm:text-base group-hover:text-teal-700 transition-colors leading-snug break-words"
+            title={displayTitle}
+          >
+            {displayTitle}
           </h3>
 
           {/* Metadata sub-row */}
@@ -842,53 +868,55 @@ const SessionItem: React.FC<SessionItemProps> = ({ session: s, viewMode }) => {
         </div>
       </div>
 
-      {/* Right: Metrics + Action Button */}
-      <div className="flex items-center justify-between lg:justify-end gap-3.5 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
-        {/* Performance metrics pills for completed sessions */}
+      {/* Right: Aligned Metrics Grid + Fixed-Width Action Button */}
+      <div className="flex items-center justify-between lg:justify-end gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
+        {/* Performance metrics pills for completed sessions (fixed column widths for vertical alignment) */}
         {s.status === 'COMPLETED' && (
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-3 gap-2 shrink-0">
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200/80 shadow-2xs"
+              className="flex items-center justify-center gap-1.5 min-w-[74px] px-2.5 py-1.5 rounded-xl text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200/80 shadow-2xs tabular-nums"
               title="Số học sinh tham gia buổi học"
             >
-              <Users size={14} className="text-sky-600" />
+              <Users size={14} className="text-sky-600 shrink-0" />
               <span>{participationCount} bé</span>
             </div>
 
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs"
+              className="flex items-center justify-center gap-1.5 min-w-[82px] px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs tabular-nums"
               title="Tổng số sao các bé nhận được"
             >
-              <Star size={14} className="fill-amber-400 text-amber-500" />
+              <Star size={14} className="fill-amber-400 text-amber-500 shrink-0" />
               <span>{totalStars} sao</span>
             </div>
 
-            {typeof avg === 'number' && !isNaN(avg) && avg > 0 && (
-              <div
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs"
-                title="Tỉ lệ hoàn thành / chuẩn xác"
-              >
-                <Target size={14} className="text-emerald-600" />
-                <span>{avg}%</span>
-              </div>
-            )}
+            <div
+              className={`flex items-center justify-center gap-1.5 min-w-[72px] px-2.5 py-1.5 rounded-xl text-xs font-bold border shadow-2xs tabular-nums ${
+                hasAvg
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+                  : 'bg-slate-50 text-slate-400 border-slate-200/80'
+              }`}
+              title={hasAvg ? 'Tỉ lệ hoàn thành / chuẩn xác' : 'Chưa có dữ liệu điểm hoạt động'}
+            >
+              <Target size={14} className={hasAvg ? 'text-emerald-600 shrink-0' : 'text-slate-400 shrink-0'} />
+              <span>{hasAvg ? `${avg}%` : '—'}</span>
+            </div>
           </div>
         )}
 
         {/* Action Button */}
-        <div>
+        <div className="shrink-0">
           {isLive ? (
-            <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-emerald-600 text-white text-xs sm:text-sm font-black shadow-sm group-hover:bg-emerald-700 transition">
+            <div className="inline-flex items-center justify-center gap-1.5 min-w-[138px] px-4 py-2 rounded-2xl bg-emerald-600 text-white text-xs sm:text-sm font-black shadow-sm group-hover:bg-emerald-700 transition">
               <span>Vào lớp dạy</span>
               <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
           ) : isCancelled ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-amber-100 text-amber-900 border border-amber-300 text-xs sm:text-sm font-bold group-hover:bg-amber-200 transition">
+            <div className="inline-flex items-center justify-center gap-1.5 min-w-[138px] px-3.5 py-2 rounded-2xl bg-amber-100 text-amber-900 border border-amber-300 text-xs sm:text-sm font-bold group-hover:bg-amber-200 transition">
               <span>Xem lịch dạy</span>
               <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
           ) : (
-            <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-slate-100 text-slate-800 text-xs sm:text-sm font-bold group-hover:bg-teal-50 group-hover:text-teal-800 group-hover:border-teal-200 border border-transparent transition">
+            <div className="inline-flex items-center justify-center gap-1.5 min-w-[138px] px-4 py-2 rounded-2xl bg-slate-100 text-slate-800 text-xs sm:text-sm font-bold group-hover:bg-teal-50 group-hover:text-teal-800 group-hover:border-teal-200 border border-transparent transition">
               <span>Xem tổng kết</span>
               <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </div>

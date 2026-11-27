@@ -235,7 +235,7 @@ export function ObservationPortfolio({
               <p className="mt-3 whitespace-pre-wrap">{item.evidence}</p>
               {item.nextStep && <p className="mt-2"><b>Cùng hỗ trợ:</b> {item.nextStep}</p>}
 
-              {!readOnly && (user?.role === 'ADMIN' || item.teacher?._id === (user?.id || user?._id)) && (
+              {!readOnly && (user?.role === 'ADMIN' || String(item.teacher?._id || item.teacher || '') === String(user?.id || (user as any)?._id || '')) && (
                 <div className="mt-4">
                   {confirmRemoval === item._id ? (
                     <div className="rounded-xl border border-rose-200 bg-white p-3">

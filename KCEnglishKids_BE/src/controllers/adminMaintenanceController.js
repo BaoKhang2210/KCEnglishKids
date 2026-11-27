@@ -28,6 +28,9 @@ exports.createChild = handler(async (req, res) => {
   const body = req.body;
   if (!String(body.name || '').trim()) throw I.fail('Vui lòng nhập tên học sinh.');
   const room = body.assignedClass ? await I.classroom(body.assignedClass) : null;
+  if (room && (room.status === 'COMPLETED' || room.status === 'INACTIVE')) {
+    throw I.fail('Không thể thêm học sinh vào lớp học đã hoàn thành hoặc đã vô hiệu hóa.', 400);
+  }
   const dob = I.parseDob(body.dob);
   const years = dob ? Math.floor((Date.now() - +dob) / 31557600000) : 3;
   const code = room?.ageGroupCode || body.ageGroupCode || (years <= 3 ? '3-4' : years === 4 ? '4-5' : '5-6');
@@ -55,6 +58,9 @@ exports.createTeacher = handler(async (req, res) => {
   if (!name?.trim() || !username?.trim() || !email?.trim() || String(password || '').length < 8) throw I.fail('Nhập đầy đủ họ tên, mã đăng nhập, email và mật khẩu ít nhất 8 ký tự.');
   if (await User.exists({ $or: [{ username: username.trim().toLowerCase() }, { email: email.trim().toLowerCase() }] })) throw I.fail('Email hoặc mã đăng nhập đã được sử dụng.');
   const room = assignedClass ? await I.classroom(assignedClass) : null;
+  if (room && (room.status === 'COMPLETED' || room.status === 'INACTIVE')) {
+    throw I.fail('Không thể phân công giáo viên vào lớp học đã hoàn thành hoặc đã vô hiệu hóa.', 400);
+  }
   const teacher = new User({ role: 'TEACHER', name: name.trim(), username: username.trim().toLowerCase(), email: email.trim().toLowerCase(), password, contact, status: 'ACTIVE', avatar: req.body.avatar || randomAnimalAvatar() });
   await I.atomic(async () => {
     await teacher.save();
@@ -142,6 +148,9 @@ exports.removeStudentFromClassroom = handler(async (req, res) => {
 });
 exports.bulkImportChildren = handler(async (req, res) => {
   const room = req.body.classroomId ? await I.classroom(req.body.classroomId) : null;
+  if (room && (room.status === 'COMPLETED' || room.status === 'INACTIVE')) {
+    throw I.fail('Không thể nhập học sinh vào lớp học đã hoàn thành hoặc đã vô hiệu hóa.', 400);
+  }
   const data = await I.atomic(() => I.importStudents(req.body.students, room, req.body.defaultAgeGroupCode));
   await I.audit(req, 'BULK_IMPORT_STUDENTS', room ? 'ClassRoom' : 'User', room?._id, { className: room?.name, importedCount: data.createdUsers.length, skippedCount: data.skippedCount });
   res.json({ success: true, message: `Đã tạo ${data.createdUsers.length} học sinh; bỏ qua ${data.skippedCount} dòng đã nhập.`, data: { ...data, users: data.createdUsers, count: data.createdUsers.length }, credentials: data.credentials });
@@ -217,10 +226,11 @@ exports.getAdminAnalytics = handler(async (req, res) => {
       return { ...student, className: student.assignedClass?.name || 'Chưa vào lớp', homeStars: reward.homeStars, classStars: reward.classStars, totalStars: reward.totalStars };
     })));
   }
-  const rooms = await ClassRoom.find({ deletionPending: { $ne: true } }).populate('teacher', 'name').lean();
+  const activeStudentIds = students.map(s => s._id);
+  const rooms = await ClassRoom.find({ status: { $ne: 'INACTIVE' }, deletionPending: { $ne: true } }).populate('teacher', 'name').lean();
   const sessions = await ClassroomSession.find({ status: 'COMPLETED' }).select('classroom studentScores startedAt endedAt').lean();
 
-  const allResults = await ActivityResult.find().select('score stars correctCount incorrectCount duration').lean();
+  const allResults = await ActivityResult.find({ child: { $in: activeStudentIds } }).select('score stars correctCount incorrectCount duration').lean();
   const totalActivitiesPlayed = allResults.length;
   const totalCorrect = allResults.reduce((sum, r) => sum + (r.correctCount || 0), 0);
   const totalAnswered = allResults.reduce((sum, r) => sum + (r.correctCount || 0) + (r.incorrectCount || 0), 0);
@@ -247,7 +257,7 @@ exports.getAdminAnalytics = handler(async (req, res) => {
         if (['PRESENT', 'LATE'].includes(sc.attendance)) totalPresentAcrossSessions++;
       });
     });
-    const classAttendanceRate = totalRosterAcrossSessions > 0 ? Math.round((totalPresentAcrossSessions / totalRosterAcrossSessions) * 100) : (members.length > 0 ? 100 : 0);
+    const classAttendanceRate = totalRosterAcrossSessions > 0 ? Math.round((totalPresentAcrossSessions / totalRosterAcrossSessions) * 100) : null;
 
     return { _id: room._id, name: room.name, ageGroupCode: room.ageGroupCode, teacherName: room.teacher?.name || 'Chưa phân công', studentCount: members.length, sessionCount: ownSessions.length,
       homeStars, classStars, totalStars: homeStars + classStars, classAttendanceRate, classSessionStars: ownSessions.reduce((sum, session) => sum + session.studentScores.reduce((total, score) => total + (['ABSENT', 'EXCUSED'].includes(score.attendance) ? 0 : score.stars || 0), 0), 0), avgStarsPerStudent: members.length ? Math.round((homeStars + classStars) / members.length) : 0 };
@@ -278,7 +288,7 @@ exports.getStudentCompetency = handler(async (req, res) => {
   const mastered = words.filter(record => record.masteryLevel === 3);
   const review = words.filter(record => record.wrongCount > 0 && record.masteryLevel < 3);
   const repeat = results.filter(result => result.activity?.activityType === 'LISTEN_REPEAT');
-  const repeatScores = repeat.map(r => r.score).filter(s => typeof s === 'number' && s > 0);
+  const repeatScores = repeat.map(r => r.score).filter(s => typeof s === 'number' && !Number.isNaN(s) && s >= 0);
   const avgPronunciationScore = repeatScores.length
     ? Math.round(repeatScores.reduce((sum, s) => sum + s, 0) / repeatScores.length)
     : null;
