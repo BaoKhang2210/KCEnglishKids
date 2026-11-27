@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Film,
   Heart,
   HelpCircle,
   LayoutGrid,
@@ -24,12 +23,14 @@ import { sfx } from '../../utils/audio';
 import { YouTubeBadge } from '../../components/child/video/YouTubeBadge';
 import type { VideoEpisodeSummary, VideoSeriesDetail, VideoSeriesSummary } from '../../types';
 import {
+  buildVideoPosterSvg,
   countDubbedLessons,
   durationLabel,
   filterLessons,
   pickStartEpisode,
   readLessonFilters,
   readLessonView,
+  resolveVideoThumbnailUrl,
   sourceLabel,
   topicLabel,
   writeLessonFilters,
@@ -245,11 +246,15 @@ export const VideoSeriesPage: React.FC = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
                 <span className="relative block h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-28 sm:w-28">
-                  {detail.thumbnail ? (
-                    <img src={detail.thumbnail} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <Film className="absolute inset-0 m-auto h-8 w-8 text-slate-300" aria-hidden="true" />
-                  )}
+                  <img
+                    src={resolveVideoThumbnailUrl(detail.thumbnail, detail.title, `${detail.episodeCount} bài học`)}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = buildVideoPosterSvg(detail.title, `${detail.episodeCount} bài học`);
+                    }}
+                    className="h-full w-full object-cover"
+                  />
                 </span>
 
                 <div className="min-w-0 flex-1">
@@ -522,16 +527,16 @@ export const VideoSeriesPage: React.FC = () => {
                       className="group block w-full overflow-hidden rounded-[22px] border-2 border-slate-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md cursor-pointer"
                     >
                       <span className="relative block aspect-video overflow-hidden bg-slate-100">
-                        {episode.thumbnail || detail.thumbnail ? (
-                          <img
-                            src={episode.thumbnail || detail.thumbnail}
-                            alt=""
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <Film className="absolute inset-0 m-auto h-8 w-8 text-slate-300" aria-hidden="true" />
-                        )}
+                        <img
+                          src={resolveVideoThumbnailUrl(episode.thumbnail || detail.thumbnail, episode.title, `Bài ${episode.number}`, episode.number)}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = buildVideoPosterSvg(episode.title, `Bài ${episode.number}`, episode.number);
+                          }}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                          loading="eager"
+                        />
                         <span className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
                         <span className="absolute left-2 top-2 rounded-full bg-slate-950/70 px-2 py-0.5 text-[11px] font-black text-white">
                           Bài {episode.number}
@@ -592,11 +597,16 @@ export const VideoSeriesPage: React.FC = () => {
                       className="group flex w-full items-center gap-3.5 rounded-[22px] border-2 border-slate-200 bg-white p-3 text-left transition-all hover:border-indigo-300 hover:shadow-sm cursor-pointer"
                     >
                       <span className="relative block h-20 w-32 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
-                        {item.thumbnail ? (
-                          <img src={item.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          <Film className="absolute inset-0 m-auto h-7 w-7 text-slate-300" aria-hidden="true" />
-                        )}
+                        <img
+                          src={resolveVideoThumbnailUrl(item.thumbnail, item.title, `${item.episodeCount} bài`)}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = buildVideoPosterSvg(item.title, `${item.episodeCount} bài`);
+                          }}
+                          className="h-full w-full object-cover"
+                          loading="eager"
+                        />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-base font-black leading-snug text-slate-800 line-clamp-2">{item.title}</span>

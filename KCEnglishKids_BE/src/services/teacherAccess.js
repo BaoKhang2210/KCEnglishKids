@@ -16,4 +16,12 @@ async function child(req, id) {
   if (!item) fail('Bạn không được phân công phụ trách học sinh này.', 403);
   return item;
 }
-module.exports = { classScope, classroom, classroomIds, studentIds, child };
+async function activeRoster(room) {
+  const raw = room?.students || [];
+  if (!raw.length || require('mongoose').connection?.readyState !== 1) return raw;
+  const activeIds = new Set(
+    (await User.find({ _id: { $in: raw.map(s => s?._id || s) }, role: 'CHILD', status: 'ACTIVE' }).distinct('_id')).map(String)
+  );
+  return raw.filter(s => activeIds.has(String(s?._id || s)));
+}
+module.exports = { classScope, classroom, classroomIds, studentIds, child, activeRoster };

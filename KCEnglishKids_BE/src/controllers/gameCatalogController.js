@@ -20,7 +20,7 @@ exports.get = async (_req, res, next) => {
         games: catalog.games.map(game => ({
           ...game,
           supportedLessons: lessons.filter(
-            lesson => usable(game, lesson.vocabularyItems.filter(word => word.status === 'ACTIVE')).length >= game.minVocab
+            lesson => usable(game, (lesson.vocabularyItems || []).filter(word => word && word.status === 'ACTIVE')).length >= game.minVocab
           ).length
         })),
         lessons: lessons.map(lesson => ({
@@ -40,7 +40,7 @@ exports.preview = async (req, res, next) => {
     if (!require('../services/teacherRules').validId(req.query.lessonId)) fail('Chọn bài học để xem trước.');
     const lesson = await Lesson.findOne({ _id: req.query.lessonId, status: 'ACTIVE' }).populate('vocabularyItems').lean();
     if (!lesson) fail('Bài học không còn hoạt động.', 404);
-    res.json({ success: true, data: { ...lesson, vocabularyItems: lesson.vocabularyItems.filter(word => word.status === 'ACTIVE') } });
+    res.json({ success: true, data: { ...lesson, vocabularyItems: (lesson.vocabularyItems || []).filter(word => word && word.status === 'ACTIVE') } });
   } catch (error) {
     next(error);
   }
@@ -167,7 +167,7 @@ exports.readiness = async (_req, res, next) => {
       const hasImageCount = words.filter(w => Boolean(w.imageUrl)).length;
       const hasTransparentCount = words.filter(w => Boolean(w.isTransparent)).length;
       const hasAudioCount = words.filter(w => Boolean(w.audioUrl)).length;
-      const supportedGames = catalog.games.filter(g => usable(g, words).length >= g.minVocab);
+      const supportedGames = catalog.games.filter(g => g.enabled !== false && usable(g, words).length >= g.minVocab);
 
       const isFullyReady = vocabCount >= 4 && hasImageCount === vocabCount && hasAudioCount === vocabCount;
 

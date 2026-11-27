@@ -41,12 +41,13 @@
 }
 
 .staff-surface :is(.overflow-x-auto, .overflow-auto) > table {
-  min-inline-size: 44rem;
+  min-inline-size: 0;
+  width: 100%;
 }
 
 .staff-surface table :is(th, td) {
   word-break: normal;
-  overflow-wrap: normal;
+  overflow-wrap: break-word;
 }
 
 .staff-surface :is(td, th) :is(button, time),

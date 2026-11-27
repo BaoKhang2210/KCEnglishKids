@@ -370,7 +370,10 @@ export const AdminLogsPage: React.FC = () => {
               type="text"
               placeholder="Tìm theo tên admin, nội dung, lớp học, bài học..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="w-full pl-10 pr-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm text-inherit placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
             />
           </form>
@@ -395,12 +398,16 @@ export const AdminLogsPage: React.FC = () => {
                 <option value="ADD_STUDENTS_TO_CLASS">Thêm học sinh vào lớp</option>
                 <option value="REMOVE_STUDENT_FROM_CLASS">Gỡ học sinh khỏi lớp</option>
                 <option value="BULK_ASSIGN_STUDENTS">Xếp lớp hàng loạt</option>
+                <option value="ROLLOVER_CLASSROOM">Lên lớp niên khóa mới</option>
               </optgroup>
               <optgroup label="👥 Người dùng & Học sinh">
                 <option value="BULK_IMPORT_STUDENTS">Nhập học sinh từ Excel</option>
                 <option value="CREATE_USER">Tạo tài khoản</option>
                 <option value="UPDATE_USER">Cập nhật tài khoản</option>
                 <option value="DELETE_USER">Xóa tài khoản</option>
+                <option value="LOCK_USER">Khóa tài khoản</option>
+                <option value="UNLOCK_USER">Mở khóa tài khoản</option>
+                <option value="RESET_PASSWORD">Đặt lại mật khẩu</option>
                 <option value="RESET_PIN">Đặt lại mã PIN</option>
               </optgroup>
               <optgroup label="📚 Giáo trình & Bài học">
@@ -419,10 +426,14 @@ export const AdminLogsPage: React.FC = () => {
                 <option value="UPDATE_VOCABULARY">Cập nhật từ vựng</option>
                 <option value="DELETE_VOCABULARY">Xóa từ vựng</option>
               </optgroup>
-              <optgroup label="⚙️ Khác">
+              <optgroup label="⚙️ Hệ thống & Khác">
                 <option value="UPDATE_TOPIC_STATUS">Đổi trạng thái chủ đề</option>
+                <option value="UPDATE_GAME_CATALOG">Cập nhật cấu hình game</option>
                 <option value="CREATE_REWARD">Tạo phần thưởng</option>
                 <option value="REWARD_GRANTED">Trao thưởng học sinh</option>
+                <option value="EXPORT_SYSTEM_BACKUP">Xuất sao lưu hệ thống</option>
+                <option value="RESTORE_SYSTEM_BACKUP">Phục hồi hệ thống</option>
+                <option value="CREATE_SERVER_SNAPSHOT">Tạo bản snapshot server</option>
               </optgroup>
             </select>
           </div>
@@ -571,51 +582,51 @@ export const AdminLogsPage: React.FC = () => {
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-white text-slate-600 uppercase tracking-wider font-bold text-[11px]">
-                  <th className="py-3.5 px-4 w-44">Thời gian</th>
-                  <th className="py-3.5 px-4 w-48">Người thực hiện</th>
-                  <th className="py-3.5 px-4 w-40">Hành động</th>
-                  <th className="py-3.5 px-4 w-32">Đối tượng</th>
-                  <th className="py-3.5 px-4">Tóm tắt thao tác</th>
-                  <th className="py-3.5 px-4 text-center w-24">Chi tiết</th>
+                  <th className="py-3 px-2.5">Thời gian</th>
+                  <th className="py-3 px-2.5">Người thực hiện</th>
+                  <th className="py-3 px-2.5">Hành động</th>
+                  <th className="py-3 px-2.5">Đối tượng</th>
+                  <th className="py-3 px-2.5">Tóm tắt thao tác</th>
+                  <th className="py-3 px-2 text-center">Chi tiết</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 font-medium">
                 {logs.map((log) => (
                   <tr key={log._id} className="hover:bg-slate-100 transition-colors group">
-                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 text-xs">
+                    <td className="py-3 px-2.5 text-slate-600 text-xs">
                       <div className="flex items-center gap-1.5">
                         <Clock size={13} className="text-slate-600 shrink-0" />
                         <span>{new Date(log.createdAt).toLocaleString('vi-VN')}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="truncate">
-                        <p className="font-bold text-inherit text-xs truncate max-w-[150px]">
+                    <td className="py-3 px-2.5">
+                      <div className="min-w-0">
+                        <p className="font-bold text-inherit text-xs break-words">
                           {log.user?.name || 'Admin'}
                         </p>
-                        <p className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                        <p className="text-[10px] text-slate-500 break-all">
                           {log.user?.email || log.user?.role || 'admin'}
                         </p>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
+                    <td className="py-3 px-2.5">
                       <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black border ${getActionColor(
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black border ${getActionColor(
                           log.action
                         )}`}
                       >
                         {getActionLabel(log.action)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap text-xs">
+                    <td className="py-3 px-2.5 text-xs">
                       <span className="font-bold text-slate-700 bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-[11px]">
                         {log.targetType || 'Hệ thống'}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-700">
+                    <td className="py-3 px-2.5 text-xs text-slate-700">
                       <p className="line-clamp-2 leading-relaxed">{getLogSummary(log)}</p>
                     </td>
-                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                    <td className="py-3 px-2 text-center">
                       <button
                         onClick={() => setSelectedLog(log)}
                         title="Xem đầy đủ chi tiết"

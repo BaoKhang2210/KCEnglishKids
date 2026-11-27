@@ -144,7 +144,7 @@ exports.recordPractice = async (req, res, next) => {
     for (const practice of [...events].reverse()) {
       if (!practice.isCorrect || practice.independent === false) break;
       independentStreak += 1;
-      streakDays.add(new Date(practice.createdAt).toISOString().slice(0, 10));
+      streakDays.add(new Date(practice.createdAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }));
       if (practice.activityType) streakActivityTypes.add(practice.activityType);
     }
     const masteryLevel = calculateMasteryLevel({
@@ -265,9 +265,10 @@ exports.getStudentMastery = async (req, res, next) => {
 
     await require('../services/teacherAccess').child(req, studentId);
 
-    const records = await VocabularyMastery.find({ student: studentId })
-      .populate('vocabulary', 'english vietnamese imageUrl category')
+    const rawRecords = await VocabularyMastery.find({ student: studentId })
+      .populate('vocabulary', 'english vietnamese imageUrl category status')
       .sort({ masteryLevel: -1, lastReviewedAt: -1 });
+    const records = rawRecords.filter((r) => r.vocabulary && (!r.vocabulary.status || r.vocabulary.status === 'ACTIVE'));
 
     const summary = {
       total: records.length,

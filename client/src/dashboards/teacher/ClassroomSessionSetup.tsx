@@ -1,6 +1,6 @@
 import { lessonPosition } from '../../utils/curriculumLessons';
 import { PrintLessonCards } from '../../components/teacher/PrintLessonCards';
-import { scheduleEffectiveAt, countsTowardCurriculum } from '../../utils/teachingSchedule';
+import { scheduleEffectiveAt, countsTowardCurriculum, pickTodayPendingSlot, sessionMatchesSlot } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock } from '../../utils/vietnamTime';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -160,9 +160,10 @@ export const ClassroomSessionSetup: React.FC = () => {
       teacherApi.getClassDetail(activeClassId),
       teacherApi.getContent(),
       classroomSessionApi.getSessions({ classroomId: activeClassId }),
-      teacherApi.getMySchedule()
+      teacherApi.getMySchedule(),
+      teacherApi.getClassAttendance(activeClassId).catch(() => null)
     ])
-      .then(([cls, cnt, prevSess, schedRes]) => {
+      .then(([cls, cnt, prevSess, schedRes, attRes]) => {
         if (cancelled) return;
         const classData = cls.data;
         setClassroom(classData);
@@ -170,12 +171,18 @@ export const ClassroomSessionSetup: React.FC = () => {
         const list = (prevSess.data || []) as any[];
         setReviewSessions(list);
         setPreviousSessions(list.filter(countsTowardCurriculum));
-        const maxPrev = list.reduce((m: number, s: any) => Math.max(m, Number(s.sessionNumber) || 0), 0);
-        const nextNum = maxPrev > 0 ? maxPrev + 1 : (list.length + 1);
+        const nonCancelledCount = list.filter((s: any) => s.status !== 'CANCELLED').length;
+        const maxPrev = list.reduce((m: number, s: any) => (s.status === 'CANCELLED' ? m : Math.max(m, Number(s.sessionNumber) || 0)), 0);
+        const nextNum = maxPrev > 0 ? maxPrev + 1 : (nonCancelledCount + 1);
         setSessionNumber(nextNum);
 
         const schedList = Array.isArray(schedRes) ? schedRes : (schedRes?.data || schedRes?.schedules || []);
         setSchedules(schedList);
+
+        const completed = new Set([
+          ...(classData?.completedLessons || []).map((item: any) => String(item?._id || item)),
+          ...list.filter(countsTowardCurriculum).map(item => String(item.lesson?._id || item.lesson))
+        ]);
 
         // Auto pre-select attached lesson from timetable slot or Admin-designated current lesson if not provided in URL
         if (!selectedLessonId) {
@@ -186,28 +193,34 @@ export const ClassroomSessionSetup: React.FC = () => {
           let slotLessonId: string | null = null;
           const currentDay = getVietnamNow().getDay();
           const currentMinutes = getVietnamNow().getHours() * 60 + getVietnamNow().getMinutes();
-          // 1. First priority: exact slot window on current day
+          // 1. First priority: exact slot window on current day (if not already completed)
           for (const s of activeClassScheds) {
             for (const slot of s.weeklySlots || []) {
               const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
               const [eH, eM] = (slot.endTime || '23:59').split(':').map(Number);
               if (slot.dayOfWeek === currentDay && currentMinutes >= (sH * 60 + sM - 15) && currentMinutes <= (eH * 60 + eM + 30)) {
                 if (slot.lesson) {
-                  slotLessonId = typeof slot.lesson === 'object' ? slot.lesson._id : slot.lesson;
-                  break;
+                  const candidate = String(typeof slot.lesson === 'object' ? slot.lesson._id : slot.lesson);
+                  if (!completed.has(candidate)) {
+                    slotLessonId = candidate;
+                    break;
+                  }
                 }
               }
             }
             if (slotLessonId) break;
           }
 
-          // 2. Second priority: scheduled slot on current day (any time today)
+          // 2. Second priority: scheduled slot on current day (if not already completed)
           if (!slotLessonId) {
             for (const s of activeClassScheds) {
               for (const slot of s.weeklySlots || []) {
                 if (slot.dayOfWeek === currentDay && slot.lesson) {
-                  slotLessonId = typeof slot.lesson === 'object' ? slot.lesson._id : slot.lesson;
-                  break;
+                  const candidate = String(typeof slot.lesson === 'object' ? slot.lesson._id : slot.lesson);
+                  if (!completed.has(candidate)) {
+                    slotLessonId = candidate;
+                    break;
+                  }
                 }
               }
               if (slotLessonId) break;
@@ -220,10 +233,6 @@ export const ClassroomSessionSetup: React.FC = () => {
             const cId = classData?.currentLesson
               ? (typeof classData.currentLesson === 'object' ? classData.currentLesson._id : classData.currentLesson)
               : null;
-            const completed = new Set([
-              ...(classData?.completedLessons || []).map((item: any) => String(item?._id || item)),
-              ...list.filter(countsTowardCurriculum).map(item => String(item.lesson?._id || item.lesson))
-            ]);
             if (cId && !completed.has(String(cId))) {
               setSelectedLessonId(String(cId));
             } else {
@@ -233,20 +242,27 @@ export const ClassroomSessionSetup: React.FC = () => {
           }
         }
 
-        // Initialize fresh attendance records for new session: all students start as PRESENT
-        const classroomStudents = classData?.students || [];
-        const merged = classroomStudents.map((st: any) => ({
-          student: st,
-          status: 'PRESENT',
-          note: ''
-        }));
+        // Initialize attendance records, preserving saved today records if already taken
+        const classroomStudents = (classData?.students || []).filter((st: any) => !st?.status || st.status === 'ACTIVE');
+        const savedAttRecords = attRes?.data?.records || [];
+        const savedAttMap = new Map<string, any>(
+          savedAttRecords.map((r: any) => [String(r.student?._id || r.student), r])
+        );
+        const merged = classroomStudents.map((st: any) => {
+          const prev = savedAttMap.get(String(st._id || st));
+          return {
+            student: st,
+            status: prev?.status || 'PRESENT',
+            note: prev?.note || ''
+          };
+        });
         setAttendanceRecords(merged);
-        setAttendanceNote('');
+        setAttendanceNote(attRes?.data?.note || '');
       })
       .catch((e) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoadingAttendance(false); });
     return () => { cancelled = true; };
-  }, [activeClassId, attendanceDate]);
+  }, [activeClassId]);
 
   // ── Requirement 10: Strict Timetable Timing Evaluation ─────────────────────
   const scheduleLiveTiming = useMemo(() => {
@@ -269,7 +285,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     }
 
     let activeSlot: any = null;
-    let todaySlot: any = null;
+    const todaySlots: any[] = [];
     const upcomingList: Array<{ slot: any; distance: number; dateStr: string }> = [];
 
     for (const sch of classSchedules) {
@@ -280,7 +296,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         const endMin = eH * 60 + eM;
 
         if (slot.dayOfWeek === currentDay) {
-          if (!todaySlot) todaySlot = slot;
+          todaySlots.push(slot);
           // Active slot window: 15 minutes before start up to max(start + 20m, end)
           if (currentMinutes >= (startMin - 15) && currentMinutes <= Math.max(startMin + 20, endMin)) {
             activeSlot = slot;
@@ -302,6 +318,29 @@ export const ClassroomSessionSetup: React.FC = () => {
           dateStr
         });
       }
+    }
+
+    const todaySlot = pickTodayPendingSlot(todaySlots, currentMinutes);
+
+    const todayStr = vietnamDate();
+    const targetSlotForCancel = activeSlot || todaySlot;
+    const cancelledTodayForClass = reviewSessions.find((s: any) => {
+      const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
+      const rawTs = s.startedAt || s.createdAt;
+      const sDate = rawTs ? vietnamDate(new Date(rawTs)) : '';
+      if (String(cId) !== String(activeClassId) || s.status !== 'CANCELLED' || sDate !== todayStr) return false;
+      if (!targetSlotForCancel) return true;
+      return sessionMatchesSlot(s, targetSlotForCancel, todaySlots);
+    });
+
+    if (cancelledTodayForClass) {
+      return {
+        canTeachNow: false,
+        activeSlot: null,
+        nextSlotText: null,
+        hasSchedule: true,
+        reason: `Lớp đã báo nghỉ ca dạy hôm nay (${cancelledTodayForClass.cancellationReason || 'Nghỉ theo kế hoạch'}).`
+      };
     }
 
     if (activeSlot) {
@@ -373,7 +412,7 @@ export const ClassroomSessionSetup: React.FC = () => {
       const [eH, eM] = (scheduleLiveTiming.activeSlot.endTime || '00:00').split(':').map(Number);
       const slotDuration = (eH * 60 + eM) - (sH * 60 + sM);
       if (slotDuration > 0) {
-        setDuration(slotDuration);
+        setDuration(Math.min(120, Math.max(10, slotDuration)));
       }
     }
   }, [scheduleLiveTiming.activeSlot]);
@@ -406,7 +445,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     );
   };
 
-  const setStudentStatus = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') => {
+  const setStudentStatus = (studentId: string, status: 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED') => {
     setAttendanceRecords((prev) =>
       prev.map((r) => {
         const sId = String(r.student?._id || r.student);
@@ -424,7 +463,7 @@ export const ClassroomSessionSetup: React.FC = () => {
     );
   };
 
-  const markAllStatus = (status: 'PRESENT' | 'ABSENT' | 'EXCUSED') => {
+  const markAllStatus = (status: 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED') => {
     setAttendanceRecords((prev) => prev.map((r) => ({ ...r, status })));
   };
 
@@ -454,7 +493,7 @@ export const ClassroomSessionSetup: React.FC = () => {
         lessonId: selectedLessonId || undefined,
         title: title || `Buổi ${sessionNumber}: ${selectedLesson?.title || 'Buổi dạy trên lớp'}`,
         activityIds: selectedActivityIds,
-        plannedDuration: duration,
+        plannedDuration: Math.min(120, Math.max(10, Math.round(duration || 25))),
         sessionNumber: Number(sessionNumber) || 1,
         includeWarmup,
         lessonPlan: preparedPlan,
@@ -566,7 +605,7 @@ export const ClassroomSessionSetup: React.FC = () => {
       const book = booksMap.get(bookNumber) || (unit?.book as any);
 
       const acts = (content.activities || []).filter(
-        (a: any) => String(a.lesson) === String(lesson._id)
+        (a: any) => String(a.lesson?._id || a.lesson) === String(lesson._id)
       );
 
       const isTaught = taughtLessonIds.has(String(lesson._id));
@@ -843,15 +882,15 @@ export const ClassroomSessionSetup: React.FC = () => {
             {/* Schedule Table View */}
             <div ref={scheduleTableRef} className="relative max-h-[32rem] overflow-auto rounded-2xl border border-slate-200">
               <div className="">
-                <table className="w-full min-w-[760px] text-left text-sm border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-xs font-black text-slate-700 uppercase tracking-wider">
                     <tr>
-                      <th className="py-3.5 px-4">STT</th>
-                      <th className="py-3.5 px-4">Chủ đề & Unit</th>
-                      <th className="py-3.5 px-4">Bài học</th>
-                      <th className="py-3.5 px-3 text-center">Từ vựng</th>
-                      <th className="py-3.5 px-3 text-center whitespace-nowrap">Hoạt động</th>
-                      <th className="py-3.5 px-4 text-center">Trạng thái lộ trình</th>
+                      <th className="py-3 px-2.5">STT</th>
+                      <th className="py-3 px-3">Chủ đề & Unit</th>
+                      <th className="py-3 px-3">Bài học</th>
+                      <th className="py-3 px-2.5 text-center">Từ vựng</th>
+                      <th className="py-3 px-2.5 text-center">Hoạt động</th>
+                      <th className="py-3 px-3 text-center">Trạng thái lộ trình</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1233,8 +1272,8 @@ export const ClassroomSessionSetup: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* 3 Status Pill Buttons */}
-                      <div className="grid grid-cols-3 gap-2 mb-2.5">
+                      {/* 4 Status Pill Buttons */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2.5">
                         <button
                           type="button"
                           onClick={() => setStudentStatus(sId, 'PRESENT')}
@@ -1244,6 +1283,16 @@ export const ClassroomSessionSetup: React.FC = () => {
                             }`}
                         >
                           Có mặt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudentStatus(sId, 'LATE')}
+                          className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${r.status === 'LATE'
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-white text-slate-700 hover:bg-amber-50 border border-slate-200'
+                            }`}
+                        >
+                          Đi trễ
                         </button>
                         <button
                           type="button"

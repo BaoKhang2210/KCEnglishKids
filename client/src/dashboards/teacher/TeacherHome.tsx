@@ -165,15 +165,44 @@ export const TeacherDashboard = () => {
   const load = async () => {
     setError('');
     try {
-      const [dashboard, classes, schedule, live] = await Promise.all([teacherApi.getDashboard(), teacherApi.getClasses(), teacherApi.getMySchedule(), classroomSessionApi.getSessions({ status: 'LIVE' })]);
-      setData({ ...dashboard.data, classes: classes.data, schedules: schedule.data, live: live.data });
+      const [dashboard, classes, schedule, recentSess] = await Promise.all([
+        teacherApi.getDashboard(),
+        teacherApi.getClasses(),
+        teacherApi.getMySchedule(),
+        classroomSessionApi.getSessions()
+      ]);
+      const allSess = recentSess.data || [];
+      const liveSess = allSess.filter((s: any) => s.status === 'LIVE');
+      setData({ ...dashboard.data, classes: classes.data, schedules: schedule.data, live: liveSess, allSessions: allSess });
     } catch (e: any) { setError(e.message || 'Không thể tải tổng quan giảng dạy.'); }
   };
   useEffect(() => { void load(); }, []);
   if (error) return <div className="teacher-error" role="alert">{error}<button onClick={() => void load()}>Thử lại</button></div>;
   if (!data) return <div className="teacher-loading" role="status">Đang tải công việc giảng dạy…</div>;
   const day = vietnamClock().day;
-  const slots = data.schedules.filter((schedule: any) => scheduleEffectiveAt(schedule)).flatMap((s: any) => (s.weeklySlots || []).filter((slot: any) => slot.dayOfWeek === day).map((slot: any) => ({ ...slot, classroom: s.classroom, id: s._id + slot.startTime }))).sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
+  const todayStr = vietnamDate();
+  const todayClassSessions = (data.allSessions || []).filter((s: any) => {
+    if (s.status === 'LIVE') return true;
+    const ts = s.startedAt || s.endedAt || s.createdAt;
+    return ts && vietnamDate(new Date(ts)) === todayStr;
+  });
+  const slots = data.schedules
+    .filter((schedule: any) => scheduleEffectiveAt(schedule))
+    .flatMap((s: any) =>
+      (s.weeklySlots || [])
+        .filter((slot: any) => slot.dayOfWeek === day)
+        .map((slot: any) => {
+          const cId = String(s.classroom?._id || s.classroom || '');
+          const classTodaySess = todayClassSessions.filter((sess: any) => String(sess.classroom?._id || sess.classroom || '') === cId);
+          const liveMatch = classTodaySess.find((sess: any) => sess.status === 'LIVE');
+          const completedMatch = classTodaySess.find((sess: any) => sess.status === 'COMPLETED');
+          const cancelledMatch = classTodaySess.find((sess: any) => sess.status === 'CANCELLED');
+          const slotStatus = liveMatch ? 'LIVE' : completedMatch ? 'COMPLETED' : cancelledMatch ? 'CANCELLED' : 'UPCOMING';
+          return { ...slot, classroom: s.classroom, id: s._id + slot.startTime, slotStatus, liveSessionId: liveMatch?._id, completedSessionId: completedMatch?._id };
+        })
+    )
+    .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
+  const upcomingSlots = slots.filter((s: any) => s.slotStatus === 'UPCOMING');
   const m = data.metrics;
   const firstName = user?.name?.split(' ').filter(Boolean).slice(-1)[0] || '';
   return <div className="teacher-home">
@@ -274,7 +303,7 @@ export const TeacherDashboard = () => {
             Xem lịch <ArrowRight size={14} />
           </Link>
         </div>
-        <ScheduleReminders slots={slots}/>
+        <ScheduleReminders slots={upcomingSlots}/>
         {slots.length ? (
           <div className="divide-y divide-slate-100">
             {slots.map((slot: any) => (
@@ -289,12 +318,29 @@ export const TeacherDashboard = () => {
                     <p className="text-xs text-slate-600 font-medium">{slot.room || 'Theo thời khóa biểu của lớp'}</p>
                   </div>
                 </div>
-                <Link
-                  className="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shrink-0 shadow-xs"
-                  to={`/teacher/classes/${slot.classroom?._id}/sessions/new`}
-                >
-                  Chuẩn bị <ArrowRight size={13} />
-                </Link>
+                {slot.slotStatus === 'LIVE' && slot.liveSessionId ? (
+                  <Link
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shrink-0 shadow-xs"
+                    to={`/teacher/classroom-sessions/${slot.liveSessionId}/live`}
+                  >
+                    Đang dạy <ArrowRight size={13} />
+                  </Link>
+                ) : slot.slotStatus === 'COMPLETED' ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs shrink-0">
+                    ✓ Đã hoàn thành
+                  </span>
+                ) : slot.slotStatus === 'CANCELLED' ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs shrink-0">
+                    🚫 Đã báo nghỉ
+                  </span>
+                ) : (
+                  <Link
+                    className="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shrink-0 shadow-xs"
+                    to={`/teacher/classes/${slot.classroom?._id}/sessions/new`}
+                  >
+                    Chuẩn bị <ArrowRight size={13} />
+                  </Link>
+                )}
               </div>
             ))}
           </div>

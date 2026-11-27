@@ -148,17 +148,17 @@ export function UnitObservationPanel({ classId, initialUnitId = '' }: { classId:
       )}
 
       {data && (
-        <div className="rounded-2xl border border-slate-200 overflow-hidden">
-          <table className="w-full text-left text-xs sm:text-sm border-collapse">
-            <thead className="bg-slate-50/95 border-b border-slate-200 text-slate-700 uppercase font-black tracking-wider text-[11px]">
+        <div className="rounded-2xl border border-slate-200 overflow-x-auto">
+          <table className="w-full table-fixed text-left text-xs border-collapse">
+            <thead className="bg-slate-50/95 border-b border-slate-200 text-slate-700 uppercase font-black tracking-wide text-[11px]">
               <tr>
-                <th className="py-3 px-3.5 min-w-[150px]">Học Sinh</th>
+                <th className="py-2.5 px-2.5 w-[24%]">Học Sinh</th>
                 {skills.map(([key, label]) => (
-                  <th key={key} className="py-3 px-3 text-center min-w-[160px]">
+                  <th key={key} className="py-2.5 px-2 text-center w-[20%]">
                     {label}
                   </th>
                 ))}
-                <th className="py-3 px-3 text-center min-w-[120px]">Ghi Nhận</th>
+                <th className="py-2.5 px-2 text-center w-[16%]">Ghi Nhận</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold">
@@ -174,9 +174,9 @@ export function UnitObservationPanel({ classId, initialUnitId = '' }: { classId:
                   return (
                     <tr key={row.child._id} className={`hover:bg-slate-50/80 transition-colors ${!isFullyAssessed && data.isUnitCompleted ? 'bg-amber-50/40' : ''}`}>
                       {/* Tên Học Sinh */}
-                      <td className="py-3 px-3.5">
-                        <div className="flex items-center gap-2">
-                          <p className="font-black text-slate-900 text-sm">{row.child.name}</p>
+                      <td className="py-2.5 px-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="font-black text-slate-900 text-xs sm:text-sm break-words leading-snug">{row.child.name}</p>
                           {!isFullyAssessed && data.isUnitCompleted && (
                             <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-black shrink-0">
                               Cần nhận xét

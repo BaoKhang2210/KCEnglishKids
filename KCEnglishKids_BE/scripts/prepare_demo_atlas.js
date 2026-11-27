@@ -148,8 +148,8 @@ async function prepareDemoAtlas() {
     curriculumBook: booksMap['3-4']?._id,
     academicYear: '2026-2027',
     students: [],
-    completedLessons: [b1Lessons[0]?._id, b1Lessons[1]?._id].filter(Boolean),
-    currentLesson: b1Lessons[2]?._id || b1Lessons[0]?._id,
+    completedLessons: [b1Lessons[0]?._id, b1Lessons[1]?._id, b1Lessons[2]?._id].filter(Boolean),
+    currentLesson: b1Lessons[3]?._id || b1Lessons[2]?._id || b1Lessons[0]?._id,
     status: 'ACTIVE'
   });
 
@@ -162,8 +162,8 @@ async function prepareDemoAtlas() {
     curriculumBook: booksMap['4-5']?._id,
     academicYear: '2026-2027',
     students: [],
-    completedLessons: [b2Lessons[0]?._id, b2Lessons[1]?._id].filter(Boolean),
-    currentLesson: b2Lessons[2]?._id || b2Lessons[0]?._id,
+    completedLessons: [b2Lessons[0]?._id, b2Lessons[1]?._id, b2Lessons[2]?._id].filter(Boolean),
+    currentLesson: b2Lessons[3]?._id || b2Lessons[2]?._id || b2Lessons[0]?._id,
     status: 'ACTIVE'
   });
 
@@ -176,8 +176,8 @@ async function prepareDemoAtlas() {
     curriculumBook: booksMap['5-6']?._id,
     academicYear: '2026-2027',
     students: [],
-    completedLessons: [b3Lessons[0]?._id, b3Lessons[1]?._id].filter(Boolean),
-    currentLesson: b3Lessons[2]?._id || b3Lessons[0]?._id,
+    completedLessons: [b3Lessons[0]?._id, b3Lessons[1]?._id, b3Lessons[2]?._id].filter(Boolean),
+    currentLesson: b3Lessons[3]?._id || b3Lessons[2]?._id || b3Lessons[0]?._id,
     status: 'ACTIVE'
   });
 
@@ -195,10 +195,25 @@ async function prepareDemoAtlas() {
   await teacherDavid.save();
 
   // 5. Ensure 21 Children across the 3 ACTIVE classes with proper ageGroupCode, PIN, stars, and streak
-  const todayStr = '2026-11-19';
-  const yesterdayStr = '2026-11-18';
-  const twoDaysAgoStr = '2026-11-17';
-  const threeDaysAgoStr = '2026-11-16';
+  const vnDateStr = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(d);
+  const now = new Date();
+  const todayStr = vnDateStr(now);
+  const yesterdayStr = vnDateStr(new Date(now.getTime() - 1 * 86400000));
+  const twoDaysAgoStr = vnDateStr(new Date(now.getTime() - 2 * 86400000));
+  const threeDaysAgoStr = vnDateStr(new Date(now.getTime() - 3 * 86400000));
+  const fourDaysAgoStr = vnDateStr(new Date(now.getTime() - 4 * 86400000));
+
+  // Compute Monday of current week in VN timezone
+  const todayNoon = new Date(`${todayStr}T12:00:00+07:00`);
+  const dow = todayNoon.getDay(); // 0=Sun, 1=Mon...
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  const monDateStr = vnDateStr(new Date(todayNoon.getTime() + diffToMon * 86400000));
+  const tueDateStr = vnDateStr(new Date(todayNoon.getTime() + (diffToMon + 1) * 86400000));
+  const wedDateStr = vnDateStr(new Date(todayNoon.getTime() + (diffToMon + 2) * 86400000));
+  const thuDateStr = vnDateStr(new Date(todayNoon.getTime() + (diffToMon + 3) * 86400000));
+  const lastMonDateStr = vnDateStr(new Date(todayNoon.getTime() + (diffToMon - 7) * 86400000));
+  const lastWedDateStr = vnDateStr(new Date(todayNoon.getTime() + (diffToMon - 5) * 86400000));
+  const lastFriDateStr = vnDateStr(new Date(todayNoon.getTime() + (diffToMon - 3) * 86400000));
 
   const ensureChild = async ({ username, name, pin, ageCode, classroom, avatar, bg, emoji, streak = 2, stars = 36, activeDates = [yesterdayStr, todayStr] }) => {
     let child = await M.User.findOne({ username });
@@ -324,9 +339,7 @@ async function prepareDemoAtlas() {
   await class3.save();
 
   // 6. Create Weekly Schedules (Timetables)
-  // On Thursday (dayOfWeek: 4) and Friday (dayOfWeek: 5), we provide:
-  // - Main daytime teaching window so "Vào dạy ca này ngay ➔" is ALWAYS active during demo hours (07:00 - 21:00)
-  // - Plus an evening slot (22:00 - 22:45) on Thursday so the teacher can also demo "⏳ Ca hôm nay lúc 22:00 (Chưa đến giờ)" + "Báo nghỉ" button!
+  // Provide active daytime windows + evening upcoming slot on Thursday/Friday/Saturday so live teaching & report-off can be demoed anytime!
   const effectiveFromDate = new Date('2026-11-01T00:00:00.000+07:00');
 
   await M.Schedule.create({
@@ -341,10 +354,10 @@ async function prepareDemoAtlas() {
       { dayOfWeek: 1, startTime: '08:30', endTime: '09:15', room: 'Phòng Mầm 1', subjectNote: `Khám phá từ vựng - ${b1Lessons[0]?.title || ''}`, lesson: b1Lessons[0]?._id, lessonNumber: 1, lessonTitle: b1Lessons[0]?.title || '' },
       { dayOfWeek: 2, startTime: '08:30', endTime: '09:15', room: 'Phòng Mầm 1', subjectNote: `Thực hành mẫu câu - ${b1Lessons[1]?.title || ''}`, lesson: b1Lessons[1]?._id, lessonNumber: 2, lessonTitle: b1Lessons[1]?.title || '' },
       { dayOfWeek: 3, startTime: '08:30', endTime: '09:15', room: 'Phòng Mầm 1', subjectNote: `Tương tác & Trò chơi - ${b1Lessons[2]?.title || ''}`, lesson: b1Lessons[2]?._id, lessonNumber: 3, lessonTitle: b1Lessons[2]?.title || '' },
-      { dayOfWeek: 4, startTime: '07:00', endTime: '21:00', room: 'Phòng Mầm 1', subjectNote: `Ca dạy trực tiếp hôm nay - ${b1Lessons[2]?.title || ''}`, lesson: b1Lessons[2]?._id, lessonNumber: 3, lessonTitle: b1Lessons[2]?.title || '' },
-      { dayOfWeek: 4, startTime: '22:00', endTime: '22:45', room: 'Phòng Mầm 1', subjectNote: `Ca phụ đạo tối - ${b1Lessons[3]?.title || ''}`, lesson: b1Lessons[3]?._id, lessonNumber: 4, lessonTitle: b1Lessons[3]?.title || '' },
-      { dayOfWeek: 5, startTime: '07:00', endTime: '21:00', room: 'Phòng Mầm 1', subjectNote: `Vui học cuối tuần - ${b1Lessons[3]?.title || ''}`, lesson: b1Lessons[3]?._id, lessonNumber: 4, lessonTitle: b1Lessons[3]?.title || '' },
-      { dayOfWeek: 6, startTime: '08:30', endTime: '09:15', room: 'Phòng Mầm 1', subjectNote: `Ôn tập chủ đề tuần - ${b1Lessons[4]?.title || ''}`, lesson: b1Lessons[4]?._id, lessonNumber: 5, lessonTitle: b1Lessons[4]?.title || '' }
+      { dayOfWeek: 4, startTime: '08:30', endTime: '09:15', room: 'Phòng Mầm 1', subjectNote: `Khám phá thế giới quanh bé - ${b1Lessons[2]?.title || ''}`, lesson: b1Lessons[2]?._id, lessonNumber: 3, lessonTitle: b1Lessons[2]?.title || '' },
+      { dayOfWeek: 5, startTime: '07:00', endTime: '21:30', room: 'Phòng Mầm 1', subjectNote: `Ca dạy trực tiếp hôm nay - ${b1Lessons[3]?.title || ''}`, lesson: b1Lessons[3]?._id, lessonNumber: 4, lessonTitle: b1Lessons[3]?.title || '' },
+      { dayOfWeek: 5, startTime: '22:00', endTime: '22:45', room: 'Phòng Mầm 1', subjectNote: `Ca phụ đạo tối - ${b1Lessons[4]?.title || ''}`, lesson: b1Lessons[4]?._id, lessonNumber: 5, lessonTitle: b1Lessons[4]?.title || '' },
+      { dayOfWeek: 6, startTime: '07:00', endTime: '21:30', room: 'Phòng Mầm 1', subjectNote: `Ôn tập chủ đề cuối tuần - ${b1Lessons[4]?.title || ''}`, lesson: b1Lessons[4]?._id, lessonNumber: 5, lessonTitle: b1Lessons[4]?.title || '' }
     ]
   });
 
@@ -359,8 +372,9 @@ async function prepareDemoAtlas() {
     weeklySlots: [
       { dayOfWeek: 1, startTime: '09:30', endTime: '10:15', room: 'Phòng Chồi 2', subjectNote: `Vocabulary Discovery - ${b2Lessons[0]?.title || ''}`, lesson: b2Lessons[0]?._id, lessonNumber: 1, lessonTitle: b2Lessons[0]?.title || '' },
       { dayOfWeek: 2, startTime: '09:30', endTime: '10:15', room: 'Phòng Chồi 2', subjectNote: `Speaking & TPR - ${b2Lessons[1]?.title || ''}`, lesson: b2Lessons[1]?._id, lessonNumber: 2, lessonTitle: b2Lessons[1]?.title || '' },
-      { dayOfWeek: 4, startTime: '07:30', endTime: '21:00', room: 'Phòng Chồi 2', subjectNote: `Interactive Story - ${b2Lessons[2]?.title || ''}`, lesson: b2Lessons[2]?._id, lessonNumber: 3, lessonTitle: b2Lessons[2]?.title || '' },
-      { dayOfWeek: 5, startTime: '09:30', endTime: '10:15', room: 'Phòng Chồi 2', subjectNote: `Mini Games Review - ${b2Lessons[3]?.title || ''}`, lesson: b2Lessons[3]?._id, lessonNumber: 4, lessonTitle: b2Lessons[3]?.title || '' }
+      { dayOfWeek: 4, startTime: '09:30', endTime: '10:15', room: 'Phòng Chồi 2', subjectNote: `Interactive Story - ${b2Lessons[2]?.title || ''}`, lesson: b2Lessons[2]?._id, lessonNumber: 3, lessonTitle: b2Lessons[2]?.title || '' },
+      { dayOfWeek: 5, startTime: '07:30', endTime: '21:30', room: 'Phòng Chồi 2', subjectNote: `Mini Games Review - ${b2Lessons[3]?.title || ''}`, lesson: b2Lessons[3]?._id, lessonNumber: 4, lessonTitle: b2Lessons[3]?.title || '' },
+      { dayOfWeek: 6, startTime: '09:30', endTime: '10:15', room: 'Phòng Chồi 2', subjectNote: `Weekend Story Club - ${b2Lessons[4]?.title || ''}`, lesson: b2Lessons[4]?._id, lessonNumber: 5, lessonTitle: b2Lessons[4]?.title || '' }
     ]
   });
 
@@ -375,18 +389,21 @@ async function prepareDemoAtlas() {
     weeklySlots: [
       { dayOfWeek: 1, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Phonics & Words - ${b3Lessons[0]?.title || ''}`, lesson: b3Lessons[0]?._id, lessonNumber: 1, lessonTitle: b3Lessons[0]?.title || '' },
       { dayOfWeek: 2, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Full Sentences - ${b3Lessons[1]?.title || ''}`, lesson: b3Lessons[1]?._id, lessonNumber: 2, lessonTitle: b3Lessons[1]?.title || '' },
-      { dayOfWeek: 4, startTime: '08:00', endTime: '21:00', room: 'Phòng Lá 3', subjectNote: `Show & Tell - ${b3Lessons[2]?.title || ''}`, lesson: b3Lessons[2]?._id, lessonNumber: 3, lessonTitle: b3Lessons[2]?.title || '' },
-      { dayOfWeek: 5, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Weekly Challenge - ${b3Lessons[3]?.title || ''}`, lesson: b3Lessons[3]?._id, lessonNumber: 4, lessonTitle: b3Lessons[3]?.title || '' }
+      { dayOfWeek: 4, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Show & Tell - ${b3Lessons[2]?.title || ''}`, lesson: b3Lessons[2]?._id, lessonNumber: 3, lessonTitle: b3Lessons[2]?.title || '' },
+      { dayOfWeek: 5, startTime: '08:00', endTime: '21:30', room: 'Phòng Lá 3', subjectNote: `Weekly Challenge - ${b3Lessons[3]?.title || ''}`, lesson: b3Lessons[3]?._id, lessonNumber: 4, lessonTitle: b3Lessons[3]?.title || '' },
+      { dayOfWeek: 6, startTime: '10:30', endTime: '11:15', room: 'Phòng Lá 3', subjectNote: `Reading & Drama - ${b3Lessons[4]?.title || ''}`, lesson: b3Lessons[4]?._id, lessonNumber: 5, lessonTitle: b3Lessons[4]?.title || '' }
     ]
   });
 
-  // 7. Create Rich Historical ClassroomSessions (Monday 16/11, Tuesday 17/11 COMPLETED, Wednesday 18/11 CANCELLED)
-  const monStart = new Date('2026-11-16T08:30:00.000+07:00');
-  const monEnd = new Date('2026-11-16T09:15:00.000+07:00');
-  const tueStart = new Date('2026-11-17T08:30:00.000+07:00');
-  const tueEnd = new Date('2026-11-17T09:15:00.000+07:00');
-  const wedStart = new Date('2026-11-18T08:30:00.000+07:00');
-  const wedEnd = new Date('2026-11-18T09:15:00.000+07:00');
+  // 7. Create Rich Historical ClassroomSessions across current week (Mon, Tue, Thu COMPLETED; Wed CANCELLED)
+  const monStart = new Date(`${monDateStr}T08:30:00.000+07:00`);
+  const monEnd = new Date(`${monDateStr}T09:15:00.000+07:00`);
+  const tueStart = new Date(`${tueDateStr}T08:30:00.000+07:00`);
+  const tueEnd = new Date(`${tueDateStr}T09:15:00.000+07:00`);
+  const wedStart = new Date(`${wedDateStr}T08:30:00.000+07:00`);
+  const wedEnd = new Date(`${wedDateStr}T09:15:00.000+07:00`);
+  const thuStart = new Date(`${thuDateStr}T08:30:00.000+07:00`);
+  const thuEnd = new Date(`${thuDateStr}T09:15:00.000+07:00`);
 
   const b1L1Acts = b1Lessons[0] ? await M.Activity.find({ lesson: b1Lessons[0]._id }).limit(3).lean() : [];
   const b1L2Acts = b1Lessons[1] ? await M.Activity.find({ lesson: b1Lessons[1]._id }).limit(3).lean() : [];
@@ -497,7 +514,7 @@ async function prepareDemoAtlas() {
     }
   });
 
-  // Class 1 - Session 3 (Wednesday 18/11 - CANCELLED session to demonstrate lesson preservation)
+  // Class 1 - Session 3 (Wednesday - CANCELLED session to demonstrate lesson preservation)
   await M.ClassroomSession.create({
     classroom: class1._id,
     teacher: teacherSarah._id,
@@ -510,8 +527,8 @@ async function prepareDemoAtlas() {
     endedAt: wedEnd,
     plannedDuration: 45,
     cancellationReason: 'Họp hội đồng sư phạm định kỳ của nhà trường (08:30 - 09:15)',
-    cancellationNote: 'Bài 3 (Good Friends) được tự động bảo lưu sang buổi học Thứ Năm 19/11.',
-    cancelledAt: new Date('2026-11-17T19:00:00.000+07:00'),
+    cancellationNote: `Bài 3 (${b1Lessons[2]?.title || 'What Can You See?'}) được tự động bảo lưu sang buổi học kế tiếp.`,
+    cancelledAt: new Date(`${tueDateStr}T19:00:00.000+07:00`),
     studentScores: [],
     questionResults: [],
     summary: {
@@ -524,7 +541,46 @@ async function prepareDemoAtlas() {
     }
   });
 
-  // Class 2 - 2 Completed Sessions (Monday & Tuesday)
+  // Class 1 - Session 4 (Thursday - Lesson 3 COMPLETED with rich stars & accuracy)
+  const b1L3Acts = b1Lessons[2] ? await M.Activity.find({ lesson: b1Lessons[2]._id }).limit(3).lean() : [];
+  const c1Session3 = await M.ClassroomSession.create({
+    classroom: class1._id,
+    teacher: teacherSarah._id,
+    lesson: b1Lessons[2]?._id,
+    title: `${b1Lessons[2]?.title || 'What Can You See?'} — Bé nhìn thấy gì quanh lớp học?`,
+    ageGroup: '3-4',
+    status: 'COMPLETED',
+    sessionNumber: 3,
+    startedAt: thuStart,
+    endedAt: thuEnd,
+    plannedDuration: 45,
+    activities: b1L3Acts.map(a => a._id),
+    studentScores: [
+      { student: childLeo._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class1Kids[0]._id, points: 48, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class1Kids[1]._id, points: 44, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class1Kids[2]._id, points: 48, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class1Kids[3]._id, points: 42, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class1Kids[4]._id, points: 36, stars: 3, correctCount: 3, incorrectCount: 2, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class1Kids[5]._id, points: 40, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' }
+    ],
+    teachingOutcome: {
+      coverage: 'COMPLETE',
+      goalsCovered: ['Hỏi và trả lời mẫu câu What can you see?', 'Nhận diện nhanh 6 thẻ từ vựng qua trò chơi tương tác'],
+      reflection: 'Cả 7 bé đi học đầy đủ và đạt độ chính xác trung bình 89%. Bé Ava đã nhớ được toàn bộ từ vựng của bài trước.',
+      recordedAt: thuEnd
+    },
+    summary: {
+      participationCount: 7,
+      averageAccuracy: 89,
+      totalStars: 30,
+      totalPoints: 308,
+      studentsNeedingPractice: [],
+      topPerformers: [childLeo._id, class1Kids[0]._id, class1Kids[2]._id]
+    }
+  });
+
+  // Class 2 - 3 Completed Sessions (Mon, Tue, Thu)
   await M.ClassroomSession.create({
     classroom: class2._id,
     teacher: teacherEmily._id,
@@ -533,8 +589,8 @@ async function prepareDemoAtlas() {
     ageGroup: '4-5',
     status: 'COMPLETED',
     sessionNumber: 1,
-    startedAt: new Date('2026-11-16T09:30:00.000+07:00'),
-    endedAt: new Date('2026-11-16T10:15:00.000+07:00'),
+    startedAt: new Date(`${monDateStr}T09:30:00.000+07:00`),
+    endedAt: new Date(`${monDateStr}T10:15:00.000+07:00`),
     plannedDuration: 45,
     studentScores: [
       { student: childMia._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
@@ -549,7 +605,7 @@ async function prepareDemoAtlas() {
       coverage: 'COMPLETE',
       goalsCovered: ['Phát âm chuẩn từ vựng chủ đề trường lớp', 'Phản xạ nghe chọn hình nhanh'],
       reflection: 'Lớp Sunny Kindergarten học rất sôi nổi. Bé Mia và Mason phát âm rất tự nhiên.',
-      recordedAt: new Date('2026-11-16T10:15:00.000+07:00')
+      recordedAt: new Date(`${monDateStr}T10:15:00.000+07:00`)
     },
     summary: {
       participationCount: 7,
@@ -561,7 +617,7 @@ async function prepareDemoAtlas() {
     }
   });
 
-  await M.ClassroomSession.create({
+  const c2Session2 = await M.ClassroomSession.create({
     classroom: class2._id,
     teacher: teacherEmily._id,
     lesson: b2Lessons[1]?._id,
@@ -569,11 +625,11 @@ async function prepareDemoAtlas() {
     ageGroup: '4-5',
     status: 'COMPLETED',
     sessionNumber: 2,
-    startedAt: new Date('2026-11-17T09:30:00.000+07:00'),
-    endedAt: new Date('2026-11-17T10:15:00.000+07:00'),
+    startedAt: new Date(`${tueDateStr}T09:30:00.000+07:00`),
+    endedAt: new Date(`${tueDateStr}T10:15:00.000+07:00`),
     plannedDuration: 45,
     studentScores: [
-      { student: childMia._id, points: 48, stars: 4, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: childMia._id, points: 48, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
       { student: class2Kids[0]._id, points: 44, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
       { student: class2Kids[1]._id, points: 0, stars: 0, correctCount: 0, incorrectCount: 0, notAnswered: 0, attendance: 'EXCUSED', status: 'ACTIVE' },
       { student: class2Kids[2]._id, points: 40, stars: 3, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
@@ -585,19 +641,55 @@ async function prepareDemoAtlas() {
       coverage: 'COMPLETE',
       goalsCovered: ['Hỏi đáp mẫu câu tiếng Anh theo cặp', 'Trò chơi đóng vai'],
       reflection: 'Các bé tương tác tốt, bé Isabella xin nghỉ ốm có phép.',
-      recordedAt: new Date('2026-11-17T10:15:00.000+07:00')
+      recordedAt: new Date(`${tueDateStr}T10:15:00.000+07:00`)
     },
     summary: {
       participationCount: 6,
       averageAccuracy: 84,
-      totalStars: 20,
+      totalStars: 21,
       totalPoints: 244,
       studentsNeedingPractice: [class2Kids[3]._id],
       topPerformers: [childMia._id, class2Kids[5]._id]
     }
   });
 
-  // Class 3 - 2 Completed Sessions (Monday & Tuesday)
+  await M.ClassroomSession.create({
+    classroom: class2._id,
+    teacher: teacherEmily._id,
+    lesson: b2Lessons[2]?._id,
+    title: `${b2Lessons[2]?.title || 'Lesson 3'} — Kể chuyện tương tác Lớp Chồi`,
+    ageGroup: '4-5',
+    status: 'COMPLETED',
+    sessionNumber: 3,
+    startedAt: new Date(`${thuDateStr}T09:30:00.000+07:00`),
+    endedAt: new Date(`${thuDateStr}T10:15:00.000+07:00`),
+    plannedDuration: 45,
+    studentScores: [
+      { student: childMia._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class2Kids[0]._id, points: 46, stars: 4, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class2Kids[1]._id, points: 42, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class2Kids[2]._id, points: 42, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class2Kids[3]._id, points: 36, stars: 3, correctCount: 3, incorrectCount: 2, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class2Kids[4]._id, points: 38, stars: 3, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class2Kids[5]._id, points: 48, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' }
+    ],
+    teachingOutcome: {
+      coverage: 'COMPLETE',
+      goalsCovered: ['Nghe hiểu cốt truyện ngắn', 'Đóng vai nhân vật nói câu thoại tiếng Anh'],
+      reflection: 'Cả lớp hào hứng đóng vai nhân vật, Mia và Mason đạt 5 sao tuyệt đối.',
+      recordedAt: new Date(`${thuDateStr}T10:15:00.000+07:00`)
+    },
+    summary: {
+      participationCount: 7,
+      averageAccuracy: 87,
+      totalStars: 28,
+      totalPoints: 302,
+      studentsNeedingPractice: [],
+      topPerformers: [childMia._id, class2Kids[5]._id]
+    }
+  });
+
+  // Class 3 - 3 Completed Sessions (Mon, Tue, Thu)
   await M.ClassroomSession.create({
     classroom: class3._id,
     teacher: teacherDavid._id,
@@ -606,8 +698,8 @@ async function prepareDemoAtlas() {
     ageGroup: '5-6',
     status: 'COMPLETED',
     sessionNumber: 1,
-    startedAt: new Date('2026-11-16T10:30:00.000+07:00'),
-    endedAt: new Date('2026-11-16T11:15:00.000+07:00'),
+    startedAt: new Date(`${monDateStr}T10:30:00.000+07:00`),
+    endedAt: new Date(`${monDateStr}T11:15:00.000+07:00`),
     plannedDuration: 45,
     studentScores: [
       { student: childToby._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
@@ -622,7 +714,7 @@ async function prepareDemoAtlas() {
       coverage: 'COMPLETE',
       goalsCovered: ['Thuyết trình câu hoàn chỉnh trước lớp', 'Luyện phản xạ hỏi đáp nhanh'],
       reflection: 'Lớp Rainbow Explorers phát âm rất chuẩn. Bé Toby và James tự tin làm mẫu cho cả lớp.',
-      recordedAt: new Date('2026-11-16T11:15:00.000+07:00')
+      recordedAt: new Date(`${monDateStr}T11:15:00.000+07:00`)
     },
     summary: {
       participationCount: 7,
@@ -634,7 +726,7 @@ async function prepareDemoAtlas() {
     }
   });
 
-  await M.ClassroomSession.create({
+  const c3Session2 = await M.ClassroomSession.create({
     classroom: class3._id,
     teacher: teacherDavid._id,
     lesson: b3Lessons[1]?._id,
@@ -642,8 +734,8 @@ async function prepareDemoAtlas() {
     ageGroup: '5-6',
     status: 'COMPLETED',
     sessionNumber: 2,
-    startedAt: new Date('2026-11-17T10:30:00.000+07:00'),
-    endedAt: new Date('2026-11-17T11:15:00.000+07:00'),
+    startedAt: new Date(`${tueDateStr}T10:30:00.000+07:00`),
+    endedAt: new Date(`${tueDateStr}T11:15:00.000+07:00`),
     plannedDuration: 45,
     studentScores: [
       { student: childToby._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
@@ -658,7 +750,7 @@ async function prepareDemoAtlas() {
       coverage: 'COMPLETE',
       goalsCovered: ['Thực hành hỏi đáp các môn học ở trường', 'Ghép câu hoàn chỉnh theo nhóm'],
       reflection: 'Các bé Lớp Lá nắm vững từ vựng môn học và phản xạ câu rất tốt.',
-      recordedAt: new Date('2026-11-17T11:15:00.000+07:00')
+      recordedAt: new Date(`${tueDateStr}T11:15:00.000+07:00`)
     },
     summary: {
       participationCount: 7,
@@ -670,119 +762,200 @@ async function prepareDemoAtlas() {
     }
   });
 
-  // 8. Daily Attendance for Today (2026-11-19) & Recent Days
-  for (const dateStr of ['2026-11-16', '2026-11-17', '2026-11-19']) {
-    await M.Attendance.create({
-      classroom: class1._id,
-      teacher: teacherSarah._id,
-      date: dateStr,
-      records: [
-        { student: childLeo._id, status: 'PRESENT', note: 'Đi học đúng giờ, rất hào hứng phát biểu' },
-        { student: class1Kids[0]._id, status: 'PRESENT', note: '' },
-        { student: class1Kids[1]._id, status: 'PRESENT', note: '' },
-        { student: class1Kids[2]._id, status: 'PRESENT', note: 'Phát âm to rõ ràng' },
-        { student: class1Kids[3]._id, status: 'PRESENT', note: '' },
-        { student: class1Kids[4]._id, status: 'LATE', note: 'Đến muộn 10 phút' },
-        { student: class1Kids[5]._id, status: 'PRESENT', note: '' }
-      ],
-      note: `Điểm danh lớp Little Stars ngày ${dateStr}`
-    });
+  await M.ClassroomSession.create({
+    classroom: class3._id,
+    teacher: teacherDavid._id,
+    lesson: b3Lessons[2]?._id,
+    title: `${b3Lessons[2]?.title || 'Lesson 3'} — Thử thách Show & Tell Lớp Lá`,
+    ageGroup: '5-6',
+    status: 'COMPLETED',
+    sessionNumber: 3,
+    startedAt: new Date(`${thuDateStr}T10:30:00.000+07:00`),
+    endedAt: new Date(`${thuDateStr}T11:15:00.000+07:00`),
+    plannedDuration: 45,
+    studentScores: [
+      { student: childToby._id, points: 50, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[0]._id, points: 48, stars: 5, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[1]._id, points: 44, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[2]._id, points: 42, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[3]._id, points: 46, stars: 4, correctCount: 5, incorrectCount: 0, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[4]._id, points: 36, stars: 3, correctCount: 3, incorrectCount: 2, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' },
+      { student: class3Kids[5]._id, points: 44, stars: 4, correctCount: 4, incorrectCount: 1, notAnswered: 0, attendance: 'PRESENT', status: 'COMPLETED' }
+    ],
+    teachingOutcome: {
+      coverage: 'COMPLETE',
+      goalsCovered: ['Thuyết trình Show & Tell bằng câu hoàn chỉnh', 'Phát âm chuẩn âm cuối và ngữ điệu câu hỏi'],
+      reflection: 'Cả lớp hoàn thành xuất sắc phần Show & Tell, bé Henry đã tiến bộ rõ rệt.',
+      recordedAt: new Date(`${thuDateStr}T11:15:00.000+07:00`)
+    },
+    summary: {
+      participationCount: 7,
+      averageAccuracy: 90,
+      totalStars: 29,
+      totalPoints: 310,
+      studentsNeedingPractice: [],
+      topPerformers: [childToby._id, class3Kids[0]._id]
+    }
+  });
+
+  // 8. Daily Attendance across all 3 classrooms for recent days & today
+  for (const dateStr of [monDateStr, tueDateStr, thuDateStr, todayStr]) {
+    await M.Attendance.findOneAndUpdate(
+      { classroom: class1._id, date: dateStr },
+      {
+        classroom: class1._id,
+        teacher: teacherSarah._id,
+        date: dateStr,
+        records: [
+          { student: childLeo._id, status: 'PRESENT', note: 'Đi học đúng giờ, rất hào hứng phát biểu' },
+          { student: class1Kids[0]._id, status: 'PRESENT', note: 'Tích cực giơ tay' },
+          { student: class1Kids[1]._id, status: 'PRESENT', note: '' },
+          { student: class1Kids[2]._id, status: 'PRESENT', note: 'Phát âm to rõ ràng' },
+          { student: class1Kids[3]._id, status: 'PRESENT', note: '' },
+          { student: class1Kids[4]._id, status: dateStr === monDateStr ? 'LATE' : 'PRESENT', note: dateStr === monDateStr ? 'Đến muộn 10 phút' : '' },
+          { student: class1Kids[5]._id, status: dateStr === tueDateStr ? 'EXCUSED' : 'PRESENT', note: dateStr === tueDateStr ? 'Xin nghỉ khám răng' : '' }
+        ],
+        note: `Điểm danh lớp Little Stars ngày ${dateStr}`
+      },
+      { upsert: true }
+    );
+
+    await M.Attendance.findOneAndUpdate(
+      { classroom: class2._id, date: dateStr },
+      {
+        classroom: class2._id,
+        teacher: teacherEmily._id,
+        date: dateStr,
+        records: [
+          { student: childMia._id, status: 'PRESENT', note: 'Phát âm mẫu câu rất tự tin' },
+          { student: class2Kids[0]._id, status: 'PRESENT', note: '' },
+          { student: class2Kids[1]._id, status: dateStr === tueDateStr ? 'EXCUSED' : 'PRESENT', note: '' },
+          { student: class2Kids[2]._id, status: 'PRESENT', note: '' },
+          { student: class2Kids[3]._id, status: dateStr === monDateStr ? 'LATE' : 'PRESENT', note: '' },
+          { student: class2Kids[4]._id, status: 'PRESENT', note: '' },
+          { student: class2Kids[5]._id, status: 'PRESENT', note: 'Tương tác nhóm tốt' }
+        ],
+        note: `Điểm danh lớp Sunny Kindergarten ngày ${dateStr}`
+      },
+      { upsert: true }
+    );
+
+    await M.Attendance.findOneAndUpdate(
+      { classroom: class3._id, date: dateStr },
+      {
+        classroom: class3._id,
+        teacher: teacherDavid._id,
+        date: dateStr,
+        records: [
+          { student: childToby._id, status: 'PRESENT', note: 'Hoàn thành xuất sắc phần thuyết trình' },
+          { student: class3Kids[0]._id, status: 'PRESENT', note: '' },
+          { student: class3Kids[1]._id, status: 'PRESENT', note: '' },
+          { student: class3Kids[2]._id, status: dateStr === monDateStr ? 'LATE' : 'PRESENT', note: '' },
+          { student: class3Kids[3]._id, status: 'PRESENT', note: '' },
+          { student: class3Kids[4]._id, status: 'PRESENT', note: '' },
+          { student: class3Kids[5]._id, status: 'PRESENT', note: '' }
+        ],
+        note: `Điểm danh lớp Rainbow Explorers ngày ${dateStr}`
+      },
+      { upsert: true }
+    );
   }
 
-  // 9. Observations, Home Practice Plan, HomePracticeCompletion, Progress & VocabularyMastery for Leo (and classmates)
-  await M.Progress.deleteMany({ child: childLeo._id });
-  for (let i = 0; i < 2; i++) {
-    const lessonDoc = b1Lessons[i];
-    if (!lessonDoc) continue;
-    await M.Progress.create({
-      child: childLeo._id,
-      topic: lessonDoc.topic,
-      lesson: lessonDoc._id,
-      completed: true,
-      stars: 3,
-      highestScore: 100,
-      stage1Score: 100,
-      stage2Score: 95,
-      stage3Score: 100,
-      attempts: 2,
-      stage1Completed: true,
-      stage2Completed: true,
-      stage3Completed: true,
-      correctAnswers: 9,
-      incorrectAnswers: 1,
-      lastAttemptAt: new Date('2026-11-18T14:00:00.000+07:00')
-    });
-  }
-  // Lesson 3 in progress (Stage 1 done, ready to practice Stage 2 or learn in class!)
-  if (b1Lessons[2]) {
-    await M.Progress.create({
-      child: childLeo._id,
-      topic: b1Lessons[2].topic,
-      lesson: b1Lessons[2]._id,
-      completed: false,
-      stars: 1,
-      highestScore: 100,
-      stage1Score: 100,
-      attempts: 1,
-      stage1Completed: true,
-      stage2Completed: false,
-      stage3Completed: false,
-      correctAnswers: 4,
-      incorrectAnswers: 0,
-      lastAttemptAt: new Date('2026-11-18T19:30:00.000+07:00')
-    });
-  }
+  // 9. Observations, Home Practice Plan, HomePracticeCompletion, Progress & VocabularyMastery for ALL 21 students across 3 classes!
+  const allDemoKids = [childLeo, ...class1Kids, childMia, ...class2Kids, childToby, ...class3Kids];
+  await M.Progress.deleteMany({ child: { $in: allDemoKids.map(k => k._id) } });
+  await M.VocabularyMastery.deleteMany({ student: { $in: allDemoKids.map(k => k._id) } });
 
-  // Seed some vocabulary mastery gaps on Lesson 1 & Lesson 2 so "Lập kế hoạch bù kiến thức (AI Gap Remediation)" has real data to demo!
-  await M.VocabularyMastery.deleteMany({ student: { $in: [childLeo._id, ...class1Kids.map(k => k._id)] } });
-  const l1Vocabs = b1Lessons[0]?.vocabularyItems || [];
-  const l2Vocabs = b1Lessons[1]?.vocabularyItems || [];
-  for (const v of l1Vocabs) {
-    // Leo masters most words
-    await M.VocabularyMastery.create({
-      student: childLeo._id,
-      vocabulary: v._id,
-      correctCount: 5,
-      wrongCount: 0,
-      attemptCount: 5,
-      streak: 3,
-      masteryLevel: 3,
-      lastReviewedAt: new Date()
-    });
-    // Ava & Oliver struggle with the first 2 words so class gap analysis has realistic weak words!
-    await M.VocabularyMastery.create({
-      student: class1Kids[4]._id,
-      vocabulary: v._id,
-      correctCount: 1,
-      wrongCount: 4,
-      attemptCount: 5,
-      streak: 0,
-      masteryLevel: 1,
-      lastReviewedAt: new Date()
-    });
-    await M.VocabularyMastery.create({
-      student: class1Kids[5]._id,
-      vocabulary: v._id,
-      correctCount: 2,
-      wrongCount: 3,
-      attemptCount: 5,
-      streak: 0,
-      masteryLevel: 1,
-      lastReviewedAt: new Date()
-    });
-  }
-  for (const v of l2Vocabs.slice(0, 2)) {
-    await M.VocabularyMastery.create({
-      student: childLeo._id,
-      vocabulary: v._id,
-      correctCount: 1,
-      wrongCount: 2,
-      attemptCount: 3,
-      streak: 0,
-      masteryLevel: 1,
-      lastReviewedAt: new Date()
-    });
-  }
+  const seedClassProgressAndVocab = async (students, lessonsList) => {
+    for (let sIdx = 0; sIdx < students.length; sIdx++) {
+      const student = students[sIdx];
+      const isTop = sIdx === 0 || sIdx === 1 || sIdx === 3;
+      const isStruggling = sIdx === 5;
+      const completedCount = isStruggling ? 2 : 3;
+      for (let i = 0; i < completedCount; i++) {
+        const lessonDoc = lessonsList[i];
+        if (!lessonDoc) continue;
+        const score = isTop ? 98 : isStruggling ? 78 : 88;
+        const stars = isTop ? 3 : isStruggling ? 2 : 3;
+        const attemptDate = new Date(`${i === 0 ? monDateStr : i === 1 ? tueDateStr : thuDateStr}T15:30:00.000+07:00`);
+        await M.Progress.create({
+          child: student._id,
+          topic: lessonDoc.topic,
+          lesson: lessonDoc._id,
+          completed: true,
+          stars,
+          highestScore: score,
+          stage1Score: Math.min(100, score + 2),
+          stage2Score: score,
+          stage3Score: score,
+          attempts: 2,
+          stage1Completed: true,
+          stage2Completed: true,
+          stage3Completed: true,
+          correctAnswers: isTop ? 9 : isStruggling ? 7 : 8,
+          incorrectAnswers: isTop ? 1 : isStruggling ? 3 : 2,
+          lastAttemptAt: attemptDate,
+          completionSnapshot: {
+            stars,
+            highestScore: score,
+            correctAnswers: isTop ? 9 : 8,
+            incorrectAnswers: isTop ? 1 : 2,
+            attempts: 1,
+            recordedAt: attemptDate
+          }
+        });
+      }
+      // Next lesson in progress for primary demo kids (Leo, Mia, Toby)
+      if (sIdx === 0 && lessonsList[3]) {
+        await M.Progress.create({
+          child: student._id,
+          topic: lessonsList[3].topic,
+          lesson: lessonsList[3]._id,
+          completed: false,
+          stars: 1,
+          highestScore: 95,
+          stage1Score: 95,
+          attempts: 1,
+          stage1Completed: true,
+          stage2Completed: false,
+          stage3Completed: false,
+          correctAnswers: 4,
+          incorrectAnswers: 0,
+          lastAttemptAt: new Date(`${yesterdayStr}T19:30:00.000+07:00`)
+        });
+      }
+
+      // Seed VocabularyMastery for lessons 1-3
+      const vocabs = [
+        ...(lessonsList[0]?.vocabularyItems || []),
+        ...(lessonsList[1]?.vocabularyItems || []),
+        ...(lessonsList[2]?.vocabularyItems || [])
+      ];
+      for (let vIdx = 0; vIdx < vocabs.length; vIdx++) {
+        const v = vocabs[vIdx];
+        if (!v?._id) continue;
+        const weakWord = (isStruggling && vIdx < 4) || (!isTop && vIdx === 0);
+        await M.VocabularyMastery.findOneAndUpdate(
+          { student: student._id, vocabulary: v._id },
+          {
+            student: student._id,
+            vocabulary: v._id,
+            correctCount: weakWord ? 1 : isTop ? 6 : 4,
+            wrongCount: weakWord ? 3 : isTop ? 0 : 1,
+            attemptCount: weakWord ? 4 : isTop ? 6 : 5,
+            streak: weakWord ? 0 : isTop ? 4 : 2,
+            masteryLevel: weakWord ? 1 : isTop ? 4 : 3,
+            lastReviewedAt: new Date(`${yesterdayStr}T16:00:00.000+07:00`)
+          },
+          { upsert: true }
+        );
+      }
+    }
+  };
+
+  await seedClassProgressAndVocab([childLeo, ...class1Kids], b1Lessons);
+  await seedClassProgressAndVocab([childMia, ...class2Kids], b2Lessons);
+  await seedClassProgressAndVocab([childToby, ...class3Kids], b3Lessons);
 
   // Observations & HomePracticePlan for Leo
   const obsLeo = await M.LearningObservation.create({
@@ -846,34 +1019,103 @@ async function prepareDemoAtlas() {
     ]
   });
 
-  // HomePracticeCompletion history for Leo (yesterday completed, today left open so user can demo completing today's 5-min review!)
-  await M.HomePracticeCompletion.deleteMany({ child: childLeo._id });
-  await M.HomePracticeCompletion.create({
-    child: childLeo._id,
-    date: '2026-11-17',
-    lesson: b1Lessons[0]?._id,
-    stars: 3,
-    completedAt: new Date('2026-11-17T20:00:00.000+07:00')
-  });
-  await M.HomePracticeCompletion.create({
-    child: childLeo._id,
-    date: '2026-11-18',
-    lesson: b1Lessons[1]?._id,
-    stars: 3,
-    completedAt: new Date('2026-11-18T20:00:00.000+07:00')
-  });
+  // HomePracticeCompletion history for Leo, Mia, Toby (recent days completed, today left open to demo 5-min review!)
+  await M.HomePracticeCompletion.deleteMany({ child: { $in: [childLeo._id, childMia._id, childToby._id] } });
+  for (const [demoChild, lessonsArr] of [[childLeo, b1Lessons], [childMia, b2Lessons], [childToby, b3Lessons]]) {
+    await M.HomePracticeCompletion.create({
+      child: demoChild._id,
+      date: twoDaysAgoStr,
+      lesson: lessonsArr[0]?._id,
+      stars: 3,
+      completedAt: new Date(`${twoDaysAgoStr}T20:00:00.000+07:00`)
+    });
+    await M.HomePracticeCompletion.create({
+      child: demoChild._id,
+      date: yesterdayStr,
+      lesson: lessonsArr[1]?._id,
+      stars: 3,
+      completedAt: new Date(`${yesterdayStr}T20:00:00.000+07:00`)
+    });
+  }
+
+  // Also create Observations & HomePracticePlans for Mia and Toby
+  for (const [demoChild, demoClass, demoTeacher, demoSession, lessonsArr, ageCode] of [
+    [childMia, class2, teacherEmily, c2Session2, b2Lessons, '4-5'],
+    [childToby, class3, teacherDavid, c3Session2, b3Lessons, '5-6']
+  ]) {
+    const lessonDoc = lessonsArr[1] || lessonsArr[0];
+    if (!lessonDoc) continue;
+    const obsDoc = await M.LearningObservation.create({
+      child: demoChild._id,
+      classroom: demoClass._id,
+      teacher: demoTeacher._id,
+      lesson: lessonDoc._id,
+      session: demoSession._id,
+      skill: 'EXPRESS',
+      vocabulary: (lessonDoc.vocabularyItems || []).slice(0, 3).map(v => v._id),
+      unitKey: ageCode === '4-5' ? 'B2_U1' : 'B3_U1',
+      unitLabel: 'Unit 1 - Welcome to Class',
+      level: 'INDEPENDENT',
+      evidence: `Bé ${demoChild.name} phát âm chuẩn xác, phản xạ mẫu câu tiếng Anh tự nhiên và rất tích cực tham gia hoạt động nhóm trên lớp.`,
+      nextStep: 'Khuyến khích bé kể lại câu chuyện ngắn và ôn 3 từ vựng cùng ba mẹ tại nhà.',
+      consentConfirmed: true,
+      observedAt: new Date(`${tueDateStr}T10:10:00.000+07:00`),
+      operationId: `obs_demo_${demoChild.username}_${Date.now()}`,
+      payloadHash: `demo_hash_${demoChild.username}_obs_01`
+    });
+
+    await M.HomePracticePlan.create({
+      child: demoChild._id,
+      classroom: demoClass._id,
+      teacher: demoTeacher._id,
+      lesson: lessonDoc._id,
+      sourceSession: demoSession._id,
+      revision: 1,
+      status: 'APPROVED',
+      operationId: `plan_demo_${demoChild.username}_${Date.now()}`,
+      payloadHash: `demo_hash_${demoChild.username}_plan_01`,
+      lessonTitle: lessonDoc.title,
+      ageGroupCode: ageCode,
+      teacherNote: `Ba mẹ dành 5 phút buổi tối cùng bé ${demoChild.name} ôn lại các từ vựng và mẫu câu vừa học trên lớp nhé!`,
+      words: (lessonDoc.vocabularyItems || []).slice(0, 3).map(v => ({
+        vocabulary: v._id,
+        english: v.english,
+        vietnamese: v.vietnamese,
+        imageUrl: v.imageUrl,
+        audioUrl: v.audioUrl,
+        wordType: 'noun',
+        reason: 'Từ vựng trọng tâm buổi học trên lớp'
+      })),
+      homeActivity: {
+        title: 'Thử thách 5 phút phản xạ tiếng Anh cùng ba mẹ',
+        steps: [
+          'Ba mẹ mở thẻ từ vựng và cùng bé đọc to 2 lần mỗi từ',
+          'Bé đặt 1 câu ngắn với từ vừa học và nhận lời khen từ ba mẹ'
+        ]
+      },
+      observations: [
+        {
+          observation: obsDoc._id,
+          skill: obsDoc.skill,
+          level: obsDoc.level,
+          evidence: obsDoc.evidence,
+          nextStep: obsDoc.nextStep
+        }
+      ]
+    });
+  }
 
   // 10. Parent Notifications (Family Notebook Inbox for Leo, Mia, Toby)
   await M.ParentNotification.create({
     teacher: teacherSarah._id,
     child: childLeo._id,
-    session: c1Session2._id,
+    session: c1Session3._id,
     recipientContact: '0901234567',
     childName: 'Leo',
     className: class1.name,
-    sessionDate: new Date('2026-11-17T09:15:00.000+07:00'),
+    sessionDate: thuEnd,
     subject: 'Báo cáo buổi học — Bé Leo đạt 5 sao xuất sắc!',
-    content: 'Trong buổi học School Activities, bé Leo đã tham gia rất hăng say, trả lời đúng 5/5 câu hỏi tương tác và phát âm to rõ ràng.',
+    content: 'Trong buổi học What Can You See?, bé Leo đã tham gia rất hăng say, trả lời đúng 5/5 câu hỏi tương tác và phát âm to rõ ràng.',
     teacherNote: 'Leo nhớ từ vựng rất nhanh và luôn nhiệt tình giúp đỡ các bạn trong nhóm. Ba mẹ cùng bé ôn lại 5 phút ở nhà nhé!',
     score: 100,
     vocabMastered: 5,
@@ -882,7 +1124,7 @@ async function prepareDemoAtlas() {
     accuracy: 100,
     templateType: 'SESSION_REPORT',
     status: 'SENT',
-    sentAt: new Date('2026-11-17T09:20:00.000+07:00')
+    sentAt: new Date(thuEnd.getTime() + 5 * 60000)
   });
 
   await M.ParentNotification.create({
@@ -891,19 +1133,60 @@ async function prepareDemoAtlas() {
     recipientContact: '0901234567',
     childName: 'Leo',
     className: class1.name,
-    sessionDate: new Date('2026-11-18T08:30:00.000+07:00'),
-    subject: 'Thông báo nghỉ học — Lớp Little Stars Class (Age 3–4) (18/11/2026)',
-    content: 'Kính gửi Quý Phụ huynh bé Leo, lớp Little Stars Class (Age 3–4) xin thông báo tạm nghỉ buổi học ngày 18/11/2026. Lý do: Họp hội đồng sư phạm định kỳ của nhà trường. Bài học trong lộ trình sẽ được bảo lưu sang buổi học kế tiếp.',
-    teacherNote: 'Bài 3 (Good Friends) được bảo lưu sang Thứ Năm 19/11.',
+    sessionDate: wedStart,
+    subject: `Thông báo nghỉ học — Lớp Little Stars Class (Age 3–4) (${wedDateStr})`,
+    content: `Kính gửi Quý Phụ huynh bé Leo, lớp Little Stars Class (Age 3–4) xin thông báo tạm nghỉ buổi học ngày ${wedDateStr}. Lý do: Họp hội đồng sư phạm định kỳ của nhà trường. Bài học trong lộ trình sẽ được bảo lưu sang buổi học kế tiếp.`,
+    teacherNote: 'Bài 3 được bảo lưu sang Thứ Năm.',
     templateType: 'GENERAL',
     status: 'SENT',
-    sentAt: new Date('2026-11-17T19:00:00.000+07:00')
+    sentAt: new Date(`${tueDateStr}T19:00:00.000+07:00`)
   });
 
-  // 11. Published ClassRecognition & SchoolRecognition for Previous Week (2026-11-09 to 2026-11-15)
-  // So Leo, Mia, Toby immediately have a certificate/award in their profile, while Current Week (2026-11-16) is ready to be previewed & published live during the demo!
-  const lastWeekStart = new Date('2026-11-08T17:00:00.000Z'); // 2026-11-09 00:00 VN
-  const lastWeekEnd = new Date('2026-11-15T17:00:00.000Z');   // 2026-11-16 00:00 VN
+  await M.ParentNotification.create({
+    teacher: teacherEmily._id,
+    child: childMia._id,
+    session: c2Session2._id,
+    recipientContact: '0901234567',
+    childName: 'Mia',
+    className: class2.name,
+    sessionDate: new Date(`${tueDateStr}T10:15:00.000+07:00`),
+    subject: 'Báo cáo buổi học — Bé Mia đạt 5 sao xuất sắc!',
+    content: 'Bé Mia phát âm mẫu câu rất tự tin và hoàn thành xuất sắc các hoạt động đóng vai cùng bạn.',
+    teacherNote: 'Ba mẹ khuyến khích bé kể lại câu chuyện ngắn bằng tiếng Anh tối nay nhé!',
+    score: 100,
+    vocabMastered: 5,
+    vocabTotal: 5,
+    stars: 5,
+    accuracy: 100,
+    templateType: 'SESSION_REPORT',
+    status: 'SENT',
+    sentAt: new Date(`${tueDateStr}T10:20:00.000+07:00`)
+  });
+
+  await M.ParentNotification.create({
+    teacher: teacherDavid._id,
+    child: childToby._id,
+    session: c3Session2._id,
+    recipientContact: '0901234567',
+    childName: 'Toby',
+    className: class3.name,
+    sessionDate: new Date(`${tueDateStr}T11:15:00.000+07:00`),
+    subject: 'Báo cáo buổi học — Bé Toby dẫn đầu phần thuyết trình!',
+    content: 'Bé Toby hoàn thành xuất sắc phần thuyết trình câu hoàn chỉnh trước lớp với 5 sao tuyệt đối.',
+    teacherNote: 'Toby phát âm rất chuẩn và tự tin làm mẫu cho cả lớp.',
+    score: 100,
+    vocabMastered: 5,
+    vocabTotal: 5,
+    stars: 5,
+    accuracy: 100,
+    templateType: 'SESSION_REPORT',
+    status: 'SENT',
+    sentAt: new Date(`${tueDateStr}T11:20:00.000+07:00`)
+  });
+
+  // 11. Published ClassRecognition & SchoolRecognition for Previous Week
+  const lastWeekStart = new Date(`${lastMonDateStr}T00:00:00.000+07:00`);
+  const lastWeekEnd = new Date(`${monDateStr}T00:00:00.000+07:00`);
 
   await ClassRecognition.create({
     classroom: class1._id,
@@ -1039,11 +1322,12 @@ async function prepareDemoAtlas() {
   // 12. Seed Realistic Admin AuditLogs so "Nhật ký hoạt động" looks clean and active
   await M.AuditLog.deleteMany({});
   const auditEntries = [
-    { action: 'CREATE_CLASSROOM', targetType: 'ClassRoom', targetId: String(class1._id), details: { name: class1.name, ageGroupCode: '3-4', teacher: teacherSarah.name }, createdAt: new Date('2026-11-16T08:00:00.000+07:00') },
-    { action: 'CREATE_CLASSROOM', targetType: 'ClassRoom', targetId: String(class2._id), details: { name: class2.name, ageGroupCode: '4-5', teacher: teacherEmily.name }, createdAt: new Date('2026-11-16T08:05:00.000+07:00') },
-    { action: 'CREATE_CLASSROOM', targetType: 'ClassRoom', targetId: String(class3._id), details: { name: class3.name, ageGroupCode: '5-6', teacher: teacherDavid.name }, createdAt: new Date('2026-11-16T08:10:00.000+07:00') },
-    { action: 'UPDATE_SCHEDULE', targetType: 'Schedule', targetId: String(class1._id), details: { classroom: class1.name, slotsCount: 7, status: 'ACTIVE' }, createdAt: new Date('2026-11-17T10:30:00.000+07:00') },
-    { action: 'EXPORT_SYSTEM_BACKUP', targetType: 'SystemBackup', targetId: admin._id, details: { collectionsCount: 38, format: 'JSON Snapshot v2.0' }, createdAt: new Date('2026-11-18T21:00:00.000+07:00') }
+    { action: 'CREATE_CLASSROOM', targetType: 'ClassRoom', targetId: String(class1._id), details: { name: class1.name, ageGroupCode: '3-4', teacher: teacherSarah.name }, createdAt: new Date(`${monDateStr}T08:00:00.000+07:00`) },
+    { action: 'CREATE_CLASSROOM', targetType: 'ClassRoom', targetId: String(class2._id), details: { name: class2.name, ageGroupCode: '4-5', teacher: teacherEmily.name }, createdAt: new Date(`${monDateStr}T08:05:00.000+07:00`) },
+    { action: 'CREATE_CLASSROOM', targetType: 'ClassRoom', targetId: String(class3._id), details: { name: class3.name, ageGroupCode: '5-6', teacher: teacherDavid.name }, createdAt: new Date(`${monDateStr}T08:10:00.000+07:00`) },
+    { action: 'UPDATE_SCHEDULE', targetType: 'Schedule', targetId: String(class1._id), details: { classroom: class1.name, slotsCount: 7, status: 'ACTIVE' }, createdAt: new Date(`${tueDateStr}T10:30:00.000+07:00`) },
+    { action: 'AUTO_ASSIGN_CURRICULUM_SCHEDULES', targetType: 'Schedule', targetId: String(class1._id), details: { classroomCount: 3, assignedSlots: 17 }, createdAt: new Date(`${wedDateStr}T14:15:00.000+07:00`) },
+    { action: 'EXPORT_SYSTEM_BACKUP', targetType: 'SystemBackup', targetId: admin._id, details: { collectionsCount: 38, format: 'JSON Snapshot v3.4' }, createdAt: new Date(`${thuDateStr}T21:00:00.000+07:00`) }
   ];
   for (const entry of auditEntries) {
     await M.AuditLog.create({ user: admin._id, ...entry });

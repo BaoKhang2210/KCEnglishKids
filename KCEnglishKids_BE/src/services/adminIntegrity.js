@@ -97,7 +97,23 @@ async function syncTeacher(room, teacherId) {
     return;
   }
   const current = TEACHING_STATUSES.includes(room.status);
-  if (current) await availableTeacher(String(teacherId), room._id);
+  if (current) {
+    await availableTeacher(String(teacherId), room._id);
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      const { validateSchedule } = require('./scheduleRules');
+      const existingSchedule = await Schedule.findOne({ classroom: room._id }).sort({ isActive: -1, createdAt: -1 }).lean();
+      if (existingSchedule && Array.isArray(existingSchedule.weeklySlots) && existingSchedule.weeklySlots.length > 0) {
+        await validateSchedule({
+          classroom: room._id,
+          teacher: teacherId,
+          weeklySlots: existingSchedule.weeklySlots,
+          effectiveFrom: existingSchedule.effectiveFrom || new Date(),
+          effectiveTo: null,
+          isActive: true
+        }, existingSchedule._id);
+      }
+    }
+  }
   if (await ClassroomSession.exists({ classroom: room._id, status: 'LIVE', ...(current ? { teacher: { $ne: teacherId } } : {}) })) {
     throw fail('Hãy kết thúc buổi dạy đang mở trước khi bàn giao hoặc đóng lớp.', 409);
   }
@@ -113,7 +129,7 @@ async function syncTeacher(room, teacherId) {
       { _id: teacherId, assignedClass: room._id },
       { $unset: { assignedClass: 1 }, $pull: { assignedClasses: room._id } }
     );
-    if (room.status === 'COMPLETED' || room.status === 'INACTIVE') {
+    if (room.status === 'COMPLETED') {
       const vnDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
       const completedEndDate = new Date(`${vnDateStr}T23:59:59.999+07:00`);
       await Schedule.updateMany(
@@ -154,8 +170,36 @@ async function moveStudents(room, ids, replace = false, upgradeAge = false) {
   }
   if (!Array.isArray(ids) || ids.some(id => !validId(String(id)))) throw fail('Danh sách mã học sinh không hợp lệ.');
   const unique = [...new Set(ids.map(String))];
-  const students = await User.find({ _id: { $in: unique }, role: 'CHILD', status: 'ACTIVE' }).select('_id name ageGroupCode');
+  const students = await User.find({ _id: { $in: unique }, role: 'CHILD', status: 'ACTIVE' })
+    .select('_id name ageGroupCode assignedClass')
+    .populate('assignedClass', 'name status ageGroupCode');
   if (students.length !== unique.length) throw fail('Danh sách có học sinh không tồn tại hoặc đã ngừng hoạt động.');
+
+  const AGE_RANK = { '3-4': 1, '4-5': 2, '5-6': 3 };
+  const classRank = AGE_RANK[room.ageGroupCode];
+  if (classRank) {
+    for (const s of students) {
+      const curClass = s.assignedClass && typeof s.assignedClass === 'object' ? s.assignedClass : null;
+      if (curClass && curClass.status === 'COMPLETED') {
+        if (curClass.ageGroupCode === '5-6' || s.ageGroupCode === '5-6') {
+          throw fail(`Học sinh "${s.name}" đã hoàn thành chương trình mầm non (Lớp 5-6 tuổi đã kết thúc), không thể chuyển vào lớp học mới.`);
+        }
+        if (s.ageGroupCode && AGE_RANK[s.ageGroupCode] === classRank) {
+          throw fail(`Học sinh "${s.name}" đã hoàn thành lớp ${curClass.name || ''} (${s.ageGroupCode} tuổi). Bé không thể học lại lớp cùng lứa tuổi; vui lòng nâng lớp cho bé lên lớp kế tiếp (+1 tuổi).`);
+        }
+      }
+      if (s.ageGroupCode && AGE_RANK[s.ageGroupCode]) {
+        const studentRank = AGE_RANK[s.ageGroupCode];
+        if (studentRank > classRank) {
+          throw fail(`Học sinh "${s.name}" đã ${s.ageGroupCode} tuổi, không thể hạ tuổi để xếp vào lớp ${room.ageGroupCode} tuổi.`);
+        }
+        if (classRank > studentRank + 1) {
+          throw fail(`Học sinh "${s.name}" hiện đang ${s.ageGroupCode} tuổi, không thể nhảy cóc lên lớp ${room.ageGroupCode} tuổi (chỉ được lên tối đa lớp kế tiếp).`);
+        }
+      }
+    }
+  }
+
   if (room.ageGroupCode && !upgradeAge) {
     const wrongAge = students.find(s => s.ageGroupCode && s.ageGroupCode !== room.ageGroupCode);
     if (wrongAge) {

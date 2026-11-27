@@ -821,7 +821,9 @@
 }
 
 .teacher-surface .teacher-main :where(th, td) {
-  padding: 16px 18px;
+  padding: 11px 10px;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .teacher-inbox-grid {

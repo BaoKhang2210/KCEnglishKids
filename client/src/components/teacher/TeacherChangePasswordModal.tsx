@@ -151,7 +151,7 @@ export const TeacherChangePasswordModal: React.FC<TeacherChangePasswordModalProp
                     type={showCurrent ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Nhập mật khẩu đang dùng (mặc định: teacher123)"
+                    placeholder="Nhập mật khẩu đang dùng (mặc định: Teacher@123)"
                     disabled={loading}
                     className="w-full px-4 py-3 pr-11 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all disabled:opacity-50"
                   />

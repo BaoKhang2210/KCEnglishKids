@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { forecastLessons, scheduleSlotAppliesOn, slotKey, countsTowardCurriculum, getSequentialLessonForSlot, resolveDynamicSlotLesson } from './teachingSchedule';
+import { forecastLessons, scheduleSlotAppliesOn, slotKey, countsTowardCurriculum, getSequentialLessonForSlot, resolveDynamicSlotLesson, sessionMatchesSlot, pickTodayPendingSlot } from './teachingSchedule';
 const schedule = { _id: 's', isActive: true, effectiveFrom: '2026-10-01T00:00:00+07:00', effectiveTo: '2026-11-30T23:59:59+07:00', weeklySlots: [
   { dayOfWeek: 1, startTime: '08:00', endTime: '08:45' }, { dayOfWeek: 3, startTime: '09:00', endTime: '09:45' }
 ] };
@@ -265,5 +265,65 @@ describe('teaching timetable', () => {
     expect(slot2.isCancelled).toBeUndefined();
     expect(slot2.lesson?._id).toBe('l3');
     expect(fri.lesson?._id).toBe('l4');
+  });
+
+  it('matches both Lesson 3 and Lesson 4 on the same day even when startedAt differs by a few minutes from slot.startTime', () => {
+    const lessons = [
+      { _id: 'l1', title: 'Lesson 1', isCompleted: true, bookOrderIndex: 1 },
+      { _id: 'l2', title: 'Lesson 2', isCompleted: true, bookOrderIndex: 2 },
+      { _id: 'l3', title: 'Lesson 3', isCompleted: true, bookOrderIndex: 3 },
+      { _id: 'l4', title: 'Lesson 4', isCompleted: true, bookOrderIndex: 4 }
+    ];
+    const sameDaySchedule = {
+      _id: 'sch-same-day',
+      classroom: 'class-1',
+      isActive: true,
+      effectiveFrom: '2026-11-01T00:00:00+07:00',
+      weeklySlots: [
+        { dayOfWeek: 4, startTime: '08:00', endTime: '08:45' },
+        { dayOfWeek: 4, startTime: '08:45', endTime: '09:30' }
+      ]
+    };
+    const sessions = [
+      {
+        _id: 'sess-3',
+        classroom: 'class-1',
+        lesson: 'l3',
+        status: 'COMPLETED',
+        startedAt: '2026-11-19T08:03:00+07:00'
+      },
+      {
+        _id: 'sess-4',
+        classroom: 'class-1',
+        lesson: 'l4',
+        status: 'COMPLETED',
+        startedAt: '2026-11-19T08:42:00+07:00'
+      }
+    ];
+
+    expect(sessionMatchesSlot(sessions[0], sameDaySchedule.weeklySlots[0], sameDaySchedule.weeklySlots)).toBe(true);
+    expect(sessionMatchesSlot(sessions[0], sameDaySchedule.weeklySlots[1], sameDaySchedule.weeklySlots)).toBe(false);
+    expect(sessionMatchesSlot(sessions[1], sameDaySchedule.weeklySlots[1], sameDaySchedule.weeklySlots)).toBe(true);
+    expect(sessionMatchesSlot(sessions[1], sameDaySchedule.weeklySlots[0], sameDaySchedule.weeklySlots)).toBe(false);
+
+    const slot1 = resolveDynamicSlotLesson(sameDaySchedule, sameDaySchedule.weeklySlots[0], '2026-11-19', lessons, sessions, '2026-11-20');
+    const slot2 = resolveDynamicSlotLesson(sameDaySchedule, sameDaySchedule.weeklySlots[1], '2026-11-19', lessons, sessions, '2026-11-20');
+    expect(slot1.isTaught).toBe(true);
+    expect(slot1.lesson?._id).toBe('l3');
+    expect(slot2.isTaught).toBe(true);
+    expect(slot2.lesson?._id).toBe('l4');
+  });
+
+  it('pickTodayPendingSlot selects the upcoming afternoon slot after morning slot has passed', () => {
+    const slots = [
+      { startTime: '08:00', endTime: '08:45' },
+      { startTime: '14:00', endTime: '14:45' }
+    ];
+    // 10:00 (600 mins) -> morning passed, afternoon (14:00) upcoming
+    expect(pickTodayPendingSlot(slots, 10 * 60)?.startTime).toBe('14:00');
+    // 16:00 (960 mins) -> all slots passed, returns latest
+    expect(pickTodayPendingSlot(slots, 16 * 60)?.startTime).toBe('14:00');
+    // 07:00 (420 mins) -> morning upcoming
+    expect(pickTodayPendingSlot(slots, 7 * 60)?.startTime).toBe('08:00');
   });
 });

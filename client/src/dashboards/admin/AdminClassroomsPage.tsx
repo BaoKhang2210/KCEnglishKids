@@ -159,7 +159,7 @@ export const AdminClassroomsPage: React.FC = () => {
       setLoading(true);
       const [classRes, teacherRes, settingsRes] = await Promise.all([
         adminApi.getClassrooms(),
-        fetchAllPages<any>(page => adminApi.getUsers({ role: 'TEACHER', limit: 100, page })).then(data => ({ data, users: data })),
+        fetchAllPages<any>(page => adminApi.getUsers({ role: 'TEACHER', status: 'ACTIVE', limit: 100, page })).then(data => ({ data, users: data })),
         adminApi.getSettings()
       ]);
       setDefaultYear(settingsRes.data.academicYear);
@@ -697,7 +697,10 @@ export const AdminClassroomsPage: React.FC = () => {
           const rawDob = cleaned['Ngày sinh'] || cleaned['Ngay sinh'] || cleaned['birthDate'] || cleaned['dob'] || '';
           let dob = '';
           if (rawDob instanceof Date && !isNaN(rawDob.getTime())) {
-            dob = rawDob.toISOString().split('T')[0];
+            const yyyy = rawDob.getFullYear();
+            const mm = String(rawDob.getMonth() + 1).padStart(2, '0');
+            const dd = String(rawDob.getDate()).padStart(2, '0');
+            dob = `${yyyy}-${mm}-${dd}`;
           } else if (rawDob) {
             dob = String(rawDob).trim();
           }
@@ -908,9 +911,11 @@ export const AdminClassroomsPage: React.FC = () => {
     });
   }, [classrooms, search, filterAge, filterStatus]);
 
-  // Total statistics
+  // Total statistics (active & upcoming classrooms, counting active students)
   const totalStudents = useMemo(() => {
-    return classrooms.reduce((sum, c) => sum + (c.students?.length || c.studentCount || 0), 0);
+    return classrooms
+      .filter((c) => ['ACTIVE', 'UPCOMING'].includes(c.status || 'ACTIVE'))
+      .reduce((sum, c) => sum + (c.studentCount ?? c.students?.length ?? 0), 0);
   }, [classrooms]);
 
   return (
@@ -1067,7 +1072,7 @@ export const AdminClassroomsPage: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
           {filteredClassrooms.map((c) => {
             const studentCount = c.students?.length || c.studentCount || 0;
             const teacherName = c.teacher?.name || 'Chưa phân công';
@@ -1081,7 +1086,7 @@ export const AdminClassroomsPage: React.FC = () => {
                 {/* Card Top */}
                 <div className="p-6 space-y-3">
                   {/* Badges Row: Age group & Status */}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-100">
                       {c.ageGroupCode === '3-4'
                         ? 'Mầm (3-4 tuổi)'
@@ -1229,23 +1234,23 @@ export const AdminClassroomsPage: React.FC = () => {
 
                 {/* Card Actions Bottom */}
                 <div className="p-5 border-t border-slate-100 bg-slate-50/40 space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => handleOpenManageStudents(c)}
-                      className="py-2.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="min-w-0 py-2.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs leading-tight flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center"
                     >
-                      <Users size={16} />
-                      <span>{c.status === 'COMPLETED' ? 'Danh sách học sinh' : 'Quản lý Học sinh'}</span>
+                      <Users size={16} className="shrink-0" />
+                      <span className="truncate">{c.status === 'COMPLETED' ? 'Danh sách học sinh' : 'Quản lý Học sinh'}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleOpenCurriculumProgress(c, 'schedule')}
-                      className="py-2.5 px-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="min-w-0 py-2.5 px-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs leading-tight flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center"
                     >
-                      <BookOpen size={16} />
-                      <span>Xem Chi Tiết Lớp</span>
+                      <BookOpen size={16} className="shrink-0" />
+                      <span className="truncate">Xem Chi Tiết Lớp</span>
                     </button>
                   </div>
 
@@ -1839,7 +1844,7 @@ export const AdminClassroomsPage: React.FC = () => {
                               Không tìm thấy học sinh nào phù hợp.
                             </div>
                           ) : (
-                            filteredAvailableStudents.slice(0, 60).map((st: any) => {
+                            filteredAvailableStudents.map((st: any) => {
                               const currentClassId = typeof st.assignedClass === 'object' ? st.assignedClass?._id : st.assignedClass;
                               const currentClassObj = typeof st.assignedClass === 'object' ? st.assignedClass : null;
                               const isCurrentClassCompleted = currentClassObj?.status === 'COMPLETED';
@@ -2650,7 +2655,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                   <span className="font-black text-rose-950">
                                     {curriculumData.classroom?.teacher?.name || 'Chưa có thông tin'}
                                   </span>{' '}
-                                  (SĐT: <span className="font-bold underline">{curriculumData.classroom?.teacher?.phone || 'Chưa cập nhật'}</span> — Email: {curriculumData.classroom?.teacher?.email || 'N/A'})
+                                  (SĐT: <span className="font-bold underline">{curriculumData.classroom?.teacher?.contact || curriculumData.classroom?.teacher?.phone || 'Chưa cập nhật'}</span> — Email: {curriculumData.classroom?.teacher?.email || 'N/A'})
                                 </p>
                                 <p className="text-xs italic text-rose-600 pt-0.5">
                                   * Admin vui lòng liên hệ ngay với giáo viên để xác nhận tình hình hoặc phân công giáo viên dạy thay.
@@ -2900,7 +2905,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                           </span>
                                         ) : (
                                           <span className="font-bold text-amber-700 text-xs">
-                                            ⭐ {s.summary?.totalStars || s.averageScore || 0} sao
+                                            ⭐ {s.summary?.totalStars ?? 0} sao
                                           </span>
                                         )}
                                       </div>
@@ -2925,7 +2930,7 @@ export const AdminClassroomsPage: React.FC = () => {
                     absent: 0,
                     late: 0,
                     totalSessions: 0,
-                    attendanceRate: 100
+                    attendanceRate: null
                   }));
 
                   const sessionsList = curriculumData?.recentSessions || [];
@@ -2945,14 +2950,19 @@ export const AdminClassroomsPage: React.FC = () => {
                   });
 
                   const totalSlotsSum = totalPresentCount + totalExcusedCount + totalAbsentCount + totalLateCount;
-                  const classAvgRate = totalSlotsSum > 0 ? Math.round(((totalPresentCount + totalLateCount) / totalSlotsSum) * 100) : 100;
+                  const classAvgRate = totalSlotsSum > 0 ? Math.round(((totalPresentCount + totalLateCount) / totalSlotsSum) * 100) : null;
+
+                  const isFullAttendance = (item: any) =>
+                    (item.totalSessions ?? 0) > 0 &&
+                    typeof item.attendanceRate === 'number' &&
+                    item.attendanceRate === 100;
 
                   const filteredStudents = studentsList.filter((item: any) => {
                     if (sessionAttendanceFilter === 'ABSENT_ONLY') {
                       return (item.absent || 0) > 0 || (item.excused || 0) > 0 || (item.late || 0) > 0;
                     }
                     if (sessionAttendanceFilter === 'PRESENT_ONLY') {
-                      return (item.attendanceRate || 100) >= 95;
+                      return isFullAttendance(item);
                     }
                     return true;
                   });
@@ -2969,8 +2979,10 @@ export const AdminClassroomsPage: React.FC = () => {
 
                         <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
                           <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800">Tỷ Lệ Chuyên Cần</p>
-                          <p className="text-2xl font-black text-emerald-950 mt-1">{classAvgRate}%</p>
-                          <p className="text-[11px] font-semibold text-emerald-800 mt-0.5">Mức độ tham gia lớp</p>
+                          <p className="text-2xl font-black text-emerald-950 mt-1">{classAvgRate !== null ? `${classAvgRate}%` : '—'}</p>
+                          <p className="text-[11px] font-semibold text-emerald-800 mt-0.5">
+                            {classAvgRate !== null ? 'Mức độ tham gia lớp' : 'Chưa có dữ liệu điểm danh'}
+                          </p>
                         </div>
 
                         <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 shadow-2xs">
@@ -3028,7 +3040,7 @@ export const AdminClassroomsPage: React.FC = () => {
                                   : 'text-slate-600 hover:text-emerald-700'
                               }`}
                             >
-                              Đi đủ 100% ({studentsList.filter((x: any) => (x.attendanceRate || 100) >= 95).length})
+                              Đi đủ 100% ({studentsList.filter((x: any) => isFullAttendance(x)).length})
                             </button>
                           </div>
                         </div>
@@ -3052,9 +3064,9 @@ export const AdminClassroomsPage: React.FC = () => {
                               <tbody className="divide-y divide-slate-100 font-semibold">
                                 {filteredStudents.map((item: any) => {
                                   const st = item.student || item;
-                                  const rate = item.attendanceRate ?? 100;
-                                  const isPerfect = rate >= 90;
-                                  const isGood = rate >= 75 && rate < 90;
+                                  const rate = typeof item.attendanceRate === 'number' ? item.attendanceRate : null;
+                                  const isPerfect = rate !== null && rate >= 90;
+                                  const isGood = rate !== null && rate >= 75 && rate < 90;
 
                                   return (
                                     <tr key={st._id} className="hover:bg-slate-50/70">
@@ -3092,20 +3104,22 @@ export const AdminClassroomsPage: React.FC = () => {
                                               🟠 {item.late} trễ
                                             </span>
                                           )}
-                                          {(item.excused ?? 0) === 0 && (item.absent ?? 0) === 0 && (item.late ?? 0) === 0 && (
+                                          {(item.present ?? 0) > 0 && (item.excused ?? 0) === 0 && (item.absent ?? 0) === 0 && (item.late ?? 0) === 0 && (
                                             <span className="text-[10px] text-emerald-600 font-bold">Đi đủ 100%</span>
                                           )}
                                         </div>
                                       </td>
                                       <td className="py-2.5 px-3 text-right">
                                         <span className={`px-2.5 py-1 rounded-full text-xs font-black inline-block ${
-                                          isPerfect
+                                          rate === null
+                                            ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                                            : isPerfect
                                             ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                                             : isGood
                                             ? 'bg-amber-100 text-amber-900 border border-amber-200'
                                             : 'bg-rose-100 text-rose-900 border border-rose-200'
                                         }`}>
-                                          {rate}%
+                                          {rate !== null ? `${rate}%` : 'Chưa có'}
                                         </span>
                                       </td>
                                     </tr>

@@ -2,6 +2,7 @@ const { ClassRoom, User, Progress, ActivityResult, LearningSession, TeacherNote,
 
 const rules = require('../services/teacherRules');
 const access = require('../services/teacherAccess');
+const { activeScheduleFilter } = require('../services/scheduleRules');
 const { escapeRegex } = require('../services/adminIntegrity');
 const validId = rules.validId;
 const invalid = (res, message) => res.status(400).json({ success: false, message });
@@ -18,7 +19,10 @@ const ownClassOr403 = async (req, res, id) => { if (!validId(id)) { invalid(res,
 
 exports.getDashboard = async (req, res, next) => { try {
   const classes = await ClassRoom.find({ ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('students name status');
-  const ids = [...new Map(classes.flatMap(c => c.students).map(id => [String(id), id])).values()];
+  const rawIds = [...new Map(classes.flatMap(c => c.students).map(id => [String(id), id])).values()];
+  const ids = (rawIds.length && require('mongoose').connection?.readyState === 1)
+    ? await User.find({ _id: { $in: rawIds }, role: 'CHILD', status: 'ACTIVE' }).distinct('_id')
+    : rawIds;
   const [resultStats, recentSessions, parentFeedback] = await Promise.all([
     statsFor(ids),
     LearningSession.find({ child: { $in: ids } }).sort({ lastActivityAt: -1 }).limit(8).populate('child', 'name avatar avatarUrl').populate('lesson', 'title'),
@@ -40,7 +44,9 @@ exports.getDashboard = async (req, res, next) => { try {
 
 exports.getTeacherClasses = async (req, res, next) => { try {
   const q = { ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }; if (req.query.status) q.status = req.query.status; if (req.query.ageGroupCode) q.ageGroupCode = req.query.ageGroupCode; if (req.query.search) q.name = { $regex: escapeRegex(String(req.query.search).slice(0, 200)), $options: 'i' };
-  const data = await ClassRoom.find(q).populate('teacher', 'name avatar avatarUrl').populate('ageGroup', 'name code').populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin', options: { sort: { name: 1 } } }).sort({ updatedAt: -1 }); res.json({ success: true, count: data.length, data });
+  const data = await ClassRoom.find(q).populate('teacher', 'name avatar avatarUrl').populate('ageGroup', 'name code').populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin status', options: { sort: { name: 1 } } }).sort({ updatedAt: -1 });
+  data.forEach(c => { if (Array.isArray(c.students)) c.students = c.students.filter(st => !st || typeof st !== 'object' || !st.status || st.status === 'ACTIVE'); });
+  res.json({ success: true, count: data.length, data });
 } catch (e) { next(e); } };
 
 exports.getClassDetail = async (req, res, next) => { try {
@@ -48,6 +54,7 @@ exports.getClassDetail = async (req, res, next) => { try {
   await classRoom.populate('teacher', 'name avatar avatarUrl'); await classRoom.populate('ageGroup', 'name code');
   // §1.1.2 + §1.1.3 — sort students A-Z and include contact/parentContact/status/assignedClass
   await classRoom.populate({ path: 'students', select: 'name avatar avatarUrl ageGroupCode dob lastLogin createdAt contact parentContact status assignedClass', options: { sort: { name: 1 } } });
+  classRoom.students = (classRoom.students || []).filter(st => !st || typeof st !== 'object' || !st.status || st.status === 'ACTIVE');
   // §1.1.2 — Mongo sorts by code point; re-sort with Vietnamese locale so accented names order correctly
   classRoom.students.sort(byNameVi);
   const [resultStats, recentSessions] = await Promise.all([
@@ -118,9 +125,10 @@ exports.getClassAttendance = async (req, res, next) => {
 
     await classRoom.populate({
       path: 'students',
-      select: 'name avatar avatarUrl ageGroupCode dob contact parentContact',
+      select: 'name avatar avatarUrl ageGroupCode dob contact parentContact status',
       options: { sort: { name: 1 } }
     });
+    classRoom.students = (classRoom.students || []).filter(st => !st || typeof st !== 'object' || !st.status || st.status === 'ACTIVE');
     classRoom.students.sort(byNameVi);
 
     const existingMap = new Map((attendance?.records || []).map(r => [String(r.student), r]));
@@ -152,14 +160,15 @@ exports.getClassAttendance = async (req, res, next) => {
 exports.saveClassAttendance = async (req, res, next) => { try {
   const room = await access.classroom(req, req.params.id);
   const date = rules.attendanceDate(req.body.date);
-  const records = rules.attendanceRecords(req.body.records, room.students);
+  const activeStudents = await access.activeRoster(room);
+  const records = rules.attendanceRecords(req.body.records, activeStudents);
   const data = await Attendance.findOneAndUpdate({ classroom: room._id, date }, { classroom: room._id, teacher: req.user._id, date, records, note: rules.text(req.body.note) }, { upsert: true, returnDocument: 'after', runValidators: true });
   res.json({ success: true, data });
 } catch(e) { next(e); } };
 
 exports.getStudents = async (req, res, next) => { try {
   const ids = await studentsFor(req);
-  const q = { _id: { $in: ids }, role: 'CHILD' };
+  const q = { _id: { $in: ids }, role: 'CHILD', status: 'ACTIVE' };
   if (req.query.classRoomId) {
     if (!(await classFor(req, req.query.classRoomId))) return res.status(403).json({ success: false, message: 'You do not have access to this classroom.' });
     q.assignedClass = req.query.classRoomId;
@@ -169,14 +178,16 @@ exports.getStudents = async (req, res, next) => { try {
   const data = await User.find(q).select('-password -pin').populate('assignedClass', 'name').sort({ name: 1 }).collation({ locale: 'vi', strength: 2 });
   const [resultStats, sessionRows] = await Promise.all([
     statsFor(data.map(x => x._id)),
-    ClassroomSession.find({ 'studentScores.student': { $in: data.map(x => x._id) }, status: 'COMPLETED' }).select('date startedAt createdAt studentScores').lean()
+    ClassroomSession.find({ 'studentScores.student': { $in: data.map(x => x._id) }, status: 'COMPLETED' }).select('classroom date startedAt createdAt studentScores').lean()
   ]);
   const statMap = new Map(resultStats.map(x => [String(x._id), x]));
   const attMap = new Map();
   data.forEach(st => {
     const sIdStr = String(st._id);
+    const stClassId = st.assignedClass ? String(st.assignedClass._id || st.assignedClass) : null;
     let present = 0, excused = 0, absent = 0, late = 0;
     sessionRows.forEach(s => {
+      if (stClassId && s.classroom && String(s.classroom) !== stClassId) return;
       const row = (s.studentScores || []).find(sc => String(sc.student?._id || sc.student) === sIdStr);
       if (row) {
         if (row.attendance === 'PRESENT') present++;
@@ -211,9 +222,9 @@ exports.getStudentOverview = async (req, res, next) => {
       LearningSession.find({ child: student._id }).populate('lesson', 'title').sort({ lastActivityAt: -1 }).limit(15),
       TeacherNote.find(notesQuery).populate('teacher', 'name avatar').populate('lesson', 'title').sort({ createdAt: -1 }),
       statsFor([student._id]),
-      VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category').lean(),
+      VocabularyMastery.find({ student: student._id }).populate('vocabulary', 'english vietnamese imageUrl audioUrl category status').lean(),
       ActivityResult.find({ child: student._id, completed: true }).populate({ path: 'activity', match: { activityType: { $in: ['LISTEN_CHOOSE', 'LISTEN_REPEAT'] } }, select: 'activityType' }).select('answers activity score stars duration').lean(),
-      ClassroomSession.find({ classroom: student.assignedClass, 'studentScores.student': student._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).limit(30).lean()
+      ClassroomSession.find({ classroom: student.assignedClass, 'studentScores.student': student._id, status: 'COMPLETED' }).sort({ startedAt: -1, date: -1, createdAt: -1 }).lean()
     ]);
 
     let attPresent = 0, attExcused = 0, attAbsent = 0, attLate = 0;
@@ -294,7 +305,7 @@ exports.getStudentOverview = async (req, res, next) => {
     }
 
     // 1. Vocabulary Competency
-    const safeMasteryList = (masteryList || []).filter(row => row.vocabulary);
+    const safeMasteryList = (masteryList || []).filter(row => row.vocabulary && (!row.vocabulary.status || row.vocabulary.status === 'ACTIVE'));
     const masteredList = safeMasteryList.filter(m => m.masteryLevel === 3);
     const practicingList = safeMasteryList.filter(m => m.masteryLevel === 2);
     const learningList = safeMasteryList.filter(m => m.masteryLevel === 1);
@@ -353,7 +364,7 @@ exports.getStudentOverview = async (req, res, next) => {
 
     // 3. Pronunciation & Speaking Competency
     const repeatResults = (listeningResults || []).filter(a => a.activity?.activityType === 'LISTEN_REPEAT');
-    const repeatScores = repeatResults.map(a => a.score).filter(s => typeof s === 'number' && s > 0);
+    const repeatScores = repeatResults.map(a => a.score).filter(s => typeof s === 'number' && !Number.isNaN(s) && s >= 0);
     const avgPronunciationScore = repeatScores.length
       ? Math.round(repeatScores.reduce((sum, s) => sum + s, 0) / repeatScores.length)
       : null;
@@ -438,7 +449,7 @@ exports.getContent = async (req, res, next) => { try {
     if (room.curriculumBook) uq.book = room.curriculumBook;
     else uq.ageGroupCode = room.ageGroupCode;
   } else if (req.user.role !== 'ADMIN') {
-    const rooms = await ClassRoom.find(access.classScope(req)).select('curriculumBook ageGroupCode');
+    const rooms = await ClassRoom.find({ ...access.classScope(req), status: { $in: ['ACTIVE', 'UPCOMING'] } }).select('curriculumBook ageGroupCode');
     const books = rooms.map(r => r.curriculumBook).filter(Boolean);
     const ages = rooms.map(r => r.ageGroupCode).filter(Boolean);
     uq.$or = [{ book: { $in: books } }, { ageGroupCode: { $in: ages } }];
@@ -508,7 +519,11 @@ exports.getCurriculumOptions = exports.getContent;
 
 exports.getMySchedule = async (req, res, next) => {
   try {
-    const schedules = await Schedule.find({ teacher: req.user._id, classroom: { $in: await access.classroomIds(req) }, isActive: true })
+    const schedules = await Schedule.find({
+      teacher: req.user._id,
+      classroom: { $in: await access.classroomIds(req) },
+      ...activeScheduleFilter()
+    })
       .populate('classroom', 'name ageGroupCode academicYear students status teacher')
       .populate('teacher', 'name email avatar avatarUrl username')
       .populate({

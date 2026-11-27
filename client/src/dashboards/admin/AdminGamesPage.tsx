@@ -174,6 +174,7 @@ export const AdminGamesPage: React.FC = () => {
       }
     } catch (e: any) {
       console.error('Error fetching analytics:', e);
+      setError(e?.message || 'Không thể tải dữ liệu thống kê game.');
     } finally {
       setAnalyticsLoading(false);
     }
@@ -189,6 +190,7 @@ export const AdminGamesPage: React.FC = () => {
       }
     } catch (e: any) {
       console.error('Error fetching readiness:', e);
+      setError(e?.message || 'Không thể tải dữ liệu kiểm tra học liệu game.');
     } finally {
       setReadinessLoading(false);
     }
@@ -196,6 +198,7 @@ export const AdminGamesPage: React.FC = () => {
 
   useEffect(() => {
     loadCatalog();
+    loadAnalytics();
   }, []);
 
   useEffect(() => {
@@ -230,12 +233,14 @@ export const AdminGamesPage: React.FC = () => {
     return () => abort.abort();
   }, [selectedLessonId]);
 
-  // Reorder games
-  const moveGame = (index: number, delta: number) => {
+  // Reorder games by ID (safe even when category filter is active)
+  const moveGame = (gameId: string, delta: number) => {
     setGames(current => {
-      const next = [...current];
+      const index = current.findIndex(g => g.id === gameId);
+      if (index < 0) return current;
       const targetIndex = index + delta;
-      if (targetIndex < 0 || targetIndex >= next.length) return current;
+      if (targetIndex < 0 || targetIndex >= current.length) return current;
+      const next = [...current];
       [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
       return next;
     });
@@ -408,7 +413,7 @@ export const AdminGamesPage: React.FC = () => {
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lượt Chơi Ghi Nhận</p>
             <p className="text-2xl font-black text-amber-700 mt-0.5">
-              {analyticsData?.summary?.totalPlays ?? 63}+ lượt
+              {analyticsData?.summary?.totalPlays != null ? `${analyticsData.summary.totalPlays} lượt` : '—'}
             </p>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">Từ các buổi học thực tế</p>
           </div>
@@ -421,9 +426,11 @@ export const AdminGamesPage: React.FC = () => {
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tỉ lệ Đạt 3 Sao</p>
             <p className="text-2xl font-black text-purple-700 mt-0.5">
-              {analyticsData?.summary?.threeStarRate ?? 87}%
+              {analyticsData?.summary?.threeStarRate != null ? `${analyticsData.summary.threeStarRate}%` : '—'}
             </p>
-            <p className="text-xs text-slate-500 font-semibold mt-0.5">Điểm TB: {analyticsData?.summary?.avgScore ?? 91}đ</p>
+            <p className="text-xs text-slate-500 font-semibold mt-0.5">
+              Điểm TB: {analyticsData?.summary?.avgScore != null ? `${analyticsData.summary.avgScore}đ` : '—'}
+            </p>
           </div>
         </div>
       </div>
@@ -510,7 +517,8 @@ export const AdminGamesPage: React.FC = () => {
 
           {/* 12 Games Card Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredGames.map((game, index) => {
+            {filteredGames.map((game) => {
+              const realIndex = games.findIndex(g => g.id === game.id);
               const catMeta = GAME_CATEGORIES[game.category] || {
                 label: 'Khác',
                 icon: '🎮',
@@ -539,7 +547,7 @@ export const AdminGamesPage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
-                            #{index + 1}
+                            #{realIndex + 1}
                           </span>
                           <h3 className="text-base font-black text-slate-900">
                             {viInfo.viTitle}
@@ -597,16 +605,16 @@ export const AdminGamesPage: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <button
                         title="Đẩy lên ưu tiên"
-                        disabled={index === 0 || saving}
-                        onClick={() => moveGame(index, -1)}
+                        disabled={realIndex <= 0 || saving}
+                        onClick={() => moveGame(game.id, -1)}
                         className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       >
                         <ArrowUp size={14} />
                       </button>
                       <button
                         title="Đẩy xuống sau"
-                        disabled={index === games.length - 1 || saving}
-                        onClick={() => moveGame(index, 1)}
+                        disabled={realIndex >= games.length - 1 || saving}
+                        onClick={() => moveGame(game.id, 1)}
                         className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       >
                         <ArrowDown size={14} />
@@ -845,7 +853,7 @@ export const AdminGamesPage: React.FC = () => {
                           </td>
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center gap-1 font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              ⭐ {play.stars || 3} sao · {play.score || 100}đ
+                              ⭐ {play.stars ?? 0} sao · {play.score ?? 0}đ
                             </span>
                           </td>
                           <td className="py-3 px-4 text-slate-600 italic">
@@ -889,10 +897,10 @@ export const AdminGamesPage: React.FC = () => {
                 <div className="p-5 rounded-3xl bg-emerald-50/70 border border-emerald-200">
                   <p className="text-xs font-bold text-emerald-900 uppercase">Tỉ lệ Sẵn Sàng Game</p>
                   <p className="text-3xl font-black text-emerald-950 mt-1">
-                    {readinessData?.overview?.readyRate ?? 100}%
+                    {readinessData?.overview?.readyRate != null ? `${readinessData.overview.readyRate}%` : '—'}
                   </p>
                   <p className="text-xs text-emerald-800 font-semibold mt-1">
-                    {readinessData?.overview?.readyLessons ?? 108} / {readinessData?.overview?.totalLessons ?? 108} bài đạt chuẩn
+                    {readinessData?.overview?.readyLessons ?? 0} / {readinessData?.overview?.totalLessons ?? 0} bài đạt chuẩn
                   </p>
                 </div>
 
@@ -984,7 +992,7 @@ export const AdminGamesPage: React.FC = () => {
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="font-bold text-indigo-700">
-                              {l.supportedGamesCount || 12} / 12 game
+                              {l.supportedGamesCount ?? 0} / {games.filter(g => g.enabled).length || 12} game
                             </span>
                           </td>
                           <td className="py-3.5 px-4">

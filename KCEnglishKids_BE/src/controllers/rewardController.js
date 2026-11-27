@@ -60,7 +60,7 @@ const revealChildChest = async (req, res, next) => {
 const getRewardsSummary = async (req, res, next) => {
   try {
     const completions = await UnitCompletion.find()
-      .populate('child', 'name avatar avatarUrl')
+      .populate('child', 'name avatar avatarUrl status')
       .populate('unit', 'bookNumber unitNumber bigQuestion')
       .sort({ completedAt: -1 });
 
@@ -73,7 +73,8 @@ const getRewardsSummary = async (req, res, next) => {
     const recentGrants = [];
 
     for (const c of completions) {
-      childSet.add(String(c.child ? c.child._id : c._id));
+      if (!c.child || (c.child.status && c.child.status !== 'ACTIVE')) continue;
+      childSet.add(String(c.child._id));
 
       for (const r of c.rewards || []) {
         if (r.type === 'STAR') totalStarsGranted += r.amount || 0;

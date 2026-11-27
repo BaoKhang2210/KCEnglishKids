@@ -404,7 +404,10 @@ export const AdminUsersPage: React.FC = () => {
           let dobStr = '';
           if (rawDob) {
             if (rawDob instanceof Date && !isNaN(rawDob.getTime())) {
-              dobStr = rawDob.toISOString().split('T')[0];
+              const yyyy = rawDob.getFullYear();
+              const mm = String(rawDob.getMonth() + 1).padStart(2, '0');
+              const dd = String(rawDob.getDate()).padStart(2, '0');
+              dobStr = `${yyyy}-${mm}-${dd}`;
             } else if (typeof rawDob === 'string') {
               dobStr = rawDob.trim();
             }
@@ -614,11 +617,11 @@ export const AdminUsersPage: React.FC = () => {
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 uppercase tracking-wider font-bold text-[11px]">
-                  <th className="py-3.5 px-4">Tài khoản</th>
-                  <th className="py-3.5 px-4">Vai trò</th>
-                  <th className="py-3.5 px-4">Lớp đang theo học / Phụ trách</th>
-                  <th className="py-3.5 px-4">Trạng thái</th>
-                  <th className="py-3.5 px-4 text-center">Thao tác</th>
+                  <th className="py-3 px-3">Tài khoản</th>
+                  <th className="py-3 px-2.5">Vai trò</th>
+                  <th className="py-3 px-3">Lớp đang học / Phụ trách</th>
+                  <th className="py-3 px-2.5">Trạng thái</th>
+                  <th className="py-3 px-2.5 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -746,13 +749,15 @@ export const AdminUsersPage: React.FC = () => {
                             <Key size={14} />
                           </button>
                         )}
-                        <button
-                          onClick={() => handlePromptToggleStatus(u)}
-                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                          title={u.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                        >
-                          {u.status === 'ACTIVE' ? <Lock size={14} /> : <Unlock size={14} />}
-                        </button>
+                        {u.role !== 'ADMIN' && (
+                          <button
+                            onClick={() => handlePromptToggleStatus(u)}
+                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
+                            title={u.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                          >
+                            {u.status === 'ACTIVE' ? <Lock size={14} /> : <Unlock size={14} />}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleOpenEdit(u)}
                           className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-inherit transition-all cursor-pointer"

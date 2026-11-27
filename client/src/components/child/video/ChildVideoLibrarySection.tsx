@@ -39,8 +39,10 @@ import {
   VIDEO_LEVELS,
   VIDEO_SKILL_META,
   VIDEO_SOURCES,
+  buildVideoPosterSvg,
   defaultVideoFilters,
   readVideoFilters,
+  resolveVideoThumbnailUrl,
   seriesMatchesFilters,
   sourceLabel,
   writeVideoFilters,
@@ -197,18 +199,16 @@ const CourseCard: React.FC<{
           aria-label={`Mở bộ video ${series.title}, ${series.episodeCount} tập`}
           className="absolute inset-0 block text-left cursor-pointer"
         >
-          {series.thumbnail ? (
-            <img
-              src={series.thumbnail}
-              alt=""
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          ) : (
-            <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-500 to-indigo-600">
-              <Film className="h-9 w-9 text-white/80" aria-hidden="true" />
-            </span>
-          )}
+          <img
+            src={resolveVideoThumbnailUrl(series.thumbnail, series.title, `${series.episodeCount} tập · ${levelName(series.level)}`)}
+            alt=""
+            loading="eager"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = buildVideoPosterSvg(series.title, `${series.episodeCount} tập · ${levelName(series.level)}`);
+            }}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
           <span className="absolute inset-0 bg-gradient-to-b from-slate-950/25 via-transparent to-transparent" />
 
           <span className="absolute inset-x-0 top-0 z-10 flex items-center gap-1.5 p-3 pr-14">
@@ -663,27 +663,22 @@ export const ChildVideoLibrarySection: React.FC<ChildVideoLibrarySectionProps> =
               }}
               className="flex flex-1 items-center gap-3 text-left cursor-pointer"
             >
-              {featuredThumbnail ? (
-                <span className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-24 sm:w-32">
-                  <img
-                    src={featuredThumbnail}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                  <span
-                    className="absolute inset-0 bg-gradient-to-t from-slate-950/30 via-transparent to-transparent"
-                    aria-hidden="true"
-                  />
-                </span>
-              ) : (
+              <span className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-24 sm:w-32">
+                <img
+                  src={resolveVideoThumbnailUrl(featuredThumbnail, featuredTitle, featuredLesson)}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="eager"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = buildVideoPosterSvg(featuredTitle, featuredLesson);
+                  }}
+                />
                 <span
-                  className="grid h-20 w-28 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-sky-500 to-teal-400 text-white sm:h-24 sm:w-32"
+                  className="absolute inset-0 bg-gradient-to-t from-slate-950/30 via-transparent to-transparent"
                   aria-hidden="true"
-                >
-                  <Film className="h-7 w-7" />
-                </span>
-              )}
+                />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-bold text-slate-500 line-clamp-1">{featuredTitle}</span>
                 <span className="mt-0.5 block text-lg font-black leading-tight text-slate-800 line-clamp-2">

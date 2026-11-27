@@ -1,4 +1,4 @@
-import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson, getLessonUnitInfo } from '../../utils/teachingSchedule';
+import { scheduleEffectiveAt, scheduleSlotAppliesOn, countsTowardCurriculum, resolveDynamicSlotLesson, getLessonUnitInfo, sessionMatchesSlot, pickTodayPendingSlot } from '../../utils/teachingSchedule';
 import { vietnamDate, vietnamWallClock, localCalendarDate } from '../../utils/vietnamTime';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -448,6 +448,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
     let activeClassroom: any = null;
     const upcomingList: Array<{ slot: any; schedule: any; distanceMinutes: number; dateStr: string }> = [];
 
+    const todaySlotsWithClass: Array<{ slot: any; classroom: any }> = [];
+
     for (const sch of relevantSchedules) {
       for (const slot of sch.weeklySlots || []) {
         const [sH, sM] = (slot.startTime || '00:00').split(':').map(Number);
@@ -456,10 +458,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
         const endMin = eH * 60 + eM;
 
         if (slot.dayOfWeek === currentDay) {
-          if (!todaySlot) {
-            todaySlot = slot;
-            if (!activeClassroom) activeClassroom = sch.classroom;
-          }
+          todaySlotsWithClass.push({ slot, classroom: sch.classroom });
           // Active slot window: 15 minutes before start up to max(start + 20m, end)
           if (currentMinutes >= (startMin - 15) && currentMinutes <= Math.max(startMin + 20, endMin)) {
             activeSlot = slot;
@@ -486,11 +485,22 @@ export const TeacherTeachingSchedule: React.FC = () => {
       }
     }
 
+    const pickedToday = pickTodayPendingSlot(todaySlotsWithClass.map(item => item.slot), currentMinutes);
+    todaySlot = pickedToday;
+    if (!activeClassroom && pickedToday) {
+      activeClassroom = todaySlotsWithClass.find(item => item.slot === pickedToday)?.classroom || null;
+    }
+
     const todayStr = vietnamDate();
+    const targetSlotForCancel = activeSlot || todaySlot;
+    const todaySlotsOnly = todaySlotsWithClass.map(item => item.slot);
     const cancelledTodayForClass = sessions.find((s: any) => {
       const cId = typeof s.classroom === 'object' ? s.classroom?._id : s.classroom;
-      const sDate = s.startedAt ? s.startedAt.slice(0, 10) : (s.createdAt ? s.createdAt.slice(0, 10) : '');
-      return String(cId) === String(selectedClassId) && s.status === 'CANCELLED' && sDate === todayStr;
+      const rawTs = s.startedAt || s.createdAt;
+      const sDate = rawTs ? vietnamDate(new Date(rawTs)) : '';
+      if (String(cId) !== String(selectedClassId) || s.status !== 'CANCELLED' || sDate !== todayStr) return false;
+      if (!targetSlotForCancel) return true;
+      return sessionMatchesSlot(s, targetSlotForCancel, todaySlotsOnly);
     });
 
     if (cancelledTodayForClass) {
@@ -518,7 +528,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
     if (todaySlot) {
       const [tH, tM] = (todaySlot.startTime || '00:00').split(':').map(Number);
       const tStartMin = tH * 60 + tM;
-      const openFromMin = Math.max(0, tStartMin - 30);
+      const openFromMin = Math.max(0, tStartMin - 15);
       const openTimeStr = `${String(Math.floor(openFromMin / 60)).padStart(2, '0')}:${String(openFromMin % 60).padStart(2, '0')}`;
       return {
         canTeachNow: false,
@@ -526,8 +536,8 @@ export const TeacherTeachingSchedule: React.FC = () => {
         activeClassroom: activeClassroom || todaySlot.classroom,
         nextSlotText: `${todaySlot.startTime} - ${todaySlot.endTime}`,
         hasSchedule: true,
-        reason: currentMinutes < tStartMin - 30
-          ? `Chưa đến giờ mở lớp dạy hôm nay (${todaySlot.startTime} - ${todaySlot.endTime}). Giáo viên được mở lớp từ ${openTimeStr} (sớm tối đa 30 phút).`
+        reason: currentMinutes < tStartMin - 15
+          ? `Chưa đến giờ mở lớp dạy hôm nay (${todaySlot.startTime} - ${todaySlot.endTime}). Giáo viên được mở lớp từ ${openTimeStr} (sớm tối đa 15 phút).`
           : `Đã quá khung giờ mở lớp hôm nay (${todaySlot.startTime} - ${todaySlot.endTime}). Vui lòng báo nghỉ hoặc liên hệ quản trị viên.`
       };
     }
@@ -871,7 +881,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
           <span>Thời Khóa Biểu Tuần</span>
           {mySchedules.length > 0 && (
             <span className="ml-1.5 rounded-full bg-teal-100 text-teal-800 px-2.5 py-0.5 text-xs font-black">
-              {mySchedules.reduce((acc, s) => acc + (s.weeklySlots?.length || 0), 0)} ca/tuần
+              {mySchedules.filter(s => scheduleEffectiveAt(s)).reduce((acc, s) => acc + (s.weeklySlots?.length || 0), 0)} ca/tuần
             </span>
           )}
         </button>
@@ -994,12 +1004,7 @@ export const TeacherTeachingSchedule: React.FC = () => {
 
                         const matchedSession = daySessions.find((s: any) => {
                           if (String(s.classroom?._id || s.classroom) !== cId) return false;
-                          if (dayFixedSlots.length <= 1) return true;
-                          const ts = s.startedAt ? new Date(s.startedAt) : null;
-                          if (!ts || isNaN(ts.getTime())) return true;
-                          const vnTs = new Date(ts.getTime() + 7 * 3600000);
-                          const hhmm = `${String(vnTs.getUTCHours()).padStart(2, '0')}:${String(vnTs.getUTCMinutes()).padStart(2, '0')}`;
-                          return hhmm === slot.startTime;
+                          return sessionMatchesSlot(s, slot, dayFixedSlots.map((item) => item.slot));
                         });
                         const isCancelled = matchedSession?.status === 'CANCELLED';
 
@@ -1125,15 +1130,6 @@ export const TeacherTeachingSchedule: React.FC = () => {
                                             ? `🔴 Đang trong giờ dạy (${slot.startTime} – ${slot.endTime})`
                                             : `🟢 Đã mở lớp trước giờ dạy (Lớp bắt đầu lúc ${slot.startTime})`}
                                         </div>
-                                        {canReportOffSlot && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenReportOff(cId, cName, day.dateString, { startTime: slot.startTime, endTime: slot.endTime })}
-                                            className="block w-full text-center rounded-lg bg-white/70 hover:bg-rose-50 hover:text-rose-900 text-slate-600 border border-black/10 py-1 text-[11px] font-bold transition-colors cursor-pointer"
-                                          >
-                                            Báo nghỉ ca này
-                                          </button>
-                                        )}
                                       </>
                                     ) : (
                                       <>

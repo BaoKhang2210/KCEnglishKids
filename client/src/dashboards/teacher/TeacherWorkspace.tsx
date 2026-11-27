@@ -900,9 +900,14 @@ export const TeacherStudents = () => {
               });
 
               const totalSlots = totalPresent + totalLate + totalExcused + totalAbsent;
-              const classAvgRate = totalSlots > 0 ? Math.round(((totalPresent + totalLate) / totalSlots) * 100) : 100;
+              const classAvgRate = totalSlots > 0 ? Math.round(((totalPresent + totalLate) / totalSlots) * 100) : null;
 
-              const perfectCount = studentsList.filter((s: any) => (s.attendanceRate || 100) >= 95).length;
+              const isPerfectStudent = (s: any) =>
+                (s.totalSessions ?? ((s.present || 0) + (s.late || 0) + (s.excused || 0) + (s.absent || 0))) > 0 &&
+                typeof s.attendanceRate === 'number' &&
+                s.attendanceRate === 100;
+
+              const perfectCount = studentsList.filter(isPerfectStudent).length;
               const hasAbsenceCount = studentsList.filter((s: any) => (s.absent || 0) > 0 || (s.excused || 0) > 0 || (s.late || 0) > 0).length;
 
               const filteredList = studentsList.filter((item: any) => {
@@ -915,7 +920,7 @@ export const TeacherStudents = () => {
                   return (item.absent || 0) > 0 || (item.excused || 0) > 0 || (item.late || 0) > 0;
                 }
                 if (attendanceFilter === 'PERFECT_ONLY') {
-                  return (item.attendanceRate || 100) >= 95;
+                  return isPerfectStudent(item);
                 }
                 return true;
               });
@@ -932,7 +937,7 @@ export const TeacherStudents = () => {
 
                     <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-emerald-50/40 to-white p-3.5 sm:p-4 shadow-2xs">
                       <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800">Tỷ lệ chuyên cần TB</p>
-                      <p className="text-2xl sm:text-3xl font-black text-emerald-950 mt-1">{classAvgRate}%</p>
+                      <p className="text-2xl sm:text-3xl font-black text-emerald-950 mt-1">{classAvgRate !== null ? `${classAvgRate}%` : '—'}</p>
                       <p className="text-xs font-semibold text-emerald-700 mt-0.5">Mức độ tham gia lớp</p>
                     </div>
 
@@ -1080,7 +1085,8 @@ export const TeacherStudents = () => {
                             ) : (
                               filteredList.map((item: any) => {
                                 const st = item.student || {};
-                                const rate = item.attendanceRate ?? 100;
+                                const hasRate = typeof item.attendanceRate === 'number';
+                                const rate = hasRate ? item.attendanceRate : 0;
                                 const contactPhone = st.parentContact || st.contact;
 
                                 return (
@@ -1158,23 +1164,27 @@ export const TeacherStudents = () => {
                                       <div className="flex flex-col items-center gap-1">
                                         <span
                                           className={`inline-block px-3 py-0.5 rounded-full text-xs font-black ${
-                                            rate >= 90
+                                            !hasRate
+                                              ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                                              : rate >= 90
                                               ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
                                               : rate >= 80
                                               ? 'bg-teal-100 text-teal-950 border border-teal-300'
                                               : 'bg-rose-100 text-rose-950 border border-rose-300'
                                           }`}
                                         >
-                                          {rate}%
+                                          {hasRate ? `${rate}%` : 'Chưa có'}
                                         </span>
-                                        <div className="w-24 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                          <div
-                                            className={`h-full rounded-full ${
-                                              rate >= 90 ? 'bg-emerald-500' : rate >= 80 ? 'bg-teal-500' : 'bg-rose-500'
-                                            }`}
-                                            style={{ width: `${Math.min(100, rate)}%` }}
-                                          />
-                                        </div>
+                                        {hasRate && (
+                                          <div className="w-24 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                            <div
+                                              className={`h-full rounded-full ${
+                                                rate >= 90 ? 'bg-emerald-500' : rate >= 80 ? 'bg-teal-500' : 'bg-rose-500'
+                                              }`}
+                                              style={{ width: `${Math.min(100, rate)}%` }}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
                                     </td>
 
